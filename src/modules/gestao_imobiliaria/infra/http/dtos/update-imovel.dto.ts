@@ -1,4 +1,6 @@
 import {
+  IsBoolean,
+  IsDateString,
   IsIn,
   IsInt,
   IsNumber,
@@ -7,7 +9,13 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-import { FINALIDADE_VALUES, STATUS_VALUES, TIPO_VALUES } from './create-imovel.dto';
+import {
+  FINALIDADE_VALUES,
+  LOCAL_CHAVES_VALUES,
+  STATUS_VALUES,
+  TIPO_VALUES,
+  USO_VALUES,
+} from './create-imovel.dto';
 
 export class UpdateImovelDto {
   @IsOptional()
@@ -20,14 +28,26 @@ export class UpdateImovelDto {
   title?: string;
 
   @IsOptional()
+  @IsString()
+  codigoInterno?: string | null;
+
+  @IsOptional()
   @IsIn(TIPO_VALUES, { message: `tipo deve ser um de: ${TIPO_VALUES.join(', ')}` })
   tipo?: string;
+
+  @IsOptional()
+  @IsIn(USO_VALUES, { message: `uso deve ser um de: ${USO_VALUES.join(', ')}` })
+  uso?: string | null;
 
   @IsOptional()
   @IsIn(FINALIDADE_VALUES, {
     message: `finalidade deve ser um de: ${FINALIDADE_VALUES.join(', ')}`,
   })
   finalidade?: string;
+
+  @IsOptional()
+  @IsString()
+  tags?: string | null;
 
   @IsOptional()
   @IsNumber()
@@ -88,6 +108,28 @@ export class UpdateImovelDto {
   @IsOptional()
   @IsIn(STATUS_VALUES, { message: `status deve ser um de: ${STATUS_VALUES.join(', ')}` })
   status?: string;
+
+  @IsOptional()
+  @IsDateString()
+  disponivelApartirDe?: string | null;
+
+  @IsOptional()
+  @IsIn(LOCAL_CHAVES_VALUES, {
+    message: `localChaves deve ser um de: ${LOCAL_CHAVES_VALUES.join(', ')}`,
+  })
+  localChaves?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  exclusividade?: boolean;
+
+  @IsOptional()
+  @IsString()
+  proprietarioNome?: string | null;
+
+  @IsOptional()
+  @IsString()
+  proprietarioTelefone?: string | null;
 
   @IsOptional()
   @IsObject()

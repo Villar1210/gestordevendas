@@ -142,3 +142,29 @@ LocalFileStorageService (disco local, servido como arquivos estaticos
 em /uploads). Quando for para producao (VPS), avaliar trocar para
 armazenamento em nuvem (S3 ou equivalente) - trocar so essa peca, sem
 mexer nos use cases.
+
+### Fatia 1 (backend basico) - CONCLUIDA
+Empreendimento, Imovel, ImovelPhoto, upload de fotos e integracao com o
+Card do Kanban (imovelId).
+
+### Fatia 2 (Catalogo + Espelho de Vendas) - CONCLUIDA
+Imovel ganhou campos adicionais: codigoInterno, uso (residencial/
+comercial), tags (texto livre separado por virgula), disponivelApartirDe,
+localChaves (imobiliaria/proprietario/outro), exclusividade,
+proprietarioNome/proprietarioTelefone. Status expandido para 10 valores
+(disponivel/reservado/em_negociacao/vendido/bloqueado/em_analise/
+distrato/ocupado/vago/inativo), cada um com cor fixa (nao ciclica) usada
+em selos, tabela e no Espelho de Vendas.
+
+Frontend em src/features/imoveis/ (Feature-Driven Design, mesmo padrao do
+Kanban): store Zustand + hook de integracao + componentes. Tela
+/dashboard/imoveis alterna entre Catalogo (Cards ou Lista, com filtros de
+busca/finalidade/status/empreendimento) e Espelho de Vendas (grid de
+unidades por empreendimento, coloridas por status, com popover rapido
+para trocar status). GET /imoveis (lista) e o PATCH /imoveis/:id ambos
+incluem a 1a foto do imovel (coverPhotoUrl) para a foto de capa dos
+Cards - sem isso, salvar o imovel depois de um upload zerava a capa.
+
+Nota: Proprietario hoje e campo simples (nome+telefone) no proprio
+Imovel - sera substituido por vinculo formal quando o modulo RH/
+Cadastros criar a entidade Cliente Proprietario.

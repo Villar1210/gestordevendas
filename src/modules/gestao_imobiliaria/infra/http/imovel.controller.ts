@@ -45,6 +45,9 @@ export class ImovelController {
     return this.createImovelUseCase.execute({
       tenantId: req.user!.tenantId,
       ...dto,
+      disponivelApartirDe: dto.disponivelApartirDe
+        ? new Date(dto.disponivelApartirDe)
+        : undefined,
     });
   }
 
@@ -70,6 +73,12 @@ export class ImovelController {
       imovelId: id,
       tenantId: req.user!.tenantId,
       ...dto,
+      disponivelApartirDe:
+        dto.disponivelApartirDe === undefined
+          ? undefined
+          : dto.disponivelApartirDe === null
+            ? null
+            : new Date(dto.disponivelApartirDe),
     });
   }
 

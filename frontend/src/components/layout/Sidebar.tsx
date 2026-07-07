@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Kanban, MessageCircle, type LucideIcon } from "lucide-react";
+import { Building2, Kanban, MessageCircle, type LucideIcon } from "lucide-react";
 
 interface NavItem {
   icon: LucideIcon;
@@ -14,6 +14,7 @@ interface NavItem {
 // Array de navegacao: adicionar novos modulos aqui conforme o sistema cresce.
 const NAV_ITEMS: NavItem[] = [
   { icon: Kanban, label: "Vendas", href: "/dashboard/kanban" },
+  { icon: Building2, label: "Imoveis", href: "/dashboard/imoveis" },
   { icon: MessageCircle, label: "WhatsApp", href: "/dashboard/whatsapp" },
 ];
 

@@ -1,7 +1,7 @@
 // src/core/api/client.ts
 export const TOKEN_STORAGE_KEY = "@gestordevendas:token";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 
 export class ApiError extends Error {
   constructor(
@@ -21,7 +21,11 @@ export async function apiRequest<T = unknown>(
     typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_STORAGE_KEY) : null;
 
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  // FormData (upload de arquivo) define seu proprio Content-Type com boundary -
+  // forcar application/json aqui quebraria o multipart.
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }

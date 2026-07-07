@@ -6,8 +6,11 @@ export interface ImovelRecord {
   tenantId: string;
   empreendimentoId: string | null;
   title: string;
+  codigoInterno: string | null;
   tipo: string;
+  uso: string | null;
   finalidade: string;
+  tags: string | null;
   price: number | null;
   rentPrice: number | null;
   area: number | null;
@@ -23,9 +26,17 @@ export interface ImovelRecord {
   cep: string | null;
   description: string | null;
   status: string;
+  disponivelApartirDe: Date | null;
+  localChaves: string | null;
+  exclusividade: boolean;
+  proprietarioNome: string | null;
+  proprietarioTelefone: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
+  // Preenchido apenas por findAllByTenant (1a foto, para a visao Cards do
+  // Catalogo) - null em create/update/findByIdAndTenant.
+  coverPhotoUrl: string | null;
 }
 
 export interface ImovelPhotoRecord {
@@ -45,55 +56,49 @@ export interface ImovelFilters {
   busca?: string;
 }
 
+// Campos graváveis do Imovel, compartilhados entre create (title/tipo/
+// finalidade obrigatorios) e update (tudo opcional).
+export interface ImovelWritableFields {
+  empreendimentoId?: string | null;
+  title?: string;
+  codigoInterno?: string | null;
+  tipo?: string;
+  uso?: string | null;
+  finalidade?: string;
+  tags?: string | null;
+  price?: number | null;
+  rentPrice?: number | null;
+  area?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  parkingSpots?: number | null;
+  rua?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  cep?: string | null;
+  description?: string | null;
+  status?: string;
+  disponivelApartirDe?: Date | null;
+  localChaves?: string | null;
+  exclusividade?: boolean;
+  proprietarioNome?: string | null;
+  proprietarioTelefone?: string | null;
+  customFields?: Record<string, unknown>;
+}
+
 export interface IImovelRepository {
-  create(input: {
-    tenantId: string;
-    empreendimentoId?: string | null;
-    title: string;
-    tipo: string;
-    finalidade: string;
-    price?: number | null;
-    rentPrice?: number | null;
-    area?: number | null;
-    bedrooms?: number | null;
-    bathrooms?: number | null;
-    parkingSpots?: number | null;
-    rua?: string | null;
-    numero?: string | null;
-    complemento?: string | null;
-    bairro?: string | null;
-    cidade?: string | null;
-    uf?: string | null;
-    cep?: string | null;
-    description?: string | null;
-    status?: string;
-    customFields?: Record<string, unknown>;
-  }): Promise<ImovelRecord>;
-  update(
-    id: string,
-    input: {
-      empreendimentoId?: string | null;
-      title?: string;
-      tipo?: string;
-      finalidade?: string;
-      price?: number | null;
-      rentPrice?: number | null;
-      area?: number | null;
-      bedrooms?: number | null;
-      bathrooms?: number | null;
-      parkingSpots?: number | null;
-      rua?: string | null;
-      numero?: string | null;
-      complemento?: string | null;
-      bairro?: string | null;
-      cidade?: string | null;
-      uf?: string | null;
-      cep?: string | null;
-      description?: string | null;
-      status?: string;
-      customFields?: Record<string, unknown>;
+  create(
+    input: ImovelWritableFields & {
+      tenantId: string;
+      title: string;
+      tipo: string;
+      finalidade: string;
     },
   ): Promise<ImovelRecord>;
+  update(id: string, input: ImovelWritableFields): Promise<ImovelRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<ImovelRecord | null>;
   findAllByTenant(tenantId: string, filters?: ImovelFilters): Promise<ImovelRecord[]>;
 

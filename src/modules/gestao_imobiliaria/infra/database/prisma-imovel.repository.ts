@@ -8,6 +8,7 @@ import {
   ImovelFilters,
   ImovelPhotoRecord,
   ImovelRecord,
+  ImovelWritableFields,
 } from '../../domain/repositories/imovel-repository.interface';
 
 type PrismaImovelRow = {
@@ -15,8 +16,11 @@ type PrismaImovelRow = {
   tenantId: string;
   empreendimentoId: string | null;
   title: string;
+  codigoInterno: string | null;
   tipo: string;
+  uso: string | null;
   finalidade: string;
+  tags: string | null;
   price: { toNumber(): number } | null;
   rentPrice: { toNumber(): number } | null;
   area: number | null;
@@ -32,9 +36,16 @@ type PrismaImovelRow = {
   cep: string | null;
   description: string | null;
   status: string;
+  disponivelApartirDe: Date | null;
+  localChaves: string | null;
+  exclusividade: boolean;
+  proprietarioNome: string | null;
+  proprietarioTelefone: string | null;
   customFields: unknown;
   createdAt: Date;
   updatedAt: Date;
+  // So presente quando a query faz include: { photos: ... } (findAllByTenant)
+  photos?: { url: string }[];
 };
 
 @Injectable()
@@ -47,8 +58,11 @@ export class PrismaImovelRepository implements IImovelRepository {
       tenantId: row.tenantId,
       empreendimentoId: row.empreendimentoId,
       title: row.title,
+      codigoInterno: row.codigoInterno,
       tipo: row.tipo,
+      uso: row.uso,
       finalidade: row.finalidade,
+      tags: row.tags,
       price: row.price ? row.price.toNumber() : null,
       rentPrice: row.rentPrice ? row.rentPrice.toNumber() : null,
       area: row.area,
@@ -64,42 +78,36 @@ export class PrismaImovelRepository implements IImovelRepository {
       cep: row.cep,
       description: row.description,
       status: row.status,
+      disponivelApartirDe: row.disponivelApartirDe,
+      localChaves: row.localChaves,
+      exclusividade: row.exclusividade,
+      proprietarioNome: row.proprietarioNome,
+      proprietarioTelefone: row.proprietarioTelefone,
       customFields: (row.customFields as Record<string, unknown>) ?? {},
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      coverPhotoUrl: row.photos && row.photos.length > 0 ? row.photos[0].url : null,
     };
   }
 
-  async create(input: {
-    tenantId: string;
-    empreendimentoId?: string | null;
-    title: string;
-    tipo: string;
-    finalidade: string;
-    price?: number | null;
-    rentPrice?: number | null;
-    area?: number | null;
-    bedrooms?: number | null;
-    bathrooms?: number | null;
-    parkingSpots?: number | null;
-    rua?: string | null;
-    numero?: string | null;
-    complemento?: string | null;
-    bairro?: string | null;
-    cidade?: string | null;
-    uf?: string | null;
-    cep?: string | null;
-    description?: string | null;
-    status?: string;
-    customFields?: Record<string, unknown>;
-  }): Promise<ImovelRecord> {
+  async create(
+    input: ImovelWritableFields & {
+      tenantId: string;
+      title: string;
+      tipo: string;
+      finalidade: string;
+    },
+  ): Promise<ImovelRecord> {
     const row = await this.prisma.imovel.create({
       data: {
         tenantId: input.tenantId,
         empreendimentoId: input.empreendimentoId ?? null,
         title: input.title,
+        codigoInterno: input.codigoInterno ?? null,
         tipo: input.tipo,
+        uso: input.uso ?? null,
         finalidade: input.finalidade,
+        tags: input.tags ?? null,
         price: input.price ?? null,
         rentPrice: input.rentPrice ?? null,
         area: input.area ?? null,
@@ -115,37 +123,18 @@ export class PrismaImovelRepository implements IImovelRepository {
         cep: input.cep ?? null,
         description: input.description ?? null,
         status: input.status ?? 'disponivel',
+        disponivelApartirDe: input.disponivelApartirDe ?? null,
+        localChaves: input.localChaves ?? null,
+        exclusividade: input.exclusividade ?? false,
+        proprietarioNome: input.proprietarioNome ?? null,
+        proprietarioTelefone: input.proprietarioTelefone ?? null,
         customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
       },
     });
     return this.toRecord(row);
   }
 
-  async update(
-    id: string,
-    input: {
-      empreendimentoId?: string | null;
-      title?: string;
-      tipo?: string;
-      finalidade?: string;
-      price?: number | null;
-      rentPrice?: number | null;
-      area?: number | null;
-      bedrooms?: number | null;
-      bathrooms?: number | null;
-      parkingSpots?: number | null;
-      rua?: string | null;
-      numero?: string | null;
-      complemento?: string | null;
-      bairro?: string | null;
-      cidade?: string | null;
-      uf?: string | null;
-      cep?: string | null;
-      description?: string | null;
-      status?: string;
-      customFields?: Record<string, unknown>;
-    },
-  ): Promise<ImovelRecord> {
+  async update(id: string, input: ImovelWritableFields): Promise<ImovelRecord> {
     const row = await this.prisma.imovel.update({
       where: { id },
       data: {
@@ -153,8 +142,11 @@ export class PrismaImovelRepository implements IImovelRepository {
           ? { empreendimentoId: input.empreendimentoId }
           : {}),
         ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.codigoInterno !== undefined ? { codigoInterno: input.codigoInterno } : {}),
         ...(input.tipo !== undefined ? { tipo: input.tipo } : {}),
+        ...(input.uso !== undefined ? { uso: input.uso } : {}),
         ...(input.finalidade !== undefined ? { finalidade: input.finalidade } : {}),
+        ...(input.tags !== undefined ? { tags: input.tags } : {}),
         ...(input.price !== undefined ? { price: input.price } : {}),
         ...(input.rentPrice !== undefined ? { rentPrice: input.rentPrice } : {}),
         ...(input.area !== undefined ? { area: input.area } : {}),
@@ -170,10 +162,24 @@ export class PrismaImovelRepository implements IImovelRepository {
         ...(input.cep !== undefined ? { cep: input.cep } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.disponivelApartirDe !== undefined
+          ? { disponivelApartirDe: input.disponivelApartirDe }
+          : {}),
+        ...(input.localChaves !== undefined ? { localChaves: input.localChaves } : {}),
+        ...(input.exclusividade !== undefined ? { exclusividade: input.exclusividade } : {}),
+        ...(input.proprietarioNome !== undefined
+          ? { proprietarioNome: input.proprietarioNome }
+          : {}),
+        ...(input.proprietarioTelefone !== undefined
+          ? { proprietarioTelefone: input.proprietarioTelefone }
+          : {}),
         ...(input.customFields !== undefined
           ? { customFields: input.customFields as Prisma.InputJsonValue }
           : {}),
       },
+      // Mesmo motivo do findAllByTenant: manter coverPhotoUrl correto tambem
+      // apos um PATCH (sem isso, salvar o formulario apos upload zerava a capa).
+      include: { photos: { take: 1, orderBy: { order: 'asc' } } },
     });
     return this.toRecord(row);
   }
@@ -194,6 +200,8 @@ export class PrismaImovelRepository implements IImovelRepository {
           ? { title: { contains: filters.busca, mode: 'insensitive' } }
           : {}),
       },
+      // 1a foto (menor "order") para a foto de capa da visao Cards do Catalogo
+      include: { photos: { take: 1, orderBy: { order: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((row) => this.toRecord(row));
