@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Banco Principal (Relacional - Tenants, Users, RBAC, Kanban, Pagamentos)
+  postgres:
+    image: postgres:15-alpine
+    container_name: crm_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: crm_admin
+      POSTGRES_PASSWORD: crm_password_2026
+      POSTGRES_DB: crm_core_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Cache de sessao e ordenacao do Kanban
+  redis:
+    image: redis:7-alpine
+    container_name: crm_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Historico pesado (Timeline de atendimento, logs, e-mails)
+  mongodb:
+    image: mongo:6-jammy
+    container_name: crm_mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: crm_mongo_admin
+      MONGO_INITDB_ROOT_PASSWORD: crm_mongo_password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongo_data:

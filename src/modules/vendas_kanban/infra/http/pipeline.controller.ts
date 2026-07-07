@@ -1,0 +1,86 @@
+// src/modules/vendas_kanban/infra/http/pipeline.controller.ts
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
+import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
+import { CreatePipelineDto } from './dtos/create-pipeline.dto';
+import { CreateStageDto } from './dtos/create-stage.dto';
+import { MoveStageDto } from './dtos/move-stage.dto';
+import { CreatePipelineUseCase } from '../../application/use-cases/create-pipeline.use-case';
+import { CreateDefaultPipelineUseCase } from '../../application/use-cases/create-default-pipeline.use-case';
+import { ListPipelinesUseCase } from '../../application/use-cases/list-pipelines.use-case';
+import { GetBoardUseCase } from '../../application/use-cases/get-board.use-case';
+import { CreateStageUseCase } from '../../application/use-cases/create-stage.use-case';
+import { MoveStageUseCase } from '../../application/use-cases/move-stage.use-case';
+import { GetInboxUseCase } from '../../application/use-cases/get-inbox.use-case';
+
+@Controller()
+@UseGuards(JwtAuthGuard)
+export class PipelineController {
+  constructor(
+    private readonly createPipelineUseCase: CreatePipelineUseCase,
+    private readonly createDefaultPipelineUseCase: CreateDefaultPipelineUseCase,
+    private readonly listPipelinesUseCase: ListPipelinesUseCase,
+    private readonly getBoardUseCase: GetBoardUseCase,
+    private readonly createStageUseCase: CreateStageUseCase,
+    private readonly moveStageUseCase: MoveStageUseCase,
+    private readonly getInboxUseCase: GetInboxUseCase,
+  ) {}
+
+  // POST /pipelines - cria um pipeline vazio (sem stages)
+  @Post('pipelines')
+  async create(@Body() dto: CreatePipelineDto, @Req() req: Request) {
+    return this.createPipelineUseCase.execute({ tenantId: req.user!.tenantId, name: dto.name });
+  }
+
+  // POST /pipelines/default - cria o pipeline padrao "Vendas Imoveis" com 5 stages
+  @Post('pipelines/default')
+  async createDefault(@Req() req: Request) {
+    return this.createDefaultPipelineUseCase.execute({ tenantId: req.user!.tenantId });
+  }
+
+  // GET /pipelines - lista os pipelines do tenant autenticado
+  @Get('pipelines')
+  async list(@Req() req: Request) {
+    return this.listPipelinesUseCase.execute({ tenantId: req.user!.tenantId });
+  }
+
+  // GET /pipelines/:id/board - retorna o pipeline com stages e cards ordenados
+  @Get('pipelines/:id/board')
+  async getBoard(@Param('id') id: string, @Req() req: Request) {
+    return this.getBoardUseCase.execute({ pipelineId: id, tenantId: req.user!.tenantId });
+  }
+
+  // POST /pipelines/:id/stages - cria uma nova coluna no final do pipeline
+  @Post('pipelines/:id/stages')
+  async createStage(
+    @Param('id') id: string,
+    @Body() dto: CreateStageDto,
+    @Req() req: Request,
+  ) {
+    return this.createStageUseCase.execute({
+      tenantId: req.user!.tenantId,
+      pipelineId: id,
+      name: dto.name,
+    });
+  }
+
+  // GET /pipelines/:id/inbox - cards do pipeline ainda sem stage (Caixa de Entrada)
+  @Get('pipelines/:id/inbox')
+  async getInbox(@Param('id') id: string, @Req() req: Request) {
+    return this.getInboxUseCase.execute({ pipelineId: id, tenantId: req.user!.tenantId });
+  }
+
+  // PATCH /stages/:id/move - reordena colunas horizontalmente (posicao flutuante)
+  @Patch('stages/:id/move')
+  async moveStage(
+    @Param('id') id: string,
+    @Body() dto: MoveStageDto,
+    @Req() req: Request,
+  ) {
+    return this.moveStageUseCase.execute({
+      stageId: id,
+      tenantId: req.user!.tenantId,
+      targetIndex: dto.targetIndex,
+    });
+  }
+}

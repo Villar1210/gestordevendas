@@ -1,0 +1,52 @@
+// src/core/api/client.ts
+export const TOKEN_STORAGE_KEY = "@gestordevendas:token";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export async function apiRequest<T = unknown>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const token =
+    typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+
+  const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  // So redireciona automaticamente quando havia um token anexado (sessao
+  // expirada/invalida). Um 401 sem token (ex: login com senha errada)
+  // e um erro comum que o proprio caller deve tratar, nao um redirect.
+  if (response.status === 401 && token) {
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    window.location.href = "/login";
+    throw new ApiError("Sessao expirada.", 401);
+  }
+
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const rawMessage = body?.message ?? body?.error ?? "Erro inesperado. Tente novamente.";
+    const message = Array.isArray(rawMessage) ? rawMessage.join(", ") : rawMessage;
+    throw new ApiError(message, response.status);
+  }
+
+  return body as T;
+}

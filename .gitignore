@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+src/generated/
+.whatsapp-sessions/
+uploads/
+frontend/test-results/
+
+# Artefatos de teste/documentacao avulsa - nao versionados por ora
+whatsapp-qr.png
+files.zip
+gestaodevendas_documentacao.docx
+
+# Sobras de testes manuais (token/sessao) - nunca versionar
+.token-temp.txt
+.session-id-temp.txt
+
+# Artefatos compilados do scripts/ (fonte e o .ts)
+scripts/*.js
+scripts/*.js.map
+scripts/*.d.ts
