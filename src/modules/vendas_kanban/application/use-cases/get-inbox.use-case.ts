@@ -6,6 +6,12 @@ import { ICardRepository, CardRecord } from '../../domain/repositories/card-repo
 interface GetInboxInput {
   tenantId: string;
   pipelineId: string;
+  // Aceitos por simetria com GetBoardUseCase, mas NAO usados para filtrar:
+  // a Caixa de Entrada mostra todos os cards sem dono para qualquer role,
+  // Corretor incluido - e assim que o corretor "reivindica" um lead (ver
+  // ClaimCardUseCase e a nota sobre Caixa de Entrada no CLAUDE.md).
+  requesterRole: string;
+  requesterUserId: string;
 }
 
 @Injectable()

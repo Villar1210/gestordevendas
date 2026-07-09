@@ -33,6 +33,14 @@ model Tenant {
   imoveis         Imovel[]
   imovelPhotos    ImovelPhoto[]
 
+  proprietarios         Proprietario[]
+  inquilinosCompradores InquilinoComprador[]
+  contratos             Contrato[]
+
+  viviConversations ViviConversation[]
+
+  roletaConfig RoletaConfig?
+
   @@map("tenants")
 }
 
@@ -59,14 +67,46 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
 
   twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  // Presenca do usuario para o modulo RH/Equipe: "online", "ausente" ou
+  // "offline". Atualizado pelo proprio usuario (seletor na Topbar) ou
+  // automaticamente para "online" no login.
+  statusDisponibilidade String @default("offline") @map("status_disponibilidade") @db.VarChar(10)
+
+  // Modulo RH completo: cadastro publico multi-perfil + aprovacao.
+  // "aprovado" e o default para nao travar contas ja existentes (criadas
+  // por Administrador ou pelo seed) - so o PublicSignupUseCase grava
+  // "pendente_aprovacao" explicitamente. Valores: pendente_aprovacao,
+  // aprovado, rejeitado.
+  statusCadastro String  @default("aprovado") @map("status_cadastro") @db.VarChar(20)
+  telefone       String? @db.VarChar(30)
+  cpf            String? @db.VarChar(20)
+  // Corretor House / Corretor Parceiro.
+  creci          String? @db.VarChar(30)
+  // Imobiliaria Parceira.
+  nomeImobiliaria String? @map("nome_imobiliaria") @db.VarChar(150)
+  cnpj            String? @db.VarChar(20)
+  creciJ          String? @map("creci_j") @db.VarChar(30)
+  cargoNaEmpresa  String? @map("cargo_na_empresa") @db.VarChar(100)
+  // Hierarquia (House / Imobiliaria Parceira), preenchida na aprovacao.
+  cargoHierarquico String? @map("cargo_hierarquico") @db.VarChar(30)
+  superiorId       String? @map("superior_id") @db.Uuid
+  // So relevante quando o Role for Cliente: comprador, proprietario ou ambos.
+  tipoCliente String? @map("tipo_cliente") @db.VarChar(20)
+  cep         String? @db.VarChar(10)
+  endereco    String? @db.VarChar(200)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   role   Role   @relation(fields: [roleId], references: [id])
+  superior      User?  @relation("UserHierarchy", fields: [superiorId], references: [id], onDelete: SetNull)
+  subordinados  User[] @relation("UserHierarchy")
 
   passwordResetTokens PasswordResetToken[]
   twoFactorCodes      TwoFactorCode[]
   whatsAppSessions    WhatsAppSession[]
   ownedCards          Card[]
+  // Cards onde este usuario e a sugestao pendente da Roleta Online
+  // (modo semi_automatico) - ver CardSuggestedOwner em Card.
+  suggestedCards      Card[] @relation("CardSuggestedOwner")
 
   @@map("users")
 }
@@ -108,12 +148,16 @@ model WhatsAppSession {
   label       String   @db.VarChar(100)
   status      String   @default("PENDING_QR") @db.VarChar(20)
   phoneNumber String?  @map("phone_number") @db.VarChar(30)
+  // Marca se esta sessao especifica e atendida pela VIVI (assistente de IA)
+  // em vez do corretor humano dono do numero.
+  isAiEnabled Boolean  @default(false) @map("is_ai_enabled")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner    User?             @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
-  messages WhatsAppMessage[]
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner             User?              @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  messages          WhatsAppMessage[]
+  viviConversations ViviConversation[]
 
   @@map("whatsapp_sessions")
 }
@@ -127,6 +171,12 @@ model WhatsAppMessage {
   direction  String   @db.VarChar(3) // "IN" ou "OUT"
   fromNumber String   @map("from_number") @db.VarChar(30)
   toNumber   String   @map("to_number") @db.VarChar(30)
+  // JID completo do Baileys, com sufixo (@lid ou @s.whatsapp.net).
+  // fromNumber/toNumber guardam so os digitos (exibicao); remoteJid e o
+  // valor correto para RESPONDER - numeros @lid nao sao um MSISDN valido
+  // sob @s.whatsapp.net, entao reconstruir o JID a partir dos digitos
+  // quebra o envio. Nulo em mensagens antigas, anteriores a essa correcao.
+  remoteJid  String?  @map("remote_jid") @db.VarChar(50)
   body       String   @db.Text
   timestamp  DateTime
   createdAt  DateTime @default(now()) @map("created_at")
@@ -135,6 +185,32 @@ model WhatsAppMessage {
   session WhatsAppSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("whatsapp_messages")
+}
+
+// Uma conversa da VIVI (assistente SDR de IA) com um lead via WhatsApp.
+// Guarda o que ja foi coletado do lead e o status do atendimento. Quando
+// a VIVI decide transferir para um corretor humano, cardId e preenchido
+// com o Card criado na Caixa de Entrada (origem "roleta_online").
+model ViviConversation {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  whatsappSessionId   String   @map("whatsapp_session_id") @db.Uuid
+  phoneNumber         String   @map("phone_number") @db.VarChar(30)
+  status              String   @default("em_andamento") @db.VarChar(30)
+  nomeColetado        String?  @map("nome_coletado") @db.VarChar(150)
+  tipoImovelColetado  String?  @map("tipo_imovel_coletado") @db.VarChar(50)
+  orcamentoColetado   String?  @map("orcamento_coletado") @db.VarChar(100)
+  regiaoColetado      String?  @map("regiao_coletado") @db.VarChar(150)
+  finalidadeColetado  String?  @map("finalidade_coletado") @db.VarChar(20)
+  cardId              String?  @map("card_id") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session WhatsAppSession @relation(fields: [whatsappSessionId], references: [id], onDelete: Cascade)
+  card    Card?           @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@map("vivi_conversations")
 }
 
 // Um funil de vendas (ex: "Vendas Imoveis"). Um tenant pode ter varios.
@@ -177,6 +253,10 @@ model Card {
   pipelineId   String   @map("pipeline_id") @db.Uuid
   stageId      String?  @map("stage_id") @db.Uuid
   ownerId      String?  @map("owner_id") @db.Uuid
+  // Sugestao da Roleta Online (modo semi_automatico): corretor sugerido
+  // para assumir o lead, ainda sem confirmacao (ownerId continua nulo ate
+  // ConfirmSuggestedOwnerUseCase ser chamado). Ver modulo roleta_online.
+  suggestedOwnerId String? @map("suggested_owner_id") @db.Uuid
   imovelId     String?  @map("imovel_id") @db.Uuid
   title        String   @db.VarChar(200)
   value        Decimal  @default(0) @db.Decimal(12, 2)
@@ -194,13 +274,15 @@ model Card {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pipeline   Pipeline   @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  stage      Stage?     @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  owner      User?      @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  imovel     Imovel?    @relation(fields: [imovelId], references: [id], onDelete: SetNull)
-  activities Activity[]
-  notes      Note[]
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline          Pipeline           @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stage             Stage?             @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  owner             User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  suggestedOwner    User?              @relation("CardSuggestedOwner", fields: [suggestedOwnerId], references: [id], onDelete: SetNull)
+  imovel            Imovel?            @relation(fields: [imovelId], references: [id], onDelete: SetNull)
+  activities        Activity[]
+  notes             Note[]
+  viviConversations ViviConversation[]
 
   @@map("cards")
 }
@@ -266,6 +348,7 @@ model Imovel {
   empreendimento Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
   photos         ImovelPhoto[]
   cards          Card[]
+  contratos      Contrato[]
 
   @@map("imoveis")
 }
@@ -283,6 +366,85 @@ model ImovelPhoto {
   imovel Imovel @relation(fields: [imovelId], references: [id], onDelete: Cascade)
 
   @@map("imovel_photos")
+}
+
+// Dono de um imovel (vendedor/locador). Vinculado ao Imovel apenas atraves
+// do Contrato (imovel.proprietarioNome/proprietarioTelefone continuam sendo
+// campos simples, sem FK - ver CLAUDE.md sobre a futura entidade formal do
+// modulo RH/Cadastros).
+model Proprietario {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  nome          String   @db.VarChar(150)
+  cpfCnpj       String?  @map("cpf_cnpj") @db.VarChar(20)
+  telefone      String   @db.VarChar(30)
+  email         String?  @db.VarChar(150)
+  rua           String?  @db.VarChar(200)
+  numero        String?  @db.VarChar(20)
+  complemento   String?  @db.VarChar(100)
+  bairro        String?  @db.VarChar(100)
+  cidade        String?  @db.VarChar(100)
+  uf            String?  @db.VarChar(2)
+  cep           String?  @db.VarChar(10)
+  // Dados bancarios para repasse financeiro futuro (aluguel, venda).
+  banco         String?  @db.VarChar(100)
+  agencia       String?  @db.VarChar(20)
+  conta         String?  @db.VarChar(20)
+  pix           String?  @db.VarChar(150)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contratos Contrato[]
+
+  @@map("proprietarios")
+}
+
+// Quem compra ou aluga um imovel. Entidade enxuta por agora - sera
+// expandida (historico, analise de credito) quando a Fatia 5 (Moradores/
+// Inquilinos) for construida formalmente.
+model InquilinoComprador {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  nome      String   @db.VarChar(150)
+  cpfCnpj   String?  @map("cpf_cnpj") @db.VarChar(20)
+  telefone  String   @db.VarChar(30)
+  email     String?  @db.VarChar(150)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contratos Contrato[]
+
+  @@map("inquilinos_compradores")
+}
+
+// Contrato de venda ou locacao, ligando um Imovel a um Proprietario e a um
+// InquilinoComprador. Ao criar, o Imovel.status muda automaticamente
+// (vendido/ocupado); ao encerrar, volta (disponivel/vago) - ver
+// CreateContratoUseCase / EncerrarContratoUseCase.
+model Contrato {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  imovelId             String    @map("imovel_id") @db.Uuid
+  proprietarioId       String    @map("proprietario_id") @db.Uuid
+  inquilinoCompradorId String    @map("inquilino_comprador_id") @db.Uuid
+  tipo                 String    @db.VarChar(10) // "venda" ou "locacao"
+  valor                Decimal   @db.Decimal(12, 2)
+  dataInicio           DateTime  @map("data_inicio")
+  // Opcional - usado em locacao (fim do contrato); venda pode deixar nulo
+  // ou usar como data de conclusao.
+  dataFim              DateTime? @map("data_fim")
+  // Dia do mes para vencimento do aluguel - so relevante em locacao.
+  diaVencimento        Int?      @map("dia_vencimento")
+  status               String    @default("ativo") @db.VarChar(20) // ativo, encerrado, cancelado
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  imovel             Imovel             @relation(fields: [imovelId], references: [id], onDelete: Cascade)
+  proprietario       Proprietario       @relation(fields: [proprietarioId], references: [id], onDelete: Cascade)
+  inquilinoComprador InquilinoComprador @relation(fields: [inquilinoCompradorId], references: [id], onDelete: Cascade)
+
+  @@map("contratos")
 }
 
 // Uma atividade agendada/registrada para um card (ligacao, reuniao, visita,
@@ -315,4 +477,22 @@ model Note {
   card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@map("notes")
+}
+
+// Configuracao da Roleta Online (distribuicao automatica de leads sem dono
+// entre corretores online) - uma unica config por tenant. ultimoCorretorId
+// e um ponteiro simples (sem FK) usado pelo algoritmo round_robin para saber
+// quem foi o ultimo a receber um lead.
+model RoletaConfig {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @unique @map("tenant_id") @db.Uuid
+  algoritmo        String   @default("round_robin") @db.VarChar(20) // "round_robin" ou "menor_fila"
+  modo             String   @default("semi_automatico") @db.VarChar(20) // "automatico" ou "semi_automatico"
+  ativa            Boolean  @default(false)
+  ultimoCorretorId String?  @map("ultimo_corretor_id") @db.Uuid
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("roleta_configs")
 }

@@ -14,6 +14,7 @@ type PrismaCardRow = {
   pipelineId: string;
   stageId: string | null;
   ownerId: string | null;
+  suggestedOwnerId: string | null;
   imovelId: string | null;
   title: string;
   value: { toNumber(): number };
@@ -43,6 +44,10 @@ export class PrismaCardRepository implements ICardRepository {
       pipelineId: row.pipelineId,
       stageId: row.stageId,
       ownerId: row.ownerId,
+      // So preenchido pela consulta da Caixa de Entrada (findAllByPipelineInbox),
+      // que faz o join com o nome do corretor sugerido.
+      suggestedOwnerId: row.suggestedOwnerId,
+      suggestedOwnerName: null,
       imovelId: row.imovelId,
       title: row.title,
       value: row.value.toNumber(),
@@ -117,8 +122,31 @@ export class PrismaCardRepository implements ICardRepository {
     const rows = await this.prisma.card.findMany({
       where: { pipelineId, stageId: null },
       orderBy: { createdAt: 'asc' },
+      include: { suggestedOwner: { select: { name: true } } },
     });
-    return rows.map((row) => this.toRecord(row));
+    return rows.map((row) => ({
+      ...this.toRecord(row),
+      suggestedOwnerName: row.suggestedOwner?.name ?? null,
+    }));
+  }
+
+  async updateSuggestedOwner(id: string, suggestedOwnerId: string | null): Promise<CardRecord> {
+    const row = await this.prisma.card.update({ where: { id }, data: { suggestedOwnerId } });
+    return this.toRecord(row);
+  }
+
+  async countActiveByOwnerInStages(input: {
+    tenantId: string;
+    ownerId: string;
+    stageIds: string[];
+  }): Promise<number> {
+    return this.prisma.card.count({
+      where: {
+        tenantId: input.tenantId,
+        ownerId: input.ownerId,
+        stageId: { in: input.stageIds },
+      },
+    });
   }
 
   async updateStageAndPosition(id: string, stageId: string, position: number): Promise<void> {

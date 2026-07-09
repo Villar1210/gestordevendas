@@ -1,14 +1,19 @@
 // src/components/layout/Sidebar.tsx
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Kanban, MessageCircle, type LucideIcon } from "lucide-react";
+import { Building2, Kanban, MessageCircle, Users, UserCheck, type LucideIcon } from "lucide-react";
+import { apiRequest } from "@/core/api/client";
 
 interface NavItem {
   icon: LucideIcon;
   label: string;
   href: string;
+  // Ausente = visivel para qualquer role. Presente = so aparece se o role
+  // do usuario logado bater exatamente com este valor.
+  requiredRole?: string;
 }
 
 // Array de navegacao: adicionar novos modulos aqui conforme o sistema cresce.
@@ -16,10 +21,26 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Kanban, label: "Vendas", href: "/dashboard/kanban" },
   { icon: Building2, label: "Imoveis", href: "/dashboard/imoveis" },
   { icon: MessageCircle, label: "WhatsApp", href: "/dashboard/whatsapp" },
+  { icon: Users, label: "Equipe", href: "/dashboard/equipe", requiredRole: "Administrador" },
+  {
+    icon: UserCheck,
+    label: "Aprovacoes",
+    href: "/dashboard/rh/aprovacoes",
+    requiredRole: "Administrador",
+  },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiRequest<{ role: string }>("/auth/me")
+      .then((me) => setRole(me.role))
+      .catch(() => setRole(null));
+  }, []);
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.requiredRole || item.requiredRole === role);
 
   return (
     <aside className="flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
@@ -28,7 +49,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-col gap-1 px-3">
-        {NAV_ITEMS.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive = pathname?.startsWith(item.href);
           const Icon = item.icon;
 

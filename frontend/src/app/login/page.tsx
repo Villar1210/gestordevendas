@@ -4,7 +4,13 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { apiRequest, ApiError, TOKEN_STORAGE_KEY } from "@/core/api/client";
+import {
+  apiRequest,
+  ApiError,
+  TOKEN_STORAGE_KEY,
+  STATUS_DISPONIBILIDADE_STORAGE_KEY,
+} from "@/core/api/client";
+import { DASHBOARD_ROLES } from "@/core/constants/dashboardRoles";
 
 interface LoginResponse {
   twoFactorRequired?: boolean;
@@ -30,8 +36,27 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function goToDashboard(token: string) {
+  async function goToDashboard(token: string, role: string) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+
+    // Roles sem acesso ao dashboard (Cliente, Imobiliaria Parceira) nunca
+    // chegam a chamar rotas do dashboard - o backend so retornaria 403 -
+    // vao direto para a area propria delas.
+    if (!DASHBOARD_ROLES.includes(role)) {
+      router.push("/minha-conta");
+      return;
+    }
+
+    try {
+      await apiRequest("/rh/me/status", {
+        method: "PATCH",
+        body: JSON.stringify({ status: "online" }),
+      });
+      window.localStorage.setItem(STATUS_DISPONIBILIDADE_STORAGE_KEY, "online");
+    } catch {
+      // Login ja foi bem-sucedido; falha aqui nao deve bloquear o acesso ao
+      // dashboard - o corretor so aparecera como "offline" ate ajustar manualmente.
+    }
     router.push("/dashboard/kanban");
   }
 
@@ -48,8 +73,8 @@ export default function LoginPage() {
 
       if (result.twoFactorRequired && result.challengeId) {
         setChallengeId(result.challengeId);
-      } else if (result.token) {
-        goToDashboard(result.token);
+      } else if (result.token && result.user) {
+        goToDashboard(result.token, result.user.role);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Nao foi possivel fazer login.");
@@ -70,7 +95,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ challengeId, code }),
       });
-      goToDashboard(result.token);
+      goToDashboard(result.token, result.user.role);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Codigo invalido.");
     } finally {
@@ -145,6 +170,13 @@ export default function LoginPage() {
               className="block text-center text-sm text-indigo-600 hover:underline"
             >
               Esqueci minha senha
+            </Link>
+
+            <Link
+              href="/cadastro"
+              className="block text-center text-sm text-indigo-600 hover:underline"
+            >
+              Criar cadastro
             </Link>
           </form>
         ) : (

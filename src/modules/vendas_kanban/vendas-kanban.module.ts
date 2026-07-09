@@ -57,5 +57,18 @@ import { PrismaService } from '../../config/prisma.service';
     { provide: 'IActivityRepository', useClass: PrismaActivityRepository },
     { provide: 'INoteRepository', useClass: PrismaNoteRepository },
   ],
+  // Exportados para o modulo vivi_sdr: a VIVI cria o Card e a Note de
+  // qualificacao reaproveitando os mesmos casos de uso do "+ Novo Negocio".
+  // Exportados para o modulo roleta_online: DistributeLeadUseCase e
+  // ConfirmSuggestedOwnerUseCase reaproveitam ClaimCardUseCase (mesma logica
+  // de "assumir o lead") e os repositorios de Card/Stage.
+  exports: [
+    CreateQuickCardUseCase,
+    CreateNoteUseCase,
+    ClaimCardUseCase,
+    'IPipelineRepository',
+    'ICardRepository',
+    'IStageRepository',
+  ],
 })
 export class VendasKanbanModule {}

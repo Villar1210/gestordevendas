@@ -46,7 +46,18 @@ sera implementado do zero quando priorizado.
       Card automaticamente vinculado ao Imovel de interesse
 
 ## Futuro modulo Roleta Online
+NOTA: o modulo Roleta Online (distribuicao automatica de leads entre
+corretores, round_robin/menor_fila, automatico/semi_automatico) ja foi
+CONCLUIDO - ver CLAUDE.md e PROGRESS.md. Os itens abaixo sao ideias que
+ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
 - [ ] Referencia de conceito: modulo LeadRoulette.tsx do projeto
-      antigo (round-robin, por peso, por fila, status do corretor
-      disponivel/pausado/offline, respeita horario de trabalho) -
-      olhar com calma quando iniciarmos este modulo, sem copiar codigo
+      antigo (por peso, status pausado - hoje so existe online/ausente/
+      offline -, respeita horario de trabalho) - olhar com calma se
+      fizer falta na pratica, sem copiar codigo
+
+## Modulo RH
+- [ ] Geracao automatica de contrato de prestacao de servico a partir
+      dos dados coletados no cadastro publico - ainda nao implementado,
+      dados pessoais ja estao sendo coletados (nome, cpf, telefone,
+      endereco, CRECI/CNPJ conforme o perfil) e podem ser reaproveitados
+      quando essa funcionalidade for construida.

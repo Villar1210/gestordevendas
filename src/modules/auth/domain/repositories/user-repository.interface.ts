@@ -8,6 +8,9 @@ export interface UserWithRole {
   email: string;
   password: string;
   twoFactorEnabled: boolean;
+  // Modulo RH completo: pendente_aprovacao, aprovado ou rejeitado - ver
+  // AuthenticateUserUseCase.
+  statusCadastro: string;
   role: { name: string };
 }
 

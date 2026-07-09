@@ -18,6 +18,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
+import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreateImovelDto } from './dtos/create-imovel.dto';
 import { UpdateImovelDto } from './dtos/update-imovel.dto';
 import { ListImoveisQueryDto } from './dtos/list-imoveis-query.dto';
@@ -29,7 +32,8 @@ import { UploadImovelPhotoUseCase } from '../../application/use-cases/upload-imo
 import { DeleteImovelPhotoUseCase } from '../../application/use-cases/delete-imovel-photo.use-case';
 
 @Controller('imoveis')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...DASHBOARD_ROLES)
 export class ImovelController {
   constructor(
     private readonly createImovelUseCase: CreateImovelUseCase,

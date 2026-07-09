@@ -2,12 +2,16 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
+import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreateEmpreendimentoDto } from './dtos/create-empreendimento.dto';
 import { CreateEmpreendimentoUseCase } from '../../application/use-cases/create-empreendimento.use-case';
 import { ListEmpreendimentosUseCase } from '../../application/use-cases/list-empreendimentos.use-case';
 
 @Controller('empreendimentos')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...DASHBOARD_ROLES)
 export class EmpreendimentoController {
   constructor(
     private readonly createEmpreendimentoUseCase: CreateEmpreendimentoUseCase,

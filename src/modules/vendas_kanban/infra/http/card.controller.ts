@@ -2,6 +2,9 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
+import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreateCardDto } from './dtos/create-card.dto';
 import { UpdateCardDto } from './dtos/update-card.dto';
 import { MoveCardDto } from './dtos/move-card.dto';
@@ -21,7 +24,8 @@ import { CreateQuickCardUseCase } from '../../application/use-cases/create-quick
 import { ClaimCardUseCase } from '../../application/use-cases/claim-card.use-case';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...DASHBOARD_ROLES)
 export class CardController {
   constructor(
     private readonly createCardUseCase: CreateCardUseCase,

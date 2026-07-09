@@ -3,6 +3,7 @@
 // chegada de um lead ainda nao qualificado - hoje disparado manualmente para
 // testes, no futuro sera o ponto de entrada dos webhooks de redes sociais.
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
 
@@ -23,6 +24,7 @@ export class CreateQuickCardUseCase {
   constructor(
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: CreateQuickCardInput): Promise<CardRecord> {
@@ -34,7 +36,7 @@ export class CreateQuickCardUseCase {
       throw new NotFoundException('Pipeline nao encontrado.');
     }
 
-    return this.cardRepository.create({
+    const card = await this.cardRepository.create({
       tenantId: input.tenantId,
       pipelineId: pipeline.id,
       stageId: null,
@@ -48,5 +50,16 @@ export class CreateQuickCardUseCase {
       customFields: input.customFields,
       position: 0,
     });
+
+    // Dispara a Roleta Online (se estiver ativa) - emit() nao aguarda o
+    // listener, nao bloqueia a criacao do card (mesmo padrao do
+    // BaileysWhatsAppProvider para nao acoplar os modulos entre si).
+    this.eventEmitter.emit('card.sem_dono.criado', {
+      tenantId: input.tenantId,
+      cardId: card.id,
+      pipelineId: pipeline.id,
+    });
+
+    return card;
   }
 }

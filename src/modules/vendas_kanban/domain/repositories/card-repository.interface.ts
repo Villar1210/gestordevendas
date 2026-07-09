@@ -7,6 +7,11 @@ export interface CardRecord {
   pipelineId: string;
   stageId: string | null;
   ownerId: string | null;
+  // Sugestao pendente da Roleta Online (modo semi_automatico) - ver
+  // modulo roleta_online. suggestedOwnerName so vem preenchido pela
+  // consulta que a Caixa de Entrada usa (findAllByPipelineInbox).
+  suggestedOwnerId: string | null;
+  suggestedOwnerName: string | null;
   imovelId: string | null;
   title: string;
   value: number;
@@ -53,6 +58,16 @@ export interface ICardRepository {
     id: string,
     input: { ownerId: string; stageId: string; position: number },
   ): Promise<CardRecord>;
+  // Usado pela Roleta Online: define/limpa a sugestao de dono (modo
+  // semi_automatico) sem alterar ownerId/stageId.
+  updateSuggestedOwner(id: string, suggestedOwnerId: string | null): Promise<CardRecord>;
+  // Usado pelo algoritmo "menor_fila": quantos cards ativos (com stage,
+  // fora das stages informadas) este dono tem no momento.
+  countActiveByOwnerInStages(input: {
+    tenantId: string;
+    ownerId: string;
+    stageIds: string[];
+  }): Promise<number>;
   update(
     id: string,
     input: {

@@ -2,6 +2,9 @@
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
+import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreatePipelineDto } from './dtos/create-pipeline.dto';
 import { CreateStageDto } from './dtos/create-stage.dto';
 import { MoveStageDto } from './dtos/move-stage.dto';
@@ -14,7 +17,8 @@ import { MoveStageUseCase } from '../../application/use-cases/move-stage.use-cas
 import { GetInboxUseCase } from '../../application/use-cases/get-inbox.use-case';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...DASHBOARD_ROLES)
 export class PipelineController {
   constructor(
     private readonly createPipelineUseCase: CreatePipelineUseCase,
@@ -47,7 +51,12 @@ export class PipelineController {
   // GET /pipelines/:id/board - retorna o pipeline com stages e cards ordenados
   @Get('pipelines/:id/board')
   async getBoard(@Param('id') id: string, @Req() req: Request) {
-    return this.getBoardUseCase.execute({ pipelineId: id, tenantId: req.user!.tenantId });
+    return this.getBoardUseCase.execute({
+      pipelineId: id,
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterUserId: req.user!.id,
+    });
   }
 
   // POST /pipelines/:id/stages - cria uma nova coluna no final do pipeline
@@ -67,7 +76,12 @@ export class PipelineController {
   // GET /pipelines/:id/inbox - cards do pipeline ainda sem stage (Caixa de Entrada)
   @Get('pipelines/:id/inbox')
   async getInbox(@Param('id') id: string, @Req() req: Request) {
-    return this.getInboxUseCase.execute({ pipelineId: id, tenantId: req.user!.tenantId });
+    return this.getInboxUseCase.execute({
+      pipelineId: id,
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterUserId: req.user!.id,
+    });
   }
 
   // PATCH /stages/:id/move - reordena colunas horizontalmente (posicao flutuante)

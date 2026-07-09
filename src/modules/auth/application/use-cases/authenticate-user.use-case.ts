@@ -37,6 +37,17 @@ export class AuthenticateUserUseCase {
       throw new UnauthorizedException('E-mail ou senha incorretos.');
     }
 
+    if (user.statusCadastro === 'pendente_aprovacao') {
+      throw new UnauthorizedException(
+        'Seu cadastro ainda esta em analise. Aguarde a aprovacao da nossa equipe.',
+      );
+    }
+    if (user.statusCadastro === 'rejeitado') {
+      throw new UnauthorizedException(
+        'Seu cadastro nao foi aprovado. Entre em contato com a nossa equipe.',
+      );
+    }
+
     if (user.twoFactorEnabled) {
       await this.twoFactorCodeRepository.invalidateAllForUser(user.id);
 

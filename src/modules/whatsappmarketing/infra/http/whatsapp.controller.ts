@@ -13,6 +13,9 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
+import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreateWhatsAppSessionDto } from './dtos/create-whatsapp-session.dto';
 import { SendWhatsAppMessageDto } from './dtos/send-whatsapp-message.dto';
 import { CreateWhatsAppSessionUseCase } from '../../application/use-cases/create-whatsapp-session.use-case';
@@ -23,7 +26,8 @@ import { GetWhatsAppSessionStatusUseCase } from '../../application/use-cases/get
 import { GetMyWhatsAppSessionUseCase } from '../../application/use-cases/get-my-whatsapp-session.use-case';
 
 @Controller('whatsapp/sessions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...DASHBOARD_ROLES)
 export class WhatsAppController {
   constructor(
     private readonly createWhatsAppSessionUseCase: CreateWhatsAppSessionUseCase,

@@ -7,6 +7,10 @@ import { ICardRepository, CardRecord } from '../../domain/repositories/card-repo
 interface GetBoardInput {
   pipelineId: string;
   tenantId: string;
+  // Quem esta pedindo o board - usado para restringir a visibilidade dos
+  // cards por dono quando o role for "Corretor" (ver CLAUDE.md, modulo RH).
+  requesterRole: string;
+  requesterUserId: string;
 }
 
 export interface BoardStage {
@@ -42,13 +46,23 @@ export class GetBoardUseCase {
 
     const stages = await this.stageRepository.findAllByPipeline(pipeline.id);
 
+    // Corretor so ve os proprios cards nas colunas do Kanban; Administrador
+    // ve tudo, sem filtro. A Caixa de Entrada (GetInboxUseCase) nao aplica
+    // este filtro - todo corretor pode ver e reivindicar leads sem dono.
+    const isCorretor = input.requesterRole === 'Corretor';
+
     const stagesWithCards: BoardStage[] = await Promise.all(
-      stages.map(async (stage) => ({
-        id: stage.id,
-        name: stage.name,
-        position: stage.position,
-        cards: await this.cardRepository.findAllByStage(stage.id),
-      })),
+      stages.map(async (stage) => {
+        const cards = await this.cardRepository.findAllByStage(stage.id);
+        return {
+          id: stage.id,
+          name: stage.name,
+          position: stage.position,
+          cards: isCorretor
+            ? cards.filter((card) => card.ownerId === input.requesterUserId)
+            : cards,
+        };
+      }),
     );
 
     return {

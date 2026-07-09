@@ -1,5 +1,9 @@
 // src/core/api/client.ts
 export const TOKEN_STORAGE_KEY = "@gestordevendas:token";
+// Espelha localmente o ultimo status de disponibilidade enviado ao backend
+// (PATCH /rh/me/status), so para a Topbar nao "esquecer" a selecao entre
+// reloads sem precisar de outra chamada a API so para ler o proprio status.
+export const STATUS_DISPONIBILIDADE_STORAGE_KEY = "@gestordevendas:statusDisponibilidade";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 

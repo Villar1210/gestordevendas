@@ -255,6 +255,22 @@ export function useKanbanIntegration() {
     [addCard],
   );
 
+  const handleConfirmSuggestion = useCallback(
+    async (cardId: string) => {
+      try {
+        const card = await apiRequest<Card>(`/cards/${cardId}/confirmar-sugestao`, {
+          method: "POST",
+        });
+        addCard(card);
+        return card;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel confirmar a atribuicao.");
+        return null;
+      }
+    },
+    [addCard],
+  );
+
   return {
     loadBoard,
     handleMoveCard,
@@ -269,5 +285,6 @@ export function useKanbanIntegration() {
     handleCreateQuickCard,
     handleGetInbox,
     handleClaimCard,
+    handleConfirmSuggestion,
   };
 }

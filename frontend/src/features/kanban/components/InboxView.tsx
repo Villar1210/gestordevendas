@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Inbox } from "lucide-react";
+import { Inbox, Sparkles } from "lucide-react";
 import { useKanbanStore, Card } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
 
@@ -26,7 +26,7 @@ const TEMPERATURA_LABELS: Record<string, string> = {
 export function InboxView() {
   const pipelineId = useKanbanStore((state) => state.pipelineId);
   const openCardDetailPanel = useKanbanStore((state) => state.openCardDetailPanel);
-  const { handleGetInbox, handleClaimCard } = useKanbanIntegration();
+  const { handleGetInbox, handleClaimCard, handleConfirmSuggestion } = useKanbanIntegration();
 
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +48,19 @@ export function InboxView() {
       if (claimed) {
         setCards((prev) => prev.filter((c) => c.id !== card.id));
         openCardDetailPanel(claimed);
+      }
+    } finally {
+      setClaimingId(null);
+    }
+  }
+
+  async function handleConfirmCard(card: Card) {
+    setClaimingId(card.id);
+    try {
+      const confirmed = await handleConfirmSuggestion(card.id);
+      if (confirmed) {
+        setCards((prev) => prev.filter((c) => c.id !== card.id));
+        openCardDetailPanel(confirmed);
       }
     } finally {
       setClaimingId(null);
@@ -76,6 +89,13 @@ export function InboxView() {
         >
           <p className="text-sm font-medium text-slate-800">{card.title}</p>
 
+          {card.suggestedOwnerId && (
+            <span className="flex w-fit items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+              <Sparkles className="h-3 w-3" />
+              Sugerido para: {card.suggestedOwnerName ?? "corretor"}
+            </span>
+          )}
+
           {card.temperatura && (
             <span
               className={`w-fit rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -92,13 +112,23 @@ export function InboxView() {
             {currencyFormatter.format(card.value)}
           </p>
 
-          <button
-            onClick={() => handleStartAttendance(card)}
-            disabled={claimingId === card.id}
-            className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {claimingId === card.id ? "Assumindo..." : "Iniciar Atendimento"}
-          </button>
+          {card.suggestedOwnerId ? (
+            <button
+              onClick={() => handleConfirmCard(card)}
+              disabled={claimingId === card.id}
+              className="mt-2 w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-60"
+            >
+              {claimingId === card.id ? "Confirmando..." : "Confirmar Atribuicao"}
+            </button>
+          ) : (
+            <button
+              onClick={() => handleStartAttendance(card)}
+              disabled={claimingId === card.id}
+              className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {claimingId === card.id ? "Assumindo..." : "Iniciar Atendimento"}
+            </button>
+          )}
         </div>
       ))}
     </div>
