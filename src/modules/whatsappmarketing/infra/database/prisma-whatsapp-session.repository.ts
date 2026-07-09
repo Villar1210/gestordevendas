@@ -49,4 +49,11 @@ export class PrismaWhatsAppSessionRepository implements IWhatsAppSessionReposito
       },
     });
   }
+
+  async updateAiEnabled(id: string, isAiEnabled: boolean): Promise<void> {
+    await this.prisma.whatsAppSession.update({
+      where: { id },
+      data: { isAiEnabled },
+    });
+  }
 }

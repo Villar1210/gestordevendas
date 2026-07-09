@@ -28,5 +28,13 @@ import { PrismaService } from '../../config/prisma.service';
     { provide: 'IWhatsAppMessageRepository', useClass: PrismaWhatsAppMessageRepository },
     { provide: 'IWhatsAppProvider', useClass: BaileysWhatsAppProvider },
   ],
+  // Exportados para o modulo vivi_sdr: o listener de eventos precisa checar
+  // isAiEnabled/ler historico, e o caso de uso de resposta precisa enviar
+  // a mensagem de volta ao lead.
+  exports: [
+    SendWhatsAppMessageUseCase,
+    'IWhatsAppSessionRepository',
+    'IWhatsAppMessageRepository',
+  ],
 })
 export class WhatsAppMarketingModule {}

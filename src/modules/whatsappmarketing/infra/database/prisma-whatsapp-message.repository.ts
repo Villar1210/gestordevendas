@@ -2,7 +2,10 @@
 // Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
-import { IWhatsAppMessageRepository } from '../../domain/repositories/whatsapp-message-repository.interface';
+import {
+  IWhatsAppMessageRepository,
+  WhatsAppMessageRecord,
+} from '../../domain/repositories/whatsapp-message-repository.interface';
 
 @Injectable()
 export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageRepository {
@@ -14,6 +17,7 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
     direction: 'IN' | 'OUT';
     fromNumber: string;
     toNumber: string;
+    remoteJid?: string | null;
     body: string;
     timestamp: Date;
   }): Promise<void> {
@@ -24,9 +28,33 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
         direction: input.direction,
         fromNumber: input.fromNumber,
         toNumber: input.toNumber,
+        remoteJid: input.remoteJid ?? null,
         body: input.body,
         timestamp: input.timestamp,
       },
     });
+  }
+
+  async findRecentBySessionAndNumber(
+    sessionId: string,
+    phoneNumber: string,
+    limit: number,
+  ): Promise<WhatsAppMessageRecord[]> {
+    const messages = await this.prisma.whatsAppMessage.findMany({
+      where: {
+        sessionId,
+        OR: [{ fromNumber: phoneNumber }, { toNumber: phoneNumber }],
+      },
+      orderBy: { timestamp: 'desc' },
+      take: limit,
+    });
+
+    return messages.reverse().map((message) => ({
+      id: message.id,
+      direction: message.direction as 'IN' | 'OUT',
+      body: message.body,
+      timestamp: message.timestamp,
+      remoteJid: message.remoteJid,
+    }));
   }
 }

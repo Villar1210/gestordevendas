@@ -6,6 +6,10 @@ import { IWhatsAppProvider } from '../../domain/services/whatsapp-provider.inter
 interface SendWhatsAppMessageInput {
   sessionId: string;
   tenantId: string;
+  // Preferencialmente o JID completo (remoteJid) da conversa, para
+  // sobreviver a numeros @lid (ver IWhatsAppProvider.sendMessage). O envio
+  // manual via formulario ainda pode passar so digitos - o provider trata
+  // os dois casos.
   to: string;
   body: string;
 }

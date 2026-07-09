@@ -3,6 +3,16 @@
 
 export type WhatsAppMessageDirection = 'IN' | 'OUT';
 
+export interface WhatsAppMessageRecord {
+  id: string;
+  direction: WhatsAppMessageDirection;
+  body: string;
+  timestamp: Date;
+  // JID completo do Baileys (com sufixo @lid ou @s.whatsapp.net). Nulo em
+  // mensagens salvas antes desse campo existir.
+  remoteJid: string | null;
+}
+
 export interface IWhatsAppMessageRepository {
   create(input: {
     tenantId: string;
@@ -10,7 +20,16 @@ export interface IWhatsAppMessageRepository {
     direction: WhatsAppMessageDirection;
     fromNumber: string;
     toNumber: string;
+    remoteJid?: string | null;
     body: string;
     timestamp: Date;
   }): Promise<void>;
+  // Ultimas mensagens trocadas com um numero especifico dentro de uma sessao,
+  // em ordem cronologica (mais antiga primeiro) - usado pela VIVI para montar
+  // o historico da conversa.
+  findRecentBySessionAndNumber(
+    sessionId: string,
+    phoneNumber: string,
+    limit: number,
+  ): Promise<WhatsAppMessageRecord[]>;
 }

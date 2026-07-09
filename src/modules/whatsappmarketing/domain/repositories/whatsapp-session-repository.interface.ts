@@ -8,6 +8,9 @@ export interface WhatsAppSessionRecord {
   label: string;
   status: string;
   phoneNumber: string | null;
+  // Marca se esta sessao e atendida pela VIVI (modulo vivi_sdr) em vez do
+  // corretor humano dono do numero.
+  isAiEnabled: boolean;
 }
 
 export interface IWhatsAppSessionRepository {
@@ -21,4 +24,5 @@ export interface IWhatsAppSessionRepository {
   // Sessao mais recente do tenant (independente do status), ou null se nao existir nenhuma.
   findMostRecentByTenant(tenantId: string): Promise<WhatsAppSessionRecord | null>;
   updateStatus(id: string, status: string, phoneNumber?: string | null): Promise<void>;
+  updateAiEnabled(id: string, isAiEnabled: boolean): Promise<void>;
 }

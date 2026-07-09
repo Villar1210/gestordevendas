@@ -3,8 +3,10 @@
 // biblioteca nao-oficial Baileys (conexao via QR Code). Ver CLAUDE.md
 // "Decisao tecnica: Integracao WhatsApp" - nao misturar com a API oficial da Meta.
 import { Injectable, Inject } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as util from 'util';
 import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
@@ -32,6 +34,7 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
     private readonly sessionRepository: IWhatsAppSessionRepository,
     @Inject('IWhatsAppMessageRepository')
     private readonly messageRepository: IWhatsAppMessageRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createSession(sessionId: string): Promise<void> {
@@ -125,16 +128,45 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
             ? msg.messageTimestamp
             : Number(msg.messageTimestamp || 0);
 
+        const fromNumber = remoteJid.split('@')[0];
+
         await this.messageRepository.create({
           tenantId: session.tenantId,
           sessionId,
           direction: 'IN',
-          fromNumber: remoteJid.split('@')[0],
+          fromNumber,
           toNumber: session.phoneNumber || '',
+          // JID completo (com sufixo @lid ou @s.whatsapp.net) - guardado
+          // para poder responder corretamente depois. Numeros @lid nao sao
+          // um MSISDN valido sob @s.whatsapp.net, entao reconstruir o JID
+          // so a partir de fromNumber quebra o envio de resposta.
+          remoteJid,
           body,
           timestamp: new Date(timestampSeconds * 1000),
         });
+
+        // Evento generico, sem conhecer quem escuta (ex: modulo vivi_sdr).
+        // emit() nao aguarda os listeners - nao bloqueia o recebimento das
+        // proximas mensagens do messages.upsert.
+        this.eventEmitter.emit('whatsapp.message.received', {
+          tenantId: session.tenantId,
+          sessionId,
+          phoneNumber: fromNumber,
+          messageBody: body,
+        });
       }
+    });
+
+    // DEBUG TEMPORARIO (investigacao do bug @lid nao entregue - remover
+    // depois de diagnosticado): mostra a evolucao do status de entrega
+    // (PENDING -> SERVER_ACK -> DELIVERY_ACK -> READ) das mensagens que
+    // enviamos, para saber se o servidor do WhatsApp sequer confirmou o
+    // recebimento antes de tentar entregar ao destinatario.
+    sock.ev.on('messages.update', (updates) => {
+      console.log(
+        '[VIVI-DEBUG messages.update]',
+        util.inspect(updates, { depth: null, colors: false }),
+      );
     });
   }
 
@@ -150,8 +182,19 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
       throw new Error('Sessao WhatsApp nao esta conectada.');
     }
 
+    // "to" ja com "@" (JID completo, ex: remoteJid salvo no recebimento) e
+    // usado como esta - preserva o sufixo correto (@lid ou @s.whatsapp.net).
+    // Sem "@" (envio manual via formulario, so digitos), cai no fallback -
+    // so funciona para numeros @s.whatsapp.net reais, nao para @lid.
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-    await sock.sendMessage(jid, { text: body });
+    const sendResult = await sock.sendMessage(jid, { text: body });
+
+    // DEBUG TEMPORARIO (investigacao do bug @lid nao entregue - remover
+    // depois de diagnosticado): retorno completo de sock.sendMessage().
+    console.log(
+      '[VIVI-DEBUG sendMessage retorno]',
+      util.inspect(sendResult, { depth: null, colors: false }),
+    );
 
     const session = await this.sessionRepository.findById(sessionId);
     await this.messageRepository.create({

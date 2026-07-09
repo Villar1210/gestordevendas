@@ -12,6 +12,8 @@ import { ImovelFormModal } from "@/features/imoveis/components/ImovelFormModal";
 import { EmpreendimentoFormModal } from "@/features/imoveis/components/EmpreendimentoFormModal";
 import { ImovelDetailPanel } from "@/features/imoveis/components/ImovelDetailPanel";
 import { EspelhoDeVendas } from "@/features/imoveis/components/EspelhoDeVendas";
+import { ProprietariosTab } from "@/features/imoveis/components/ProprietariosTab";
+import { ContratosTab } from "@/features/imoveis/components/ContratosTab";
 
 export default function ImoveisDashboardPage() {
   const imoveis = useImoveisStore((state) => state.imoveis);
@@ -73,23 +75,45 @@ export default function ImoveisDashboardPage() {
             >
               Espelho de Vendas
             </button>
+            <button
+              onClick={() => setActiveView("proprietarios")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                activeView === "proprietarios"
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Proprietarios
+            </button>
+            <button
+              onClick={() => setActiveView("contratos")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                activeView === "contratos"
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Contratos
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={openEmpreendimentoFormModal}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            <Plus className="h-4 w-4" /> Novo Empreendimento
-          </button>
-          <button
-            onClick={openImovelFormModal}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" /> Novo Imovel
-          </button>
-        </div>
+        {(activeView === "catalogo" || activeView === "espelho") && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openEmpreendimentoFormModal}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              <Plus className="h-4 w-4" /> Novo Empreendimento
+            </button>
+            <button
+              onClick={openImovelFormModal}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" /> Novo Imovel
+            </button>
+          </div>
+        )}
       </header>
 
       {activeView === "catalogo" ? (
@@ -144,8 +168,12 @@ export default function ImoveisDashboardPage() {
             </div>
           )}
         </>
-      ) : (
+      ) : activeView === "espelho" ? (
         <EspelhoDeVendas />
+      ) : activeView === "proprietarios" ? (
+        <ProprietariosTab />
+      ) : (
+        <ContratosTab />
       )}
 
       <ImovelFormModal />
