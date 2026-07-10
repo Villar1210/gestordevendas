@@ -13,4 +13,8 @@ export interface UploadFileOutput {
 
 export interface IFileStorageService {
   upload(file: UploadFileInput): Promise<UploadFileOutput>;
+  // Le de volta os bytes de um arquivo ja armazenado, a partir da url
+  // retornada por upload() - usado pelo modulo E-doc para reabrir o PDF
+  // original e gerar o PDF final assinado (pdf-lib).
+  download(url: string): Promise<Buffer>;
 }

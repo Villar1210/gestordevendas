@@ -11,6 +11,7 @@ import { CreateContratoUseCase } from '../../application/use-cases/create-contra
 import { ListContratosUseCase } from '../../application/use-cases/list-contratos.use-case';
 import { GetContratoUseCase } from '../../application/use-cases/get-contrato.use-case';
 import { EncerrarContratoUseCase } from '../../application/use-cases/encerrar-contrato.use-case';
+import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 @Controller('contratos')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,8 +35,8 @@ export class ContratoController {
       inquilinoComprador: dto.inquilinoComprador,
       tipo: dto.tipo,
       valor: dto.valor,
-      dataInicio: new Date(dto.dataInicio),
-      dataFim: dto.dataFim ? new Date(dto.dataFim) : undefined,
+      dataInicio: parseDateOnly(dto.dataInicio),
+      dataFim: dto.dataFim ? parseDateOnly(dto.dataFim) : undefined,
       diaVencimento: dto.diaVencimento,
     });
   }

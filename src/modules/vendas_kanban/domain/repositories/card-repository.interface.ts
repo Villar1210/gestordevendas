@@ -12,6 +12,9 @@ export interface CardRecord {
   // consulta que a Caixa de Entrada usa (findAllByPipelineInbox).
   suggestedOwnerId: string | null;
   suggestedOwnerName: string | null;
+  // So preenchidos pela consulta do Portal do Cliente (findAllByTenantAndEmail).
+  stageName: string | null;
+  ownerName: string | null;
   imovelId: string | null;
   title: string;
   value: number;
@@ -51,6 +54,11 @@ export interface ICardRepository {
   findAllByStage(stageId: string): Promise<CardRecord[]>;
   // Cards de um pipeline ainda sem stageId (Caixa de Entrada), mais antigos primeiro.
   findAllByPipelineInbox(pipelineId: string): Promise<CardRecord[]>;
+  // Usado pelo Portal do Cliente (GetMeuAtendimentoUseCase) para vincular o
+  // usuario logado (por e-mail) aos cards onde ele e o lead/cliente - ver
+  // CLAUDE.md sobre a limitacao dessa correspondencia (por valor, nao por
+  // FK formal). Inclui stageName/ownerName via join.
+  findAllByTenantAndEmail(tenantId: string, email: string): Promise<CardRecord[]>;
   updateStageAndPosition(id: string, stageId: string, position: number): Promise<void>;
   // Usado exclusivamente pelo fluxo de "assumir lead": atribui dono e
   // move da Caixa de Entrada para uma stage, em uma unica operacao.

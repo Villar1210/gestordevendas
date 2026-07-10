@@ -124,7 +124,7 @@ export function InboxView() {
             <button
               onClick={() => handleStartAttendance(card)}
               disabled={claimingId === card.id}
-              className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="mt-2 w-full rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
             >
               {claimingId === card.id ? "Assumindo..." : "Iniciar Atendimento"}
             </button>

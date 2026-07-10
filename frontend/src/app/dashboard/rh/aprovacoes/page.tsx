@@ -32,7 +32,7 @@ export default function AprovacoesPage() {
       <div className="p-6">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
-            <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+            <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
             <p className="text-sm">Carregando cadastros pendentes...</p>
           </div>
         ) : pendentes.length === 0 ? (

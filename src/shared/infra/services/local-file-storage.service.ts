@@ -1,7 +1,7 @@
 // src/shared/infra/services/local-file-storage.service.ts
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import {
   IFileStorageService,
@@ -20,5 +20,11 @@ export class LocalFileStorageService implements IFileStorageService {
     await writeFile(join(UPLOAD_DIR, filename), file.buffer);
 
     return { url: `/uploads/imoveis/${filename}` };
+  }
+
+  async download(url: string): Promise<Buffer> {
+    // A url sempre comeca com "/" (ex: "/uploads/imoveis/xxx.pdf") - remove
+    // antes de juntar com process.cwd() para nao virar caminho absoluto de raiz.
+    return readFile(join(process.cwd(), url.replace(/^\//, '')));
   }
 }

@@ -16,7 +16,7 @@ export function CadastroRecebidoScreen() {
         </p>
         <Link
           href="/login"
-          className="block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="block rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
         >
           Voltar para o login
         </Link>

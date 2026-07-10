@@ -25,14 +25,14 @@ export function ImoveisFilters() {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Buscar por titulo..."
-          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
         />
       </div>
 
       <select
         value={finalidadeFilter}
         onChange={(e) => setFinalidadeFilter(e.target.value as FinalidadeFilter)}
-        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
       >
         <option value="all">Todas as finalidades</option>
         {FINALIDADE_OPTIONS.map((opt) => (
@@ -45,7 +45,7 @@ export function ImoveisFilters() {
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
       >
         <option value="all">Todos os status</option>
         {STATUS_OPTIONS.map((opt) => (
@@ -58,7 +58,7 @@ export function ImoveisFilters() {
       <select
         value={empreendimentoFilter}
         onChange={(e) => setEmpreendimentoFilter(e.target.value)}
-        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
       >
         <option value="all">Todos os empreendimentos</option>
         {empreendimentos.map((emp) => (

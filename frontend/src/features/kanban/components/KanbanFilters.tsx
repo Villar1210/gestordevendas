@@ -25,14 +25,14 @@ export function KanbanFilters() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Buscar por titulo..."
-          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
         />
       </div>
 
       <select
         value={temperatureFilter}
         onChange={(e) => setTemperatureFilter(e.target.value as TemperatureFilter)}
-        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
       >
         <option value="all">Todas as temperaturas</option>
         <option value="quente">🔥 Quente</option>
@@ -43,7 +43,7 @@ export function KanbanFilters() {
       <select
         value={origemFilter}
         onChange={(e) => setOrigemFilter(e.target.value as OrigemFilter)}
-        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
       >
         <option value="all">Todas as origens</option>
         <option value="manual">Manual</option>

@@ -53,4 +53,10 @@ export interface IProprietarioRepository {
   findByIdAndTenant(id: string, tenantId: string): Promise<ProprietarioRecord | null>;
   // Inclui imoveisVinculados (contagem via Contrato) em cada registro.
   findAllByTenant(tenantId: string): Promise<ProprietarioRecord[]>;
+  // Usado pelo Portal do Cliente para vincular o usuario logado (por
+  // e-mail) ao seu cadastro de Proprietario - ver CLAUDE.md sobre a
+  // limitacao dessa correspondencia (por valor, nao por FK formal). Se
+  // houver mais de um Proprietario com o mesmo e-mail no tenant (nao ha
+  // constraint de unicidade), retorna o primeiro encontrado.
+  findByTenantAndEmail(tenantId: string, email: string): Promise<ProprietarioRecord | null>;
 }

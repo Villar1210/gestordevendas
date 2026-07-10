@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
             <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
               Se esse e-mail existir em nossa base, um link de redefinicao foi enviado.
             </div>
-            <Link href="/login" className="block text-center text-sm text-indigo-600 hover:underline">
+            <Link href="/login" className="block text-center text-sm text-amber-600 hover:underline">
               Voltar para o login
             </Link>
           </div>
@@ -64,19 +64,19 @@ export default function ForgotPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className="w-full rounded-lg bg-amber-700 px-4 py-2 font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
             >
               {loading ? "Enviando..." : "Enviar link de redefinicao"}
             </button>
 
-            <Link href="/login" className="block text-center text-sm text-indigo-600 hover:underline">
+            <Link href="/login" className="block text-center text-sm text-amber-600 hover:underline">
               Voltar para o login
             </Link>
           </form>

@@ -1,8 +1,9 @@
 // src/app/dashboard/imoveis/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
+import { apiRequest } from "@/core/api/client";
 import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
 import { useImoveisIntegration } from "@/features/imoveis/hooks/useImoveisIntegration";
 import { ImoveisFilters } from "@/features/imoveis/components/ImoveisFilters";
@@ -14,6 +15,8 @@ import { ImovelDetailPanel } from "@/features/imoveis/components/ImovelDetailPan
 import { EspelhoDeVendas } from "@/features/imoveis/components/EspelhoDeVendas";
 import { ProprietariosTab } from "@/features/imoveis/components/ProprietariosTab";
 import { ContratosTab } from "@/features/imoveis/components/ContratosTab";
+import { FinanceiroTab } from "@/features/imoveis/components/FinanceiroTab";
+import { InquilinosTab } from "@/features/imoveis/components/InquilinosTab";
 
 export default function ImoveisDashboardPage() {
   const imoveis = useImoveisStore((state) => state.imoveis);
@@ -32,9 +35,17 @@ export default function ImoveisDashboardPage() {
   );
 
   const { loadImoveis, loadEmpreendimentos } = useImoveisIntegration();
+  const [role, setRole] = useState<string | null>(null);
+  const hasCheckedRole = useRef(false);
 
   useEffect(() => {
     loadEmpreendimentos();
+    if (!hasCheckedRole.current) {
+      hasCheckedRole.current = true;
+      apiRequest<{ role: string }>("/auth/me")
+        .then((me) => setRole(me.role))
+        .catch(() => setRole(null));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -59,7 +70,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("catalogo")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "catalogo"
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-amber-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -69,7 +80,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("espelho")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "espelho"
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-amber-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -79,7 +90,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("proprietarios")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "proprietarios"
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-amber-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -89,12 +100,34 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("contratos")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "contratos"
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-amber-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
               Contratos
             </button>
+            <button
+              onClick={() => setActiveView("inquilinos")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                activeView === "inquilinos"
+                  ? "bg-amber-700 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Inquilinos
+            </button>
+            {role === "Administrador" && (
+              <button
+                onClick={() => setActiveView("financeiro")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  activeView === "financeiro"
+                    ? "bg-amber-700 text-white"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Financeiro
+              </button>
+            )}
           </div>
         </div>
 
@@ -108,7 +141,7 @@ export default function ImoveisDashboardPage() {
             </button>
             <button
               onClick={openImovelFormModal}
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
             >
               <Plus className="h-4 w-4" /> Novo Imovel
             </button>
@@ -125,7 +158,7 @@ export default function ImoveisDashboardPage() {
                 onClick={() => setCatalogLayout("cards")}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   catalogLayout === "cards"
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-amber-700 text-white"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
@@ -135,7 +168,7 @@ export default function ImoveisDashboardPage() {
                 onClick={() => setCatalogLayout("lista")}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   catalogLayout === "lista"
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-amber-700 text-white"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
@@ -146,7 +179,7 @@ export default function ImoveisDashboardPage() {
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
               <p className="text-sm">Carregando imoveis...</p>
             </div>
           ) : (
@@ -172,8 +205,12 @@ export default function ImoveisDashboardPage() {
         <EspelhoDeVendas />
       ) : activeView === "proprietarios" ? (
         <ProprietariosTab />
-      ) : (
+      ) : activeView === "contratos" ? (
         <ContratosTab />
+      ) : activeView === "inquilinos" ? (
+        <InquilinosTab />
+      ) : (
+        <FinanceiroTab />
       )}
 
       <ImovelFormModal />

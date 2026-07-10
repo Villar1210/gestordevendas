@@ -13,7 +13,7 @@ import { PrismaCorretorRepository } from './infra/database/prisma-corretor.repos
 import { PrismaRoleRepository } from './infra/database/prisma-role.repository';
 import { PrismaCadastroRepository } from './infra/database/prisma-cadastro.repository';
 import { PrismaService } from '../../config/prisma.service';
-import { ConsoleEmailSender } from '../../shared/infra/services/console-email-sender';
+import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
 
 @Module({
   controllers: [RhController],
@@ -32,12 +32,10 @@ import { ConsoleEmailSender } from '../../shared/infra/services/console-email-se
     { provide: 'ICorretorRepository', useClass: PrismaCorretorRepository },
     { provide: 'IRoleRepository', useClass: PrismaRoleRepository },
     { provide: 'ICadastroRepository', useClass: PrismaCadastroRepository },
-    // ConsoleEmailSender (nao Resend) por enquanto: cadastro de corretor e
-    // uma fatia minima ainda em teste, sem dominio de e-mail transacional
-    // dedicado configurado para esse fluxo. Trocar para ResendEmailSender
-    // quando o modulo RH sair de teste (ver PENDENCIA CRITICA no CLAUDE.md -
-    // vale tambem para o e-mail de aprovacao/rejeicao do cadastro publico).
-    { provide: 'IEmailSender', useClass: ConsoleEmailSender },
+    // ResendEmailSender (mesma implementacao ja usada no AuthModule) - e-mails
+    // de boas-vindas do corretor e de aprovacao/rejeicao do cadastro publico
+    // agora sao reais.
+    { provide: 'IEmailSender', useClass: ResendEmailSender },
   ],
   // Exportados para o modulo roleta_online: DistributeLeadUseCase precisa
   // encontrar o Role "Corretor" e listar corretores online do tenant.

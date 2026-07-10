@@ -86,6 +86,19 @@ export interface InquilinoComprador {
   cpfCnpj: string | null;
   telefone: string;
   email: string | null;
+  profissao: string | null;
+  rendaDeclarada: number | null;
+  statusAnaliseCredito: string;
+  observacoesAnalise: string | null;
+  createdAt: string;
+}
+
+export interface InquilinoDocumento {
+  id: string;
+  inquilinoId: string;
+  tipo: string;
+  url: string;
+  nomeArquivo: string;
   createdAt: string;
 }
 
@@ -104,13 +117,37 @@ export interface Contrato {
   updatedAt: string;
 }
 
+export interface LancamentoFinanceiro {
+  id: string;
+  contratoId: string | null;
+  tipo: string;
+  categoria: string;
+  valor: number;
+  vencimento: string;
+  status: string;
+  pagoEm: string | null;
+  descricao: string | null;
+  createdAt: string;
+}
+
 export type FinalidadeFilter = "all" | "venda" | "aluguel" | "ambos";
 export type CatalogLayout = "cards" | "lista";
-export type ImoveisView = "catalogo" | "espelho" | "proprietarios" | "contratos";
+export type ImoveisView =
+  | "catalogo"
+  | "espelho"
+  | "proprietarios"
+  | "contratos"
+  | "financeiro"
+  | "inquilinos";
 
 interface ImovelDetailPanelState {
   isOpen: boolean;
   imovel: Imovel | null;
+}
+
+interface InquilinoDetailPanelState {
+  isOpen: boolean;
+  inquilino: InquilinoComprador | null;
 }
 
 interface ImoveisState {
@@ -119,6 +156,7 @@ interface ImoveisState {
   proprietarios: Proprietario[];
   inquilinosCompradores: InquilinoComprador[];
   contratos: Contrato[];
+  lancamentos: LancamentoFinanceiro[];
   isLoading: boolean;
 
   activeView: ImoveisView;
@@ -132,16 +170,19 @@ interface ImoveisState {
   espelhoEmpreendimentoId: string | null;
 
   imovelDetailPanel: ImovelDetailPanelState;
+  inquilinoDetailPanel: InquilinoDetailPanelState;
   imovelFormModalOpen: boolean;
   empreendimentoFormModalOpen: boolean;
   proprietarioFormModalOpen: boolean;
   contratoFormModalOpen: boolean;
+  lancamentoFormModalOpen: boolean;
 
   setImoveis: (imoveis: Imovel[]) => void;
   setEmpreendimentos: (empreendimentos: Empreendimento[]) => void;
   setProprietarios: (proprietarios: Proprietario[]) => void;
   setInquilinosCompradores: (inquilinosCompradores: InquilinoComprador[]) => void;
   setContratos: (contratos: Contrato[]) => void;
+  setLancamentos: (lancamentos: LancamentoFinanceiro[]) => void;
   setLoading: (isLoading: boolean) => void;
 
   setActiveView: (view: ImoveisView) => void;
@@ -158,6 +199,9 @@ interface ImoveisState {
   openImovelDetailPanel: (imovel: Imovel) => void;
   closeImovelDetailPanel: () => void;
 
+  openInquilinoDetailPanel: (inquilino: InquilinoComprador) => void;
+  closeInquilinoDetailPanel: () => void;
+
   openImovelFormModal: () => void;
   closeImovelFormModal: () => void;
 
@@ -170,6 +214,9 @@ interface ImoveisState {
   openContratoFormModal: () => void;
   closeContratoFormModal: () => void;
 
+  openLancamentoFormModal: () => void;
+  closeLancamentoFormModal: () => void;
+
   addImovel: (imovel: Imovel) => void;
   updateImovelInPlace: (imovel: Imovel) => void;
 
@@ -179,9 +226,13 @@ interface ImoveisState {
   updateProprietarioInPlace: (proprietario: Proprietario) => void;
 
   addInquilinoComprador: (inquilinoComprador: InquilinoComprador) => void;
+  updateInquilinoCompradorInPlace: (inquilinoComprador: InquilinoComprador) => void;
 
   addContrato: (contrato: Contrato) => void;
   updateContratoInPlace: (contrato: Contrato) => void;
+
+  addLancamento: (lancamento: LancamentoFinanceiro) => void;
+  updateLancamentoInPlace: (lancamento: LancamentoFinanceiro) => void;
 }
 
 export const useImoveisStore = create<ImoveisState>((set, get) => ({
@@ -190,6 +241,7 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
   proprietarios: [],
   inquilinosCompradores: [],
   contratos: [],
+  lancamentos: [],
   isLoading: false,
 
   activeView: "catalogo",
@@ -203,16 +255,19 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
   espelhoEmpreendimentoId: null,
 
   imovelDetailPanel: { isOpen: false, imovel: null },
+  inquilinoDetailPanel: { isOpen: false, inquilino: null },
   imovelFormModalOpen: false,
   empreendimentoFormModalOpen: false,
   proprietarioFormModalOpen: false,
   contratoFormModalOpen: false,
+  lancamentoFormModalOpen: false,
 
   setImoveis: (imoveis) => set({ imoveis }),
   setEmpreendimentos: (empreendimentos) => set({ empreendimentos }),
   setProprietarios: (proprietarios) => set({ proprietarios }),
   setInquilinosCompradores: (inquilinosCompradores) => set({ inquilinosCompradores }),
   setContratos: (contratos) => set({ contratos }),
+  setLancamentos: (lancamentos) => set({ lancamentos }),
   setLoading: (isLoading) => set({ isLoading }),
 
   setActiveView: (activeView) => set({ activeView }),
@@ -237,6 +292,11 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
   openImovelDetailPanel: (imovel) => set({ imovelDetailPanel: { isOpen: true, imovel } }),
   closeImovelDetailPanel: () => set({ imovelDetailPanel: { isOpen: false, imovel: null } }),
 
+  openInquilinoDetailPanel: (inquilino) =>
+    set({ inquilinoDetailPanel: { isOpen: true, inquilino } }),
+  closeInquilinoDetailPanel: () =>
+    set({ inquilinoDetailPanel: { isOpen: false, inquilino: null } }),
+
   openImovelFormModal: () => set({ imovelFormModalOpen: true }),
   closeImovelFormModal: () => set({ imovelFormModalOpen: false }),
 
@@ -248,6 +308,9 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
 
   openContratoFormModal: () => set({ contratoFormModalOpen: true }),
   closeContratoFormModal: () => set({ contratoFormModalOpen: false }),
+
+  openLancamentoFormModal: () => set({ lancamentoFormModalOpen: true }),
+  closeLancamentoFormModal: () => set({ lancamentoFormModalOpen: false }),
 
   addImovel: (imovel) => set({ imoveis: [imovel, ...get().imoveis] }),
 
@@ -277,10 +340,33 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
   addInquilinoComprador: (inquilinoComprador) =>
     set({ inquilinosCompradores: [inquilinoComprador, ...get().inquilinosCompradores] }),
 
+  updateInquilinoCompradorInPlace: (inquilinoComprador) =>
+    set({
+      inquilinosCompradores: get().inquilinosCompradores.map((i) =>
+        i.id === inquilinoComprador.id ? { ...i, ...inquilinoComprador } : i,
+      ),
+      inquilinoDetailPanel:
+        get().inquilinoDetailPanel.inquilino?.id === inquilinoComprador.id
+          ? {
+              isOpen: true,
+              inquilino: { ...get().inquilinoDetailPanel.inquilino, ...inquilinoComprador },
+            }
+          : get().inquilinoDetailPanel,
+    }),
+
   addContrato: (contrato) => set({ contratos: [contrato, ...get().contratos] }),
 
   updateContratoInPlace: (contrato) =>
     set({
       contratos: get().contratos.map((c) => (c.id === contrato.id ? { ...c, ...contrato } : c)),
+    }),
+
+  addLancamento: (lancamento) => set({ lancamentos: [lancamento, ...get().lancamentos] }),
+
+  updateLancamentoInPlace: (lancamento) =>
+    set({
+      lancamentos: get().lancamentos.map((l) =>
+        l.id === lancamento.id ? { ...l, ...lancamento } : l,
+      ),
     }),
 }));

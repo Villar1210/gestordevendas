@@ -8,7 +8,7 @@ import { useAprovacoesIntegration } from "../hooks/useAprovacoesIntegration";
 import { CARGO_HIERARQUICO_OPTIONS, ROLES_COM_HIERARQUIA, getTipoClienteLabel } from "../constants";
 
 const selectClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -100,8 +100,8 @@ export function CadastroDetailPanel() {
         </div>
 
         {precisaHierarquia && (
-          <div className="mt-4 space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-            <p className="text-sm font-medium text-indigo-700">Hierarquia (ao aprovar)</p>
+          <div className="mt-4 space-y-3 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-700">Hierarquia (ao aprovar)</p>
 
             <div>
               <label className="mb-1 block text-xs text-slate-500">Cargo hierarquico</label>
@@ -148,7 +148,7 @@ export function CadastroDetailPanel() {
           <button
             onClick={onAprovar}
             disabled={isSaving}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
           >
             <Check className="h-4 w-4" /> Aprovar
           </button>

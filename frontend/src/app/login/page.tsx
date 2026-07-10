@@ -129,7 +129,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
               />
             </div>
 
@@ -143,7 +143,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
               />
             </div>
 
@@ -152,7 +152,7 @@ export default function LoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-600"
               />
               Lembre-se de mim
             </label>
@@ -160,21 +160,21 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className="w-full rounded-lg bg-amber-700 px-4 py-2 font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
             >
               {loading ? "Entrando..." : "Entrar"}
             </button>
 
             <Link
               href="/forgot-password"
-              className="block text-center text-sm text-indigo-600 hover:underline"
+              className="block text-center text-sm text-amber-600 hover:underline"
             >
               Esqueci minha senha
             </Link>
 
             <Link
               href="/cadastro"
-              className="block text-center text-sm text-indigo-600 hover:underline"
+              className="block text-center text-sm text-amber-600 hover:underline"
             >
               Criar cadastro
             </Link>
@@ -193,14 +193,14 @@ export default function LoginPage() {
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-lg tracking-widest text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-lg tracking-widest text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className="w-full rounded-lg bg-amber-700 px-4 py-2 font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
             >
               {loading ? "Verificando..." : "Confirmar"}
             </button>

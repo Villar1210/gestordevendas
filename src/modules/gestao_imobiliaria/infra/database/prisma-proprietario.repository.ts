@@ -26,6 +26,10 @@ export class PrismaProprietarioRepository implements IProprietarioRepository {
     return this.prisma.proprietario.findFirst({ where: { id, tenantId } });
   }
 
+  async findByTenantAndEmail(tenantId: string, email: string): Promise<ProprietarioRecord | null> {
+    return this.prisma.proprietario.findFirst({ where: { tenantId, email } });
+  }
+
   async findAllByTenant(tenantId: string): Promise<ProprietarioRecord[]> {
     const proprietarios = await this.prisma.proprietario.findMany({
       where: { tenantId },

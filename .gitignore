@@ -21,3 +21,16 @@ gestaodevendas_documentacao.docx
 scripts/*.js
 scripts/*.js.map
 scripts/*.d.ts
+
+# Projeto open source de referencia (analisado so para ideias de
+# reaproveitamento, nao faz parte do backend - ver CLAUDE.md)
+WACRM/
+
+# Imagens de design brutas na raiz - nao usadas pelo codigo (o app usa
+# so um wordmark em texto, "gestordevendas" - nao ha logo em imagem
+# processada em frontend/public/ hoje)
+gestor-de-vendas-fundo-*.png
+ivillar-logo-fundo-*.png
+
+# Configuracao local do Claude Code (nao parte do produto)
+.claude/

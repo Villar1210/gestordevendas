@@ -46,6 +46,9 @@ import { ResendEmailSender } from '../../shared/infra/services/resend-email-send
     { provide: 'ITwoFactorCodeRepository', useClass: PrismaTwoFactorCodeRepository },
     { provide: 'IEmailSender', useClass: ResendEmailSender },
   ],
-  exports: [JwtModule],
+  // IUserRepository exportado para o modulo portal_cliente: o
+  // PortalClienteController resolve o e-mail do usuario logado (nao vem no
+  // payload do JWT, so id/tenantId/role) a partir do proprio id.
+  exports: [JwtModule, 'IUserRepository'],
 })
 export class AuthModule {}

@@ -14,9 +14,21 @@ import {
   USO_OPTIONS,
 } from "../constants";
 
+// Formata um Date de volta para "YYYY-MM-DD" usando os componentes LOCAIS
+// (getFullYear/getMonth/getDate) - nunca toISOString(), que converte para
+// UTC primeiro e pode voltar o dia anterior em fusos positivos. Espelha
+// shared/utils/date-only.util.ts do backend (frontend e backend sao
+// projetos separados, sem compartilhamento de codigo entre si).
+function formatDateOnly(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function toDateInputValue(isoDate: string | null): string {
   if (!isoDate) return "";
-  return isoDate.slice(0, 10);
+  return formatDateOnly(new Date(isoDate));
 }
 
 export function ImovelDetailPanel() {
@@ -236,7 +248,7 @@ export function ImovelDetailPanel() {
                   type="button"
                   onClick={handleAddPhotoClick}
                   disabled={uploadingPhoto}
-                  className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-60"
+                  className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-amber-400 hover:text-amber-600 disabled:opacity-60"
                 >
                   <Plus className="h-5 w-5" />
                   <span className="text-xs">{uploadingPhoto ? "Enviando..." : "Adicionar"}</span>
@@ -263,7 +275,7 @@ export function ImovelDetailPanel() {
                       placeholder="ex: AP-101"
                       value={codigoInterno}
                       onChange={(e) => setCodigoInterno(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                   <div>
@@ -273,7 +285,7 @@ export function ImovelDetailPanel() {
                       required
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                 </div>
@@ -284,7 +296,7 @@ export function ImovelDetailPanel() {
                     <select
                       value={tipo}
                       onChange={(e) => setTipo(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     >
                       {TIPO_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -298,7 +310,7 @@ export function ImovelDetailPanel() {
                     <select
                       value={uso}
                       onChange={(e) => setUso(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     >
                       <option value="">Nao definido</option>
                       {USO_OPTIONS.map((opt) => (
@@ -313,7 +325,7 @@ export function ImovelDetailPanel() {
                     <select
                       value={finalidade}
                       onChange={(e) => setFinalidade(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     >
                       {FINALIDADE_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -333,7 +345,7 @@ export function ImovelDetailPanel() {
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
                     placeholder="ex: piscina, vista mar, mobiliado"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                   />
                 </div>
               </div>
@@ -349,7 +361,7 @@ export function ImovelDetailPanel() {
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     >
                       {STATUS_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -366,7 +378,7 @@ export function ImovelDetailPanel() {
                       type="date"
                       value={disponivelApartirDe}
                       onChange={(e) => setDisponivelApartirDe(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                 </div>
@@ -377,7 +389,7 @@ export function ImovelDetailPanel() {
                     <select
                       value={localChaves}
                       onChange={(e) => setLocalChaves(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     >
                       <option value="">Nao definido</option>
                       {LOCAL_CHAVES_OPTIONS.map((opt) => (
@@ -392,7 +404,7 @@ export function ImovelDetailPanel() {
                       type="checkbox"
                       checked={exclusividade}
                       onChange={(e) => setExclusividade(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                      className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-600"
                     />
                     Exclusividade
                   </label>
@@ -410,14 +422,14 @@ export function ImovelDetailPanel() {
                     placeholder="Rua"
                     value={rua}
                     onChange={(e) => setRua(e.target.value)}
-                    className="w-2/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-2/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                   />
                   <input
                     type="text"
                     placeholder="Numero"
                     value={numero}
                     onChange={(e) => setNumero(e.target.value)}
-                    className="w-1/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-1/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                   />
                 </div>
                 <input
@@ -425,14 +437,14 @@ export function ImovelDetailPanel() {
                   placeholder="Complemento"
                   value={complemento}
                   onChange={(e) => setComplemento(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                 />
                 <input
                   type="text"
                   placeholder="Bairro"
                   value={bairro}
                   onChange={(e) => setBairro(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                 />
                 <div className="flex gap-3">
                   <input
@@ -440,7 +452,7 @@ export function ImovelDetailPanel() {
                     placeholder="Cidade"
                     value={cidade}
                     onChange={(e) => setCidade(e.target.value)}
-                    className="w-1/2 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-1/2 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                   />
                   <input
                     type="text"
@@ -448,14 +460,14 @@ export function ImovelDetailPanel() {
                     placeholder="UF"
                     value={uf}
                     onChange={(e) => setUf(e.target.value)}
-                    className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                   />
                   <input
                     type="text"
                     placeholder="CEP"
                     value={cep}
                     onChange={(e) => setCep(e.target.value)}
-                    className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                   />
                 </div>
               </div>
@@ -473,14 +485,14 @@ export function ImovelDetailPanel() {
                   placeholder="Nome"
                   value={proprietarioNome}
                   onChange={(e) => setProprietarioNome(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                 />
                 <input
                   type="text"
                   placeholder="Telefone"
                   value={proprietarioTelefone}
                   onChange={(e) => setProprietarioTelefone(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                 />
               </div>
             </section>
@@ -498,7 +510,7 @@ export function ImovelDetailPanel() {
                       min="0"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                   <div>
@@ -509,7 +521,7 @@ export function ImovelDetailPanel() {
                       min="0"
                       value={rentPrice}
                       onChange={(e) => setRentPrice(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                 </div>
@@ -523,7 +535,7 @@ export function ImovelDetailPanel() {
                       min="0"
                       value={area}
                       onChange={(e) => setArea(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                   <div>
@@ -533,7 +545,7 @@ export function ImovelDetailPanel() {
                       min="0"
                       value={bedrooms}
                       onChange={(e) => setBedrooms(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                   <div>
@@ -543,7 +555,7 @@ export function ImovelDetailPanel() {
                       min="0"
                       value={bathrooms}
                       onChange={(e) => setBathrooms(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                   <div>
@@ -553,7 +565,7 @@ export function ImovelDetailPanel() {
                       min="0"
                       value={parkingSpots}
                       onChange={(e) => setParkingSpots(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                     />
                   </div>
                 </div>
@@ -564,7 +576,7 @@ export function ImovelDetailPanel() {
                     rows={3}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                   />
                 </div>
               </div>
@@ -573,7 +585,7 @@ export function ImovelDetailPanel() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="w-full rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Salvar"}
             </button>

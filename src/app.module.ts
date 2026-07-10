@@ -9,6 +9,8 @@ import { GestaoImobiliariaModule } from './modules/gestao_imobiliaria/gestao-imo
 import { ViviSdrModule } from './modules/vivi_sdr/vivi-sdr.module';
 import { RhModule } from './modules/rh/rh.module';
 import { RoletaOnlineModule } from './modules/roleta_online/roleta-online.module';
+import { EdocModule } from './modules/edoc/edoc.module';
+import { PortalClienteModule } from './modules/portal_cliente/portal-cliente.module';
 import { PrismaService } from './config/prisma.service';
 
 @Module({
@@ -24,6 +26,8 @@ import { PrismaService } from './config/prisma.service';
     ViviSdrModule,
     RhModule,
     RoletaOnlineModule,
+    EdocModule,
+    PortalClienteModule,
   ],
   providers: [PrismaService],
   exports: [PrismaService],

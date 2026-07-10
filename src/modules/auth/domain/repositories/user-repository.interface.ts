@@ -11,6 +11,10 @@ export interface UserWithRole {
   // Modulo RH completo: pendente_aprovacao, aprovado ou rejeitado - ver
   // AuthenticateUserUseCase.
   statusCadastro: string;
+  // So relevante quando o Role for Cliente: comprador, proprietario ou
+  // ambos - ver Portal do Cliente (GetMeUseCase devolve para o frontend
+  // decidir quais secoes mostrar em /minha-conta).
+  tipoCliente: string | null;
   role: { name: string };
 }
 

@@ -2,8 +2,15 @@
 
 Lista de funcionalidades identificadas como referencia (projeto antigo
 do proprio Daniel, C:\laragon\www\ivillar\crm) e ainda nao implementadas
-no gestordevendas. Nenhum codigo daquele projeto foi copiado - tudo aqui
-sera implementado do zero quando priorizado.
+no gestordevendas.
+
+NOTA (atualizada): a maioria dos itens abaixo sera implementada do
+zero quando priorizada, sem copiar codigo do projeto antigo - EXCECAO
+registrada: o modulo E-doc (assinatura eletronica, ver CLAUDE.md e
+PROGRESS.md) portou logica de fato recuperada via git history daquele
+projeto (o backend de assinaturas de la foi apagado por acidente num
+commit nao relacionado). E o unico caso ate agora de reaproveitamento
+de codigo, nao so de conceito - registrar aqui se isso se repetir.
 
 ## Modulo Kanban/Vendas
 - [ ] Score do lead (barra de progresso 0-100)
@@ -61,3 +68,10 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       dados pessoais ja estao sendo coletados (nome, cpf, telefone,
       endereco, CRECI/CNPJ conforme o perfil) e podem ser reaproveitados
       quando essa funcionalidade for construida.
+
+## Modulo E-doc (assinatura eletronica)
+NOTA: a Fatia 1 (envelope + assinatura em posicao fixa no final do
+documento, canvas ou nome digitado, ordem sequencial, trilha de
+auditoria) e a Fatia 2 (editor de posicionamento de campos arrastando
+sobre o PDF, geracao do PDF final assinado) ja foram CONCLUIDAS - ver
+CLAUDE.md e PROGRESS.md.

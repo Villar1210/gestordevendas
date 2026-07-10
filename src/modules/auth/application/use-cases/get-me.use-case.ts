@@ -17,6 +17,7 @@ export class GetMeUseCase {
       name: user.name,
       email: user.email,
       role: user.role.name,
+      tipoCliente: user.tipoCliente,
     };
   }
 }

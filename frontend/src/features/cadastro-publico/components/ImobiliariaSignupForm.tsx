@@ -8,7 +8,7 @@ import { usePublicSignupIntegration } from "../hooks/usePublicSignupIntegration"
 import { CadastroRecebidoScreen } from "./CadastroRecebidoScreen";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
 
 export function ImobiliariaSignupForm() {
   const { submitSignup } = usePublicSignupIntegration();
@@ -225,14 +225,14 @@ export function ImobiliariaSignupForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+            className="w-full rounded-lg bg-amber-700 px-4 py-2 font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
           >
             {loading ? "Enviando..." : "Criar cadastro"}
           </button>
 
           <Link
             href="/cadastro/parceiro"
-            className="block text-center text-sm text-indigo-600 hover:underline"
+            className="block text-center text-sm text-amber-600 hover:underline"
           >
             Voltar
           </Link>

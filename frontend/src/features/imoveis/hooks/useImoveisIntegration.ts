@@ -8,7 +8,9 @@ import {
   Empreendimento,
   Proprietario,
   InquilinoComprador,
+  InquilinoDocumento,
   Contrato,
+  LancamentoFinanceiro,
   FinalidadeFilter,
 } from "../store/useImoveisStore";
 
@@ -89,6 +91,17 @@ export interface CreateInquilinoCompradorInput {
   email?: string;
 }
 
+export interface UpdateInquilinoCompradorInput {
+  nome?: string;
+  cpfCnpj?: string;
+  telefone?: string;
+  email?: string;
+  profissao?: string;
+  rendaDeclarada?: number;
+  statusAnaliseCredito?: string;
+  observacoesAnalise?: string;
+}
+
 export interface NovoContratoParteInput {
   nome: string;
   telefone: string;
@@ -107,6 +120,35 @@ export interface CreateContratoInput {
   dataInicio: string;
   dataFim?: string;
   diaVencimento?: number;
+}
+
+export interface CreateLancamentoInput {
+  contratoId?: string;
+  tipo: string;
+  categoria: string;
+  valor: number;
+  vencimento: string;
+  descricao?: string;
+}
+
+export interface ListLancamentosFilters {
+  tipo?: string;
+  status?: string;
+  contratoId?: string;
+  vencimentoDe?: string;
+  vencimentoAte?: string;
+}
+
+function buildLancamentosQueryString(filters?: ListLancamentosFilters): string {
+  if (!filters) return "";
+  const params = new URLSearchParams();
+  if (filters.tipo) params.set("tipo", filters.tipo);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.contratoId) params.set("contratoId", filters.contratoId);
+  if (filters.vencimentoDe) params.set("vencimentoDe", filters.vencimentoDe);
+  if (filters.vencimentoAte) params.set("vencimentoAte", filters.vencimentoAte);
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }
 
 function buildQueryString(filters?: ListImoveisFilters): string {
@@ -137,14 +179,21 @@ export function useImoveisIntegration() {
   const addProprietario = useImoveisStore((state) => state.addProprietario);
   const updateProprietarioInPlace = useImoveisStore((state) => state.updateProprietarioInPlace);
   const addInquilinoComprador = useImoveisStore((state) => state.addInquilinoComprador);
+  const updateInquilinoCompradorInPlace = useImoveisStore(
+    (state) => state.updateInquilinoCompradorInPlace,
+  );
   const addContrato = useImoveisStore((state) => state.addContrato);
   const updateContratoInPlace = useImoveisStore((state) => state.updateContratoInPlace);
+  const setLancamentos = useImoveisStore((state) => state.setLancamentos);
+  const addLancamento = useImoveisStore((state) => state.addLancamento);
+  const updateLancamentoInPlace = useImoveisStore((state) => state.updateLancamentoInPlace);
   const closeImovelFormModal = useImoveisStore((state) => state.closeImovelFormModal);
   const closeEmpreendimentoFormModal = useImoveisStore(
     (state) => state.closeEmpreendimentoFormModal,
   );
   const closeProprietarioFormModal = useImoveisStore((state) => state.closeProprietarioFormModal);
   const closeContratoFormModal = useImoveisStore((state) => state.closeContratoFormModal);
+  const closeLancamentoFormModal = useImoveisStore((state) => state.closeLancamentoFormModal);
 
   const loadImoveis = useCallback(
     async (filters?: ListImoveisFilters) => {
@@ -337,6 +386,69 @@ export function useImoveisIntegration() {
     [addInquilinoComprador],
   );
 
+  const handleUpdateInquilinoComprador = useCallback(
+    async (inquilinoId: string, input: UpdateInquilinoCompradorInput) => {
+      try {
+        const inquilinoComprador = await apiRequest<InquilinoComprador>(
+          `/inquilinos-compradores/${inquilinoId}`,
+          { method: "PATCH", body: JSON.stringify(input) },
+        );
+        updateInquilinoCompradorInPlace(inquilinoComprador);
+        return inquilinoComprador;
+      } catch (err) {
+        alert(
+          err instanceof ApiError ? err.message : "Nao foi possivel salvar o inquilino/comprador.",
+        );
+        return null;
+      }
+    },
+    [updateInquilinoCompradorInPlace],
+  );
+
+  const handleListInquilinoDocumentos = useCallback(async (inquilinoId: string) => {
+    try {
+      return await apiRequest<InquilinoDocumento[]>(
+        `/inquilinos-compradores/${inquilinoId}/documentos`,
+      );
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os documentos.");
+      return [];
+    }
+  }, []);
+
+  const handleUploadInquilinoDocumento = useCallback(
+    async (inquilinoId: string, tipo: string, file: File) => {
+      try {
+        const formData = new FormData();
+        formData.append("tipo", tipo);
+        formData.append("file", file);
+        return await apiRequest<InquilinoDocumento>(
+          `/inquilinos-compradores/${inquilinoId}/documentos`,
+          { method: "POST", body: formData },
+        );
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel enviar o documento.");
+        return null;
+      }
+    },
+    [],
+  );
+
+  const handleDeleteInquilinoDocumento = useCallback(
+    async (inquilinoId: string, documentoId: string) => {
+      try {
+        await apiRequest(`/inquilinos-compradores/${inquilinoId}/documentos/${documentoId}`, {
+          method: "DELETE",
+        });
+        return true;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel remover o documento.");
+        return false;
+      }
+    },
+    [],
+  );
+
   const handleCreateContrato = useCallback(
     async (input: CreateContratoInput) => {
       try {
@@ -392,6 +504,69 @@ export function useImoveisIntegration() {
     [updateContratoInPlace, handleGetImovel, updateImovelInPlace],
   );
 
+  const loadLancamentos = useCallback(
+    async (filters?: ListLancamentosFilters) => {
+      setLoading(true);
+      try {
+        const lancamentos = await apiRequest<LancamentoFinanceiro[]>(
+          `/financeiro/lancamentos${buildLancamentosQueryString(filters)}`,
+        );
+        setLancamentos(lancamentos);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [setLancamentos, setLoading],
+  );
+
+  const handleCreateLancamento = useCallback(
+    async (input: CreateLancamentoInput) => {
+      try {
+        const lancamento = await apiRequest<LancamentoFinanceiro>("/financeiro/lancamentos", {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+        addLancamento(lancamento);
+        closeLancamentoFormModal();
+        return lancamento;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o lancamento.");
+        return null;
+      }
+    },
+    [addLancamento, closeLancamentoFormModal],
+  );
+
+  const handleMarcarComoPago = useCallback(
+    async (lancamentoId: string) => {
+      try {
+        const lancamento = await apiRequest<LancamentoFinanceiro>(
+          `/financeiro/lancamentos/${lancamentoId}/marcar-pago`,
+          { method: "POST" },
+        );
+        updateLancamentoInPlace(lancamento);
+        return lancamento;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel marcar como pago.");
+        return null;
+      }
+    },
+    [updateLancamentoInPlace],
+  );
+
+  const handleGerarCobrancasDoMes = useCallback(async () => {
+    try {
+      const result = await apiRequest<{ criados: number }>("/financeiro/gerar-cobrancas-mes", {
+        method: "POST",
+      });
+      await loadLancamentos();
+      return result;
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Nao foi possivel gerar as cobrancas do mes.");
+      return null;
+    }
+  }, [loadLancamentos]);
+
   return {
     loadImoveis,
     loadEmpreendimentos,
@@ -408,7 +583,15 @@ export function useImoveisIntegration() {
     handleCreateProprietario,
     handleUpdateProprietario,
     handleCreateInquilinoComprador,
+    handleUpdateInquilinoComprador,
+    handleListInquilinoDocumentos,
+    handleUploadInquilinoDocumento,
+    handleDeleteInquilinoDocumento,
     handleCreateContrato,
     handleEncerrarContrato,
+    loadLancamentos,
+    handleCreateLancamento,
+    handleMarcarComoPago,
+    handleGerarCobrancasDoMes,
   };
 }

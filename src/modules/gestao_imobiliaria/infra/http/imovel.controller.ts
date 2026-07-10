@@ -30,6 +30,7 @@ import { ListImoveisUseCase } from '../../application/use-cases/list-imoveis.use
 import { GetImovelUseCase } from '../../application/use-cases/get-imovel.use-case';
 import { UploadImovelPhotoUseCase } from '../../application/use-cases/upload-imovel-photo.use-case';
 import { DeleteImovelPhotoUseCase } from '../../application/use-cases/delete-imovel-photo.use-case';
+import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 @Controller('imoveis')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -50,7 +51,7 @@ export class ImovelController {
       tenantId: req.user!.tenantId,
       ...dto,
       disponivelApartirDe: dto.disponivelApartirDe
-        ? new Date(dto.disponivelApartirDe)
+        ? parseDateOnly(dto.disponivelApartirDe)
         : undefined,
     });
   }
@@ -82,7 +83,7 @@ export class ImovelController {
           ? undefined
           : dto.disponivelApartirDe === null
             ? null
-            : new Date(dto.disponivelApartirDe),
+            : parseDateOnly(dto.disponivelApartirDe),
     });
   }
 

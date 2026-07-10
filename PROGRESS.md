@@ -45,12 +45,10 @@ Testado de ponta a ponta com Playwright (tenant/admin/corretor de
 teste, visibilidade cruzada confirmada, dados de teste removidos ao
 final).
 
-PENDENCIA CRITICA (vale para o modulo RH inteiro, nao so esta fatia):
-TODOS os e-mails do modulo RH (boas-vindas de corretor, aprovacao/
-rejeicao de cadastro publico) estao ligados ao ConsoleEmailSender (so
-loga no console), nao ao ResendEmailSender - ninguem recebe e-mail de
-verdade ainda. Ver detalhes e o que trocar em CLAUDE.md, secao
-"PENDENCIA CRITICA antes de usar o modulo RH de verdade em producao".
+RESOLVIDO: todos os e-mails do modulo RH (boas-vindas de corretor,
+aprovacao/rejeicao de cadastro publico) agora usam ResendEmailSender
+de verdade (nao mais ConsoleEmailSender) - ver CLAUDE.md, secao
+"Envio de e-mail real (RESOLVIDO)".
 
 ### Modulo RH completo (cadastro publico multi-perfil + aprovacao + hierarquia) - CONCLUIDA
 Expande a fatia minima acima: cadastro publico sem login (POST
@@ -85,6 +83,90 @@ de /dashboard/kanban. Testado de ponta a ponta com Playwright (403 via
 API, redirecionamento via UI, tentativa de acesso direto por URL falha
 sem mostrar dados reais, Corretor continua funcionando normalmente).
 Detalhes completos em CLAUDE.md.
+
+### Modulo E-doc (assinatura eletronica) - Fatia 1 e Fatia 2 - CONCLUIDAS
+Logica PORTADA do projeto antigo de Daniel (ivillar/crm) - o backend
+de assinaturas de la foi apagado por acidente num commit de build nao
+relacionado, mas recuperado via git history e adaptado para Clean
+Architecture em src/modules/edoc/. Fluxo: envelope (PDF + hash
+SHA-256) -> destinatarios em ordem sequencial estrita (so o proximo
+recebe o link depois que o anterior assinar, reforcado tanto no envio
+do e-mail quanto num bloqueio direto no SignDocumentUseCase) ->
+assinatura via canvas (desenhado, validado por magic-bytes) ou nome
+digitado -> ultimo signatario fecha o envelope numa transaction.
+Trilha de auditoria completa (IP/User-Agent/timestamp por evento).
+Rotas de assinatura publicas (sem login) protegidas so pelo token, com
+expiracao configuravel.
+
+Fatia 2 adicionou o editor de posicionamento: cada destinatario recebe
+UM campo de assinatura posicionavel (pagina + x/y, arrastado com
+react-rnd sobre o PDF renderizado no proprio modal de criacao). Ao
+concluir o envelope, GenerateSignedPdfUseCase usa pdf-lib para carimbar
+a assinatura (imagem ou texto) de cada destinatario na posicao exata,
+gerando um PDF final (SignatureEnvelope.signedDocumentUrl) disponivel
+para download na pagina de detalhe do envelope. Testado de ponta a
+ponta com Playwright (2 signatarios em sequencia, campos em paginas
+diferentes, destaque exibido na pagina correta na tela de assinatura
+publica, PDF final gerado com 2 paginas e conteudo carimbado
+confirmado por leitura do arquivo). Detalhes completos em CLAUDE.md,
+incluindo a pendencia de build resolvida (react-pdf/pdfjs-dist
+precisou de downgrade + ssr:false por incompatibilidade com o
+Next.js).
+
+RESOLVIDO: e-mails do E-doc (convite + repasse ao proximo signatario)
+agora usam ResendEmailSender de verdade (nao mais ConsoleEmailSender).
+
+### Modulo Portal do Cliente - CONCLUIDA
+Substitui a tela placeholder /minha-conta por um portal real (Meus
+Imoveis, Meu Atendimento, Assinaturas Pendentes, Meus Documentos) para
+quem loga com Role "Cliente". src/modules/portal_cliente/ so LE dados
+ja existentes em gestao_imobiliaria/vendas_kanban/edoc, sem modelos
+proprios. LIMITACAO CONHECIDA (deliberada, documentada em CLAUDE.md):
+vinculo por CORRESPONDENCIA DE E-MAIL (User.email == Proprietario.email
+/ Card.email / SignatureRecipient.email), nao por FK formal - se o
+e-mail usado no cadastro do cliente for diferente do usado no
+contrato/card/envelope, a secao correspondente aparece vazia (nao e um
+bug). Testado de ponta a ponta com Playwright: Cliente Proprietario
+(imovel/contrato corretos, assinatura pendente, assina via link
+publico reaproveitado, migra para Meus Documentos apos reload) e
+Cliente Comprador (atendimento com etapa amigavel + corretor
+responsavel). Detalhes completos em CLAUDE.md.
+
+### Modulo Gestao Imobiliaria - Fatia 4 (Financeiro) - CONCLUIDA
+Expande src/modules/gestao_imobiliaria/ com lancamentos financeiros
+manuais (avulsos ou vinculados a um Contrato) e geracao automatica de
+cobranca de aluguel para Contratos de locacao ativos
+(GerarCobrancasDoMesUseCase, idempotente por mes-alvo - seguro clicar
+mais de uma vez). Status pendente/pago/atrasado, com atualizacao
+automatica para atrasado toda vez que a lista e buscada (sem scheduler).
+So Administrador acessa (mais estrito que os demais controllers do
+modulo). Frontend: 5a aba "Financeiro" em /dashboard/imoveis, so
+visivel para Administrador, com cards de resumo, filtros e botao
+"Gerar cobrancas do mes". Testado de ponta a ponta com Playwright
+(cobranca gerada com vencimento correto, confirmado que gerar 2x nao
+duplica, lancamento manual avulso, marcar como pago). Detalhes
+completos em CLAUDE.md.
+
+RESOLVIDO em tarefa dedicada logo apos esta fatia: bug sistemico de
+fuso horario em campos "date-only" (new Date("YYYY-MM-DD") era
+interpretado como UTC, nao local, perdendo 1 dia na exibicao em fusos
+negativos como o Brasil) - corrigido em todo o codebase via
+parseDateOnly()/formatDateOnly() (src/shared/utils/date-only.util.ts).
+Ver secao propria em CLAUDE.md.
+
+### Modulo Gestao Imobiliaria - Fatia 5 (Moradores/Inquilinos) - CONCLUIDA
+Fecha as 5 fatias planejadas do modulo. InquilinoComprador ganhou
+analise de credito (profissao, rendaDeclarada, statusAnaliseCredito,
+observacoesAnalise) e documentos anexados (InquilinoDocumento - RG/CPF,
+comprovante de renda, comprovante de residencia, outro), mesmo padrao
+de armazenamento das fotos de imovel e do E-doc. So Administrador
+acessa a analise de credito e os documentos (dados sensiveis) - a
+listagem basica continua aberta a qualquer DASHBOARD_ROLES. Frontend:
+nova aba "Inquilinos" com badge de status colorido, painel de detalhe
+com secoes condicionais por role. Testado de ponta a ponta com
+Playwright (preencher profissao/renda, mudar status para "Em Analise",
+upload de documento, mudar para "Aprovado", badge atualizado na
+lista). Detalhes completos em CLAUDE.md.
 
 ### Modulo Roleta Online (distribuicao automatica de leads) - CONCLUIDA
 Distribui automaticamente cards sem dono (Caixa de Entrada) entre
@@ -141,10 +223,21 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
 - WhatsApp Marketing (conexao do corretor): COMPLETO
 - Vendas/Kanban: backend completo, frontend com formulario/filtros
   completo (badges de temperatura, WhatsApp, busca)
+- Gestao Imobiliaria: Fatias 1-5 CONCLUIDAS - COMPLETO (Catalogo/
+  Espelho de Vendas, Proprietarios/Contratos, Financeiro com geracao
+  automatica de cobranca de aluguel, Moradores/Inquilinos com analise
+  de credito e documentos - Financeiro e a analise de credito/
+  documentos dos inquilinos so Administrador acessa)
 - RH/Cadastros e Perfis: CONCLUIDO (fatia minima + cadastro publico
-  multi-perfil + aprovacao + hierarquia - ver CLAUDE.md). Pendencia
-  critica: e-mails do modulo ainda nao sao reais (ConsoleEmailSender)
+  multi-perfil + aprovacao + hierarquia - ver CLAUDE.md). E-mails reais
+  via ResendEmailSender.
 - Roleta Online (distribuicao automatica de leads entre corretores): CONCLUIDA
+- E-doc (assinatura eletronica): Fatia 1 e Fatia 2 CONCLUIDAS (envelope
+  + assinatura sequencial + editor de posicionamento de campos + PDF
+  final carimbado para download)
+- Portal do Cliente (/minha-conta): CONCLUIDO (Meus Imoveis, Meu
+  Atendimento, Assinaturas Pendentes, Meus Documentos - vinculo por
+  e-mail, ver limitacao conhecida em CLAUDE.md)
 - Atendimento, Marketing, Agente de Atendimento Online (Meta), Pagamentos: nao iniciados
 
 ### Fase B - Frontend completo

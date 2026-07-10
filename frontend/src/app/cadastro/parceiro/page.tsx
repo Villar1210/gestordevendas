@@ -35,9 +35,9 @@ export default function CadastroParceiroPage() {
               <Link
                 key={opcao.href}
                 href={opcao.href}
-                className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+                className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-amber-300 hover:shadow-md"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 text-amber-600">
                   <Icon className="h-5 w-5" />
                 </span>
                 <span className="text-base font-semibold text-slate-800">{opcao.title}</span>
@@ -47,7 +47,7 @@ export default function CadastroParceiroPage() {
           })}
         </div>
 
-        <Link href="/cadastro" className="mt-8 block text-center text-sm text-indigo-600 hover:underline">
+        <Link href="/cadastro" className="mt-8 block text-center text-sm text-amber-600 hover:underline">
           Voltar
         </Link>
       </div>

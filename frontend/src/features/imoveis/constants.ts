@@ -113,3 +113,73 @@ export function getTipoLabel(tipo: string): string {
 export function getFinalidadeLabel(finalidade: string): string {
   return FINALIDADE_OPTIONS.find((option) => option.value === finalidade)?.label ?? finalidade;
 }
+
+export const TIPO_LANCAMENTO_OPTIONS = [
+  { value: "receita", label: "Receita (a receber)" },
+  { value: "repasse", label: "Repasse (a pagar)" },
+];
+
+export const CATEGORIA_LANCAMENTO_OPTIONS = [
+  { value: "aluguel", label: "Aluguel" },
+  { value: "venda", label: "Venda" },
+  { value: "taxa_administracao", label: "Taxa de Administracao" },
+  { value: "manutencao", label: "Manutencao" },
+  { value: "outro", label: "Outro" },
+];
+
+export interface LancamentoStatusOption {
+  value: string;
+  label: string;
+  badgeClassName: string;
+}
+
+export const STATUS_LANCAMENTO_OPTIONS: LancamentoStatusOption[] = [
+  { value: "pendente", label: "Pendente", badgeClassName: "bg-slate-100 text-slate-700" },
+  { value: "pago", label: "Pago", badgeClassName: "bg-green-100 text-green-700" },
+  { value: "atrasado", label: "Atrasado", badgeClassName: "bg-red-100 text-red-700" },
+];
+
+export function getTipoLancamentoLabel(tipo: string): string {
+  return TIPO_LANCAMENTO_OPTIONS.find((option) => option.value === tipo)?.label ?? tipo;
+}
+
+export function getCategoriaLancamentoLabel(categoria: string): string {
+  return (
+    CATEGORIA_LANCAMENTO_OPTIONS.find((option) => option.value === categoria)?.label ?? categoria
+  );
+}
+
+export function getStatusLancamentoOption(status: string): LancamentoStatusOption {
+  return STATUS_LANCAMENTO_OPTIONS.find((option) => option.value === status) ?? STATUS_LANCAMENTO_OPTIONS[0];
+}
+
+export interface StatusAnaliseCreditoOption {
+  value: string;
+  label: string;
+  badgeClassName: string;
+}
+
+export const STATUS_ANALISE_CREDITO_OPTIONS: StatusAnaliseCreditoOption[] = [
+  { value: "nao_iniciada", label: "Nao Iniciada", badgeClassName: "bg-slate-100 text-slate-700" },
+  { value: "em_analise", label: "Em Analise", badgeClassName: "bg-amber-100 text-amber-700" },
+  { value: "aprovado", label: "Aprovado", badgeClassName: "bg-green-100 text-green-700" },
+  { value: "reprovado", label: "Reprovado", badgeClassName: "bg-red-100 text-red-700" },
+];
+
+export function getStatusAnaliseCreditoOption(status: string): StatusAnaliseCreditoOption {
+  return (
+    STATUS_ANALISE_CREDITO_OPTIONS.find((option) => option.value === status) ??
+    STATUS_ANALISE_CREDITO_OPTIONS[0]
+  );
+}
+
+export const TIPO_DOCUMENTO_OPTIONS = [
+  { value: "rg_cpf", label: "RG/CPF" },
+  { value: "comprovante_renda", label: "Comprovante de Renda" },
+  { value: "comprovante_residencia", label: "Comprovante de Residencia" },
+  { value: "outro", label: "Outro" },
+];
+
+export function getTipoDocumentoLabel(tipo: string): string {
+  return TIPO_DOCUMENTO_OPTIONS.find((option) => option.value === tipo)?.label ?? tipo;
+}

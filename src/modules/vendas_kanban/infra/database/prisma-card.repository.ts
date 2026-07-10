@@ -48,6 +48,8 @@ export class PrismaCardRepository implements ICardRepository {
       // que faz o join com o nome do corretor sugerido.
       suggestedOwnerId: row.suggestedOwnerId,
       suggestedOwnerName: null,
+      stageName: null,
+      ownerName: null,
       imovelId: row.imovelId,
       title: row.title,
       value: row.value.toNumber(),
@@ -127,6 +129,19 @@ export class PrismaCardRepository implements ICardRepository {
     return rows.map((row) => ({
       ...this.toRecord(row),
       suggestedOwnerName: row.suggestedOwner?.name ?? null,
+    }));
+  }
+
+  async findAllByTenantAndEmail(tenantId: string, email: string): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: { tenantId, email },
+      orderBy: { createdAt: 'desc' },
+      include: { stage: { select: { name: true } }, owner: { select: { name: true } } },
+    });
+    return rows.map((row) => ({
+      ...this.toRecord(row),
+      stageName: row.stage?.name ?? null,
+      ownerName: row.owner?.name ?? null,
     }));
   }
 

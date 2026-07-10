@@ -7,7 +7,7 @@ import { useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
 
 export function ProprietarioFormModal() {
   const isOpen = useImoveisStore((state) => state.proprietarioFormModalOpen);
@@ -261,7 +261,7 @@ export function ProprietarioFormModal() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Criar"}
             </button>

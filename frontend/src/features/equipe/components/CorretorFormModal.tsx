@@ -7,7 +7,7 @@ import { useEquipeStore } from "../store/useEquipeStore";
 import { useEquipeIntegration } from "../hooks/useEquipeIntegration";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
 
 export function CorretorFormModal() {
   const isOpen = useEquipeStore((state) => state.corretorFormModalOpen);
@@ -84,7 +84,7 @@ export function CorretorFormModal() {
             />
           </div>
 
-          <div className="flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             <Mail className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Uma senha temporaria sera gerada automaticamente e enviada para este e-mail. O
@@ -103,7 +103,7 @@ export function CorretorFormModal() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
             >
               {saving ? "Criando..." : "Criar"}
             </button>

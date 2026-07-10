@@ -99,24 +99,16 @@ Turbopack neste ambiente nao consegue baixar Google Fonts.
 
 ## Modulo RH - fatia minima (contas de Corretor + status + Kanban) - CONCLUIDA
 
-### PENDENCIA CRITICA antes de usar o modulo RH de verdade em producao
-RhModule esta ligado ao ConsoleEmailSender, NAO ao ResendEmailSender -
-ou seja, TODOS os e-mails do modulo RH (boas-vindas do corretor
-cadastrado pelo Administrador, e tambem aprovacao/rejeicao do cadastro
-publico) hoje so imprimem no log do servidor (console.log), ninguem
-recebe e-mail de verdade. Isso foi deliberado enquanto o modulo estava
-em teste (evitar disparar e-mails reais a cada conta de teste criada),
-mas e uma PENDENCIA BLOQUEANTE para uso real: um cadastro publico
-aprovado de verdade nunca fica sabendo que foi aprovado (ou rejeitado),
-e um corretor criado pelo Administrador fica sem saber a senha e sem
-conseguir logar - ninguem mais tem acesso a ela (nao ha tela de
-"reenviar senha" para corretor, so "esqueci minha senha" via auth, que
-exige o usuario ja estar logado uma vez ou ter acesso ao proprio
-e-mail cadastrado funcionando). ANTES de usar o modulo RH de verdade:
-trocar o provider em src/modules/rh/rh.module.ts de
-`ConsoleEmailSender` para `ResendEmailSender` (mesmo padrao ja usado
-no AuthModule - so trocar a classe no
-`{ provide: 'IEmailSender', useClass: ... }`).
+### Envio de e-mail real (RESOLVIDO)
+RhModule agora usa `ResendEmailSender` (mesmo provider ja usado no
+AuthModule), nao mais `ConsoleEmailSender` - todos os e-mails do
+modulo RH (boas-vindas do corretor cadastrado pelo Administrador,
+aprovacao/rejeicao do cadastro publico) sao enviados de verdade.
+Confirmado com teste real via API do Resend (GET /emails/:id
+retornando `last_event: "delivered"`) usando o endereco de teste
+`delivered@resend.dev` - cadastro publico de corretor criado, aprovado
+pelo Administrador, e-mail de aprovacao chegou de verdade. Dados de
+teste (tenant, cadastro) removidos ao final.
 
 Primeira fatia do modulo RH implementada em src/modules/rh/, seguindo
 Clean Architecture (domain/application/infra) e isolada dos demais
@@ -196,7 +188,8 @@ AprovarCadastroUseCase/RejeitarCadastroUseCase (so Administrador):
 aprovar aceita cargoHierarquico + superiorId opcionais (so relevantes
 para Corretor House e Imobiliaria Parceira - Cliente e Corretor
 Parceiro nao usam hierarquia) e dispara e-mail via IEmailSender (ver
-PENDENCIA CRITICA acima). ListPossiveisSuperioresUseCase lista
+"Envio de e-mail real" acima - hoje via ResendEmailSender).
+ListPossiveisSuperioresUseCase lista
 usuarios do tenant com cargoHierarquico ja preenchido, para popular o
 seletor de superior na tela de aprovacao - por isso o primeiro
 aprovado de uma hierarquia nunca tem superior disponivel ainda (e o
@@ -356,6 +349,304 @@ para "Em Atendimento" com o dono certo, e por fim os 2 corretores
 ficando offline e um novo lead permanecendo na Caixa de Entrada sem
 dono e sem erro. Tenant de teste removido ao final (cascata).
 
+## Modulo E-doc (assinatura eletronica) - Fatia 1 - CONCLUIDA
+Origem: logica PORTADA do projeto antigo de Daniel
+(C:\laragon\www\ivillar\crm) - o backend de assinaturas de la foi
+apagado por acidente num commit de "correcao de build" nao
+relacionado (ver memoria da analise anterior), mas recuperado via
+`git show` dos commits anteriores a destruicao. A engenharia de
+seguranca do original (validacao de imagem por magic-bytes, hash
+SHA-256 duplo, trilha de auditoria com IP/UA, transacao no fechamento
+multi-signatario, tokens com expiracao) foi preservada; so o visual
+foi refeito do zero com a identidade atual do gestordevendas.
+Simplificacao desta fatia: SEM editor de posicionamento de campos - a
+assinatura sempre vai no final do documento, em posicao fixa (ver
+"Fatia 2" logo abaixo, ja CONCLUIDA, para o editor com react-rnd).
+
+Modulo src/modules/edoc/, Clean Architecture. 3 modelos novos:
+SignatureEnvelope (documento + status: rascunho -> aguardando_
+assinaturas -> concluido, ou cancelado a qualquer momento antes de
+concluido), SignatureRecipient (um signatario, com order sequencial
+comecando em 1) e SignatureEvent (trilha de auditoria: criado/
+enviado/visualizado/assinado/concluido/cancelado, com IP/User-Agent
+quando vem da rota publica). Duas leituras do enunciado original
+resolvidas durante a implementacao (nao pausei para perguntar, ja que
+o proprio enunciado resolvia a ambiguidade em outro trecho):
+SignatureRecipient.accessToken/tokenExpiresAt sao nullable (String?/
+DateTime?, apesar do enunciado nao marcar "?") porque
+SendEnvelopeUseCase e quem gera os tokens, no envio - eles nao existem
+ainda quando o envelope esta em "rascunho".
+
+Fluxo sequencial estrito: SendEnvelopeUseCase gera o token de TODOS os
+destinatarios de uma vez, mas so envia e-mail para o primeiro da
+ordem. SignDocumentUseCase reforca a ordem em duas camadas: alem do
+e-mail so chegar na vez certa, tambem BLOQUEIA a assinatura em si se
+existir algum destinatario de ordem menor ainda pendente
+(countPendingBeforeOrder) - defesa em profundidade, mesmo que alguem
+tente usar um token "futuro" que ja foi gerado mas ainda nao deveria
+ser usado. Ao assinar, se for o ultimo da ordem, completeWithEvent
+(no repositorio) fecha o envelope e registra o evento "concluido"
+numa unica transaction Prisma - mesmo padrao ja usado em
+PrismaUserRepository.registerCompanyWithOwner.
+
+signatureImageData aceita duas formas (o proprio schema documenta
+isso): data URL PNG (canvas, com validacao de magic-bytes alem da
+regex, mesma tecnica do projeto antigo) ou o nome digitado (texto
+puro, sem validacao de imagem). Rotas GET/POST /edoc/sign/:token sao
+PUBLICAS (sem JwtAuthGuard/RolesGuard) - o token e a propria fronteira
+de seguranca, por isso SignatureRecipient nao tem tenantId proprio
+(mesmo padrao ja usado em PasswordResetToken/TwoFactorCode - o acesso
+autenticado sempre passa pelo SignatureEnvelope, que ja e tenant-
+scoped, primeiro). Rotas autenticadas (EnvelopeController) usam
+DASHBOARD_ROLES como as demais; CancelEnvelopeUseCase e mais estrito -
+so Administrador ou quem criou o envelope.
+
+IFileStorageService reaproveitado literalmente do modulo
+gestao_imobiliaria (LocalFileStorageService, sem alteracao) - efeito
+colateral conhecido: os PDFs de assinatura ficam fisicamente em
+uploads/imoveis/ junto com fotos de imoveis (pasta compartilhada,
+so porque hoje os dois modulos usam a mesma implementacao concreta;
+trocar para S3 no futuro afeta os dois igualmente). IEmailSender
+ligado a ResendEmailSender (mesmo provider ja usado no AuthModule e no
+RH, nao mais ConsoleEmailSender) - e-mails de assinatura (convite +
+repasse para o proximo signatario) sao enviados de verdade. Confirmado
+com teste real via API do Resend (GET /emails/:id retornando
+`last_event: "delivered"`) usando `delivered@resend.dev`: envelope
+criado e enviado, e-mail de convite para assinatura chegou de verdade.
+Dados de teste removidos ao final.
+
+PENDENCIA DE BUILD registrada (fora do escopo original, mas necessaria
+para o item pedir explicitamente react-pdf/pdfjs-dist): react-pdf
+10.x + pdfjs-dist 5.x quebra em runtime no Next.js 15 com webpack
+("TypeError: Object.defineProperty called on non-object" dentro de
+pdf.mjs) - o build "moderno" do pdfjs-dist e internamente um bundle
+Webpack da propria Mozilla disfarcado de ESM puro, e o webpack do
+Next.js nao consegue processa-lo (nem com transpilePackages, nem com
+alias para a build "legacy" - so downgrade resolveu). Fixado com
+`react-pdf@9.2.1` (trava em `pdfjs-dist@4.8.69`, anterior a essa
+mudanca de build). Alem disso, pdfjs-dist so pode rodar no browser -
+executa codigo que quebra em SSR - por isso o visualizador de PDF
+(PdfViewer.tsx) e isolado num componente proprio, importado via
+`next/dynamic({ ssr: false })` em src/app/assinar/[token]/page.tsx.
+Se algum dia atualizar react-pdf/pdfjs-dist, testar de novo com
+cuidado antes de assumir que os dois problemas acima (SSR e o erro de
+build) continuam corrigidos.
+
+Frontend: item "E-doc" no Sidebar (visivel a qualquer role de
+dashboard, sem restricao extra). /dashboard/edoc lista envelopes
+(status colorido, quantidade de assinantes, data). CreateEnvelopeModal
+(upload de PDF + titulo + lista de destinatarios com setas para
+reordenar a sequencia) chama criar + enviar em uma acao so ("Criar e
+Enviar"). /assinar/[token] e publica, fora do layout do dashboard:
+mostra o PDF, nome de quem esta assinando, abas "Desenhar assinatura"
+(canvas HTML5 nativo via Pointer Events, sem lib paga) ou "Digitar
+nome", tela de confirmacao apos assinar, e mensagem clara de link
+vencido/cancelado quando aplicavel.
+
+Testado de ponta a ponta com Playwright: criacao de envelope via UI
+com PDF minimo gerado por codigo (xref valido, sem depender de
+biblioteca de geracao de PDF) e 2 destinatarios, e-mail do primeiro
+confirmado no log com o token certo, assinatura publica via "digitar
+nome", e-mail do segundo destinatario disparado automaticamente em
+seguida (confirmado no log), segundo assina, envelope confirmado como
+"concluido" (via API e na UI), e um envelope separado testando token
+expirado (data ajustada direto no banco) mostrando a mensagem clara de
+link vencido. Documento fisico e tenant de teste removidos ao final.
+
+## Modulo E-doc (assinatura eletronica) - Fatia 2 (editor de posicionamento) - CONCLUIDA
+Escopo desta fatia: cada destinatario recebe UM campo de assinatura
+posicionavel (pagina + posicao x/y) - sem suporte a outros tipos de
+campo (data, rubrica, texto livre), deixado para uma fatia futura se
+for necessario.
+
+Modelo novo `SignatureField` (envelopeId, recipientId, pageNumber,
+xPercent/yPercent/widthPercent/heightPercent, todos 0-1 exceto
+pageNumber) + `SignatureEnvelope.signedDocumentUrl` (String?,
+preenchido so quando o envelope fecha). Posicoes sao percentuais (nao
+pixels absolutos) para renderizar corretamente em qualquer resolucao
+de tela ou tamanho de pagina do PDF.
+
+`CreateEnvelopeUseCase` recebe os campos referenciando `recipientIndex`
+(posicao no array de destinatarios), nao um `recipientId` real -
+destinatarios ainda nao existem quando a requisicao chega. O use case
+cria os `SignatureRecipient` primeiro, depois mapeia
+`recipients[field.recipientIndex].id` para criar os `SignatureField`
+via `createMany`. Esse contrato (`recipientIndex`) atravessa
+DTO -> controller -> use case -> frontend de forma consistente.
+
+`GenerateSignedPdfUseCase` (pdf-lib, MIT) e chamado pelo
+`SignDocumentUseCase` logo apos `completeWithEvent` (transaction que
+fecha o envelope), mas FORA dela - geracao de PDF e I/O de arquivo, nao
+deve segurar lock de banco. Envolvido em try/catch que so loga o erro
+(nao desfaz a assinatura ja registrada se a geracao falhar). Para cada
+`SignatureField`, abre o PDF original (via
+`IFileStorageService.download()`, metodo novo adicionado a interface
+so nesta fatia - `LocalFileStorageService` ja tinha tudo que precisava
+via `fs/promises.readFile`, efeito colateral zero no unico outro
+consumidor do arquivo compartilhado, gestao_imobiliaria, que nunca
+chamava `download()`), decodifica `signatureImageData` do destinatario
+(mesma dualidade da Fatia 1: data URL PNG via `pdfDoc.embedPng`, ou
+nome digitado via `pdfDoc.drawText` com fonte italica) e desenha na
+pagina/posicao certa. Conversao de eixo: xPercent/yPercent do frontend
+usam origem no canto superior-esquerdo (convencao CSS/canvas), PDF usa
+origem no canto inferior-esquerdo - `y = pageHeight - yPercent*pageHeight - fieldHeight`
+inverte isso. PDF final salvo via `IFileStorageService.upload()`, url
+gravada em `SignatureEnvelope.signedDocumentUrl`. Nova rota
+`GET /edoc/envelopes/:id/signed-pdf` (autenticada) so retorna algo se
+`status === 'concluido'`.
+
+`GetEnvelopeByTokenUseCase` passou a devolver tambem o(s)
+`SignatureField` do destinatario da sessao (array, ja pensando numa
+fatia futura com mais de 1 campo por pessoa - hoje sempre 1).
+
+Frontend: `CreateEnvelopeModal` virou wizard de 2 passos - Passo 1 e
+igual a Fatia 1 (PDF + titulo + destinatarios); Passo 2
+(`FieldPositionEditor.tsx`, novo) renderiza o PDF via `react-pdf`
+(mesma trava de versao `react-pdf@9.2.1`/`pdfjs-dist@4.8.69` e mesmo
+`ssr:false` da Fatia 1 - ver pendencia de build documentada acima,
+continua valendo aqui) com navegacao entre paginas, e uma caixa
+arrastavel/redimensionavel (`react-rnd`, nova dependencia) por
+destinatario sobre a pagina atual, mais um seletor de pagina por
+destinatario abaixo da lista (mais simples que arrastar entre paginas
+para trocar a pagina do campo). Ao entrar no Passo 2, os campos sao
+sempre recalculados do zero a partir da lista atual de destinatarios
+(posicoes escalonadas verticalmente na pagina 1) - decisao deliberada
+para nao arriscar dessincronizar `recipientIndex` se o admin voltar ao
+Passo 1 e reordenar/remover destinatarios (perde posicionamento manual
+ao voltar, mas evita bug de indice trocado).
+
+`PdfViewer.tsx` foi movido de `src/app/assinar/[token]/` para
+`src/features/edoc/components/` (reaproveitado agora tambem pelo
+editor de posicionamento) e ganhou a prop `highlightField`: desenha um
+retangulo com borda tracejada amber na posicao exata do campo do
+destinatario, na pagina certa, com scroll automatico ate ela. A tela
+publica `/assinar/[token]` mostra esse destaque logo acima do
+canvas/input de assinatura, com a legenda "E aqui que sua assinatura
+vai aparecer no documento (destacado na pagina N)".
+
+Nova pagina `src/app/dashboard/edoc/[id]/page.tsx` (detalhe do
+envelope: lista de destinatarios com status/data de assinatura, e
+botao "Baixar documento assinado" quando `status === 'concluido'` e
+`signedDocumentUrl` existe). Lista de envelopes
+(`/dashboard/edoc/page.tsx`) ganhou clique na linha para navegar ate o
+detalhe.
+
+Testado de ponta a ponta com Playwright: envelope criado via UI com PDF
+de teste de 2 paginas (gerado com pdf-lib) e 2 destinatarios, campo do
+primeiro arrastado na pagina 1, campo do segundo movido para a pagina 2
+(seletor) e tambem arrastado la, confirmado no banco que cada
+`SignatureField.pageNumber` ficou correto, assinatura publica dos dois
+via "digitar nome" com o destaque conferido na pagina certa em cada
+link (screenshot de cada tela), envelope fechou como "concluido",
+`signedDocumentUrl` preenchido, PDF final baixado e confirmado com 2
+paginas via `pdf-lib` (inspecao de arquivo, sem necessidade de
+comparacao visual), botao "Baixar documento assinado" confirmado na
+pagina de detalhe. Tenant, envelope e arquivos fisicos (PDF original +
+PDF assinado) removidos ao final.
+
+## Modulo Portal do Cliente - CONCLUIDO
+Substitui a tela placeholder `/minha-conta` (que so mostrava "Sua conta
+foi aprovada!") por um portal de verdade para quem faz login com Role
+"Cliente" (tambem alcancavel por "Imobiliaria Parceira", que cai na
+mesma rota - ver DASHBOARD_ROLES). Modulo `src/modules/portal_cliente/`,
+Clean Architecture, mas SEM repositorios/modelos proprios - e uma
+camada de "agregacao por leitura" que consulta dados ja existentes em
+3 outros modulos.
+
+### LIMITACAO CONHECIDA: vinculo por e-mail, nao por FK formal
+Os 4 use cases (`GetMeusImoveisUseCase`, `GetMeuAtendimentoUseCase`,
+`GetMinhasAssinaturasPendentesUseCase`, `GetMeusDocumentosAssinadosUseCase`)
+encontram os dados do cliente logado por CORRESPONDENCIA DE E-MAIL
+(`User.email` comparado a `Proprietario.email`, `Card.email` e
+`SignatureRecipient.email`), nao por chave estrangeira formal - essas
+3 entidades nao tem (e nao ganharam nesta fatia) nenhum campo
+`userId`/`clienteId`. Isso e uma limitacao DELIBERADA e conhecida, nao
+um bug: se o Administrador cadastrar o Proprietario, criar o Card ou
+endereçar o envelope de assinatura com um e-mail DIFERENTE do e-mail
+que o cliente usou para se cadastrar/logar, a secao correspondente
+aparece vazia (com a mensagem amigavel de estado vazio, sem erro).
+Corrigir isso de verdade exigiria adicionar FKs formais em
+`Proprietario`/`Card`/`SignatureRecipient` apontando para `User` -
+avaliar numa fatia futura se isso incomodar na pratica.
+
+### Backend
+`GetMeusImoveisUseCase` busca `Proprietario` pelo e-mail
+(`IProprietarioRepository.findByTenantAndEmail`, metodo novo - usa
+`findFirst`, ja que `Proprietario.email` nao tem constraint de
+unicidade), lista os `Contrato` vinculados (reaproveita
+`findAllByTenant(tenantId, { proprietarioId })`, ja existente) e, para
+cada um, busca o `Imovel` e a foto de capa (primeira por `order`).
+Retorna o status do CONTRATO (ativo/encerrado/cancelado), nao o status
+do imovel. `GetMeuAtendimentoUseCase` busca `Card` pelo e-mail
+(`ICardRepository.findAllByTenantAndEmail`, metodo novo, com join para
+`stageName`/`ownerName` - mesmo padrao ja usado por
+`findAllByPipelineInbox`/`suggestedOwnerName`) e devolve so
+titulo/etapa/corretor - nunca `customFields` nem notas internas do
+card, de proposito.
+`GetMinhasAssinaturasPendentesUseCase`/`GetMeusDocumentosAssinadosUseCase`
+usam o mesmo metodo novo `ISignatureRecipientRepository.findAllByEmailAndTenant`
+(join com o envelope, ja que `SignatureRecipient` nao tem `tenantId`
+proprio - ver Fatia 1), filtrando em memoria por
+`status`/`envelopeStatus` (pendente+aguardando_assinaturas vs.
+concluido) - so 1 metodo de repositorio novo para os 2 use cases.
+
+Nao ha filtro adicional de "e a vez deste destinatario assinar" na
+lista de pendentes (so replica o filtro pedido: `status=pendente` +
+`envelopeStatus=aguardando_assinaturas`) - um destinatario de ordem
+2+ que ainda nao recebeu o e-mail tambem aparece com "Assinar agora"
+habilitado. Isso e um comportamento pre-existente desde a Fatia 1 (o
+proprio link publico `/assinar/:token` ja nao bloqueava visualizacao
+fora de ordem, so a assinatura em si via `countPendingBeforeOrder`) -
+o Portal do Cliente so espelha esse comportamento, nao o piora.
+
+`PortalClienteController` usa so `JwtAuthGuard` (SEM `@Roles`) -
+qualquer usuario autenticado pode chamar, porque cada use case ja
+filtra pelo PROPRIO e-mail do requisitante, entao nao ha vazamento
+entre usuarios/tenants. Como o JWT so carrega `id`/`tenantId`/`role`
+(nao o e-mail, ver `JwtStrategy`), o controller resolve o e-mail uma
+vez por requisicao a partir do proprio id, via `IUserRepository`
+(exportado por `AuthModule` so para esse fim).
+
+`GetMeUseCase` (`/auth/me`) ganhou o campo `tipoCliente` no retorno
+(`UserWithRole.tipoCliente`, presente no schema desde o modulo RH mas
+nunca antes exposto por essa rota) - o frontend usa isso para decidir
+quais secoes mostrar. `portal_cliente.module.ts` importa `AuthModule`,
+`GestaoImobiliariaModule`, `VendasKanbanModule` e `EdocModule`
+diretamente (dependencia de modulo, nao circular, mesmo padrao do
+`roleta_online` importando `VendasKanbanModule`+`RhModule`) - nenhum
+desses 4 modulos conhece `portal_cliente` de volta.
+
+### Frontend
+`src/app/minha-conta/page.tsx` reescrita por completo: cabecalho
+proprio simples (wordmark "gestordevendas" + nome do usuario + Sair),
+fora do layout do dashboard (sem Sidebar/Topbar). Busca `/auth/me` +
+os 4 endpoints do portal em paralelo (`Promise.all`) ao carregar,
+independente do `tipoCliente` (a filtragem e so de EXIBICAO, nao de
+busca - simplifica o codigo, custo de rede irrelevante nessa escala).
+Secao "Meus Imoveis" aparece se `tipoCliente` incluir "proprietario";
+"Meu Atendimento" se incluir "comprador" (`tipoCliente` pode ser
+"ambos", daí o `.includes()` em vez de igualdade exata); "Assinaturas
+Pendentes" e "Meus Documentos" aparecem sempre. Nome tecnico da stage
+traduzido para linguagem amigavel via mapa fixo
+(`STAGE_FRIENDLY_LABELS`) cobrindo as 5 stages padrao criadas por
+`CreateDefaultPipelineUseCase` - stages renomeadas ou criadas
+manualmente pelo tenant caem no fallback (nome cru da stage). Botao
+"Assinar agora" abre `/assinar/[token]` (pagina publica ja existente,
+sem nenhuma duplicacao de fluxo) em nova aba.
+
+Testado de ponta a ponta com Playwright: tenant/admin de teste, 2
+cadastros publicos aprovados (Cliente com `tipoCliente=proprietario` e
+`tipoCliente=comprador`), Proprietario+Imovel+Contrato criados com o
+mesmo e-mail do primeiro cliente, envelope de E-doc enviado para esse
+mesmo e-mail, Card criado com o e-mail do segundo cliente. Login do
+primeiro cliente confirma "Meus Imoveis" e "Assinaturas Pendentes"
+corretos e "Meu Atendimento" ausente; assinatura via link publico
+("Digitar nome"); reload confirma migracao para "Meus Documentos" com
+botao "Baixar" funcional. Login do segundo cliente confirma "Meu
+Atendimento" (etapa amigavel + corretor) e "Meus Imoveis" ausente.
+Screenshots de cada estado. Tenant, envelope e arquivos fisicos (PDF
+original + PDF assinado) removidos ao final.
+
 ## Cenario de negocio original do modulo RH (CONCLUIDO - ver secao propria acima)
 Nota historica: esta secao descrevia o planejamento original do RH,
 mantida aqui so como referencia do cenario de negocio (Daniel presta
@@ -381,9 +672,24 @@ Administrador - nao havia mais nada pendente deste cenario original.
 O usuario quer um CRM com cores alegres e motivadoras, sem perder
 seriedade/profissionalismo. Base neutra (fundo claro, tipografia limpa)
 com cor usada estrategicamente em pontos de destaque (status, badges,
-graficos, acoes principais) - nao cor por toda a tela. Revisar a paleta
-atual (indigo/slate) numa passada dedicada de identidade visual quando
-houver mais telas prontas para avaliar em conjunto.
+graficos, acoes principais) - nao cor por toda a tela.
+
+Cor de destaque definida (revisao concluida): **amber**, substituindo
+indigo em todo o frontend/src/ (~158 ocorrencias em 33 arquivos).
+Amber-600 e o padrao (bordas, links, texto de destaque, badges); nos
+botoes solidos com texto branco (bg-*-600 + text-white, ex: "Entrar",
+"Novo Negocio", abas ativas tipo "Kanban"/"Catalogo") o contraste de
+branco sobre amber-600 ficou fraco (~3.2:1, abaixo do minimo de 4.5:1
+do WCAG AA para texto normal) - esses casos especificos foram ajustados
+para amber-700 (com hover em amber-800), confirmado visualmente via
+screenshots reais (Playwright) apos o build. Base neutra (slate)
+inalterada. Excecoes deliberadas que continuam em amber-600 mesmo com
+texto branco por cima: os toggles/switches (RoletaConfigCard, VIVI
+on/off no WhatsApp) - sao so a trilha do switch, sem texto - e o
+badge de status "Reservado" do Catalogo de Imoveis
+(features/imoveis/constants.ts), que ja usava amber antes desta troca
+e e um design de badge de status pre-existente, fora do escopo desta
+revisao de cor de destaque.
 
 ## Decisao tecnica: Caixa de Entrada e fluxo de leads
 Card.stageId e opcional - um card sem stageId esta na "Caixa de
@@ -462,6 +768,184 @@ navegacao de /dashboard/imoveis. Testado com Playwright de ponta a
 ponta (criar Proprietario, criar Contrato de locacao com Inquilino
 criado inline, confirmar Imovel.status = ocupado, encerrar, confirmar
 Imovel.status = vago) - dados de teste limpos ao final.
+
+### Fatia 4 (Financeiro) - CONCLUIDA
+Modelo novo `LancamentoFinanceiro` (tenantId, contratoId opcional -
+nulo para lancamento avulso/manual -, tipo "receita"/"repasse",
+categoria aluguel/venda/taxa_administracao/manutencao/outro, valor,
+vencimento, status pendente/pago/atrasado, pagoEm, descricao). So
+Administrador acessa (`FinanceiroController` usa `@Roles('Administrador')`
+diretamente, mais estrito que `DASHBOARD_ROLES` usado nos demais
+controllers deste modulo - dados financeiros sao sensiveis, corretor
+nao ve).
+
+`GerarCobrancasDoMesUseCase` e o coracao da fatia: para cada Contrato
+`tipo=locacao` e `status=ativo` com `diaVencimento` preenchido, calcula
+o vencimento-alvo (dia `diaVencimento` do mes atual, ou do proximo mes
+se esse dia ja passou - com clamp para o ultimo dia do mes em meses
+mais curtos, ex: dia 31 em fevereiro vira 28/29) e so cria o
+`LancamentoFinanceiro` (`tipo=receita`, `categoria=aluguel`,
+`valor=Contrato.valor`) se AINDA NAO existir um para esse contrato
+naquele mes-alvo (`existsForContratoAndPeriodo`, checagem por
+intervalo de datas) - idempotente, seguro clicar/chamar mais de uma
+vez. Retorna quantos foram criados. `AtualizarStatusVencidosUseCase`
+(sem scheduler automatico, fora do escopo desta fatia) roda dentro de
+`ListLancamentosUseCase` toda vez que a lista e buscada (injecao direta
+de um caso de uso dentro do outro, mesmo padrao ja usado em
+`GenerateSignedPdfUseCase`/`SignDocumentUseCase` no E-doc), promovendo
+`pendente` -> `atrasado` quando o vencimento ja passou - tambem
+disponivel isoladamente se precisar no futuro.
+
+Frontend: "Financeiro" vira a 5a opcao no toggle de `/dashboard/imoveis`
+(Catalogo/Espelho/Proprietarios/Contratos/Financeiro), visivel so para
+Administrador (mesmo padrao de fetch de `/auth/me` ja usado em
+`/dashboard/equipe`). `FinanceiroTab.tsx` cruza `lancamento.contratoId`
+com as listas `contratos`/`imoveis` ja carregadas na store (mesmo
+padrao ja usado por `ContratosTab.tsx` para mostrar o titulo do
+imovel) - nenhum enriquecimento no backend, `ListLancamentosUseCase`
+devolve so os campos crus do `LancamentoFinanceiro`. Os 3 cards de
+resumo ("Total a Receber", "Total a Pagar/Repasse", "Total Recebido no
+Mes") sao calculados no frontend a partir da MESMA lista carregada na
+tabela (reflete os filtros ativos, se houver) - decisao deliberada
+para nao duplicar a busca. "Total a Receber"/"Total a Pagar" somam
+`status != "pago"` (pendente + atrasado, nao so pendente - a leitura
+mais util de "quanto ainda falta" para o Administrador); "Total
+Recebido no Mes" soma `tipo=receita`, `status=pago`, `pagoEm` no mes
+corrente.
+
+BUG DE FUSO HORARIO EM CAMPOS "DATE-ONLY" (RESOLVIDO - ver secao
+propria "Correcao: bug sistemico de fuso horario..." mais abaixo).
+Descoberto durante o teste desta fatia (lancamento manual com
+vencimento "2026-07-25" digitado aparecia como "24/07/2026" na
+tabela); corrigido logo em seguida, numa tarefa dedicada, em todo o
+codebase (nao so Financeiro). Os vencimentos gerados automaticamente
+por `GerarCobrancasDoMesUseCase` nunca sofreram desse problema (usam
+`new Date(year, month, day)`, construtor que ja interpreta em horario
+local, nao uma string).
+
+Testado de ponta a ponta com Playwright: Contrato de locacao de teste
+com `diaVencimento=20`, "Gerar cobrancas do mes" cria 1 lancamento com
+vencimento correto (confirmado visualmente); clicar de novo confirma
+que NAO duplica (idempotencia real, nao so teorica); lancamento manual
+avulso criado (tipo repasse/categoria manutencao) aparece como
+"Avulso" na tabela; marcado como pago, badge muda para verde e some do
+"Total a Pagar/Repasse". Tenant de teste removido ao final (cascata -
+sem arquivos fisicos envolvidos nesta fatia, nao ha upload).
+
+## Correcao: bug sistemico de fuso horario em campos "date-only" - CONCLUIDA
+Corrige o bug descoberto na Fatia 4 do Financeiro (ver secao acima):
+campos de data SEM horario (`<input type="date">` no frontend, string
+"YYYY-MM-DD" no DTO, validados com `@IsDateString()`) que iam direto
+para `new Date(dto.campo)` no controller. O JavaScript interpreta uma
+string date-only como meia-noite **UTC**, nao meia-noite local - ao
+formatar de volta na exibicao (`Intl.DateTimeFormat` sem `timeZone`
+explicito, que usa o fuso local do processo), o resultado aparecia um
+dia a menos em fusos horarios negativos (Brasil = UTC-3, ambiente real
+deste projeto). Datas COM horario (ISO completo, ex: `scheduledAt` das
+Atividades, que usa `<input type="datetime-local">`) NAO tem esse
+problema - strings com horario e sem sufixo de fuso ja sao
+interpretadas como horario LOCAL pelo proprio JavaScript, entao NAO
+devem passar pela funcao de correcao abaixo (ela rejeita strings que
+nao sejam exatamente "YYYY-MM-DD").
+
+`parseDateOnly(dateString)` / `formatDateOnly(date)`
+(`src/shared/utils/date-only.util.ts`): a primeira usa
+`new Date(year, monthIndex, day)` (construtor que interpreta os
+componentes no fuso LOCAL do processo, ao contrario de
+`new Date(string)`) para o parse; a segunda usa
+`getFullYear()/getMonth()/getDate()` (componentes locais) para
+formatar de volta - nunca `toISOString()`, que converteria para UTC
+primeiro e reintroduziria o mesmo bug invertido.
+
+**Regra daqui pra frente**: qualquer string "date-only" vinda do
+frontend (`@IsDateString()` num DTO, sem componente de horario) deve
+SEMPRE passar por `parseDateOnly()` no controller antes de virar um
+`Date` - nunca `new Date(dto.campo)` direto. Corrigido nos 7 pontos
+onde o padrao antigo existia:
+`ImovelController.create`/`update` (`disponivelApartirDe`),
+`ContratoController.create` (`dataInicio`, `dataFim`),
+`FinanceiroController.create`/`list` (`vencimento`, `vencimentoDe`,
+`vencimentoAte`).
+
+Efeito colateral encontrado ao corrigir `vencimentoDe`/`vencimentoAte`:
+o filtro de periodo do `FinanceiroTab.tsx` enviava esses 2 parametros
+via `.toISOString()` (string ISO completa, com horario) - aplicar
+`parseDateOnly()` (que so aceita "YYYY-MM-DD" estrito) teria quebrado
+esse filtro em runtime. Ajustado para o frontend enviar "YYYY-MM-DD"
+puro tambem nesse filtro, mantendo o contrato consistente ponta a
+ponta (o proprio DTO ja era `@IsDateString()`, so o valor enviado
+estava "mais rico" do que precisava).
+
+Frontend: `toDateInputValue()` em `ImovelDetailPanel.tsx` (repopula o
+campo `disponivelApartirDe` ao abrir a edicao de um Imovel) trocou de
+`isoDate.slice(0, 10)` (fatiamento cru da string - funcionava por
+coincidencia so em fusos negativos como o Brasil) para
+`formatDateOnly(new Date(isoDate))`, uma pequena copia local da funcao
+do backend (frontend e backend sao projetos separados, sem
+compartilhamento de codigo - mesmo padrao ja usado para as constantes
+de opcoes em `features/imoveis/constants.ts`) - agora robusto
+independente do fuso do servidor. As demais exibicoes de data do
+frontend (`Intl.DateTimeFormat` em tabelas) ja estavam corretas e nao
+precisaram de nenhuma mudanca - o bug nunca esteve ali, so na gravacao
+via `new Date(string)` no backend.
+
+Testado de ponta a ponta com Playwright: Imovel com
+`disponivelApartirDe="2026-07-25"` e Contrato com
+`dataInicio="2026-07-25"` criados via API, confirmado programaticamente
+que o backend agora grava `2026-07-25T03:00:00.000Z` (meia-noite local
+America/Sao_Paulo, nao UTC); reabertura do painel de edicao do Imovel
+confirma "2026-07-25" no campo de data (nao "2026-07-24"); lancamento
+manual com vencimento "2026-07-25" criado pela UI aparece como
+"25/07/2026" na tabela do Financeiro; filtro de periodo confirmado
+funcionando com a nova string date-only. Tenant de teste removido ao
+final (cascata).
+
+### Fatia 5 (Moradores/Inquilinos - analise de credito) - CONCLUIDA
+Fecha as 5 fatias planejadas da Gestao Imobiliaria (Catalogo, Espelho
+de Vendas, Proprietarios/Contratos, Financeiro, Moradores/Inquilinos).
+Expande `InquilinoComprador` (profissao, rendaDeclarada,
+statusAnaliseCredito default "nao_iniciada", observacoesAnalise) e
+adiciona o modelo `InquilinoDocumento` (tipo rg_cpf/comprovante_renda/
+comprovante_residencia/outro, url, nomeArquivo) - mesmo padrao de
+armazenamento ja usado para fotos de imovel e documentos do E-doc
+(`IFileStorageService`, trocavel; os metodos de documento vivem dentro
+de `IInquilinoCompradorRepository`, nao um repositorio separado -
+mesmo padrao ja usado para `ImovelPhoto` dentro de `IImovelRepository`).
+
+Analise de credito e documentos sao dados sensiveis - so Administrador
+(`@Roles('Administrador')` sobrescrevendo `DASHBOARD_ROLES` diretamente
+nos 4 metodos novos do `InquilinoCompradorController` -
+`PATCH/POST/GET/DELETE`, mesmo mecanismo de override por metodo ja
+usado no `RhController`; `create`/`list`, ja existentes, continuam
+`DASHBOARD_ROLES`). `DeleteInquilinoDocumentoUseCase` so remove o
+registro do banco, nao o arquivo fisico do disco - mesmo comportamento
+ja existente em `DeleteImovelPhotoUseCase` (nao corrigido aqui, fora
+do escopo desta fatia).
+
+Frontend: nova aba "Inquilinos" na barra de navegacao de
+`/dashboard/imoveis` (visivel a qualquer `DASHBOARD_ROLES`, como
+Proprietarios/Contratos - so a listagem basica + badge de status, sem
+dado sensivel exposto), com badge colorido de `statusAnaliseCredito`
+(nao_iniciada=slate, em_analise=amber, aprovado=verde,
+reprovado=vermelho). Clique na linha abre `InquilinoDetailPanel.tsx`
+(mesmo padrao do `ImovelDetailPanel.tsx`): secao "Dados Basicos" sempre
+visivel; secoes "Analise de Credito" e "Documentos" só renderizadas se
+`/auth/me` retornar role "Administrador" (mesmo padrao de verificacao
+de role ja usado na aba "Financeiro") - um Corretor abrindo o painel
+de um inquilino ve so os dados basicos, sem tentar chamar rotas que
+dariam 403. Não ha tela de "criar Inquilino" dedicada (permanecem
+criados via Contrato, como antes desta fatia) - a aba lista os ja
+existentes.
+
+Testado de ponta a ponta com Playwright: Inquilino criado via Contrato
+de locacao (fluxo ja existente), badge inicial "Nao Iniciada"
+confirmado na lista, painel de detalhe aberto, profissao+renda
+preenchidos e status mudado para "Em Analise" (salvo via PATCH),
+upload de um documento de teste (tipo "Comprovante de Renda")
+confirmado na lista de documentos do painel, status mudado para
+"Aprovado" e badge confirmado atualizado na lista apos fechar o
+painel. Tenant de teste e arquivo fisico do documento removidos ao
+final.
 
 ## Regra de seguranca: nunca imprimir valores de variaveis sensiveis
 Comandos como "cat", "grep" (sem -o especifico), "env", ou similares

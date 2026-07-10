@@ -34,7 +34,7 @@ export default function EquipePage() {
         <h1 className="text-lg font-semibold text-slate-800">Equipe</h1>
         <button
           onClick={openCorretorFormModal}
-          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
         >
           <Plus className="h-4 w-4" /> Novo Corretor
         </button>
@@ -45,7 +45,7 @@ export default function EquipePage() {
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
-            <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+            <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
             <p className="text-sm">Carregando corretores...</p>
           </div>
         ) : corretores.length === 0 ? (

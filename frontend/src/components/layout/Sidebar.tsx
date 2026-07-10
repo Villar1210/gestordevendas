@@ -4,7 +4,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Kanban, MessageCircle, Users, UserCheck, type LucideIcon } from "lucide-react";
+import {
+  Building2,
+  Kanban,
+  MessageCircle,
+  Users,
+  UserCheck,
+  FileSignature,
+  type LucideIcon,
+} from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 
 interface NavItem {
@@ -21,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Kanban, label: "Vendas", href: "/dashboard/kanban" },
   { icon: Building2, label: "Imoveis", href: "/dashboard/imoveis" },
   { icon: MessageCircle, label: "WhatsApp", href: "/dashboard/whatsapp" },
+  { icon: FileSignature, label: "E-doc", href: "/dashboard/edoc" },
   { icon: Users, label: "Equipe", href: "/dashboard/equipe", requiredRole: "Administrador" },
   {
     icon: UserCheck,
@@ -59,7 +68,7 @@ export function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 isActive
-                  ? "bg-indigo-50 text-indigo-600"
+                  ? "bg-amber-50 text-amber-600"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
               }`}
             >

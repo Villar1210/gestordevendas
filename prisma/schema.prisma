@@ -36,10 +36,14 @@ model Tenant {
   proprietarios         Proprietario[]
   inquilinosCompradores InquilinoComprador[]
   contratos             Contrato[]
+  lancamentosFinanceiros LancamentoFinanceiro[]
+  inquilinoDocumentos    InquilinoDocumento[]
 
   viviConversations ViviConversation[]
 
   roletaConfig RoletaConfig?
+
+  signatureEnvelopes SignatureEnvelope[]
 
   @@map("tenants")
 }
@@ -107,6 +111,7 @@ model User {
   // Cards onde este usuario e a sugestao pendente da Roleta Online
   // (modo semi_automatico) - ver CardSuggestedOwner em Card.
   suggestedCards      Card[] @relation("CardSuggestedOwner")
+  createdSignatureEnvelopes SignatureEnvelope[]
 
   @@map("users")
 }
@@ -399,9 +404,9 @@ model Proprietario {
   @@map("proprietarios")
 }
 
-// Quem compra ou aluga um imovel. Entidade enxuta por agora - sera
-// expandida (historico, analise de credito) quando a Fatia 5 (Moradores/
-// Inquilinos) for construida formalmente.
+// Quem compra ou aluga um imovel. Fatia 5 (Moradores/Inquilinos) adicionou
+// analise de credito (profissao/renda/status/observacoes) e documentos
+// anexados (InquilinoDocumento).
 model InquilinoComprador {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
@@ -409,12 +414,38 @@ model InquilinoComprador {
   cpfCnpj   String?  @map("cpf_cnpj") @db.VarChar(20)
   telefone  String   @db.VarChar(30)
   email     String?  @db.VarChar(150)
+  profissao String?  @db.VarChar(100)
+  rendaDeclarada Decimal? @map("renda_declarada") @db.Decimal(12, 2)
+  // nao_iniciada, em_analise, aprovado, reprovado.
+  statusAnaliseCredito String  @default("nao_iniciada") @map("status_analise_credito") @db.VarChar(20)
+  observacoesAnalise   String? @map("observacoes_analise") @db.Text
   createdAt DateTime @default(now()) @map("created_at")
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contratos Contrato[]
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contratos  Contrato[]
+  documentos InquilinoDocumento[]
 
   @@map("inquilinos_compradores")
+}
+
+// Um documento anexado a analise de credito de um InquilinoComprador (RG/CPF,
+// comprovante de renda, comprovante de residencia, outro). Mesmo padrao de
+// armazenamento ja usado para fotos de imovel e documentos do E-doc
+// (IFileStorageService, trocavel).
+model InquilinoDocumento {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  inquilinoId String   @map("inquilino_id") @db.Uuid
+  // rg_cpf, comprovante_renda, comprovante_residencia, outro.
+  tipo        String   @db.VarChar(30)
+  url         String   @db.VarChar(500)
+  nomeArquivo String   @map("nome_arquivo") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inquilino InquilinoComprador @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+
+  @@map("inquilino_documentos")
 }
 
 // Contrato de venda ou locacao, ligando um Imovel a um Proprietario e a um
@@ -443,8 +474,33 @@ model Contrato {
   imovel             Imovel             @relation(fields: [imovelId], references: [id], onDelete: Cascade)
   proprietario       Proprietario       @relation(fields: [proprietarioId], references: [id], onDelete: Cascade)
   inquilinoComprador InquilinoComprador @relation(fields: [inquilinoCompradorId], references: [id], onDelete: Cascade)
+  lancamentosFinanceiros LancamentoFinanceiro[]
 
   @@map("contratos")
+}
+
+// Modulo Financeiro (Fatia 4 da Gestao Imobiliaria). Um lancamento pode ser
+// manual/avulso (contratoId nulo) ou gerado automaticamente a partir de um
+// Contrato de locacao (GerarCobrancasDoMesUseCase, categoria "aluguel").
+// "receita" = a receber do inquilino/comprador; "repasse" = a pagar ao
+// proprietario (ex: repasse de aluguel apos descontar taxa de administracao).
+model LancamentoFinanceiro {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  contratoId String?   @map("contrato_id") @db.Uuid
+  tipo       String    @db.VarChar(10) // "receita" ou "repasse"
+  categoria  String    @db.VarChar(30) // aluguel, venda, taxa_administracao, manutencao, outro
+  valor      Decimal   @db.Decimal(12, 2)
+  vencimento DateTime
+  status     String    @default("pendente") @db.VarChar(20) // pendente, pago, atrasado
+  pagoEm     DateTime? @map("pago_em")
+  descricao  String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contrato Contrato? @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+
+  @@map("lancamentos_financeiros")
 }
 
 // Uma atividade agendada/registrada para um card (ligacao, reuniao, visita,
@@ -495,4 +551,108 @@ model RoletaConfig {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("roleta_configs")
+}
+
+// Modulo E-doc (assinatura eletronica). Um envelope agrupa um documento
+// (PDF) e a lista de destinatarios que precisam assina-lo, em ordem
+// sequencial estrita (so o proximo recebe o link depois que o anterior
+// assinar). Fatia 2 adicionou o editor de posicionamento (SignatureField)
+// e signedDocumentUrl (o PDF final com as assinaturas embutidas).
+model SignatureEnvelope {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  title           String    @db.VarChar(200)
+  // rascunho -> aguardando_assinaturas -> concluido (ou cancelado a qualquer momento antes de concluido).
+  status          String    @default("rascunho") @db.VarChar(30)
+  documentUrl     String    @map("document_url") @db.VarChar(500)
+  // SHA-256 do PDF original, calculado na criacao - prova de integridade do documento.
+  documentHash    String    @map("document_hash") @db.VarChar(64)
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  completedAt     DateTime? @map("completed_at")
+  // PDF final com as assinaturas embutidas (pdf-lib) - preenchido pelo
+  // GenerateSignedPdfUseCase logo apos o envelope ficar "concluido".
+  // Nulo ate la (e continua nulo se a geracao falhar - ver CLAUDE.md).
+  signedDocumentUrl String? @map("signed_document_url") @db.VarChar(500)
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy  User                 @relation(fields: [createdByUserId], references: [id])
+  recipients SignatureRecipient[]
+  events     SignatureEvent[]
+  fields     SignatureField[]
+
+  @@map("signature_envelopes")
+}
+
+// Um destinatario/signatario de um envelope. accessToken/tokenExpiresAt
+// ficam nulos enquanto o envelope esta em "rascunho" - so sao gerados pelo
+// SendEnvelopeUseCase, um por destinatario, no momento do envio (ver
+// CLAUDE.md para a decisao sobre essa nulidade). Sem tenantId proprio de
+// proposito: as rotas publicas (/edoc/sign/:token) nao tem contexto de
+// tenant - o token e a propria fronteira de seguranca, e o acesso
+// autenticado sempre passa pelo SignatureEnvelope (que ja e tenant-scoped)
+// primeiro - mesmo padrao ja usado em PasswordResetToken/TwoFactorCode.
+model SignatureRecipient {
+  id                 String    @id @default(uuid()) @db.Uuid
+  envelopeId         String    @map("envelope_id") @db.Uuid
+  name               String    @db.VarChar(150)
+  email              String    @db.VarChar(150)
+  // Ordem sequencial de assinatura, comecando em 1.
+  order              Int
+  accessToken        String?   @unique @map("access_token") @db.VarChar(255)
+  tokenExpiresAt     DateTime? @map("token_expires_at")
+  status             String    @default("pendente") @db.VarChar(20)
+  signedAt           DateTime? @map("signed_at")
+  // Base64 do canvas (data URL) OU o nome digitado, conforme o metodo escolhido na tela de assinatura.
+  signatureImageData String?   @map("signature_image_data") @db.Text
+  // SHA-256 do conteudo de signatureImageData.
+  signatureHash      String?   @map("signature_hash") @db.VarChar(64)
+  signerIp           String?   @map("signer_ip") @db.VarChar(45)
+  signerUserAgent    String?   @map("signer_user_agent") @db.VarChar(500)
+
+  envelope SignatureEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  events   SignatureEvent[]
+  fields   SignatureField[]
+
+  @@map("signature_recipients")
+}
+
+// Campo de assinatura posicionado sobre o PDF (Fatia 2) - por enquanto
+// sempre 1 por destinatario, criado junto com o envelope
+// (CreateEnvelopeUseCase). x/y/width/height sao percentuais (0-1)
+// relativos ao tamanho da pagina, nao pixels absolutos - funciona em
+// qualquer resolucao de tela ou tamanho real de pagina do PDF.
+model SignatureField {
+  id             String   @id @default(uuid()) @db.Uuid
+  envelopeId     String   @map("envelope_id") @db.Uuid
+  recipientId    String   @map("recipient_id") @db.Uuid
+  pageNumber     Int      @map("page_number")
+  xPercent       Float    @map("x_percent")
+  yPercent       Float    @map("y_percent")
+  widthPercent   Float    @default(0.2) @map("width_percent")
+  heightPercent  Float    @default(0.08) @map("height_percent")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  envelope  SignatureEnvelope  @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  recipient SignatureRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("signature_fields")
+}
+
+// Trilha de auditoria do envelope - um evento por acao relevante (criado,
+// enviado, visualizado, assinado, concluido, cancelado), com IP/User-Agent
+// quando aplicavel (visualizado/assinado, vindos da rota publica).
+model SignatureEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  envelopeId  String   @map("envelope_id") @db.Uuid
+  recipientId String?  @map("recipient_id") @db.Uuid
+  type        String   @db.VarChar(30)
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  envelope  SignatureEnvelope   @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  recipient SignatureRecipient? @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@map("signature_events")
 }
