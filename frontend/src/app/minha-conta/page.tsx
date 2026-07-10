@@ -151,7 +151,7 @@ export default function MinhaContaPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-50 text-slate-500">
-        <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
         <p className="text-sm">Carregando sua conta...</p>
       </div>
     );
@@ -183,7 +183,7 @@ export default function MinhaContaPage() {
         {mostrarImoveis && (
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
-              <Home className="h-5 w-5 text-amber-600" />
+              <Home className="h-5 w-5 text-blue-600" />
               Meus Imoveis
             </h2>
             {meusImoveis.length === 0 ? (
@@ -236,7 +236,7 @@ export default function MinhaContaPage() {
         {mostrarAtendimento && (
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
-              <Headset className="h-5 w-5 text-amber-600" />
+              <Headset className="h-5 w-5 text-blue-600" />
               Meu Atendimento
             </h2>
             {meuAtendimento.length === 0 ? (
@@ -249,7 +249,7 @@ export default function MinhaContaPage() {
                     className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                   >
                     <p className="mb-1 text-sm font-medium text-slate-800">{item.title}</p>
-                    <p className="text-sm text-amber-700">{getStageFriendlyLabel(item.stageName)}</p>
+                    <p className="text-sm text-blue-700">{getStageFriendlyLabel(item.stageName)}</p>
                     <p className="mt-1 text-xs text-slate-500">
                       {item.ownerName
                         ? `Corretor responsavel: ${item.ownerName}`
@@ -264,7 +264,7 @@ export default function MinhaContaPage() {
 
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
-            <FileSignature className="h-5 w-5 text-amber-600" />
+            <FileSignature className="h-5 w-5 text-blue-600" />
             Assinaturas Pendentes
           </h2>
           {assinaturasPendentes.length === 0 ? (
@@ -281,7 +281,7 @@ export default function MinhaContaPage() {
                     href={`/assinar/${item.accessToken}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
+                    className="shrink-0 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
                   >
                     Assinar agora
                   </a>
@@ -293,7 +293,7 @@ export default function MinhaContaPage() {
 
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
-            <FileCheck2 className="h-5 w-5 text-amber-600" />
+            <FileCheck2 className="h-5 w-5 text-blue-600" />
             Meus Documentos
           </h2>
           {documentosAssinados.length === 0 ? (
@@ -311,7 +311,7 @@ export default function MinhaContaPage() {
                       href={`${API_BASE_URL}${item.signedDocumentUrl}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="shrink-0 rounded-lg border border-amber-600 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50"
+                      className="shrink-0 rounded-lg border border-blue-600 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
                     >
                       Baixar
                     </a>

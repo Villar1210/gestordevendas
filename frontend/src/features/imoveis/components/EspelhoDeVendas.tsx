@@ -50,7 +50,7 @@ export function EspelhoDeVendas() {
         <select
           value={espelhoEmpreendimentoId ?? ""}
           onChange={(e) => setEspelhoEmpreendimentoId(e.target.value || null)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
         >
           {empreendimentos.length === 0 && (
             <option value="">Nenhum empreendimento cadastrado</option>

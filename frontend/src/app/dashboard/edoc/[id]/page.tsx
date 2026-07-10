@@ -37,7 +37,7 @@ export default function EnvelopeDetailPage({ params }: { params: Promise<{ id: s
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-50 text-slate-500">
-        <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
         <p className="text-sm">Carregando envelope...</p>
       </div>
     );
@@ -80,7 +80,7 @@ export default function EnvelopeDetailPage({ params }: { params: Promise<{ id: s
             href={`${API_BASE_URL}${envelope.signedDocumentUrl}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
+            className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
           >
             <Download className="h-4 w-4" /> Baixar documento assinado
           </a>

@@ -126,7 +126,7 @@ export function FinanceiroTab() {
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
-            <Wallet className="h-4 w-4 text-amber-600" /> Total Recebido no Mes
+            <Wallet className="h-4 w-4 text-blue-600" /> Total Recebido no Mes
           </div>
           <p className="text-xl font-semibold text-slate-800">
             {currencyFormatter.format(totalRecebidoNoMes)}
@@ -139,7 +139,7 @@ export function FinanceiroTab() {
           <select
             value={tipoFilter}
             onChange={(e) => setTipoFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-600"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-600"
           >
             <option value="">Todos os tipos</option>
             {TIPO_LANCAMENTO_OPTIONS.map((option) => (
@@ -151,7 +151,7 @@ export function FinanceiroTab() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-600"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-600"
           >
             <option value="">Todos os status</option>
             {STATUS_LANCAMENTO_OPTIONS.map((option) => (
@@ -164,7 +164,7 @@ export function FinanceiroTab() {
             type="month"
             value={periodoFilter}
             onChange={(e) => setPeriodoFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-600"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-600"
           />
         </div>
 
@@ -179,7 +179,7 @@ export function FinanceiroTab() {
           </button>
           <button
             onClick={openLancamentoFormModal}
-            className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
+            className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
           >
             <Plus className="h-4 w-4" /> Novo Lancamento
           </button>

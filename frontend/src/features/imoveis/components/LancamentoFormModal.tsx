@@ -8,7 +8,7 @@ import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 import { TIPO_LANCAMENTO_OPTIONS, CATEGORIA_LANCAMENTO_OPTIONS } from "../constants";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
 
 export function LancamentoFormModal() {
   const isOpen = useImoveisStore((state) => state.lancamentoFormModalOpen);
@@ -176,7 +176,7 @@ export function LancamentoFormModal() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Criar"}
             </button>

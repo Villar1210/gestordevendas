@@ -242,7 +242,7 @@ export function CardDetailPanel() {
               onClick={() => setActiveTab(tab)}
               className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${
                 activeTab === tab
-                  ? "border-amber-600 text-amber-600"
+                  ? "border-blue-600 text-blue-600"
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -266,7 +266,7 @@ export function CardDetailPanel() {
                         onClick={() => setActivityType(t.value)}
                         className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                           active
-                            ? "border-amber-600 bg-amber-50 text-amber-600"
+                            ? "border-blue-600 bg-blue-50 text-blue-600"
                             : "border-slate-200 text-slate-500 hover:border-slate-300"
                         }`}
                       >
@@ -280,19 +280,19 @@ export function CardDetailPanel() {
                   placeholder="Assunto (opcional)"
                   value={activitySubject}
                   onChange={(e) => setActivitySubject(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
                 <div className="flex gap-2">
                   <input
                     type="datetime-local"
                     value={activityScheduledAt}
                     onChange={(e) => setActivityScheduledAt(e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                   <button
                     type="submit"
                     disabled={savingActivity}
-                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                    className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
                   >
                     Agendar
                   </button>
@@ -315,7 +315,7 @@ export function CardDetailPanel() {
                         type="checkbox"
                         checked={activity.done}
                         onChange={() => handleToggleDone(activity.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-600"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
                       />
                       <Icon className="h-4 w-4 shrink-0 text-slate-400" />
                       <div className="min-w-0 flex-1">
@@ -348,12 +348,12 @@ export function CardDetailPanel() {
                   onChange={(e) => setNoteBody(e.target.value)}
                   placeholder="Escreva uma anotacao..."
                   rows={2}
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
                 <button
                   type="submit"
                   disabled={savingNote || !noteBody.trim()}
-                  className="self-start rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                  className="self-start rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
                 >
                   Adicionar nota
                 </button>
@@ -384,7 +384,7 @@ export function CardDetailPanel() {
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
               </div>
 
@@ -397,7 +397,7 @@ export function CardDetailPanel() {
                     min="0"
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                 </div>
                 <div>
@@ -405,7 +405,7 @@ export function CardDetailPanel() {
                   <select
                     value={temperatura}
                     onChange={(e) => setTemperatura(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   >
                     {TEMPERATURE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -424,7 +424,7 @@ export function CardDetailPanel() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="(11) 91234-5678"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                 </div>
                 <div>
@@ -433,7 +433,7 @@ export function CardDetailPanel() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                 </div>
               </div>
@@ -444,7 +444,7 @@ export function CardDetailPanel() {
                   type="text"
                   value={endereco}
                   onChange={(e) => setEndereco(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
               </div>
 
@@ -455,7 +455,7 @@ export function CardDetailPanel() {
                     type="text"
                     value={numero}
                     onChange={(e) => setNumero(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                 </div>
                 <div>
@@ -464,7 +464,7 @@ export function CardDetailPanel() {
                     type="text"
                     value={complemento}
                     onChange={(e) => setComplemento(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                 </div>
               </div>
@@ -476,7 +476,7 @@ export function CardDetailPanel() {
                     type="text"
                     value={bairro}
                     onChange={(e) => setBairro(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                 </div>
                 <div>
@@ -485,7 +485,7 @@ export function CardDetailPanel() {
                     type="text"
                     value={cep}
                     onChange={(e) => setCep(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                 </div>
               </div>
@@ -496,7 +496,7 @@ export function CardDetailPanel() {
                   <button
                     type="button"
                     onClick={handleAddCustomField}
-                    className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700"
+                    className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
                   >
                     <Plus className="h-3.5 w-3.5" /> Adicionar campo
                   </button>
@@ -509,14 +509,14 @@ export function CardDetailPanel() {
                         placeholder="Chave"
                         value={row.key}
                         onChange={(e) => handleCustomFieldChange(index, "key", e.target.value)}
-                        className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                        className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                       />
                       <input
                         type="text"
                         placeholder="Valor"
                         value={row.value}
                         onChange={(e) => handleCustomFieldChange(index, "value", e.target.value)}
-                        className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                        className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                       />
                       <button
                         type="button"
@@ -534,7 +534,7 @@ export function CardDetailPanel() {
               <button
                 type="submit"
                 disabled={savingClientData}
-                className="w-full rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
               >
                 {savingClientData ? "Salvando..." : "Salvar"}
               </button>

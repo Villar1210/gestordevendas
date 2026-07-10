@@ -53,7 +53,7 @@ export function PdfViewer({ documentUrl, highlightField }: PdfViewerProps) {
       onLoadSuccess={({ numPages: total }) => setNumPages(total)}
       loading={
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
         </div>
       }
     >
@@ -69,7 +69,7 @@ export function PdfViewer({ documentUrl, highlightField }: PdfViewerProps) {
             <Page pageNumber={pageNumber} width={680} />
             {isHighlightedPage && highlightField && (
               <div
-                className="pointer-events-none absolute rounded-md border-2 border-dashed border-amber-600 bg-amber-400/10"
+                className="pointer-events-none absolute rounded-md border-2 border-dashed border-blue-600 bg-blue-400/10"
                 style={{
                   left: `${highlightField.xPercent * 100}%`,
                   top: `${highlightField.yPercent * 100}%`,

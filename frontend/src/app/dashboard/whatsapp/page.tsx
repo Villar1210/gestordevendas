@@ -131,14 +131,14 @@ export default function WhatsAppPage() {
   return (
     <div className="flex min-h-full items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
-          <MessageCircle className="h-6 w-6 text-amber-600" />
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+          <MessageCircle className="h-6 w-6 text-blue-600" />
         </div>
         <h1 className="mb-1 text-lg font-semibold text-slate-800">WhatsApp</h1>
 
         {loading ? (
           <div className="flex flex-col items-center gap-2 py-8 text-slate-500">
-            <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
             <p className="text-sm">Carregando...</p>
           </div>
         ) : error ? (
@@ -164,7 +164,7 @@ export default function WhatsAppPage() {
                 role="switch"
                 aria-checked={session?.isAiEnabled}
                 className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
-                  session?.isAiEnabled ? "bg-amber-600" : "bg-slate-200"
+                  session?.isAiEnabled ? "bg-blue-600" : "bg-slate-200"
                 }`}
               >
                 <span
@@ -208,7 +208,7 @@ export default function WhatsAppPage() {
             <button
               onClick={handleConnect}
               disabled={connecting}
-              className="w-full rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
+              className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:opacity-60"
             >
               {connecting ? "Conectando..." : "Conectar WhatsApp"}
             </button>

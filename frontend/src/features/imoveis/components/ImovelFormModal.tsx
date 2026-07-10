@@ -87,7 +87,7 @@ export function ImovelFormModal() {
             <select
               value={empreendimentoId}
               onChange={(e) => setEmpreendimentoId(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             >
               <option value="">Avulso (sem empreendimento)</option>
               {empreendimentos.map((emp) => (
@@ -106,7 +106,7 @@ export function ImovelFormModal() {
               placeholder="ex: Apto 101 - 2 quartos"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             />
           </div>
 
@@ -116,7 +116,7 @@ export function ImovelFormModal() {
               <select
                 value={tipo}
                 onChange={(e) => setTipo(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               >
                 {TIPO_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -130,7 +130,7 @@ export function ImovelFormModal() {
               <select
                 value={finalidade}
                 onChange={(e) => setFinalidade(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               >
                 {FINALIDADE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -150,7 +150,7 @@ export function ImovelFormModal() {
                 min="0"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
             </div>
             <div>
@@ -161,7 +161,7 @@ export function ImovelFormModal() {
                 min="0"
                 value={rentPrice}
                 onChange={(e) => setRentPrice(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
             </div>
           </div>
@@ -177,7 +177,7 @@ export function ImovelFormModal() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Criar"}
             </button>

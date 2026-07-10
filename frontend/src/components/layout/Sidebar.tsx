@@ -54,7 +54,8 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
       <div className="px-6 py-5">
-        <span className="text-lg font-semibold text-slate-800">gestordevendas</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Gestor de Vendas" className="h-10 w-auto" />
       </div>
 
       <nav className="flex flex-col gap-1 px-3">
@@ -68,7 +69,7 @@ export function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 isActive
-                  ? "bg-amber-50 text-amber-600"
+                  ? "bg-blue-50 text-blue-600"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
               }`}
             >

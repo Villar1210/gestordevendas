@@ -674,22 +674,57 @@ seriedade/profissionalismo. Base neutra (fundo claro, tipografia limpa)
 com cor usada estrategicamente em pontos de destaque (status, badges,
 graficos, acoes principais) - nao cor por toda a tela.
 
-Cor de destaque definida (revisao concluida): **amber**, substituindo
-indigo em todo o frontend/src/ (~158 ocorrencias em 33 arquivos).
-Amber-600 e o padrao (bordas, links, texto de destaque, badges); nos
-botoes solidos com texto branco (bg-*-600 + text-white, ex: "Entrar",
-"Novo Negocio", abas ativas tipo "Kanban"/"Catalogo") o contraste de
-branco sobre amber-600 ficou fraco (~3.2:1, abaixo do minimo de 4.5:1
-do WCAG AA para texto normal) - esses casos especificos foram ajustados
-para amber-700 (com hover em amber-800), confirmado visualmente via
-screenshots reais (Playwright) apos o build. Base neutra (slate)
-inalterada. Excecoes deliberadas que continuam em amber-600 mesmo com
-texto branco por cima: os toggles/switches (RoletaConfigCard, VIVI
-on/off no WhatsApp) - sao so a trilha do switch, sem texto - e o
-badge de status "Reservado" do Catalogo de Imoveis
-(features/imoveis/constants.ts), que ja usava amber antes desta troca
-e e um design de badge de status pre-existente, fora do escopo desta
-revisao de cor de destaque.
+### Logo oficial (CONCLUIDO)
+`frontend/public/logo.png` (imagem real, "Gestor de Vendas / CRM
+Imobiliario", cores #0f74c5 azul vibrante e #142f4b azul marinho) -
+substitui o wordmark em texto ("gestordevendas") que era usado antes
+em `Sidebar.tsx` (topo, ~40px de altura) e `login/page.tsx`
+(centralizado, ~200px de largura, acima de "Entre na sua conta").
+Copiado tambem para `frontend/src/app/icon.png` - o Next.js 15 usa
+esse arquivo automaticamente como favicon via convencao de nome, sem
+nenhuma configuracao adicional (o `favicon.ico` antigo continua em
+`src/app/` tambem, sem conflito). Sem uso de `next/image` em nenhum
+lugar do projeto ate hoje - `<img>` simples com
+`// eslint-disable-next-line @next/next/no-img-element`, mesmo padrao
+ja usado em fotos de imovel/documentos (mantido por consistencia, nao
+por limitacao tecnica).
+
+### Cor de destaque: blue-600 (ATUAL - CONCLUIDO)
+Historico: a cor de destaque ja foi indigo, depois amber (ver nota
+historica abaixo), e agora e **blue** (`blue-600` padrao, `blue-700`/
+hover `blue-800` nos botoes solidos com texto branco - mesma regra de
+contraste ja estabelecida na troca anterior, so reaplicada: qualquer
+classe que já era `amber-700`/`amber-800` para contraste virou
+`blue-700`/`blue-800` automaticamente na troca mecanica, entao nenhum
+ajuste extra de contraste foi necessario - confirmado que nao sobrou
+nenhum caso `bg-blue-600` + `text-white` no frontend). Troca feita via
+busca/substituicao de `amber-` -> `blue-` (mesmo nivel de intensidade)
+em todo `frontend/src/`, EXCETO os usos de amber que sao cor de
+STATUS/SEMANTICA (continuam amber de proposito, nao sao "destaque"):
+badge de temperatura "morno" do Kanban (`InboxView.tsx`/`KanbanCard.tsx`),
+badge de status "Reservado" do Catalogo de Imoveis e badge "Em Analise"
+da analise de credito de Inquilinos (ambos em
+`features/imoveis/constants.ts`), badge de status "Aguardando
+Assinaturas" do E-doc (`features/edoc/constants.ts`), e o ponto de
+status "Ausente" da Equipe (`features/equipe/constants.ts`) - todos
+selos/indicadores de um estado especifico do dominio, nao elementos de
+marca. Os toggles/switches (RoletaConfigCard, VIVI on/off no WhatsApp)
+- que na troca indigo->amber tinham ficado como excecao deliberada
+(mantidos em amber-600) - desta vez foram tratados como destaque
+mesmo, e viraram blue-600: representam a acao afirmativa "ligado" do
+sistema (mesma familia visual de qualquer botao primario), nao um
+significado semantico fixo como os badges acima - decisao confirmada
+com o usuario antes de aplicar.
+
+Nota historica (revisao anterior): a cor de destaque foi indigo,
+depois amber, substituindo indigo em todo o frontend/src/ (~158
+ocorrencias em 33 arquivos). Amber-600 era o padrao (bordas, links,
+texto de destaque, badges); nos botoes solidos com texto branco
+(bg-*-600 + text-white) o contraste de branco sobre amber-600 ficou
+fraco (~3.2:1, abaixo do minimo de 4.5:1 do WCAG AA para texto normal)
+- ajustado para amber-700 (hover amber-800) naquela epoca. Essa mesma
+logica de shade (600 para bordas/links, 700/800 para botoes solidos)
+foi preservada na troca para blue.
 
 ## Decisao tecnica: Caixa de Entrada e fluxo de leads
 Card.stageId e opcional - um card sem stageId esta na "Caixa de

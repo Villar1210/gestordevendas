@@ -30,7 +30,8 @@ export default function CadastroPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-2xl">
         <div className="mb-8 text-center">
-          <h1 className="mb-1 text-xl font-semibold text-slate-800">gestordevendas</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Gestor de Vendas" className="mx-auto mb-4 w-[200px]" />
           <p className="text-sm text-slate-500">Criar Cadastro - escolha o perfil que combina com voce</p>
         </div>
 
@@ -41,9 +42,9 @@ export default function CadastroPage() {
               <Link
                 key={perfil.href}
                 href={perfil.href}
-                className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-amber-300 hover:shadow-md"
+                className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                   <Icon className="h-5 w-5" />
                 </span>
                 <span className="text-base font-semibold text-slate-800">{perfil.title}</span>
@@ -55,7 +56,7 @@ export default function CadastroPage() {
 
         <Link
           href="/login"
-          className="mt-8 block text-center text-sm text-amber-600 hover:underline"
+          className="mt-8 block text-center text-sm text-blue-600 hover:underline"
         >
           Ja tenho uma conta - fazer login
         </Link>

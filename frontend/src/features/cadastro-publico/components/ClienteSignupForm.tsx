@@ -7,7 +7,7 @@ import { usePublicSignupIntegration } from "../hooks/usePublicSignupIntegration"
 import { CadastroRecebidoScreen } from "./CadastroRecebidoScreen";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
 
 export function ClienteSignupForm() {
   const { submitSignup } = usePublicSignupIntegration();
@@ -62,8 +62,10 @@ export function ClienteSignupForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-xl font-semibold text-slate-800">Cadastro de Cliente</h1>
-        <p className="mb-6 text-sm text-slate-500">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Gestor de Vendas" className="mx-auto mb-4 w-[200px]" />
+        <h1 className="mb-1 text-center text-xl font-semibold text-slate-800">Cadastro de Cliente</h1>
+        <p className="mb-6 text-center text-sm text-slate-500">
           Crie sua conta para acompanhar imoveis de interesse.
         </p>
 
@@ -180,12 +182,12 @@ export function ClienteSignupForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-amber-700 px-4 py-2 font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
+            className="w-full rounded-lg bg-blue-700 px-4 py-2 font-medium text-white transition hover:bg-blue-800 disabled:opacity-60"
           >
             {loading ? "Enviando..." : "Criar cadastro"}
           </button>
 
-          <Link href="/cadastro" className="block text-center text-sm text-amber-600 hover:underline">
+          <Link href="/cadastro" className="block text-center text-sm text-blue-600 hover:underline">
             Voltar
           </Link>
         </form>

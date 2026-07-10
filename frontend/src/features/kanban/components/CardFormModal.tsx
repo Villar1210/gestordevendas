@@ -112,7 +112,7 @@ export function CardFormModal() {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             />
           </div>
 
@@ -125,7 +125,7 @@ export function CardFormModal() {
               required
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             />
           </div>
 
@@ -136,7 +136,7 @@ export function CardFormModal() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="(11) 91234-5678"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             />
           </div>
 
@@ -145,7 +145,7 @@ export function CardFormModal() {
             <select
               value={temperatura}
               onChange={(e) => setTemperatura(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             >
               {TEMPERATURE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -161,7 +161,7 @@ export function CardFormModal() {
               <button
                 type="button"
                 onClick={handleAddCustomField}
-                className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700"
+                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
               >
                 <Plus className="h-3.5 w-3.5" /> Adicionar campo
               </button>
@@ -174,14 +174,14 @@ export function CardFormModal() {
                     placeholder="Chave"
                     value={row.key}
                     onChange={(e) => handleCustomFieldChange(index, "key", e.target.value)}
-                    className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                   <input
                     type="text"
                     placeholder="Valor"
                     value={row.value}
                     onChange={(e) => handleCustomFieldChange(index, "value", e.target.value)}
-                    className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-1/2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                   />
                   <button
                     type="button"
@@ -207,7 +207,7 @@ export function CardFormModal() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Criar"}
             </button>

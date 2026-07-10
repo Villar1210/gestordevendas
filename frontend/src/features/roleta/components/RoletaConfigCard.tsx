@@ -7,7 +7,7 @@ import { useRoletaStore } from "../store/useRoletaStore";
 import { useRoletaIntegration } from "../hooks/useRoletaIntegration";
 
 const selectClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
 
 export function RoletaConfigCard() {
   const config = useRoletaStore((state) => state.config);
@@ -35,7 +35,7 @@ export function RoletaConfigCard() {
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Shuffle className="h-5 w-5 text-amber-600" />
+          <Shuffle className="h-5 w-5 text-blue-600" />
           <h2 className="text-lg font-semibold text-slate-800">Roleta Online</h2>
         </div>
 
@@ -46,7 +46,7 @@ export function RoletaConfigCard() {
           aria-checked={config.ativa}
           aria-label="Ativar ou desativar a Roleta Online"
           className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
-            config.ativa ? "bg-amber-600" : "bg-slate-200"
+            config.ativa ? "bg-blue-600" : "bg-slate-200"
           }`}
         >
           <span

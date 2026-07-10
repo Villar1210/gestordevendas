@@ -9,7 +9,7 @@ import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 import { STATUS_ANALISE_CREDITO_OPTIONS, TIPO_DOCUMENTO_OPTIONS, getTipoDocumentoLabel } from "../constants";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -312,7 +312,7 @@ export function InquilinoDetailPanel() {
                           href={`${API_BASE_URL}${documento.url}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex min-w-0 items-center gap-2 text-sm text-slate-700 hover:text-amber-700"
+                          className="flex min-w-0 items-center gap-2 text-sm text-slate-700 hover:text-blue-700"
                         >
                           <FileText className="h-4 w-4 shrink-0 text-slate-400" />
                           <span className="truncate">{documento.nomeArquivo}</span>
@@ -348,7 +348,7 @@ export function InquilinoDetailPanel() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+              className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Salvar"}
             </button>

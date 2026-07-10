@@ -106,7 +106,7 @@ export function FieldPositionEditor({
             onLoadSuccess={({ numPages: total }) => setNumPages(total)}
             loading={
               <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
               </div>
             }
           >
@@ -142,7 +142,7 @@ export function FieldPositionEditor({
                     ref.offsetHeight,
                   )
                 }
-                className="flex items-center justify-center rounded-md border-2 border-dashed border-amber-600 bg-amber-400/20 text-xs font-medium text-amber-800"
+                className="flex items-center justify-center rounded-md border-2 border-dashed border-blue-600 bg-blue-400/20 text-xs font-medium text-blue-800"
               >
                 {recipientNames[field.recipientIndex]}
               </Rnd>
@@ -165,7 +165,7 @@ export function FieldPositionEditor({
                 onChange={(e) =>
                   updateField(field.recipientIndex, { pageNumber: Number(e.target.value) })
                 }
-                className="rounded-md border border-slate-200 px-2 py-1 text-slate-700 outline-none focus:border-amber-600"
+                className="rounded-md border border-slate-200 px-2 py-1 text-slate-700 outline-none focus:border-blue-600"
               >
                 {Array.from({ length: numPages }, (_, i) => i + 1).map((page) => (
                   <option key={page} value={page}>

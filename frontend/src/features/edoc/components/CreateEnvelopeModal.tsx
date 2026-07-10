@@ -15,14 +15,14 @@ const FieldPositionEditor = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
       </div>
     ),
   },
 );
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
 
 function emptyRecipient(): CreateEnvelopeRecipientInput {
   return { name: "", email: "" };
@@ -167,7 +167,7 @@ export function CreateEnvelopeModal() {
 
             <div>
               <label className="mb-1 block text-sm text-slate-500">Documento (PDF)</label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-500 hover:border-amber-400">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-500 hover:border-blue-400">
                 <FileText className="h-4 w-4 shrink-0" />
                 {file ? file.name : "Escolher arquivo PDF"}
                 <input
@@ -188,7 +188,7 @@ export function CreateEnvelopeModal() {
                 <button
                   type="button"
                   onClick={addRecipient}
-                  className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:underline"
+                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
                 >
                   <Plus className="h-3.5 w-3.5" /> Adicionar destinatario
                 </button>
@@ -263,7 +263,7 @@ export function CreateEnvelopeModal() {
               <button
                 type="button"
                 onClick={handleContinue}
-                className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
+                className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
               >
                 Continuar
               </button>
@@ -297,7 +297,7 @@ export function CreateEnvelopeModal() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={saving}
-                className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
               >
                 {saving ? "Enviando..." : "Criar e Enviar"}
               </button>

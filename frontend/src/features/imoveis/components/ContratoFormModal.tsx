@@ -7,7 +7,7 @@ import { useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
 
 const IMOVEL_STATUS_DISPONIVEIS = ["disponivel", "vago"];
 
@@ -140,7 +140,7 @@ export function ContratoFormModal() {
               ))}
             </select>
             {imoveisDisponiveis.length === 0 && (
-              <p className="mt-1 text-xs text-amber-600">
+              <p className="mt-1 text-xs text-blue-600">
                 Nenhum imovel disponivel/vago no momento.
               </p>
             )}
@@ -152,7 +152,7 @@ export function ContratoFormModal() {
               <button
                 type="button"
                 onClick={() => setNovoProprietario((v) => !v)}
-                className="text-xs font-medium text-amber-600 hover:text-amber-700"
+                className="text-xs font-medium text-blue-600 hover:text-blue-700"
               >
                 {novoProprietario ? "Selecionar existente" : "+ Criar novo"}
               </button>
@@ -208,7 +208,7 @@ export function ContratoFormModal() {
               <button
                 type="button"
                 onClick={() => setNovoInquilinoComprador((v) => !v)}
-                className="text-xs font-medium text-amber-600 hover:text-amber-700"
+                className="text-xs font-medium text-blue-600 hover:text-blue-700"
               >
                 {novoInquilinoComprador ? "Selecionar existente" : "+ Criar novo"}
               </button>
@@ -334,7 +334,7 @@ export function ContratoFormModal() {
             <button
               type="submit"
               disabled={saving || !imovelId}
-              className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Criar"}
             </button>

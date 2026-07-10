@@ -63,7 +63,7 @@ export function ResetPasswordForm({ token }: Props) {
             </div>
             <button
               onClick={() => router.push("/login")}
-              className="w-full rounded-lg bg-amber-700 px-4 py-2 font-medium text-white transition hover:bg-amber-800"
+              className="w-full rounded-lg bg-blue-700 px-4 py-2 font-medium text-white transition hover:bg-blue-800"
             >
               Ir para o login
             </button>
@@ -87,7 +87,7 @@ export function ResetPasswordForm({ token }: Props) {
                 minLength={6}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
             </div>
 
@@ -102,14 +102,14 @@ export function ResetPasswordForm({ token }: Props) {
                 minLength={6}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-amber-700 px-4 py-2 font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
+              className="w-full rounded-lg bg-blue-700 px-4 py-2 font-medium text-white transition hover:bg-blue-800 disabled:opacity-60"
             >
               {loading ? "Redefinindo..." : "Redefinir senha"}
             </button>

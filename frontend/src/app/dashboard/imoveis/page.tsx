@@ -70,7 +70,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("catalogo")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "catalogo"
-                  ? "bg-amber-700 text-white"
+                  ? "bg-blue-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -80,7 +80,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("espelho")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "espelho"
-                  ? "bg-amber-700 text-white"
+                  ? "bg-blue-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -90,7 +90,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("proprietarios")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "proprietarios"
-                  ? "bg-amber-700 text-white"
+                  ? "bg-blue-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -100,7 +100,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("contratos")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "contratos"
-                  ? "bg-amber-700 text-white"
+                  ? "bg-blue-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -110,7 +110,7 @@ export default function ImoveisDashboardPage() {
               onClick={() => setActiveView("inquilinos")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "inquilinos"
-                  ? "bg-amber-700 text-white"
+                  ? "bg-blue-700 text-white"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -121,7 +121,7 @@ export default function ImoveisDashboardPage() {
                 onClick={() => setActiveView("financeiro")}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   activeView === "financeiro"
-                    ? "bg-amber-700 text-white"
+                    ? "bg-blue-700 text-white"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
@@ -141,7 +141,7 @@ export default function ImoveisDashboardPage() {
             </button>
             <button
               onClick={openImovelFormModal}
-              className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
+              className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
             >
               <Plus className="h-4 w-4" /> Novo Imovel
             </button>
@@ -158,7 +158,7 @@ export default function ImoveisDashboardPage() {
                 onClick={() => setCatalogLayout("cards")}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   catalogLayout === "cards"
-                    ? "bg-amber-700 text-white"
+                    ? "bg-blue-700 text-white"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
@@ -168,7 +168,7 @@ export default function ImoveisDashboardPage() {
                 onClick={() => setCatalogLayout("lista")}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   catalogLayout === "lista"
-                    ? "bg-amber-700 text-white"
+                    ? "bg-blue-700 text-white"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
@@ -179,7 +179,7 @@ export default function ImoveisDashboardPage() {
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
-              <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
               <p className="text-sm">Carregando imoveis...</p>
             </div>
           ) : (

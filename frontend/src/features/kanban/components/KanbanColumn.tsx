@@ -82,7 +82,7 @@ export function KanbanColumn({
       <div className="border-t border-slate-200 p-2">
         <button
           onClick={() => openCreateCardModal(stage.id)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-amber-600"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-blue-600"
         >
           <Plus className="h-4 w-4" /> Novo Card
         </button>

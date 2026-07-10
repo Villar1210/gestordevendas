@@ -85,7 +85,7 @@ export function EmpreendimentoFormModal() {
               placeholder="Nome do empreendimento"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             />
           </div>
 
@@ -99,7 +99,7 @@ export function EmpreendimentoFormModal() {
                   placeholder="Rua"
                   value={rua}
                   onChange={(e) => setRua(e.target.value)}
-                  className="w-2/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-2/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
                 <input
                   type="text"
@@ -107,7 +107,7 @@ export function EmpreendimentoFormModal() {
                   placeholder="Numero"
                   value={numero}
                   onChange={(e) => setNumero(e.target.value)}
-                  className="w-1/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-1/3 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
               </div>
 
@@ -117,7 +117,7 @@ export function EmpreendimentoFormModal() {
                 placeholder="Bairro"
                 value={bairro}
                 onChange={(e) => setBairro(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
 
               <div className="flex gap-3">
@@ -127,7 +127,7 @@ export function EmpreendimentoFormModal() {
                   placeholder="Cidade"
                   value={cidade}
                   onChange={(e) => setCidade(e.target.value)}
-                  className="w-1/2 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-1/2 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
                 <input
                   type="text"
@@ -136,7 +136,7 @@ export function EmpreendimentoFormModal() {
                   placeholder="UF"
                   value={uf}
                   onChange={(e) => setUf(e.target.value)}
-                  className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
                 <input
                   type="text"
@@ -144,7 +144,7 @@ export function EmpreendimentoFormModal() {
                   placeholder="CEP"
                   value={cep}
                   onChange={(e) => setCep(e.target.value)}
-                  className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-1/4 rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
               </div>
             </div>
@@ -161,7 +161,7 @@ export function EmpreendimentoFormModal() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Criar"}
             </button>

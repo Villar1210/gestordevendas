@@ -17,7 +17,7 @@ const PdfViewer = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
       </div>
     ),
   },
@@ -131,7 +131,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -186,7 +186,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-amber-700">
+              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-blue-700">
                 <Target className="h-4 w-4" />
                 <p>
                   E aqui que sua assinatura vai aparecer no documento (destacado{" "}
@@ -199,7 +199,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
                   onClick={() => setSignMethod("desenhar")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
                     signMethod === "desenhar"
-                      ? "bg-amber-700 text-white"
+                      ? "bg-blue-700 text-white"
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
@@ -209,7 +209,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
                   onClick={() => setSignMethod("digitar")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
                     signMethod === "digitar"
-                      ? "bg-amber-700 text-white"
+                      ? "bg-blue-700 text-white"
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
@@ -243,7 +243,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
                     type="text"
                     value={typedName}
                     onChange={(e) => setTypedName(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-3 text-2xl italic text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-3 text-2xl italic text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     style={{ fontFamily: "cursive" }}
                   />
                 </div>
@@ -252,7 +252,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
               <button
                 onClick={handleSign}
                 disabled={signing}
-                className="mt-4 w-full rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                className="mt-4 w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
               >
                 {signing ? "Assinando..." : "Assinar Documento"}
               </button>
