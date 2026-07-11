@@ -14,14 +14,20 @@ export class PrismaSignatureRecipientRepository implements ISignatureRecipientRe
 
   async createMany(
     envelopeId: string,
-    recipients: { name: string; email: string; order: number }[],
+    recipients: { name: string; email: string; role: string; order: number }[],
   ): Promise<SignatureRecipientRecord[]> {
-    // createMany do Prisma nao retorna os registros criados - cria e busca
-    // em seguida, na mesma ordem.
-    await this.prisma.signatureRecipient.createMany({
-      data: recipients.map((recipient) => ({ ...recipient, envelopeId })),
-    });
-    return this.findAllByEnvelope(envelopeId);
+    // NAO usa prisma.signatureRecipient.createMany() + busca em seguida: com
+    // "order" agora sendo por GRUPO de role (Fatia 3), varios participantes
+    // podem empatar em order (ex: 1 destinatario + 1 remetente + 1 testemunha,
+    // todos order=1) - reordenar por "order" na leitura de volta quebraria o
+    // mapeamento por indice que CreateEnvelopeUseCase faz logo em seguida
+    // (field.recipientIndex -> recipients[i].id). Uma transacao de creates
+    // individuais preserva exatamente a ordem do array de entrada.
+    return this.prisma.$transaction(
+      recipients.map((recipient) =>
+        this.prisma.signatureRecipient.create({ data: { ...recipient, envelopeId } }),
+      ),
+    );
   }
 
   async findAllByEnvelope(envelopeId: string): Promise<SignatureRecipientRecord[]> {
@@ -61,21 +67,6 @@ export class PrismaSignatureRecipientRepository implements ISignatureRecipientRe
         signerIp: input.signerIp,
         signerUserAgent: input.signerUserAgent,
       },
-    });
-  }
-
-  async findNextInOrder(
-    envelopeId: string,
-    fromOrder: number,
-  ): Promise<SignatureRecipientRecord | null> {
-    return this.prisma.signatureRecipient.findFirst({
-      where: { envelopeId, order: fromOrder + 1 },
-    });
-  }
-
-  async countPendingBeforeOrder(envelopeId: string, order: number): Promise<number> {
-    return this.prisma.signatureRecipient.count({
-      where: { envelopeId, order: { lt: order }, status: { not: 'assinado' } },
     });
   }
 

@@ -544,6 +544,139 @@ comparacao visual), botao "Baixar documento assinado" confirmado na
 pagina de detalhe. Tenant, envelope e arquivos fisicos (PDF original +
 PDF assinado) removidos ao final.
 
+## Modulo E-doc (assinatura eletronica) - Fatia 3 (papeis de participante + rubrica) - CONCLUIDA
+Adiciona papeis de participante (Destinatario, Remetente, Testemunha)
+com ordem de assinatura em GRUPOS, e campo de RUBRICA (repetida em
+todas as paginas) alem da assinatura ja existente (na ultima pagina).
+
+**Regra final do campo (autoritativa, confirmada com o usuario apos
+2 correcoes durante a especificacao original)**:
+- **Destinatario** e **Remetente**: rubrica em TODAS as paginas do
+  documento + assinatura completa na ULTIMA pagina.
+- **Testemunha**: SOMENTE assinatura completa na ULTIMA pagina - NUNCA
+  rubrica. A opcao de adicionar rubrica nem aparece na UI para
+  participantes com `role=testemunha` (nao e so escondida por CSS -
+  o botao correspondente simplesmente nao e renderizado nesse caso).
+
+`SignatureRecipient` ganhou `role` (String: "destinatario"/
+"remetente"/"testemunha", default "destinatario") e `order` mudou de
+significado: agora conta a ordem DENTRO DO PROPRIO GRUPO de role, nao
+mais uma ordem global entre todos os participantes do envelope (ex:
+com 2 Destinatarios + 1 Remetente + 1 Testemunha, o 2o Destinatario
+tem order=2 mas o Remetente e a Testemunha tem order=1 cada, dentro
+dos proprios grupos). A sequencia REAL de assinatura (quem recebe o
+e-mail e em que ordem, e quem pode assinar quando) combina grupo +
+ordem: todos os Destinatarios assinam primeiro (na ordem entre eles),
+depois todos os Remetentes, depois todas as Testemunhas. Essa regra
+vive em `src/modules/edoc/domain/services/recipient-sequence.ts`
+(`sortBySignatureSequence`) - uma funcao pura de DOMINIO (sem Prisma/
+infra), usada tanto por `SendEnvelopeUseCase` (so o primeiro da
+sequencia recebe o e-mail no envio; os demais so recebem quando
+completeWithEvent/o proximo passo chega neles) quanto por
+`SignDocumentUseCase` (bloqueia com HTTP 409 qualquer tentativa de
+assinar fora da vez, mesmo com um token valido ja gerado - defesa em
+profundidade identica ao que ja existia na Fatia 1, so que agora
+calculada em memoria a partir da lista completa de destinatarios em
+vez de uma consulta SQL por `order+1`).
+
+Como essa mudanca de semantica do `order` tornou os metodos antigos
+`findNextInOrder`/`countPendingBeforeOrder` do
+`ISignatureRecipientRepository` incorretos (uma consulta SQL simples
+por `order` nao sabe combinar com o grupo), eles foram REMOVIDOS (nao
+deixados como codigo morto/errado) tanto da interface quanto da
+implementacao Prisma - a logica de sequencia agora vive inteira nos
+use cases, via `sortBySignatureSequence`.
+
+`SignatureField` ganhou `tipo` (String: "assinatura"/"rubrica",
+default "assinatura"). A REPETICAO da rubrica em todas as paginas e
+responsabilidade do FRONTEND, nao do backend: o botao "Adicionar
+Rubrica" no editor de posicionamento gera 1 `SignatureField` por
+pagina do documento de uma vez (mesmo `recipientId`, `tipo="rubrica"`,
+todos com a MESMA posicao x/y/largura/altura) - arrastar/redimensionar
+qualquer uma dessas caixas (em qualquer pagina que esteja visivel no
+momento) propaga a nova posicao para as demais, mantendo todas
+identicas entre si; o backend so recebe e salva a lista final de
+campos que o frontend montou. `CreateEnvelopeUseCase` valida que
+nenhum campo com `tipo=rubrica` esteja associado a um destinatario com
+`role=testemunha` (rejeita com 400, nao ignora silenciosamente -
+decisao deliberada: um formulario mal formado que tentasse burlar a
+regra deve falhar de forma visivel, nao ser corrigido as escondidas).
+
+`GenerateSignedPdfUseCase` NAO precisou de nenhuma mudanca funcional
+para suportar a Fatia 3 - ja iterava por CAMPO (nao por destinatario),
+buscando `recipient.signatureImageData` de forma independente para
+cada `SignatureField`. Isso significa que "rubrica repetida em N
+paginas" e, do ponto de vista do carimbo final, apenas "N campos com o
+mesmo `recipientId` e a mesma imagem de assinatura, em posicoes
+diferentes" - um caso que o loop existente desde a Fatia 1/2 ja
+cobria naturalmente, sem alteracao de codigo (so um comentario
+explicativo foi adicionado).
+
+Frontend: o wizard de criacao de envelope
+(`CreateEnvelopeModal.tsx`, Passo 1) ganhou 3 badges explicativos no
+topo ("Destinatario - Assina o documento" azul, "Remetente - Assina
+apos destinatarios" verde, "Testemunha - Assina por ultimo" amber/
+laranja), cada participante e um card colorido pelo proprio papel
+(borda + fundo suave) com campos Nome/E-mail + um dropdown de papel +
+botao de remover, e 3 botoes de adicionar dedicados ("+ Destinatario"/
+"+ Remetente"/"+ Testemunha", cada um ja pre-preenchendo o papel
+correspondente). A cor de Testemunha em amber e uma cor SEMANTICA de
+papel (mesma familia dos badges de status do projeto, ex: "Aguardando
+Assinaturas" do proprio E-doc), nao um elemento de marca - nao conflita
+com a regra de "amber reservado para status" (ver secao de identidade
+visual mais abaixo). `ROLE_OPTIONS`/`getRoleOption` centralizados em
+`features/edoc/constants.ts`.
+
+O editor de posicionamento (`FieldPositionEditor.tsx`, Passo 2) mostra,
+para cada participante Destinatario/Remetente, um controle "+
+Adicionar Rubrica (todas as paginas)" (substituido por "Rubrica em
+todas as N paginas" + botao remover, uma vez adicionada) alem do
+seletor de pagina da Assinatura ja existente desde a Fatia 2; para
+Testemunha, so o controle de Assinatura aparece - a opcao de rubrica e
+omitida da renderizacao, nao apenas desabilitada. As caixas
+arrastaveis sobre o PDF diferenciam visualmente assinatura (retangulo
+maior, borda solida) de rubrica (quadrado menor, borda tracejada),
+sempre na cor do papel do participante. Cada campo e identificado de
+forma unica por `(recipientIndex, tipo)` - nunca existe mais de 1
+assinatura nem mais de 1 "grupo" de rubrica por participante, entao
+esse par e suficiente como chave, sem precisar de um id proprio por
+campo.
+
+A tela publica de assinatura (`/assinar/[token]`) mostra um indicador
+"Campo X de Y" com setas de navegacao quando o participante tem mais
+de 1 campo (Destinatario/Remetente com rubrica = 4 campos; Testemunha
+sem rubrica = so 1, indicador nem aparece). A navegacao so troca qual
+posicao esta em destaque no `PdfViewer` (preview de onde cada campo
+vai aparecer, com scroll automatico ate a pagina certa) - a assinatura
+em si e desenhada ou digitada UMA UNICA VEZ e enviada numa unica
+chamada a API, que o backend aplica a TODOS os campos daquele
+participante (ver `GenerateSignedPdfUseCase` acima). `PdfViewer.tsx`
+foi ajustado para rolar ate a pagina em destaque a cada troca de campo
+(antes, na Fatia 2, so rolava uma vez, na primeira renderizacao).
+
+Testado de ponta a ponta com Playwright real (script descartavel,
+removido ao final - ver metodologia no topo deste arquivo): envelope
+criado via UI com 3 participantes (1 de cada papel) num PDF de teste
+de 3 paginas; confirmado que a opcao de rubrica NAO aparece para
+Testemunha no editor (screenshot); rubrica adicionada para Destinatario
+e Remetente (3 campos cada, 1 por pagina) + assinatura movida para a
+ultima pagina nos 3 participantes (4 campos para Destinatario/
+Remetente, 1 para Testemunha - confirmado direto no banco). Ordem de
+assinatura confirmada por TENTATIVA DIRETA de assinar fora da vez (nao
+so inspecao de dado): Remetente e Testemunha bloqueados com HTTP 409
+tentando assinar antes do Destinatario; apos o Destinatario assinar
+(via UI publica, "Digitar nome", indicador "Campo 1 de 4" confirmado),
+a Testemunha continua bloqueada (409) ate o Remetente TAMBEM assinar;
+so entao a Testemunha consegue assinar (1 campo, sem indicador de
+navegacao). Envelope fechou "concluido", PDF final com 3 paginas
+confirmado via `pdf-lib`; como o teste assinou via "Digitar nome" (sem
+imagem PNG), a prova de carimbo foi o crescimento do arquivo final
+(2447 bytes) sobre o original (1356 bytes) - suficiente para confirmar
+que os 9 campos (4+4+1) foram realmente desenhados no PDF, mesmo sem
+imagens grandes infladando o tamanho. Tenant de teste, os 3 envelopes
+criados durante as tentativas e os arquivos fisicos (PDFs originais +
+assinado) foram removidos ao final via script de limpeza dedicado.
+
 ## Modulo Portal do Cliente - CONCLUIDO
 Substitui a tela placeholder `/minha-conta` (que so mostrava "Sua conta
 foi aprovada!") por um portal de verdade para quem faz login com Role

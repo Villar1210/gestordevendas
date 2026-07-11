@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState, use as usePromise } from "react";
 import dynamic from "next/dynamic";
-import { CheckCircle2, PenLine, Type, AlertCircle, Loader2, Target } from "lucide-react";
+import { CheckCircle2, PenLine, Type, AlertCircle, Loader2, Target, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiRequest, ApiError, API_BASE_URL } from "@/core/api/client";
 import type { HighlightField } from "@/features/edoc/components/PdfViewer";
 
@@ -26,7 +26,10 @@ const PdfViewer = dynamic(
 interface SignSessionData {
   envelope: { title: string; documentUrl: string; status: string };
   recipient: { name: string; email: string; status: string };
-  fields: HighlightField[];
+  // Fatia 3: Destinatario/Remetente tem varios campos (1 rubrica por
+  // pagina + 1 assinatura na ultima) - "tipo" identifica cada um para o
+  // indicador "Campo X de Y" abaixo.
+  fields: (HighlightField & { tipo: string })[];
 }
 
 export default function AssinarPage({ params }: { params: Promise<{ token: string }> }) {
@@ -40,6 +43,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
   const [signing, setSigning] = useState(false);
   const [signed, setSigned] = useState(false);
   const [hasDrawing, setHasDrawing] = useState(false);
+  const [currentFieldIndex, setCurrentFieldIndex] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
@@ -182,17 +186,55 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
         ) : (
           <>
             <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4">
-              <PdfViewer documentUrl={documentUrl} highlightField={data.fields[0]} />
+              <PdfViewer documentUrl={documentUrl} highlightField={data.fields[currentFieldIndex]} />
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-blue-700">
-                <Target className="h-4 w-4" />
-                <p>
-                  E aqui que sua assinatura vai aparecer no documento (destacado{" "}
-                  {data.fields[0] ? `na pagina ${data.fields[0].pageNumber}` : "acima"}).
-                </p>
+              <div className="mb-3 flex items-center justify-between gap-2 text-sm font-medium text-blue-700">
+                <div className="flex items-center gap-1.5">
+                  <Target className="h-4 w-4" />
+                  <p>
+                    {data.fields[currentFieldIndex]?.tipo === "rubrica" ? "Rubrica" : "Assinatura"}{" "}
+                    - e aqui que ela vai aparecer no documento (destacado{" "}
+                    {data.fields[currentFieldIndex]
+                      ? `na pagina ${data.fields[currentFieldIndex].pageNumber}`
+                      : "acima"}
+                    ).
+                  </p>
+                </div>
+                {data.fields.length > 1 && (
+                  <div className="flex shrink-0 items-center gap-1.5 text-xs font-normal text-slate-500">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentFieldIndex((i) => Math.max(0, i - 1))}
+                      disabled={currentFieldIndex === 0}
+                      className="rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+                      aria-label="Campo anterior"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <span>
+                      Campo {currentFieldIndex + 1} de {data.fields.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCurrentFieldIndex((i) => Math.min(data.fields.length - 1, i + 1))
+                      }
+                      disabled={currentFieldIndex === data.fields.length - 1}
+                      className="rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+                      aria-label="Proximo campo"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
+
+              <p className="mb-3 text-xs text-slate-400">
+                Sua assinatura sera desenhada ou digitada uma unica vez e aplicada automaticamente
+                em todos os {data.fields.length} campo{data.fields.length > 1 ? "s" : ""} acima.
+              </p>
 
               <div className="mb-3 flex rounded-lg border border-slate-200 p-0.5">
                 <button

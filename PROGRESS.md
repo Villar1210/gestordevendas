@@ -116,6 +116,67 @@ Next.js).
 RESOLVIDO: e-mails do E-doc (convite + repasse ao proximo signatario)
 agora usam ResendEmailSender de verdade (nao mais ConsoleEmailSender).
 
+### Modulo E-doc (assinatura eletronica) - Fatia 3 (papeis + rubrica) - CONCLUIDA
+Adiciona papeis de participante e campo de rubrica (alem da assinatura
+ja existente). Regra final do campo, valendo para qualquer envelope
+daqui pra frente:
+- **Destinatario** e **Remetente**: rubrica em TODAS as paginas do
+  documento + assinatura completa na ULTIMA pagina.
+- **Testemunha**: SOMENTE assinatura completa na ULTIMA pagina - nunca
+  rubrica (a opcao nem aparece na UI para esse papel).
+
+`SignatureRecipient.role` ("destinatario"/"remetente"/"testemunha",
+default "destinatario") substitui a nocao de ordem global unica:
+`order` agora conta DENTRO DO PROPRIO GRUPO de papel. A sequencia real
+de assinatura (quem recebe o e-mail e quando) combina grupo + ordem
+(destinatarios primeiro, depois remetentes, depois testemunhas) via
+`domain/services/recipient-sequence.ts` (funcao pura, sem infra) -
+usada tanto no envio (so o primeiro da sequencia recebe o e-mail logo
+de cara) quanto no bloqueio de assinatura fora de vez
+(`SignDocumentUseCase`, HTTP 409). `SignatureField.tipo`
+("assinatura"/"rubrica", default "assinatura") identifica cada campo;
+`GenerateSignedPdfUseCase` nao precisou de nenhuma mudanca funcional -
+ja iterava por campo (nao por destinatario), entao "rubrica repetida
+em N paginas" e so "N campos com o mesmo recipientId e a mesma imagem
+de assinatura", tratado naturalmente pelo loop existente.
+
+A repeticao da rubrica em todas as paginas e responsabilidade do
+FRONTEND: o botao "Adicionar Rubrica" gera 1 `SignatureField` por
+pagina do documento, todos com a mesma posicao (arrastar qualquer um
+propaga a nova posicao aos demais, mantendo a mesma posicao em todas
+as paginas) - o backend so recebe e salva a lista final de campos,
+com validacao que rejeita qualquer campo `tipo=rubrica` associado a um
+participante `role=testemunha`.
+
+Frontend: wizard de criacao ganhou 3 badges explicativos de papel
+(Destinatario azul, Remetente verde, Testemunha amber/laranja - cor
+semantica de papel, mesma familia dos badges de status, nao um
+elemento de marca), cards de participante coloridos por papel com
+dropdown de papel, e 3 botoes de adicionar dedicados. O editor de
+posicionamento mostra caixas menores/tracejadas para rubrica vs.
+maiores/solidas para assinatura, na cor do papel do participante. A
+tela publica de assinatura mostra um indicador "Campo X de Y" com
+navegacao entre os campos quando o destinatario/remetente tem mais de
+1 campo - a assinatura e desenhada/digitada UMA UNICA VEZ e aplicada a
+todos os campos daquele participante automaticamente (a UI so navega
+para PREVIEW de cada posicao, nao pede a assinatura de novo).
+
+Testado de ponta a ponta com Playwright real (headless, dev servers
+locais): envelope com 3 participantes (1 de cada papel) num PDF de 3
+paginas, opcao de rubrica confirmada AUSENTE para Testemunha na UI,
+Destinatario e Remetente com rubrica nas 3 paginas + assinatura na
+ultima (4 campos cada, confirmado no banco), Testemunha com so 1 campo
+de assinatura (confirmado no banco, sem nenhum campo de rubrica).
+Ordem de assinatura confirmada por tentativa direta (nao so
+inspecao): Remetente e Testemunha bloqueados (409) tentando assinar
+antes do Destinatario; apos o Destinatario assinar, Testemunha
+continua bloqueada (409) ate o Remetente tambem assinar; so entao a
+Testemunha consegue. Envelope fechou "concluido", PDF final com 3
+paginas confirmado (crescimento de tamanho do arquivo original ao
+final comprova o carimbo dos 9 campos - 4+4+1 - mesmo usando "digitar
+nome", sem imagem). Tenant de teste, envelopes e arquivos fisicos
+removidos ao final.
+
 ### Modulo Portal do Cliente - CONCLUIDA
 Substitui a tela placeholder /minha-conta por um portal real (Meus
 Imoveis, Meu Atendimento, Assinaturas Pendentes, Meus Documentos) para
@@ -232,9 +293,10 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
   multi-perfil + aprovacao + hierarquia - ver CLAUDE.md). E-mails reais
   via ResendEmailSender.
 - Roleta Online (distribuicao automatica de leads entre corretores): CONCLUIDA
-- E-doc (assinatura eletronica): Fatia 1 e Fatia 2 CONCLUIDAS (envelope
+- E-doc (assinatura eletronica): Fatias 1, 2 e 3 CONCLUIDAS (envelope
   + assinatura sequencial + editor de posicionamento de campos + PDF
-  final carimbado para download)
+  final carimbado para download + papeis de participante
+  Destinatario/Remetente/Testemunha com rubrica multi-pagina)
 - Portal do Cliente (/minha-conta): CONCLUIDO (Meus Imoveis, Meu
   Atendimento, Assinaturas Pendentes, Meus Documentos - vinculo por
   e-mail, ver limitacao conhecida em CLAUDE.md)

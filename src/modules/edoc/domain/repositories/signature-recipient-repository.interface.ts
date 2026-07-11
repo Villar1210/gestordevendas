@@ -6,6 +6,9 @@ export interface SignatureRecipientRecord {
   envelopeId: string;
   name: string;
   email: string;
+  // destinatario, remetente ou testemunha (Fatia 3) - ver domain/services/recipient-sequence.ts.
+  role: string;
+  // Ordem dentro do PROPRIO grupo de "role" (Fatia 3), nao mais global.
   order: number;
   accessToken: string | null;
   tokenExpiresAt: Date | null;
@@ -29,7 +32,7 @@ export interface SignatureRecipientWithEnvelope extends SignatureRecipientRecord
 export interface ISignatureRecipientRepository {
   createMany(
     envelopeId: string,
-    recipients: { name: string; email: string; order: number }[],
+    recipients: { name: string; email: string; role: string; order: number }[],
   ): Promise<SignatureRecipientRecord[]>;
   findAllByEnvelope(envelopeId: string): Promise<SignatureRecipientRecord[]>;
   findByToken(token: string): Promise<SignatureRecipientRecord | null>;
@@ -43,11 +46,12 @@ export interface ISignatureRecipientRepository {
       signerUserAgent: string | null;
     },
   ): Promise<SignatureRecipientRecord>;
-  // Proximo destinatario na ordem sequencial (order = fromOrder + 1), se existir.
-  findNextInOrder(envelopeId: string, fromOrder: number): Promise<SignatureRecipientRecord | null>;
-  // Quantos destinatarios com order menor que o informado ainda NAO assinaram -
-  // usado para bloquear assinatura fora de ordem (ver SignDocumentUseCase).
-  countPendingBeforeOrder(envelopeId: string, order: number): Promise<number>;
+  // NOTA (Fatia 3): "proximo"/"quantos pendentes antes" deixaram de ser
+  // consultas simples de banco (order = fromOrder + 1 / order < X) desde
+  // que a sequencia passou a combinar GRUPO (role) + ordem dentro do
+  // grupo - ver domain/services/recipient-sequence.ts. Os use cases
+  // (SendEnvelopeUseCase, SignDocumentUseCase) agora buscam a lista
+  // completa via findAllByEnvelope() e calculam a sequencia em memoria.
   // Usado pelo Portal do Cliente para vincular o usuario logado (por
   // e-mail) aos envelopes onde ele e destinatario - ver CLAUDE.md sobre a
   // limitacao dessa correspondencia (por valor, nao por FK formal).

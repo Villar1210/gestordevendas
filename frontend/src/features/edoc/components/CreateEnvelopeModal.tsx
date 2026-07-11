@@ -7,6 +7,7 @@ import { X, Plus, Trash2, ArrowUp, ArrowDown, FileText, Loader2 } from "lucide-r
 import { useEdocStore } from "../store/useEdocStore";
 import { useEdocIntegration, CreateEnvelopeRecipientInput } from "../hooks/useEdocIntegration";
 import type { FieldPosition } from "./FieldPositionEditor";
+import { ROLE_OPTIONS, FIELD_TIPO_DEFAULTS, getRoleOption } from "../constants";
 
 // ssr:false e obrigatorio aqui - ver comentario em PdfViewer.tsx.
 const FieldPositionEditor = dynamic(
@@ -24,21 +25,25 @@ const FieldPositionEditor = dynamic(
 const inputClass =
   "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
 
-function emptyRecipient(): CreateEnvelopeRecipientInput {
-  return { name: "", email: "" };
+function emptyRecipient(role: string): CreateEnvelopeRecipientInput {
+  return { name: "", email: "", role };
 }
 
 // Posicoes padrao ao entrar no passo 2 - escalonadas verticalmente na
 // pagina 1 para nao ficarem uma em cima da outra; o admin arrasta a
-// partir daqui. Mesmos defaults do schema (widthPercent/heightPercent).
+// partir daqui. So a assinatura vem por padrao - rubrica e adicionada sob
+// demanda no editor (ver FieldPositionEditor). Mesmos defaults de
+// widthPercent/heightPercent do tipo "assinatura".
 function defaultFields(recipientCount: number): FieldPosition[] {
+  const defaults = FIELD_TIPO_DEFAULTS.assinatura;
   return Array.from({ length: recipientCount }, (_, i) => ({
     recipientIndex: i,
+    tipo: "assinatura" as const,
     pageNumber: 1,
     xPercent: 0.1,
     yPercent: 0.1 + i * 0.14,
-    widthPercent: 0.25,
-    heightPercent: 0.08,
+    widthPercent: defaults.widthPercent,
+    heightPercent: defaults.heightPercent,
   }));
 }
 
@@ -50,7 +55,9 @@ export function CreateEnvelopeModal() {
   const [step, setStep] = useState<1 | 2>(1);
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [recipients, setRecipients] = useState<CreateEnvelopeRecipientInput[]>([emptyRecipient()]);
+  const [recipients, setRecipients] = useState<CreateEnvelopeRecipientInput[]>([
+    emptyRecipient("destinatario"),
+  ]);
   const [fields, setFields] = useState<FieldPosition[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -66,7 +73,7 @@ export function CreateEnvelopeModal() {
     setStep(1);
     setTitle("");
     setFile(null);
-    setRecipients([emptyRecipient()]);
+    setRecipients([emptyRecipient("destinatario")]);
     setFields([]);
   }, [isOpen]);
 
@@ -78,8 +85,8 @@ export function CreateEnvelopeModal() {
     );
   }
 
-  function addRecipient() {
-    setRecipients((prev) => [...prev, emptyRecipient()]);
+  function addRecipient(role: string) {
+    setRecipients((prev) => [...prev, emptyRecipient(role)]);
   }
 
   function removeRecipient(index: number) {
@@ -181,73 +188,107 @@ export function CreateEnvelopeModal() {
             </div>
 
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-600">
-                  Destinatarios (ordem de assinatura)
-                </p>
-                <button
-                  type="button"
-                  onClick={addRecipient}
-                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Adicionar destinatario
-                </button>
+              <p className="mb-2 text-sm font-medium text-slate-600">Participantes</p>
+
+              <div className="mb-3 flex flex-wrap gap-2">
+                {ROLE_OPTIONS.map((role) => (
+                  <span
+                    key={role.value}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${role.badgeClassName}`}
+                  >
+                    {role.label} - {role.description}
+                  </span>
+                ))}
               </div>
 
               <div className="space-y-2">
-                {recipients.map((recipient, index) => (
-                  <div key={index} className="flex items-start gap-2 rounded-lg border border-slate-200 p-2">
-                    <span className="mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">
-                      {index + 1}
-                    </span>
-                    <div className="flex-1 space-y-2">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Nome"
-                        value={recipient.name}
-                        onChange={(e) => updateRecipient(index, "name", e.target.value)}
-                        className={inputClass}
-                      />
-                      <input
-                        type="email"
-                        required
-                        placeholder="E-mail"
-                        value={recipient.email}
-                        onChange={(e) => updateRecipient(index, "email", e.target.value)}
-                        className={inputClass}
-                      />
+                {recipients.map((recipient, index) => {
+                  const role = getRoleOption(recipient.role);
+                  const orderInGroup =
+                    recipients.slice(0, index + 1).filter((r) => r.role === recipient.role).length;
+                  return (
+                    <div
+                      key={index}
+                      className={`flex items-start gap-2 rounded-lg border p-2 ${role.cardBorderClassName}`}
+                    >
+                      <span
+                        className={`mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white ${role.dotClassName}`}
+                      >
+                        {orderInGroup}
+                      </span>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Nome"
+                          value={recipient.name}
+                          onChange={(e) => updateRecipient(index, "name", e.target.value)}
+                          className={inputClass}
+                        />
+                        <input
+                          type="email"
+                          required
+                          placeholder="E-mail"
+                          value={recipient.email}
+                          onChange={(e) => updateRecipient(index, "email", e.target.value)}
+                          className={inputClass}
+                        />
+                        <select
+                          value={recipient.role}
+                          onChange={(e) => updateRecipient(index, "role", e.target.value)}
+                          className={inputClass}
+                        >
+                          {ROLE_OPTIONS.map((r) => (
+                            <option key={r.value} value={r.value}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveRecipient(index, -1)}
+                          disabled={index === 0}
+                          className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                          aria-label="Mover para cima"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveRecipient(index, 1)}
+                          disabled={index === recipients.length - 1}
+                          className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                          aria-label="Mover para baixo"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRecipient(index)}
+                          disabled={recipients.length === 1}
+                          className="text-red-400 hover:text-red-600 disabled:opacity-30"
+                          aria-label="Remover participante"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <button
-                        type="button"
-                        onClick={() => moveRecipient(index, -1)}
-                        disabled={index === 0}
-                        className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
-                        aria-label="Mover para cima"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveRecipient(index, 1)}
-                        disabled={index === recipients.length - 1}
-                        className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
-                        aria-label="Mover para baixo"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeRecipient(index)}
-                        disabled={recipients.length === 1}
-                        className="text-red-400 hover:text-red-600 disabled:opacity-30"
-                        aria-label="Remover destinatario"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-3">
+                {ROLE_OPTIONS.map((role) => (
+                  <button
+                    key={role.value}
+                    type="button"
+                    onClick={() => addRecipient(role.value)}
+                    className={`flex items-center gap-1 text-xs font-medium ${role.buttonClassName}`}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> {role.label}
+                  </button>
                 ))}
               </div>
             </div>
@@ -272,14 +313,15 @@ export function CreateEnvelopeModal() {
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
-              Arraste a caixa de cada destinatario para o local onde a assinatura dele deve
-              aparecer. Use o seletor de pagina abaixo da lista se o campo for em outra pagina.
+              Arraste a caixa de cada participante para o local onde o campo deve aparecer.
+              Destinatarios e Remetentes podem adicionar rubrica (repetida em todas as paginas)
+              alem da assinatura; Testemunhas so tem assinatura, na ultima pagina.
             </p>
 
             {fileUrl && (
               <FieldPositionEditor
                 documentUrl={fileUrl}
-                recipientNames={recipients.map((r) => r.name)}
+                recipients={recipients.map((r) => ({ name: r.name, role: r.role }))}
                 fields={fields}
                 onChange={setFields}
               />

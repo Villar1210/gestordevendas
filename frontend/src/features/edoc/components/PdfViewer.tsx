@@ -38,14 +38,16 @@ interface PdfViewerProps {
 export function PdfViewer({ documentUrl, highlightField }: PdfViewerProps) {
   const [numPages, setNumPages] = useState(0);
   const highlightPageRef = useRef<HTMLDivElement | null>(null);
-  const hasScrolled = useRef(false);
 
+  // Fatia 3: highlightField pode trocar varias vezes (navegacao entre os
+  // campos do destinatario, "Campo X de Y") - rola de novo a cada troca,
+  // nao so na primeira vez.
   useEffect(() => {
-    if (highlightField && highlightPageRef.current && !hasScrolled.current) {
+    if (highlightField && highlightPageRef.current) {
       highlightPageRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      hasScrolled.current = true;
     }
-  }, [numPages, highlightField]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [numPages, highlightField?.pageNumber, highlightField?.xPercent, highlightField?.yPercent]);
 
   return (
     <Document

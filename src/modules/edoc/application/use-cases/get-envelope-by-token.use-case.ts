@@ -13,9 +13,10 @@ interface GetEnvelopeByTokenInput {
 export interface GetEnvelopeByTokenResult {
   envelope: { title: string; documentUrl: string; status: string };
   recipient: { name: string; email: string; status: string };
-  // Sempre 1 nesta fatia - array por antecipacao de uma futura fatia que
-  // relaxe a regra de "1 campo por pessoa" (ver schema.prisma).
-  fields: Pick<SignatureFieldRecord, 'pageNumber' | 'xPercent' | 'yPercent' | 'widthPercent' | 'heightPercent'>[];
+  // Fatia 3: Destinatario/Remetente tem varios campos (1 rubrica por
+  // pagina + 1 assinatura na ultima) - a tela publica usa isso para o
+  // indicador "Campo X de Y" e a navegacao automatica entre paginas.
+  fields: Pick<SignatureFieldRecord, 'pageNumber' | 'xPercent' | 'yPercent' | 'widthPercent' | 'heightPercent' | 'tipo'>[];
 }
 
 @Injectable()
@@ -61,16 +62,23 @@ export class GetEnvelopeByTokenUseCase {
     }
 
     const fields = await this.fieldRepository.findAllByRecipient(recipient.id);
+    // Rubricas em ordem de pagina, assinatura sempre por ultimo - ordem
+    // natural de preenchimento na tela publica ("Campo 1 de N" ...).
+    const orderedFields = [...fields].sort((a, b) => {
+      if (a.tipo !== b.tipo) return a.tipo === 'rubrica' ? -1 : 1;
+      return a.pageNumber - b.pageNumber;
+    });
 
     return {
       envelope: { title: envelope.title, documentUrl: envelope.documentUrl, status: envelope.status },
       recipient: { name: recipient.name, email: recipient.email, status: recipient.status },
-      fields: fields.map((field) => ({
+      fields: orderedFields.map((field) => ({
         pageNumber: field.pageNumber,
         xPercent: field.xPercent,
         yPercent: field.yPercent,
         widthPercent: field.widthPercent,
         heightPercent: field.heightPercent,
+        tipo: field.tipo,
       })),
     };
   }

@@ -18,6 +18,7 @@ export interface EnvelopeRecipient {
   id: string;
   name: string;
   email: string;
+  role: string;
   order: number;
   status: string;
   signedAt: string | null;

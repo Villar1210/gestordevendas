@@ -7,9 +7,23 @@ import { ArrowLeft, Loader2, Download, FileSignature } from "lucide-react";
 import { API_BASE_URL } from "@/core/api/client";
 import { useEdocIntegration } from "@/features/edoc/hooks/useEdocIntegration";
 import { Envelope, EnvelopeRecipient } from "@/features/edoc/store/useEdocStore";
-import { getStatusOption } from "@/features/edoc/constants";
+import { getStatusOption, getRoleOption } from "@/features/edoc/constants";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+// Espelha domain/services/recipient-sequence.ts do backend so para exibicao
+// (Fatia 3: "order" agora e por GRUPO de papel, nao mais global) - mostra
+// os participantes na ordem real de assinatura (destinatarios, depois
+// remetentes, depois testemunhas).
+const ROLE_GROUP_RANK: Record<string, number> = { destinatario: 1, remetente: 2, testemunha: 3 };
+
+function sortBySignatureSequence(recipients: EnvelopeRecipient[]): EnvelopeRecipient[] {
+  return [...recipients].sort((a, b) => {
+    const groupDiff = (ROLE_GROUP_RANK[a.role] ?? 99) - (ROLE_GROUP_RANK[b.role] ?? 99);
+    if (groupDiff !== 0) return groupDiff;
+    return a.order - b.order;
+  });
+}
 
 export default function EnvelopeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
@@ -93,6 +107,7 @@ export default function EnvelopeDetailPage({ params }: { params: Promise<{ id: s
             <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Ordem</th>
+                <th className="px-4 py-3 font-medium">Papel</th>
                 <th className="px-4 py-3 font-medium">Nome</th>
                 <th className="px-4 py-3 font-medium">E-mail</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -100,9 +115,16 @@ export default function EnvelopeDetailPage({ params }: { params: Promise<{ id: s
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {recipients.map((recipient) => (
+              {sortBySignatureSequence(recipients).map((recipient, index) => (
                 <tr key={recipient.id}>
-                  <td className="px-4 py-3 text-slate-500">{recipient.order}</td>
+                  <td className="px-4 py-3 text-slate-500">{index + 1}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${getRoleOption(recipient.role).badgeClassName}`}
+                    >
+                      {getRoleOption(recipient.role).label}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 font-medium text-slate-800">{recipient.name}</td>
                   <td className="px-4 py-3 text-slate-500">{recipient.email}</td>
                   <td className="px-4 py-3">

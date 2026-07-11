@@ -47,6 +47,14 @@ export class GenerateSignedPdfUseCase {
     const pages = pdfDoc.getPages();
     const signatureFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
+    // Fatia 3 (papeis + rubrica): itera por CAMPO, nao por destinatario -
+    // um destinatario/remetente pode ter varios SignatureField (1 rubrica
+    // por pagina + 1 assinatura na ultima pagina), e cada campo busca
+    // recipient.signatureImageData de novo, de forma independente. Isso ja
+    // aplica a MESMA imagem assinada em todas as posicoes marcadas do
+    // mesmo participante sem nenhuma mudanca necessaria aqui - so precisa
+    // que os campos certos (rubrica x N paginas + assinatura x 1) tenham
+    // sido criados antes (ver CreateEnvelopeUseCase).
     for (const field of fields) {
       const recipient = recipientsById.get(field.recipientId);
       if (!recipient?.signatureImageData) continue; // nao deveria acontecer se o envelope esta concluido

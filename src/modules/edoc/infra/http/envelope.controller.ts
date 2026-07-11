@@ -25,13 +25,18 @@ import { GetEnvelopeDetailUseCase } from '../../application/use-cases/get-envelo
 import { CancelEnvelopeUseCase } from '../../application/use-cases/cancel-envelope.use-case';
 import { GetSignedPdfUseCase } from '../../application/use-cases/get-signed-pdf.use-case';
 
+const VALID_ROLES = ['destinatario', 'remetente', 'testemunha'];
+const VALID_FIELD_TIPOS = ['assinatura', 'rubrica'];
+
 interface RecipientInput {
   name: string;
   email: string;
+  role?: string;
 }
 
 interface FieldInput {
   recipientIndex: number;
+  tipo?: string;
   pageNumber: number;
   xPercent: number;
   yPercent: number;
@@ -72,7 +77,12 @@ export class EnvelopeController {
     }
     if (
       !Array.isArray(recipients) ||
-      recipients.some((r) => typeof r?.name !== 'string' || typeof r?.email !== 'string')
+      recipients.some(
+        (r) =>
+          typeof r?.name !== 'string' ||
+          typeof r?.email !== 'string' ||
+          (r.role !== undefined && !VALID_ROLES.includes(r.role)),
+      )
     ) {
       throw new BadRequestException('Lista de destinatarios invalida.');
     }
@@ -90,7 +100,8 @@ export class EnvelopeController {
           typeof f?.recipientIndex !== 'number' ||
           typeof f?.pageNumber !== 'number' ||
           typeof f?.xPercent !== 'number' ||
-          typeof f?.yPercent !== 'number',
+          typeof f?.yPercent !== 'number' ||
+          (f.tipo !== undefined && !VALID_FIELD_TIPOS.includes(f.tipo)),
       )
     ) {
       throw new BadRequestException('Lista de campos de assinatura invalida.');

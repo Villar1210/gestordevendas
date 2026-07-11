@@ -15,6 +15,7 @@ export class PrismaSignatureFieldRepository implements ISignatureFieldRepository
     envelopeId: string,
     fields: {
       recipientId: string;
+      tipo: string;
       pageNumber: number;
       xPercent: number;
       yPercent: number;

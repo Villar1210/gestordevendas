@@ -7,6 +7,7 @@ import { ISignatureRecipientRepository, SignatureRecipientRecord } from '../../d
 import { ISignatureEventRepository } from '../../domain/repositories/signature-event-repository.interface';
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
 import { GenerateSignedPdfUseCase } from './generate-signed-pdf.use-case';
+import { sortBySignatureSequence } from '../../domain/services/recipient-sequence';
 
 // Assinatura em PNG (data URL) tem limite de tamanho - mesmo padrao do
 // projeto antigo (ver CLAUDE.md, modulo E-doc). "Digitar nome" nao passa
@@ -59,12 +60,18 @@ export class SignDocumentUseCase {
 
     // Ordem sequencial estrita: ninguem assina fora da vez, mesmo que ja
     // tenha um token valido (todos os tokens sao gerados juntos no envio).
-    const pendingBefore = await this.recipientRepository.countPendingBeforeOrder(
-      envelope.id,
-      recipient.order,
-    );
+    // Fatia 3: a sequencia combina GRUPO (role) + ordem dentro do grupo -
+    // ver domain/services/recipient-sequence.ts. Busca a lista completa
+    // uma vez e reaproveita tanto para o bloqueio abaixo quanto para achar
+    // o "proximo" depois de marcar esta assinatura.
+    const allRecipients = await this.recipientRepository.findAllByEnvelope(envelope.id);
+    const sequence = sortBySignatureSequence(allRecipients);
+    const myIndex = sequence.findIndex((r) => r.id === recipient.id);
+    const pendingBefore = sequence
+      .slice(0, myIndex)
+      .filter((r) => r.status !== 'assinado').length;
     if (pendingBefore > 0) {
-      throw new ConflictException('Aguardando a assinatura do(s) destinatario(s) anterior(es).');
+      throw new ConflictException('Aguardando a assinatura do(s) participante(s) anterior(es).');
     }
 
     const { normalized, hash } = this.validateAndHashSignature(input.signatureImageData);
@@ -84,7 +91,7 @@ export class SignDocumentUseCase {
       userAgent: input.signerUserAgent,
     });
 
-    const next = await this.recipientRepository.findNextInOrder(envelope.id, recipient.order);
+    const next = sequence[myIndex + 1];
     if (next) {
       await this.sendSignatureEmail(envelope.title, next);
       await this.eventRepository.create({ envelopeId: envelope.id, type: 'enviado' });

@@ -5,6 +5,8 @@ export interface SignatureFieldRecord {
   id: string;
   envelopeId: string;
   recipientId: string;
+  // assinatura ou rubrica (Fatia 3) - ver nota no schema.prisma.
+  tipo: string;
   pageNumber: number;
   xPercent: number;
   yPercent: number;
@@ -17,6 +19,7 @@ export interface ISignatureFieldRepository {
     envelopeId: string,
     fields: {
       recipientId: string;
+      tipo: string;
       pageNumber: number;
       xPercent: number;
       yPercent: number;

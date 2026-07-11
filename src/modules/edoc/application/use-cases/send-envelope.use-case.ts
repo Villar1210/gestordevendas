@@ -5,6 +5,7 @@ import { ISignatureEnvelopeRepository, SignatureEnvelopeRecord } from '../../dom
 import { ISignatureRecipientRepository } from '../../domain/repositories/signature-recipient-repository.interface';
 import { ISignatureEventRepository } from '../../domain/repositories/signature-event-repository.interface';
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
+import { sortBySignatureSequence } from '../../domain/services/recipient-sequence';
 
 const DEFAULT_EXPIRE_DAYS = 7;
 
@@ -45,13 +46,17 @@ export class SendEnvelopeUseCase {
     const expireDays = Number(process.env.SIGNATURE_TOKEN_EXPIRE_DAYS) || DEFAULT_EXPIRE_DAYS;
     const tokenExpiresAt = new Date(Date.now() + expireDays * 24 * 60 * 60 * 1000);
 
-    // Cada destinatario ganha um token, mas so o primeiro da ordem recebe
-    // o e-mail agora - os demais so recebem quando chegar a vez deles
-    // (ver SignDocumentUseCase).
-    for (const recipient of recipients) {
+    // Cada participante ganha um token, mas so o primeiro da SEQUENCIA
+    // (grupo + ordem dentro do grupo - Fatia 3, ver recipient-sequence.ts)
+    // recebe o e-mail agora - os demais so recebem quando chegar a vez
+    // deles (ver SignDocumentUseCase). Ex: com 2 Destinatarios, 1 Remetente
+    // e 1 Testemunha, o e-mail agora vai so para o Destinatario de order=1.
+    const sequence = sortBySignatureSequence(recipients);
+    for (let i = 0; i < sequence.length; i++) {
+      const recipient = sequence[i];
       const accessToken = crypto.randomBytes(32).toString('hex');
       await this.recipientRepository.setTokenAndExpiry(recipient.id, accessToken, tokenExpiresAt);
-      if (recipient.order === 1) {
+      if (i === 0) {
         await this.sendSignatureEmail(envelope.title, recipient.name, recipient.email, accessToken);
       }
     }

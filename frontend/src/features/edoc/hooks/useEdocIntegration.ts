@@ -7,6 +7,7 @@ import type { FieldPosition } from "../components/FieldPositionEditor";
 export interface CreateEnvelopeRecipientInput {
   name: string;
   email: string;
+  role: string;
 }
 
 export interface CreateEnvelopeInput {

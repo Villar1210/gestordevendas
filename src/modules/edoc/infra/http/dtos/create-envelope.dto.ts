@@ -7,13 +7,16 @@ export class CreateEnvelopeDto {
   title!: string;
 
   // multipart/form-data nao suporta array nativo junto com arquivo - o
-  // frontend envia um JSON stringificado ([{ name, email }, ...]),
-  // parseado e validado manualmente no controller.
+  // frontend envia um JSON stringificado ([{ name, email, role? }, ...] -
+  // role: "destinatario"/"remetente"/"testemunha", default "destinatario"
+  // se omitido - Fatia 3), parseado e validado manualmente no controller.
   @IsString()
   recipients!: string;
 
-  // JSON stringificado ([{ recipientIndex, pageNumber, xPercent, yPercent,
-  // widthPercent?, heightPercent? }, ...]) - mesma razao do campo acima.
+  // JSON stringificado ([{ recipientIndex, tipo?, pageNumber, xPercent,
+  // yPercent, widthPercent?, heightPercent? }, ...] - tipo:
+  // "assinatura"/"rubrica", default "assinatura" se omitido - Fatia 3) -
+  // mesma razao do campo acima.
   @IsString()
   fields!: string;
 }

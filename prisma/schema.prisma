@@ -597,7 +597,14 @@ model SignatureRecipient {
   envelopeId         String    @map("envelope_id") @db.Uuid
   name               String    @db.VarChar(150)
   email              String    @db.VarChar(150)
-  // Ordem sequencial de assinatura, comecando em 1.
+  // Grupo de assinatura (Fatia 3): destinatario, remetente ou testemunha -
+  // define tanto a cor/UI do participante quanto a ordem de ENVIO por
+  // grupo (todos os destinatarios assinam, depois todos os remetentes,
+  // depois todas as testemunhas - ver sortBySignatureSequence no dominio).
+  role               String    @default("destinatario") @db.VarChar(20)
+  // Ordem sequencial de assinatura DENTRO DO PROPRIO GRUPO de "role"
+  // (Fatia 3) - comecando em 1 em cada grupo, nao mais uma ordem global
+  // entre todos os participantes do envelope.
   order              Int
   accessToken        String?   @unique @map("access_token") @db.VarChar(255)
   tokenExpiresAt     DateTime? @map("token_expires_at")
@@ -626,6 +633,12 @@ model SignatureField {
   id             String   @id @default(uuid()) @db.Uuid
   envelopeId     String   @map("envelope_id") @db.Uuid
   recipientId    String   @map("recipient_id") @db.Uuid
+  // assinatura (padrao, tipicamente so na ultima pagina) ou rubrica
+  // (Fatia 3, repetida em todas as paginas) - a repeticao em si e
+  // responsabilidade do FRONTEND (gera 1 SignatureField por pagina com o
+  // mesmo recipientId e tipo="rubrica" quando o usuario posiciona 1 vez);
+  // o backend so recebe e salva a lista final de campos.
+  tipo           String   @default("assinatura") @db.VarChar(20)
   pageNumber     Int      @map("page_number")
   xPercent       Float    @map("x_percent")
   yPercent       Float    @map("y_percent")
