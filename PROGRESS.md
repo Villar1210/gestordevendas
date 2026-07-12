@@ -1,5 +1,53 @@
 # Progresso do Ecossistema gestordevendas
 
+## Ultima sessao de trabalho (12/07/2026) - resumo
+
+- E-doc Fatia 3: papeis Destinatario/Remetente/Testemunha + rubrica
+  multi-pagina - CONCLUIDA, em producao
+- E-doc Fatia 4: correcao do bug de rascunho, conversao Word/Excel
+  para PDF via LibreOffice, validacao inline, dashboard com
+  estatisticas/filtros/busca, e-mail customizavel - CONCLUIDA, em
+  producao (LibreOffice instalado tambem na VPS)
+- Modulo Central de Atendimento (Filas): Fila/FilaUsuario/Atendimento/
+  AtendimentoEvento, 3 filas padrao auto-criadas (Suporte/Financeiro/
+  Duvidas Gerais), VIVI orquestrando classificacao (lead qualificado
+  -> Kanban; duvida/suporte -> Fila via nova tool
+  transferir_para_fila) - CONCLUIDA, em producao
+- Identidade visual: logo oficial (frontend/public/logo.png) + cor
+  azul (blue-600) aplicados em todas as telas, incluindo cadastro
+  publico
+
+### Sessao 13/07/2026 - correcoes aplicadas nesta sessao
+- VIVI: corrigido para nao responder se lead ja tem Card com corretor
+  responsavel (Guard 1: verifica status da ultima ViviConversation;
+  Guard 2: verifica existsByTenantAndPhoneWithOwner no ICardRepository)
+  - CONCLUIDA
+- Bad MAC / ruido de log WhatsApp: removidos todos os blocos de debug
+  [VIVI-DEBUG] que sobraram da investigacao do bug @lid; adicionado
+  try/catch por mensagem no messages.upsert do BaileysWhatsAppProvider,
+  suprimindo silenciosamente erros "Bad MAC" conhecidos do Signal
+  Protocol - CONCLUIDA
+- E-doc: preview de Word/Excel no Passo 2 do wizard corrigido via novo
+  endpoint POST /edoc/convert-preview (EdocStatsController, reutiliza
+  PrepareEnvelopeDocumentService + LibreOffice) - frontend chama o
+  endpoint imediatamente ao selecionar o arquivo, exibe spinner durante
+  conversao, renderiza o PDF convertido no FieldPositionEditor -
+  CONCLUIDA
+
+### Pendencias conhecidas registradas para retomar
+- RH: campo "Contrato de prestacao de servico automatico" ainda nao
+  implementado (dados ja coletados no cadastro publico)
+- Modulo de Cloud API oficial da Meta (Agente de Atendimento
+  Online/multicanal) - ainda nao iniciado
+
+### Proximos passos sugeridos (em ordem de prioridade discutida)
+1. RH: geracao automatica de contrato de prestacao de servico a partir
+   dos dados do cadastro publico (corretores/parceiros aprovados)
+2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+   multiatendimento/multicanal, distribuicao de leads entre SDRs,
+   tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
+   WhatsApp")
+
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
 ### Modulo de Autenticacao - COMPLETO E TESTADO
