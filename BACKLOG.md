@@ -69,6 +69,12 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       endereco, CRECI/CNPJ conforme o perfil) e podem ser reaproveitados
       quando essa funcionalidade for construida.
 
+## Modulo WhatsApp Marketing / VIVI
+- [ ] Investigar erros "Bad MAC" recorrentes no log do backend em
+      producao - falhas de descriptografia do Signal Protocol do
+      WhatsApp/Baileys, pre-existentes a este deploy. Nao impede o
+      funcionamento atual, mas vale entender a causa.
+
 ## Modulo E-doc (assinatura eletronica)
 NOTA: a Fatia 1 (envelope + assinatura em posicao fixa no final do
 documento, canvas ou nome digitado, ordem sequencial, trilha de
