@@ -177,6 +177,57 @@ final comprova o carimbo dos 9 campos - 4+4+1 - mesmo usando "digitar
 nome", sem imagem). Tenant de teste, envelopes e arquivos fisicos
 removidos ao final.
 
+### Modulo E-doc (assinatura eletronica) - Fatia 4 (rascunho, Word/Excel, e-mail, dashboard) - CONCLUIDA
+Corrige um bug real: antes desta fatia, um envelope que ficasse em
+"rascunho" (ex: falha no envio logo apos criar) nao tinha NENHUMA
+forma de ser reaberto - ficava morto para sempre. Agora e possivel
+reabrir, editar (titulo/documento/participantes/campos/e-mail) e
+completar/enviar um rascunho a qualquer momento
+(`GetEnvelopeForEditUseCase`/`UpdateEnvelopeDraftUseCase`, rotas
+`GET /edoc/envelopes/:id/edit` e `PATCH /edoc/envelopes/:id`) - na
+lista `/dashboard/edoc`, envelopes com status "Rascunho" agora sao
+clicaveis e abrem o wizard ja preenchido.
+
+Adiciona tambem: conversao automatica de Word/Excel (.doc/.docx/.xls/
+.xlsx) para PDF via LibreOffice headless (`LibreOfficeConverterService`,
+child_process, configuravel via `LIBREOFFICE_PATH`) antes de salvar o
+envelope; dropzone de upload (arrastar-e-soltar) com validacao de
+extensao/tamanho (30MB); validacao inline de participantes (mensagens
+em vermelho "Nome obrigatorio"/"E-mail invalido", sem mais alert()
+generico); passo novo no wizard "Mensagem do E-mail" (assunto/mensagem
+customizaveis, aplicados no envio real via Resend); e dashboard com 4
+cards de estatisticas (Total/Aguardando Assinatura/Concluidos/
+Rascunhos), abas de filtro por status e busca por titulo.
+
+PENDENCIA DE INFRAESTRUTURA registrada: o LibreOffice ainda NAO esta
+instalado na VPS de producao - precisa ser instalado (`apt install
+libreoffice`) antes desta fatia funcionar em producao; testado e
+confirmado funcionando so no ambiente local ate agora.
+
+LIMITACAO CONHECIDA (documentada, nao corrigida nesta fatia): o Passo
+2 do wizard (posicionar campos) nao tem preview convertido para
+arquivos Word/Excel - mostra "Failed to load PDF file." ate o
+documento ser salvo (a conversao real so acontece no backend, no
+momento de salvar/enviar). Os campos ainda sao salvos corretamente nas
+posicoes padrao, so falta o retorno visual nesse caso especifico.
+
+Testado de ponta a ponta com Playwright real: (a) bug do rascunho
+confirmado corrigido (criar -> salvar rascunho sem enviar e-mail ->
+recarregar pagina -> reabrir pelo clique na lista -> dados
+pre-preenchidos confirmados -> completar -> enviar com sucesso); (b)
+upload de um .docx minimo (OOXML/ZIP gerado por codigo, sem
+biblioteca nova) convertido de verdade via LibreOffice real, PDF final
+validado; (c) validacao inline confirmada (nome vazio + e-mail
+invalido bloqueiam o avanco com as mensagens certas); (d) os 4 cards
+de estatisticas conferidos contra contagem direta no banco apos varios
+envelopes de teste - todos batendo; (e) assunto/mensagem customizados
+confirmados persistidos no banco e envio concluindo sem erro (Resend
+aceitou a chamada) - o conteudo do e-mail recebido nao pode ser
+confirmado via API do Resend nesta rodada por falta de acesso a rede
+externa no ambiente de teste usado (a logica de uso do assunto/mensagem
+customizados foi confirmada por leitura de codigo). Tenant de teste e
+arquivos fisicos removidos ao final.
+
 ### Modulo Portal do Cliente - CONCLUIDA
 Substitui a tela placeholder /minha-conta por um portal real (Meus
 Imoveis, Meu Atendimento, Assinaturas Pendentes, Meus Documentos) para
@@ -293,10 +344,13 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
   multi-perfil + aprovacao + hierarquia - ver CLAUDE.md). E-mails reais
   via ResendEmailSender.
 - Roleta Online (distribuicao automatica de leads entre corretores): CONCLUIDA
-- E-doc (assinatura eletronica): Fatias 1, 2 e 3 CONCLUIDAS (envelope
-  + assinatura sequencial + editor de posicionamento de campos + PDF
-  final carimbado para download + papeis de participante
-  Destinatario/Remetente/Testemunha com rubrica multi-pagina)
+- E-doc (assinatura eletronica): Fatias 1, 2, 3 e 4 CONCLUIDAS
+  (envelope + assinatura sequencial + editor de posicionamento de
+  campos + PDF final carimbado para download + papeis de participante
+  Destinatario/Remetente/Testemunha com rubrica multi-pagina + edicao
+  de rascunho + conversao Word/Excel via LibreOffice + e-mail
+  customizavel + dashboard com estatisticas/filtros/busca -
+  LibreOffice ainda precisa ser instalado na VPS de producao)
 - Portal do Cliente (/minha-conta): CONCLUIDO (Meus Imoveis, Meu
   Atendimento, Assinaturas Pendentes, Meus Documentos - vinculo por
   e-mail, ver limitacao conhecida em CLAUDE.md)

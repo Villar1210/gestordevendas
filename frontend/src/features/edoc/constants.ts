@@ -86,3 +86,20 @@ export const FIELD_TIPO_DEFAULTS = {
   assinatura: { widthPercent: 0.25, heightPercent: 0.08 },
   rubrica: { widthPercent: 0.12, heightPercent: 0.05 },
 } as const;
+
+// Espelha DEFAULT_EMAIL_SUBJECT do backend (domain/services/envelope-
+// validation.ts) - Fatia 4. Frontend e backend sao projetos separados,
+// sem compartilhamento de codigo, mesmo padrao ja usado para outras
+// constantes espelhadas neste projeto.
+export const DEFAULT_EMAIL_SUBJECT = 'Por favor, assine este documento — Gestor de Vendas';
+export const EMAIL_SUBJECT_MAX_LENGTH = 200;
+
+export const ACCEPTED_DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+export const ACCEPTED_DOCUMENT_MIMETYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+export const MAX_DOCUMENT_SIZE_BYTES = 30 * 1024 * 1024;

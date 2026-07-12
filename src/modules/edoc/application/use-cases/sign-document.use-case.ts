@@ -8,6 +8,8 @@ import { ISignatureEventRepository } from '../../domain/repositories/signature-e
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
 import { GenerateSignedPdfUseCase } from './generate-signed-pdf.use-case';
 import { sortBySignatureSequence } from '../../domain/services/recipient-sequence';
+import { DEFAULT_EMAIL_SUBJECT } from '../../domain/services/envelope-validation';
+import { SignatureEnvelopeRecord } from '../../domain/repositories/signature-envelope-repository.interface';
 
 // Assinatura em PNG (data URL) tem limite de tamanho - mesmo padrao do
 // projeto antigo (ver CLAUDE.md, modulo E-doc). "Digitar nome" nao passa
@@ -93,7 +95,7 @@ export class SignDocumentUseCase {
 
     const next = sequence[myIndex + 1];
     if (next) {
-      await this.sendSignatureEmail(envelope.title, next);
+      await this.sendSignatureEmail(envelope, next);
       await this.eventRepository.create({ envelopeId: envelope.id, type: 'enviado' });
       return { status: 'aguardando_assinaturas' };
     }
@@ -141,15 +143,22 @@ export class SignDocumentUseCase {
   }
 
   private async sendSignatureEmail(
-    envelopeTitle: string,
+    envelope: Pick<SignatureEnvelopeRecord, 'title' | 'emailSubject' | 'emailMessage'>,
     recipient: SignatureRecipientRecord,
   ): Promise<void> {
     const signLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/assinar/${recipient.accessToken}`;
+    // Fatia 4: mesmo assunto/mensagem customizados usados no primeiro
+    // envio (SendEnvelopeUseCase) - todo e-mail deste envelope segue a
+    // mesma customizacao, nao so o do primeiro destinatario.
+    const subject = envelope.emailSubject?.trim() || DEFAULT_EMAIL_SUBJECT;
+    const customMessage = envelope.emailMessage?.trim()
+      ? `<p>${envelope.emailMessage.trim().replace(/\n/g, '<br/>')}</p>`
+      : '';
 
     await this.emailSender.send({
       to: recipient.email,
-      subject: `Documento para assinatura: ${envelopeTitle}`,
-      body: `<p>Ola, ${recipient.name}.</p><p>Voce tem um documento aguardando sua assinatura: <strong>${envelopeTitle}</strong>.</p><p><a href="${signLink}">${signLink}</a></p>`,
+      subject,
+      body: `<p>Ola, ${recipient.name}.</p><p>Voce tem um documento aguardando sua assinatura: <strong>${envelope.title}</strong>.</p>${customMessage}<p><a href="${signLink}">${signLink}</a></p>`,
     });
   }
 }

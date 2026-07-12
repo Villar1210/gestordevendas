@@ -4,6 +4,9 @@ import { ISignatureEnvelopeRepository, SignatureEnvelopeWithCount } from '../../
 
 interface ListEnvelopesInput {
   tenantId: string;
+  // Filtros opcionais (Fatia 4) - sem eles, lista tudo do tenant como antes.
+  status?: string;
+  search?: string;
 }
 
 @Injectable()
@@ -14,6 +17,9 @@ export class ListEnvelopesUseCase {
   ) {}
 
   async execute(input: ListEnvelopesInput): Promise<SignatureEnvelopeWithCount[]> {
-    return this.envelopeRepository.findAllByTenant(input.tenantId);
+    return this.envelopeRepository.findAllByTenant(input.tenantId, {
+      status: input.status,
+      search: input.search,
+    });
   }
 }

@@ -1,5 +1,5 @@
 // src/modules/edoc/infra/http/dtos/create-envelope.dto.ts
-import { IsString, MinLength } from 'class-validator';
+import { IsString, IsOptional, MinLength } from 'class-validator';
 
 export class CreateEnvelopeDto {
   @IsString()
@@ -19,4 +19,14 @@ export class CreateEnvelopeDto {
   // mesma razao do campo acima.
   @IsString()
   fields!: string;
+
+  // Assunto/mensagem customizaveis do e-mail de convite (Fatia 4) -
+  // opcionais, o SendEnvelopeUseCase aplica o template padrao se vazios.
+  @IsOptional()
+  @IsString()
+  emailSubject?: string;
+
+  @IsOptional()
+  @IsString()
+  emailMessage?: string;
 }

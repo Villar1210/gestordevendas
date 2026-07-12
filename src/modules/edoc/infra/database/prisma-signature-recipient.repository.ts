@@ -30,6 +30,10 @@ export class PrismaSignatureRecipientRepository implements ISignatureRecipientRe
     );
   }
 
+  async deleteAllByEnvelope(envelopeId: string): Promise<void> {
+    await this.prisma.signatureRecipient.deleteMany({ where: { envelopeId } });
+  }
+
   async findAllByEnvelope(envelopeId: string): Promise<SignatureRecipientRecord[]> {
     return this.prisma.signatureRecipient.findMany({
       where: { envelopeId },

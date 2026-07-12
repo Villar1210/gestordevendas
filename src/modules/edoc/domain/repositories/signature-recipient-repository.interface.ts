@@ -34,6 +34,11 @@ export interface ISignatureRecipientRepository {
     envelopeId: string,
     recipients: { name: string; email: string; role: string; order: number }[],
   ): Promise<SignatureRecipientRecord[]>;
+  // Usado por UpdateEnvelopeDraftUseCase (Fatia 4) antes de recriar os
+  // participantes do zero via createMany - o onDelete:Cascade do schema
+  // ja remove os SignatureField associados junto, sem precisar de um
+  // metodo separado no field repository.
+  deleteAllByEnvelope(envelopeId: string): Promise<void>;
   findAllByEnvelope(envelopeId: string): Promise<SignatureRecipientRecord[]>;
   findByToken(token: string): Promise<SignatureRecipientRecord | null>;
   setTokenAndExpiry(id: string, accessToken: string, tokenExpiresAt: Date): Promise<void>;

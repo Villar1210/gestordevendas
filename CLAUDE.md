@@ -677,6 +677,194 @@ imagens grandes infladando o tamanho. Tenant de teste, os 3 envelopes
 criados durante as tentativas e os arquivos fisicos (PDFs originais +
 assinado) foram removidos ao final via script de limpeza dedicado.
 
+## Modulo E-doc (assinatura eletronica) - Fatia 4 (rascunho, Word/Excel, e-mail customizavel, dashboard) - CONCLUIDA
+Fecha uma pendencia real (bug do rascunho) e adiciona 4 melhorias
+independentes: conversao Word/Excel para PDF via LibreOffice,
+validacao inline de participantes, dashboard com estatisticas/filtros/
+busca, e mensagem de e-mail customizavel.
+
+### Correcao: bug do rascunho
+Antes desta fatia, `CreateEnvelopeUseCase` sempre criava o envelope com
+`status="rascunho"` e o frontend imediatamente chamava `send()` em
+seguida (acao unica "Criar e Enviar") - SE o envio falhasse por
+qualquer motivo (rede, validacao), o envelope ficava PARA SEMPRE em
+rascunho, sem nenhuma rota para reabrir/editar/completar/enviar depois.
+`GetEnvelopeForEditUseCase` (retorna documento+participantes+campos, so
+funciona se `status="rascunho"`, senao lanca erro claro) e
+`UpdateEnvelopeDraftUseCase` (atualiza titulo/documento/participantes/
+campos/e-mail de um rascunho existente, mesma restricao) fecham essa
+lacuna. Novas rotas: `GET /edoc/envelopes/:id/edit`,
+`PATCH /edoc/envelopes/:id` (ambas `JwtAuthGuard`, tenant-scoped via
+`findByIdAndTenant`, mesma guarda dos demais endpoints do modulo).
+
+`UpdateEnvelopeDraftUseCase` recria participantes e campos DO ZERO a
+cada atualizacao (`deleteAllByEnvelope` + `createMany`, novo metodo no
+`ISignatureRecipientRepository` - o `onDelete:Cascade` do schema ja
+remove os `SignatureField` associados junto) em vez de tentar
+"diffar" contra o estado anterior - mesma decisao ja tomada no
+frontend ao reentrar no Passo 2 do wizard desde a Fatia 2/3, agora
+aplicada tambem no backend por consistencia. Documento antigo NAO e
+apagado do disco ao trocar por um novo - mesmo comportamento ja aceito
+em outros pontos do projeto (ex: `DeleteInquilinoDocumentoUseCase`).
+
+Validacao de participantes/campos (antes duplicada dentro de
+`CreateEnvelopeUseCase`) foi extraida para
+`domain/services/envelope-validation.ts`
+(`validateRecipientsAndFields`/`buildRecipientsWithGroupOrder`, funcoes
+PURAS - sem NestJS/Prisma, retornam uma mensagem de erro em vez de
+lancar excecao HTTP diretamente, respeitando a regra de que `domain/`
+nao pode importar bibliotecas externas) - reaproveitada por
+`CreateEnvelopeUseCase` e `UpdateEnvelopeDraftUseCase` para nao
+duplicar a mesma logica em dois lugares.
+
+### Conversao Word/Excel para PDF via LibreOffice
+`IDocumentConverterService` (dominio) / `LibreOfficeConverterService`
+(infra, `src/modules/edoc/infra/services/`) - roda o LibreOffice em
+modo headless via `child_process.spawn` (`soffice --headless
+--convert-to pdf --outdir <pasta_temp> <arquivo>`), grava o arquivo
+recebido numa pasta temporaria (`fs.mkdtemp`), aguarda a conversao e le
+o PDF gerado de volta, sempre limpando a pasta temporaria no `finally`
+(mesmo se a conversao falhar). Timeout defensivo de 60s com
+`child.kill()` - verificado NA PRATICA durante o desenvolvimento desta
+fatia que o `soffice.exe` pode "pendurar" indefinidamente esperando uma
+janela/dialogo se `--headless` nao for respeitado por algum motivo
+(aconteceu ao testar so `--version` sem `--headless`); sem o timeout, a
+requisicao HTTP travaria para sempre nesse cenario.
+
+Caminho do executavel configuravel via `LIBREOFFICE_PATH` (.env), com
+fallback por sistema operacional se a variavel nao estiver definida:
+Windows usa `C:\Program Files\LibreOffice\program\soffice.exe`
+(instalacao padrao nao entra no PATH automaticamente no Windows);
+Linux (VPS de producao) usa so `soffice`, esperado no PATH apos
+`apt install libreoffice` - **pendencia de infraestrutura**: o
+LibreOffice ainda NAO esta instalado na VPS de producao
+(187.77.225.184) nesta data - precisa ser instalado (`apt install
+libreoffice` ou so os pacotes `libreoffice-writer libreoffice-calc`,
+mais leves) antes desta fatia funcionar em producao; localmente foi
+confirmado instalado e funcionando (teste manual de conversao real
+antes de codar, por pedido explicito do usuario).
+
+`PrepareEnvelopeDocumentService` (aplicacao,
+`application/services/prepare-envelope-document.service.ts`) e
+compartilhado por `CreateEnvelopeUseCase`/`UpdateEnvelopeDraftUseCase`:
+valida tamanho maximo (30MB) e extensao/mimetype (PDF direto, ou
+`.doc/.docx/.xls/.xlsx` convertidos via `IDocumentConverterService`),
+sempre devolvendo um buffer PDF + hash SHA-256 - os use cases nunca
+guardam um documento Word/Excel "cru", so o PDF resultante (o nome do
+arquivo salvo tambem troca a extensao para `.pdf`).
+
+**Limitacao conhecida (nao corrigida nesta fatia, fora do escopo
+pedido)**: o Passo 2 do wizard (posicionamento de campos) tenta
+renderizar o arquivo ORIGINAL escolhido pelo usuario (via
+`URL.createObjectURL`) no visualizador de PDF do navegador - para
+`.docx`/`.xlsx`, isso mostra "Failed to load PDF file." porque a
+conversao real so acontece no BACKEND, no momento de salvar/enviar, nao
+ha preview convertido no navegador. Os campos ainda sao salvos
+corretamente nas posicoes padrao (confirmado por teste), so falta o
+retorno visual - o admin posiciona "as cegas" nesse caso. Corrigir
+isso exigiria um endpoint novo de "conversao para preview" chamado
+assim que o arquivo e selecionado (antes mesmo do envelope existir),
+fora do escopo original desta fatia - avaliar numa fatia futura se
+incomodar na pratica.
+
+### Mensagem de e-mail customizavel
+`SignatureEnvelope` ganhou `emailSubject`/`emailMessage` (ambos
+`String?`, sem default no banco - o template padrao
+`DEFAULT_EMAIL_SUBJECT` vive em `domain/services/envelope-validation.ts`
+e e aplicado na CAMADA DE APLICACAO, no momento do envio, nao na
+criacao) - `SendEnvelopeUseCase` (primeiro e-mail) e `SignDocumentUseCase`
+(repasse ao proximo signatario) usam
+`envelope.emailSubject?.trim() || DEFAULT_EMAIL_SUBJECT` e injetam
+`emailMessage` (se preenchido) no corpo do e-mail - a MESMA
+customizacao vale para todo e-mail daquele envelope, nao so o do
+primeiro destinatario (decisao deliberada: seria inconsistente o 1o
+signatario receber um assunto customizado e o 2o receber o template
+generico).
+
+### Dashboard com estatisticas/filtros/busca
+`GetEnvelopeStatsUseCase` + `ISignatureEnvelopeRepository
+.countByTenantGroupedByStatus` (usa `prisma.groupBy`) - rota
+`GET /edoc/stats`, em um controller PROPRIO
+(`EdocStatsController`, `@Controller('edoc')`) separado de
+`EnvelopeController` (que usa `@Controller('edoc/envelopes')`) ja que
+`/edoc/stats` e uma rota IRMA de `/edoc/envelopes/*`, nao aninhada
+dentro dela. `ListEnvelopesUseCase` ganhou filtro opcional por
+`status` (exato) e `search` (titulo, `contains` case-insensitive via
+Prisma) - `GET /edoc/envelopes?status=X&search=Y`, ambos opcionais e
+combinaveis.
+
+### Frontend
+`CreateEnvelopeModal.tsx` virou um wizard de 3 passos (era 2):
+Documento+Participantes -> Posicionar Campos -> Mensagem do E-mail
+(novo). O mesmo modal agora serve tanto para CRIAR quanto para EDITAR
+um rascunho (`useEdocStore.editingEnvelopeId` - `null` = criar novo;
+preenchido = editar, carrega os dados via
+`GET /edoc/envelopes/:id/edit` ao abrir). Reconstroi o array local de
+participantes ORDENADO pela sequencia real de assinatura (grupo+ordem,
+espelhando `recipient-sequence.ts` do backend) e mapeia os campos
+recebidos (identificados por `recipientId`, uma FK real) para o
+indice LOCAL do array reconstruido - NUNCA confia na ordem bruta em
+que o backend devolveu os destinatarios para inferir indice por
+posicao (essa mesma armadilha ja foi um bug real corrigido na Fatia 3,
+ver `createMany` do repositorio).
+
+Botao "Salvar rascunho" (chama `CreateEnvelopeUseCase` ou
+`UpdateEnvelopeDraftUseCase` por baixo, SEM chamar `send()`) disponivel
+nos 3 passos do wizard. Depois do primeiro salvamento bem-sucedido
+(seja criando ou editando), o modal guarda o `id` retornado
+(`savedEnvelopeId`) - cliques seguintes em "Salvar rascunho" na MESMA
+sessao do modal viram `PATCH`, nunca criam um segundo envelope
+duplicado.
+
+`DocumentDropzone.tsx` (novo componente) substitui o botao simples de
+upload - arrastar-e-soltar OU clicar, valida extensao/mimetype e
+tamanho (30MB) no proprio frontend antes de aceitar o arquivo (o
+backend valida de novo, e a fonte da verdade). Texto informativo fixo:
+"Arquivos Word e Excel sao convertidos automaticamente para PDF".
+
+Validacao inline de participantes (Passo 1): mensagens em vermelho
+("Nome obrigatorio"/"E-mail invalido") abaixo de cada campo quando o
+usuario tenta avancar ("Continuar" ou "Salvar rascunho") com dados
+vazios/invalidos - substitui o `alert()` generico usado antes.
+
+Passo 3 "Mensagem do E-mail": campo Assunto pre-preenchido com
+`DEFAULT_EMAIL_SUBJECT` (espelhado em `constants.ts` do frontend - projetos
+separados, sem compartilhamento de codigo) com contador de caracteres
+(200 max, mesmo limite do `@db.VarChar(200)` no schema), e Mensagem
+(textarea opcional).
+
+`/dashboard/edoc` (lista) ganhou 4 cards de estatisticas no topo
+(Total/Aguardando Assinatura/Concluidos/Rascunhos, via `GET
+/edoc/stats`, re-buscado sempre que a lista de envelopes muda - criar/
+enviar/cancelar), abas de filtro (Todos/Rascunho/Enviados/Concluidos/
+Cancelados) e busca por titulo (debounce de 300ms). Envelopes com
+`status="rascunho"` ficam clicaveis e abrem o wizard em modo edicao
+(`openEditModal`); os demais continuam navegando para a pagina de
+detalhe como antes.
+
+Testado de ponta a ponta com Playwright real (script descartavel,
+removido ao final): (a) envelope criado, salvo como rascunho (SEM
+e-mail disparado, confirmado no banco), pagina recarregada, rascunho
+reaberto via clique na lista com titulo/participante confirmados
+pre-preenchidos, completado e enviado com sucesso - bug do rascunho
+confirmado corrigido; (b) upload de um `.docx` minimo mas
+VALIDO (OOXML/ZIP construido programaticamente, sem depender de
+nenhuma biblioteca nova) convertido para PDF de verdade via LibreOffice
+real (nao mockado) - documento final baixado e confirmado valido via
+`pdf-lib`; (c) tentativa de avancar com nome vazio + e-mail invalido
+confirma as duas mensagens inline e bloqueia o avanco; (d) os 4 cards
+de estatisticas conferidos contra uma contagem direta no banco
+(`groupBy`) apos criar/enviar varios envelopes de teste - todos batendo;
+(e) assunto/mensagem customizados confirmados PERSISTIDOS corretamente
+no banco e o envio concluindo sem erro (Resend aceitando a chamada) -
+**nao foi possivel confirmar o conteudo do e-mail realmente recebido
+via API do Resend nesta rodada de teste, por falta de acesso a rede
+externa no ambiente de teste usado** (diferente de fatias anteriores,
+que conseguiram consultar a API do Resend diretamente); a logica de
+uso do assunto/mensagem customizados no corpo do e-mail foi confirmada
+por leitura de codigo (`SendEnvelopeUseCase`/`SignDocumentUseCase`).
+Tenant de teste e arquivos fisicos removidos ao final.
+
 ## Modulo Portal do Cliente - CONCLUIDO
 Substitui a tela placeholder `/minha-conta` (que so mostrava "Sua conta
 foi aprovada!") por um portal de verdade para quem faz login com Role

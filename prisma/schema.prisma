@@ -574,6 +574,12 @@ model SignatureEnvelope {
   // GenerateSignedPdfUseCase logo apos o envelope ficar "concluido".
   // Nulo ate la (e continua nulo se a geracao falhar - ver CLAUDE.md).
   signedDocumentUrl String? @map("signed_document_url") @db.VarChar(500)
+  // Assunto/mensagem customizaveis do e-mail de convite (Fatia 4) - nulos
+  // se o usuario nao customizar, e o SendEnvelopeUseCase aplica o template
+  // padrao definido em domain/services/envelope-validation.ts nesse caso
+  // (default aplicado na camada de aplicacao, nao aqui no schema).
+  emailSubject    String?   @map("email_subject") @db.VarChar(200)
+  emailMessage    String?   @map("email_message") @db.Text
 
   tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdBy  User                 @relation(fields: [createdByUserId], references: [id])

@@ -1,13 +1,31 @@
 // src/features/edoc/components/CreateEnvelopeModal.tsx
+// Fatia 4: alem de criar, este modal agora tambem EDITA um rascunho
+// existente (ver useEdocStore.editingEnvelopeId) - corrige o "bug do
+// rascunho" (antes, um envelope em rascunho nao tinha como ser reaberto).
+// Ganhou tambem: dropzone de documento (PDF/Word/Excel), validacao
+// inline de participantes, passo 3 "Mensagem do E-mail" e botao "Salvar
+// rascunho" disponivel em qualquer passo.
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { X, Plus, Trash2, ArrowUp, ArrowDown, FileText, Loader2 } from "lucide-react";
+import { X, Plus, Trash2, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { useEdocStore } from "../store/useEdocStore";
-import { useEdocIntegration, CreateEnvelopeRecipientInput } from "../hooks/useEdocIntegration";
+import {
+  useEdocIntegration,
+  CreateEnvelopeRecipientInput,
+  SaveEnvelopeInput,
+} from "../hooks/useEdocIntegration";
 import type { FieldPosition } from "./FieldPositionEditor";
-import { ROLE_OPTIONS, FIELD_TIPO_DEFAULTS, getRoleOption } from "../constants";
+import { DocumentDropzone } from "./DocumentDropzone";
+import {
+  ROLE_OPTIONS,
+  FIELD_TIPO_DEFAULTS,
+  getRoleOption,
+  DEFAULT_EMAIL_SUBJECT,
+  EMAIL_SUBJECT_MAX_LENGTH,
+} from "../constants";
+import { API_BASE_URL } from "@/core/api/client";
 
 // ssr:false e obrigatorio aqui - ver comentario em PdfViewer.tsx.
 const FieldPositionEditor = dynamic(
@@ -24,16 +42,24 @@ const FieldPositionEditor = dynamic(
 
 const inputClass =
   "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
+const inputErrorClass =
+  "w-full rounded-lg border border-red-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500";
+
+// Ordem real de assinatura (grupo + ordem dentro do grupo) - espelha
+// domain/services/recipient-sequence.ts do backend, so para exibir os
+// participantes na ordem certa ao reabrir um rascunho para edicao.
+const ROLE_GROUP_RANK: Record<string, number> = { destinatario: 1, remetente: 2, testemunha: 3 };
+
+type RecipientErrors = Record<number, { name?: string; email?: string }>;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function emptyRecipient(role: string): CreateEnvelopeRecipientInput {
   return { name: "", email: "", role };
 }
 
-// Posicoes padrao ao entrar no passo 2 - escalonadas verticalmente na
-// pagina 1 para nao ficarem uma em cima da outra; o admin arrasta a
-// partir daqui. So a assinatura vem por padrao - rubrica e adicionada sob
-// demanda no editor (ver FieldPositionEditor). Mesmos defaults de
-// widthPercent/heightPercent do tipo "assinatura".
+// Posicoes padrao ao (re)entrar no passo 2 - escalonadas verticalmente na
+// pagina 1. So a assinatura vem por padrao - rubrica e adicionada sob
+// demanda no editor (ver FieldPositionEditor).
 function defaultFields(recipientCount: number): FieldPosition[] {
   const defaults = FIELD_TIPO_DEFAULTS.assinatura;
   return Array.from({ length: recipientCount }, (_, i) => ({
@@ -47,35 +73,110 @@ function defaultFields(recipientCount: number): FieldPosition[] {
   }));
 }
 
+// So a sequencia de roles importa para saber se as posicoes salvas ainda
+// fazem sentido por indice - se o admin adicionar/remover/reordenar
+// participantes, os campos antigos (por indice) deixam de fazer sentido.
+function recipientsFieldsKey(list: CreateEnvelopeRecipientInput[]): string {
+  return list.map((r) => r.role).join("|");
+}
+
 export function CreateEnvelopeModal() {
   const isOpen = useEdocStore((state) => state.createModalOpen);
+  const editingEnvelopeId = useEdocStore((state) => state.editingEnvelopeId);
   const closeCreateModal = useEdocStore((state) => state.closeCreateModal);
-  const { handleCreateAndSendEnvelope } = useEdocIntegration();
+  const { handleCreateAndSendEnvelope, handleSaveDraft, handleGetEnvelopeForEdit } =
+    useEdocIntegration();
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // Envelope ja salvo NESTA sessao do modal (seja porque estamos editando
+  // um rascunho existente, seja porque "Salvar rascunho" ja rodou uma vez)
+  // - a partir daqui, salvamentos seguintes viram PATCH, nao um novo POST.
+  const [savedEnvelopeId, setSavedEnvelopeId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [existingDocumentUrl, setExistingDocumentUrl] = useState<string | null>(null);
   const [recipients, setRecipients] = useState<CreateEnvelopeRecipientInput[]>([
     emptyRecipient("destinatario"),
   ]);
+  const [recipientErrors, setRecipientErrors] = useState<RecipientErrors>({});
   const [fields, setFields] = useState<FieldPosition[]>([]);
+  const [fieldsSyncKey, setFieldsSyncKey] = useState("");
+  const [emailSubject, setEmailSubject] = useState(DEFAULT_EMAIL_SUBJECT);
+  const [emailMessage, setEmailMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
 
-  const fileUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  const fileUrl = useMemo(() => {
+    if (file) return URL.createObjectURL(file);
+    if (existingDocumentUrl) return `${API_BASE_URL}${existingDocumentUrl}`;
+    return null;
+  }, [file, existingDocumentUrl]);
+
   useEffect(() => {
     return () => {
-      if (fileUrl) URL.revokeObjectURL(fileUrl);
+      if (file && fileUrl) URL.revokeObjectURL(fileUrl);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileUrl]);
 
   useEffect(() => {
     if (!isOpen) return;
+
     setStep(1);
     setTitle("");
     setFile(null);
+    setExistingDocumentUrl(null);
     setRecipients([emptyRecipient("destinatario")]);
+    setRecipientErrors({});
     setFields([]);
-  }, [isOpen]);
+    setFieldsSyncKey("");
+    setEmailSubject(DEFAULT_EMAIL_SUBJECT);
+    setEmailMessage("");
+    setSavedEnvelopeId(editingEnvelopeId);
+
+    if (!editingEnvelopeId) return;
+
+    setLoadingEdit(true);
+    handleGetEnvelopeForEdit(editingEnvelopeId)
+      .then((data) => {
+        if (!data) return;
+
+        setTitle(data.envelope.title);
+        setExistingDocumentUrl(data.envelope.documentUrl);
+        setEmailSubject(data.envelope.emailSubject || DEFAULT_EMAIL_SUBJECT);
+        setEmailMessage(data.envelope.emailMessage || "");
+
+        const sortedRecipients = [...data.recipients].sort((a, b) => {
+          const groupDiff = (ROLE_GROUP_RANK[a.role] ?? 99) - (ROLE_GROUP_RANK[b.role] ?? 99);
+          if (groupDiff !== 0) return groupDiff;
+          return a.order - b.order;
+        });
+        const recipientIdToIndex = new Map(sortedRecipients.map((r, i) => [r.id, i]));
+        const localRecipients = sortedRecipients.map((r) => ({
+          name: r.name,
+          email: r.email,
+          role: r.role,
+        }));
+        const localFields: FieldPosition[] = data.fields
+          .map((f) => ({
+            recipientIndex: recipientIdToIndex.get(f.recipientId) ?? 0,
+            tipo: f.tipo as FieldPosition["tipo"],
+            pageNumber: f.pageNumber,
+            xPercent: f.xPercent,
+            yPercent: f.yPercent,
+            widthPercent: f.widthPercent,
+            heightPercent: f.heightPercent,
+          }))
+          .sort((a, b) => a.recipientIndex - b.recipientIndex);
+
+        setRecipients(localRecipients.length ? localRecipients : [emptyRecipient("destinatario")]);
+        setFields(localFields);
+        setFieldsSyncKey(recipientsFieldsKey(localRecipients));
+      })
+      .finally(() => setLoadingEdit(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editingEnvelopeId]);
 
   if (!isOpen) return null;
 
@@ -83,6 +184,12 @@ export function CreateEnvelopeModal() {
     setRecipients((prev) =>
       prev.map((recipient, i) => (i === index ? { ...recipient, [field]: value } : recipient)),
     );
+    setRecipientErrors((prev) => {
+      if (!prev[index]) return prev;
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   }
 
   function addRecipient(role: string) {
@@ -91,6 +198,15 @@ export function CreateEnvelopeModal() {
 
   function removeRecipient(index: number) {
     setRecipients((prev) => prev.filter((_, i) => i !== index));
+    setRecipientErrors((prev) => {
+      const next: RecipientErrors = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const i = Number(key);
+        if (i < index) next[i] = value;
+        else if (i > index) next[i - 1] = value;
+      });
+      return next;
+    });
   }
 
   function moveRecipient(index: number, direction: -1 | 1) {
@@ -103,37 +219,83 @@ export function CreateEnvelopeModal() {
     });
   }
 
-  function handleContinue() {
-    if (!file) {
-      alert("Selecione o arquivo PDF do documento.");
+  // Validacao inline (Fatia 4) - mensagens em vermelho abaixo dos campos,
+  // em vez do alert() generico usado antes.
+  function validateRecipients(): boolean {
+    const errors: RecipientErrors = {};
+    recipients.forEach((r, i) => {
+      const entry: { name?: string; email?: string } = {};
+      if (!r.name.trim()) entry.name = "Nome obrigatorio";
+      if (!r.email.trim() || !EMAIL_REGEX.test(r.email.trim())) entry.email = "E-mail invalido";
+      if (entry.name || entry.email) errors[i] = entry;
+    });
+    setRecipientErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function syncFieldsWithRecipients() {
+    const key = recipientsFieldsKey(recipients);
+    if (fields.length === 0 || key !== fieldsSyncKey) {
+      setFields(defaultFields(recipients.length));
+      setFieldsSyncKey(key);
+    }
+  }
+
+  function handleContinueToFields() {
+    if (!file && !existingDocumentUrl) {
+      alert("Selecione o arquivo do documento.");
       return;
     }
-    if (recipients.some((r) => !r.name.trim() || !r.email.trim())) {
-      alert("Preencha nome e e-mail de todos os destinatarios.");
-      return;
-    }
-    // Recomeca do zero de proposito - se o admin voltar e mexer na lista de
-    // destinatarios, as posicoes antigas (por indice) nao fariam mais sentido.
-    setFields(defaultFields(recipients.length));
+    if (!validateRecipients()) return;
+    syncFieldsWithRecipients();
     setStep(2);
   }
 
+  function buildSaveInput(): SaveEnvelopeInput {
+    return {
+      envelopeId: savedEnvelopeId ?? undefined,
+      title,
+      file,
+      recipients,
+      fields,
+      emailSubject,
+      emailMessage,
+    };
+  }
+
+  async function handleSaveDraftClick() {
+    if (!file && !existingDocumentUrl) {
+      alert("Selecione o arquivo do documento.");
+      return;
+    }
+    if (!validateRecipients()) return;
+    setSavingDraft(true);
+    try {
+      const saved = await handleSaveDraft(buildSaveInput());
+      if (saved) setSavedEnvelopeId(saved.id);
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
   async function handleSubmit() {
-    if (!file) return;
+    if (!file && !existingDocumentUrl) return;
     setSaving(true);
     try {
-      await handleCreateAndSendEnvelope({ title, file, recipients, fields });
+      await handleCreateAndSendEnvelope(buildSaveInput());
     } finally {
       setSaving(false);
     }
   }
+
+  const isEditing = !!editingEnvelopeId;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Novo Envelope"
+      aria-label={isEditing ? "Editar Rascunho" : "Novo Envelope"}
       onClick={closeCreateModal}
     >
       <div
@@ -144,9 +306,16 @@ export function CreateEnvelopeModal() {
       >
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">Novo Envelope</h2>
+            <h2 className="text-lg font-semibold text-slate-800">
+              {isEditing ? "Editar Rascunho" : "Novo Envelope"}
+            </h2>
             <p className="text-xs text-slate-400">
-              Passo {step} de 2 - {step === 1 ? "Documento e destinatarios" : "Posicionar assinaturas"}
+              Passo {step} de 3 -{" "}
+              {step === 1
+                ? "Documento e participantes"
+                : step === 2
+                  ? "Posicionar campos"
+                  : "Mensagem do e-mail"}
             </p>
           </div>
           <button
@@ -158,7 +327,11 @@ export function CreateEnvelopeModal() {
           </button>
         </div>
 
-        {step === 1 ? (
+        {loadingEdit ? (
+          <div className="flex h-60 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          </div>
+        ) : step === 1 ? (
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm text-slate-500">Titulo</label>
@@ -172,20 +345,11 @@ export function CreateEnvelopeModal() {
               />
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm text-slate-500">Documento (PDF)</label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-500 hover:border-blue-400">
-                <FileText className="h-4 w-4 shrink-0" />
-                {file ? file.name : "Escolher arquivo PDF"}
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  required
-                  className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            </div>
+            <DocumentDropzone
+              file={file}
+              hasExistingDocument={!!existingDocumentUrl}
+              onFileSelected={setFile}
+            />
 
             <div>
               <p className="mb-2 text-sm font-medium text-slate-600">Participantes</p>
@@ -206,6 +370,7 @@ export function CreateEnvelopeModal() {
                   const role = getRoleOption(recipient.role);
                   const orderInGroup =
                     recipients.slice(0, index + 1).filter((r) => r.role === recipient.role).length;
+                  const errors = recipientErrors[index];
                   return (
                     <div
                       key={index}
@@ -217,22 +382,30 @@ export function CreateEnvelopeModal() {
                         {orderInGroup}
                       </span>
                       <div className="flex-1 space-y-2">
-                        <input
-                          type="text"
-                          required
-                          placeholder="Nome"
-                          value={recipient.name}
-                          onChange={(e) => updateRecipient(index, "name", e.target.value)}
-                          className={inputClass}
-                        />
-                        <input
-                          type="email"
-                          required
-                          placeholder="E-mail"
-                          value={recipient.email}
-                          onChange={(e) => updateRecipient(index, "email", e.target.value)}
-                          className={inputClass}
-                        />
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Nome"
+                            value={recipient.name}
+                            onChange={(e) => updateRecipient(index, "name", e.target.value)}
+                            className={errors?.name ? inputErrorClass : inputClass}
+                          />
+                          {errors?.name && (
+                            <p className="mt-1 text-xs text-red-600">{errors.name}</p>
+                          )}
+                        </div>
+                        <div>
+                          <input
+                            type="email"
+                            placeholder="E-mail"
+                            value={recipient.email}
+                            onChange={(e) => updateRecipient(index, "email", e.target.value)}
+                            className={errors?.email ? inputErrorClass : inputClass}
+                          />
+                          {errors?.email && (
+                            <p className="mt-1 text-xs text-red-600">{errors.email}</p>
+                          )}
+                        </div>
                         <select
                           value={recipient.role}
                           onChange={(e) => updateRecipient(index, "role", e.target.value)}
@@ -303,14 +476,22 @@ export function CreateEnvelopeModal() {
               </button>
               <button
                 type="button"
-                onClick={handleContinue}
+                onClick={handleSaveDraftClick}
+                disabled={savingDraft}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {savingDraft ? "Salvando..." : "Salvar rascunho"}
+              </button>
+              <button
+                type="button"
+                onClick={handleContinueToFields}
                 className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
               >
                 Continuar
               </button>
             </div>
           </div>
-        ) : (
+        ) : step === 2 ? (
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
               Arraste a caixa de cada participante para o local onde o campo deve aparecer.
@@ -334,6 +515,75 @@ export function CreateEnvelopeModal() {
                 className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 Voltar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDraftClick}
+                disabled={savingDraft}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {savingDraft ? "Salvando..." : "Salvar rascunho"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="flex-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Personalize o assunto e a mensagem do e-mail enviado a cada participante quando for
+              a vez dele assinar. Deixe em branco para usar o padrao.
+            </p>
+
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-sm text-slate-500">Assunto</label>
+                <span className="text-xs text-slate-400">
+                  {emailSubject.length}/{EMAIL_SUBJECT_MAX_LENGTH}
+                </span>
+              </div>
+              <input
+                type="text"
+                value={emailSubject}
+                maxLength={EMAIL_SUBJECT_MAX_LENGTH}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-slate-500">
+                Mensagem <span className="text-slate-400">(opcional)</span>
+              </label>
+              <textarea
+                rows={5}
+                placeholder="Ex: Segue o contrato combinado, qualquer duvida me avise."
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                className={`${inputClass} resize-none`}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDraftClick}
+                disabled={savingDraft}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {savingDraft ? "Salvando..." : "Salvar rascunho"}
               </button>
               <button
                 type="button"

@@ -6,6 +6,7 @@ import { ISignatureRecipientRepository } from '../../domain/repositories/signatu
 import { ISignatureEventRepository } from '../../domain/repositories/signature-event-repository.interface';
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
 import { sortBySignatureSequence } from '../../domain/services/recipient-sequence';
+import { DEFAULT_EMAIL_SUBJECT } from '../../domain/services/envelope-validation';
 
 const DEFAULT_EXPIRE_DAYS = 7;
 
@@ -57,7 +58,7 @@ export class SendEnvelopeUseCase {
       const accessToken = crypto.randomBytes(32).toString('hex');
       await this.recipientRepository.setTokenAndExpiry(recipient.id, accessToken, tokenExpiresAt);
       if (i === 0) {
-        await this.sendSignatureEmail(envelope.title, recipient.name, recipient.email, accessToken);
+        await this.sendSignatureEmail(envelope, recipient.name, recipient.email, accessToken);
       }
     }
 
@@ -68,17 +69,23 @@ export class SendEnvelopeUseCase {
   }
 
   private async sendSignatureEmail(
-    envelopeTitle: string,
+    envelope: Pick<SignatureEnvelopeRecord, 'title' | 'emailSubject' | 'emailMessage'>,
     recipientName: string,
     recipientEmail: string,
     accessToken: string,
   ): Promise<void> {
     const signLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/assinar/${accessToken}`;
+    // Fatia 4: assunto/mensagem customizaveis pelo criador do envelope -
+    // se vazios, cai no template padrao (mesmo texto de sempre).
+    const subject = envelope.emailSubject?.trim() || DEFAULT_EMAIL_SUBJECT;
+    const customMessage = envelope.emailMessage?.trim()
+      ? `<p>${envelope.emailMessage.trim().replace(/\n/g, '<br/>')}</p>`
+      : '';
 
     await this.emailSender.send({
       to: recipientEmail,
-      subject: `Documento para assinatura: ${envelopeTitle}`,
-      body: `<p>Ola, ${recipientName}.</p><p>Voce tem um documento aguardando sua assinatura: <strong>${envelopeTitle}</strong>.</p><p><a href="${signLink}">${signLink}</a></p>`,
+      subject,
+      body: `<p>Ola, ${recipientName}.</p><p>Voce tem um documento aguardando sua assinatura: <strong>${envelope.title}</strong>.</p>${customMessage}<p><a href="${signLink}">${signLink}</a></p>`,
     });
   }
 }
