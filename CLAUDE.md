@@ -1367,3 +1367,171 @@ Confirmado com teste real e screenshots do celular do destinatario
 sufixo @lid em vez de reconstruir com @s.whatsapp.net), a conversa
 completa chegou e foi respondida corretamente pela pessoa real, prova
 definitiva de entrega bem-sucedida.
+
+## Modulo Central de Atendimento (Filas + Inbox de conversas) - CONCLUIDO
+Novo modulo `src/modules/atendimento/`, Clean Architecture, para
+mensagens de WhatsApp que NAO sao sobre qualificacao de compra/aluguel
+de imovel (suporte, financeiro, duvidas gerais) - complementa o
+Kanban de vendas (que continua so para negociacao) e a VIVI (que
+agora decide, por conversa, se o assunto e venda ou atendimento).
+
+### Referencia conceitual (estudada, nao copiada)
+Antes de construir, o projeto open source `raphaelbat/wacalls-chat`
+(MIT, Go) foi clonado numa pasta temporaria FORA do gestordevendas
+(`C:\gestaodevendas\wacalls-chat-referencia\`, depois apagada) so para
+estudar arquitetura/modelagem - Go e incompativel com nossa stack, ZERO
+codigo foi portado. Principais ideias aproveitadas como CONCEITO:
+fila como bucket organizacional com vinculo N:N agente<->fila (o
+projeto de origem tem campos de "rotation"/round-robin no schema, mas
+confirmamos por leitura de codigo que sao vestigiais - nunca
+implementados em nenhuma camada, nem exposto na UI deles - por isso
+nossa Fila e deliberadamente so organizacional, sem round-robin
+proprio); acoes explicitas de ciclo de vida (assumir/transferir/
+devolver/fechar) com trilha de auditoria por evento; e o padrao de
+"conversa amarrada a uma conexao especifica" (aqui, `whatsappSessionId`
++ `remoteJid`).
+
+### Modelagem (Prisma)
+`Fila` (nome, descricao opcional, escopada por tenant) + `FilaUsuario`
+(N:N agente<->fila, `@@unique([filaId, userId])`) + `Atendimento`
+(paralelo ao `Card` do Kanban, mas fora do funil de vendas -
+`whatsappSessionId` + `remoteJid` identificam a conversa, `filaId` e
+`ownerId` opcionais - nulos ate classificar/assumir, `status`
+"aguardando" -> "em_atendimento" -> "fechado") + `AtendimentoEvento`
+(auditoria: criado/atribuido/transferido/devolvido/fechado/nota, com
+`userId` opcional - nulo quando o evento e automatico, ex: criacao via
+listener sem usuario logado envolvido).
+
+### Seed automatico de filas padrao
+Ao inves de exigir setup manual, `GetOrCreateAtendimentoUseCase` cria
+automaticamente 3 filas padrao ("Suporte", "Financeiro", "Duvidas
+Gerais") na primeira vez que um tenant precisa de um Atendimento e
+ainda nao tem nenhuma Fila (`ensureDefaultFilas`, checagem por
+`countByTenant` antes de criar - idempotente, so roda uma vez por
+tenant na pratica). Os nomes ficam centralizados em
+`domain/services/fila-categorias.ts` (`DEFAULT_FILA_NAMES`), a mesma
+constante que mapeia a categoria da tool da VIVI para o nome exato da
+fila (`CATEGORIA_TO_FILA_NOME`) - um so lugar de verdade para os 2
+consumidores (o seed e o roteamento automatico da VIVI).
+
+### Dois caminhos de entrada no modulo (mesmo listener, dupla responsabilidade)
+`WhatsAppMessageReceivedListener` (existia so no modulo `vivi_sdr`,
+escutando `whatsapp.message.received`) ganhou uma segunda
+responsabilidade deliberada: sessao COM VIVI (`isAiEnabled=true`)
+continua indo para `ProcessIncomingMessageUseCase` como antes; sessao
+SEM VIVI agora cai automaticamente em `GetOrCreateAtendimentoUseCase`
+(Central de Atendimento), SEM fila ainda - fica "nao classificado" ate
+um Administrador classificar manualmente pela UI (reaproveitando a
+propria acao de "Transferir", que ja aceita mudar so a fila sem mudar
+o dono - nao existe uma rota dedicada de "classificar", o Transfer
+cobre os dois casos: classificacao inicial e reclassificacao
+posterior). `atendimento` nao importa `vivi_sdr` de volta - dependencia
+so num sentido (`vivi_sdr` -> `atendimento`), sem ciclo, mesmo padrao
+ja usado por `roleta_online` (-> `vendas_kanban`+`rh`).
+
+O evento `whatsapp.message.received` (emitido por
+`BaileysWhatsAppProvider`) ganhou o campo `remoteJid` no payload -
+antes so tinha `phoneNumber` (digitos), que nao e suficiente pra
+responder corretamente numeros `@lid` (ver bug do JID @lid, secoes
+acima) - `GetOrCreateAtendimentoUseCase` exige o JID completo.
+
+### VIVI orquestrando: nova tool "transferir_para_fila"
+`AnthropicConversationService` ganhou uma segunda tool alem de
+"transferir_para_corretor": "transferir_para_fila" (parametros
+`categoria`: suporte/financeiro/duvida_geral, e `resumo`: texto curto
+do que foi perguntado). O system prompt da VIVI foi ajustado para
+distinguir os dois casos: pergunta sobre qualificacao de compra/aluguel
+-> "transferir_para_corretor" (cria Card no Kanban, comportamento
+inalterado); pergunta sem relacao com comprar/alugar um imovel (boleto,
+pagamento, suporte, duvida generica) -> "transferir_para_fila" (cria/
+classifica um Atendimento, NUNCA cria Card). `ProcessIncomingMessageUseCase`
+(modulo `vivi_sdr`) ganhou o branch para a nova tool, chamando
+`GetOrCreateAtendimentoUseCase` + `ClassifyAndRouteAtendimentoUseCase`
+em sequencia - `ViviConversation.status` ganhou o valor
+"encaminhado_fila" (nao mexe em `cardId`, fica nulo). Testado com uma
+chamada REAL a API do Claude (Haiku, sem mock): pergunta "meu boleto do
+mes passado nao chegou no email, como faco pra pagar?" foi corretamente
+classificada como `categoria=financeiro` com um resumo gerado pelo
+proprio modelo, sem nenhum Card criado no Kanban.
+
+### Visibilidade por role (Corretor/Agente ve so o que e dele)
+`ListAtendimentosUseCase`/`GetAtendimentoDetailUseCase`: Administrador
+ve tudo (inclusive atendimentos "nao classificados", para poder
+atribui-los); Corretor/Agente ve so atendimentos cuja fila ele integra
+(`FilaUsuario`) OU que ele mesmo ja assumiu (`ownerId`) - um atendimento
+"nao classificado" (sem fila, sem dono) fica invisivel para quem nao e
+Administrador ate ser classificado (diferente da Caixa de Entrada do
+Kanban, que e sempre visivel a qualquer role de proposito - aqui a
+regra e deliberadamente mais restrita, ver `ListAtendimentosUseCase`).
+Efeito colateral esperado e CORRETO: se um agente transfere um
+atendimento para uma fila que ele mesmo nao integra e depois devolve
+(perdendo o `ownerId`), ele perde a visibilidade dele - confirmado
+durante o teste desta fatia (o roteiro de teste original tentava
+continuar operando como esse agente depois disso; foi ajustado para
+usar o Administrador a partir dali, ja que o comportamento de perda de
+visibilidade e o controle de acesso funcionando como desenhado, nao um
+bug).
+
+### Reaproveitamento de infraestrutura existente
+`EnviarMensagemAtendimentoUseCase` reaproveita
+`SendWhatsAppMessageUseCase` (modulo `whatsappmarketing`) sem
+modifica-lo - a persistencia da mensagem OUT (e o proprio envio via
+Baileys) ja acontece dentro dele. `GetAtendimentoDetailUseCase`
+reaproveita `IWhatsAppMessageRepository.findRecentBySessionAndNumber`
+(mesmo metodo ja usado pela VIVI para montar historico) em vez de criar
+um metodo novo filtrando por `remoteJid` - `Atendimento.phoneNumber` ja
+e suficiente. `AddUsuarioToFilaUseCase` importa `IUserRepository` do
+`AuthModule` (mesmo padrao ja usado pelo `portal_cliente`) so para
+validar que o usuario vinculado pertence ao tenant certo.
+
+`ListAtendimentosUseCase` busca a ultima mensagem de cada atendimento
+visivel (preview na lista da UI) com 1 consulta extra por atendimento
+(`WhatsAppMessage` nao tem FK para `Atendimento` de proposito - ver
+schema.prisma) - aceitavel na escala atual (dezenas de atendimentos
+abertos por tenant); se crescer muito, avaliar desnormalizar um
+"ultima mensagem" direto no proprio `Atendimento` numa fatia futura.
+
+### Frontend
+Item novo "Atendimento" no Sidebar (icone `Headset`, visivel a
+qualquer role do dashboard). `/dashboard/atendimento`
+(`features/atendimento/`, Feature-Driven Design, mesmo padrao dos
+demais modulos) - layout de 3 colunas (lista + chat + acoes) inspirado
+na ESTRUTURA do wacalls-chat estudado, mas com nossa identidade visual
+atual (cards brancos, bordas slate, azul como cor de destaque):
+`AtendimentoList.tsx` (abas por fila + "Nao Classificados" + "Todos",
+busca por numero, preview da ultima mensagem) e
+`AtendimentoChatPanel.tsx` (bolhas de mensagem IN/OUT, composer, 5
+botoes de acao condicionais por status/dono - Assumir/Transferir/
+Devolver/Fechar/Nota - com dialogos inline simples para
+Transferir/Fechar/Nota, sem modal separado). Poll simples a cada 5s
+(mesmo padrao ja usado em `/dashboard/whatsapp`), sem WebSocket nesta
+fatia.
+
+`FilasManagementCard.tsx` (novo) - Administrador cria filas e vincula
+agentes por checkbox multi-select, renderizado na pagina `/dashboard/equipe`
+junto ao `RoletaConfigCard` ja existente (mesmo padrao de card
+condicional a role).
+
+### Teste E2E hibrido (Nest standalone + Playwright + chamada real a IA)
+Testado de ponta a ponta com uma combinacao de tecnicas, ja que um
+numero de WhatsApp real pareado via QR nao pode ser automatizado neste
+ambiente: `NestFactory.createApplicationContext(AppModule)` (contexto
+standalone do Nest, sem HTTP listener) para invocar diretamente
+`GetOrCreateAtendimentoUseCase`/`ProcessIncomingMessageUseCase` -
+exatamente o mesmo caminho que o listener real percorre, so disparado
+manualmente em vez de via evento - combinado com sessoes WhatsApp
+inseridas direto no banco (bypass do pareamento QR) e Playwright para
+toda a validacao de UI real (login, classificar, assumir, transferir,
+devolver, fechar, nota, trilha de auditoria completa confirmada:
+criado -> transferido -> atribuido -> transferido -> devolvido ->
+atribuido -> fechado). A chamada a VIVI (Fase 4) usou a API REAL da
+Anthropic (Claude Haiku, sem mock nenhum) com uma pergunta de
+suporte financeiro generica, confirmando que o modelo decide sozinho
+por "transferir_para_fila" (nao "transferir_para_corretor") e classifica
+na fila certa. `POST /atendimentos/:id/enviar-mensagem` foi testado e
+retornou erro esperado (sem numero real conectado via QR neste
+ambiente - mesma limitacao ja documentada em outras fatias deste
+projeto que dependem de WhatsApp real) - a chamada chega corretamente
+ate `SendWhatsAppMessageUseCase`, so a entrega de fato nao pode ser
+verificada sem um numero pareado de verdade. Tenant de teste, sessoes
+WhatsApp e demais dados removidos ao final (cascata a partir do Tenant).

@@ -43,8 +43,8 @@ const TOOLS: Anthropic.Tool[] = [
     description:
       'Encerra o atendimento da VIVI e transfere a conversa para um corretor humano. ' +
       'Chame quando nome, tipo de imovel, orcamento, regiao e finalidade ja tiverem sido ' +
-      'coletados, OU quando o lead perguntar algo muito especifico que a VIVI nao pode ' +
-      'responder (preco exato de um imovel, detalhes tecnicos, negociacao).',
+      'coletados, OU quando o lead perguntar algo muito especifico sobre COMPRA/ALUGUEL que a ' +
+      'VIVI nao pode responder (preco exato de um imovel, detalhes tecnicos, negociacao).',
     input_schema: {
       type: 'object',
       properties: {
@@ -55,6 +55,29 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['motivo'],
+    },
+  },
+  {
+    name: 'transferir_para_fila',
+    description:
+      'Encerra o atendimento da VIVI e encaminha a conversa para a Central de Atendimento ' +
+      '(fila de suporte humano), quando a pergunta NAO e sobre qualificacao de compra/aluguel ' +
+      'de imovel - e sim suporte, financeiro (boletos, pagamentos, cobranca) ou uma duvida ' +
+      'generica que nao tem relacao com comprar/alugar um imovel novo.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        categoria: {
+          type: 'string',
+          enum: ['suporte', 'financeiro', 'duvida_geral'],
+          description: 'Categoria da fila de atendimento mais adequada',
+        },
+        resumo: {
+          type: 'string',
+          description: 'Breve resumo do que o lead perguntou, para o agente humano ter contexto',
+        },
+      },
+      required: ['categoria', 'resumo'],
     },
   },
 ];

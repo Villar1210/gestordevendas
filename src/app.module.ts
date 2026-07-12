@@ -11,6 +11,7 @@ import { RhModule } from './modules/rh/rh.module';
 import { RoletaOnlineModule } from './modules/roleta_online/roleta-online.module';
 import { EdocModule } from './modules/edoc/edoc.module';
 import { PortalClienteModule } from './modules/portal_cliente/portal-cliente.module';
+import { AtendimentoModule } from './modules/atendimento/atendimento.module';
 import { PrismaService } from './config/prisma.service';
 
 @Module({
@@ -28,6 +29,7 @@ import { PrismaService } from './config/prisma.service';
     RoletaOnlineModule,
     EdocModule,
     PortalClienteModule,
+    AtendimentoModule,
   ],
   providers: [PrismaService],
   exports: [PrismaService],

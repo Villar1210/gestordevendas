@@ -9,6 +9,7 @@ import { useEquipeIntegration } from "@/features/equipe/hooks/useEquipeIntegrati
 import { getStatusDisponibilidadeOption } from "@/features/equipe/constants";
 import { CorretorFormModal } from "@/features/equipe/components/CorretorFormModal";
 import { RoletaConfigCard } from "@/features/roleta/components/RoletaConfigCard";
+import { FilasManagementCard } from "@/features/atendimento/components/FilasManagementCard";
 
 export default function EquipePage() {
   const corretores = useEquipeStore((state) => state.corretores);
@@ -42,6 +43,7 @@ export default function EquipePage() {
 
       <div className="space-y-6 p-6">
         {role === "Administrador" && <RoletaConfigCard />}
+        {role === "Administrador" && <FilasManagementCard />}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">

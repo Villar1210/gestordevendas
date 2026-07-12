@@ -145,13 +145,18 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
           timestamp: new Date(timestampSeconds * 1000),
         });
 
-        // Evento generico, sem conhecer quem escuta (ex: modulo vivi_sdr).
-        // emit() nao aguarda os listeners - nao bloqueia o recebimento das
-        // proximas mensagens do messages.upsert.
+        // Evento generico, sem conhecer quem escuta (ex: modulos vivi_sdr e
+        // atendimento). emit() nao aguarda os listeners - nao bloqueia o
+        // recebimento das proximas mensagens do messages.upsert.
+        // remoteJid incluido (alem de phoneNumber) desde o modulo
+        // atendimento: GetOrCreateAtendimentoUseCase precisa do JID
+        // completo para responder corretamente (numeros @lid, ver
+        // CLAUDE.md).
         this.eventEmitter.emit('whatsapp.message.received', {
           tenantId: session.tenantId,
           sessionId,
           phoneNumber: fromNumber,
+          remoteJid,
           messageBody: body,
         });
       }

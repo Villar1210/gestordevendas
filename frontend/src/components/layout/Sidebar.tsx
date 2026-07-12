@@ -11,6 +11,7 @@ import {
   Users,
   UserCheck,
   FileSignature,
+  Headset,
   type LucideIcon,
 } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Building2, label: "Imoveis", href: "/dashboard/imoveis" },
   { icon: MessageCircle, label: "WhatsApp", href: "/dashboard/whatsapp" },
   { icon: FileSignature, label: "E-doc", href: "/dashboard/edoc" },
+  { icon: Headset, label: "Atendimento", href: "/dashboard/atendimento" },
   { icon: Users, label: "Equipe", href: "/dashboard/equipe", requiredRole: "Administrador" },
   {
     icon: UserCheck,

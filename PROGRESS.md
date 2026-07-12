@@ -306,6 +306,66 @@ apelido foi removido daqui para nao confundir com este modulo ja
 concluido. Esse futuro modulo continua sendo chamado de "Agente de
 Atendimento Online" (nome usado em CLAUDE.md), ainda nao iniciado.
 
+### Modulo Central de Atendimento (Filas + Inbox de conversas) - CONCLUIDA
+NOTA DE NOMENCLATURA (adicionar a lista acima): "Central de
+Atendimento" e um TERCEIRO nome, diferente dos outros dois - nao
+confundir com "Roleta Online" (distribuicao de leads do Kanban) nem
+com o futuro "Agente de Atendimento Online" (API oficial da Meta,
+ainda nao iniciado). A Central de Atendimento e para mensagens de
+WhatsApp que NAO sao sobre comprar/alugar um imovel (suporte,
+financeiro, duvidas gerais) - roda hoje sobre a mesma conexao Baileys
+ja existente (QR Code), so separa o ASSUNTO da conversa, nao o
+canal/numero.
+
+Novo modulo `src/modules/atendimento/`: `Fila` (nome + descricao,
+escopada por tenant) com agentes vinculados N:N (`FilaUsuario`), e
+`Atendimento` (paralelo ao Card do Kanban mas fora do funil de vendas -
+`whatsappSessionId`+`remoteJid` identificam a conversa, `filaId`/
+`ownerId` opcionais ate classificar/assumir, status aguardando ->
+em_atendimento -> fechado) com trilha de auditoria completa
+(`AtendimentoEvento`: criado/atribuido/transferido/devolvido/fechado/
+nota). 3 filas padrao ("Suporte", "Financeiro", "Duvidas Gerais")
+criadas automaticamente no primeiro Atendimento de um tenant sem
+nenhuma Fila - sem depender de setup manual.
+
+Referencia conceitual estudada antes de construir (nao copiada -
+`raphaelbat/wacalls-chat`, MIT, escrito em Go, incompativel com nossa
+stack): confirmado por leitura de codigo que os campos de "rotation"/
+round-robin do schema deles sao vestigiais (nunca implementados em
+nenhuma camada) - por isso nossa Fila e deliberadamente so
+organizacional, sem round-robin proprio (a Roleta Online ja resolve
+distribuicao automatica, para o Kanban).
+
+Dois caminhos entram no modulo: (1) sessao WhatsApp SEM VIVI ativa ->
+o mesmo `WhatsAppMessageReceivedListener` que ja existia (modulo
+vivi_sdr) agora tambem cria um Atendimento "nao classificado"
+automaticamente, visivel so para Administrador ate classificar
+manualmente (reaproveitando a acao de "Transferir"); (2) a propria
+VIVI, quando decide que a pergunta NAO e sobre compra/aluguel, chama
+uma tool nova ("transferir_para_fila", com categoria e resumo) em vez
+de "transferir_para_corretor" - classifica automaticamente, sem criar
+Card no Kanban.
+
+Corretor/Agente ve so os atendimentos das proprias filas + os que ja
+assumiu; Administrador ve tudo. Frontend: item "Atendimento" no
+Sidebar, pagina `/dashboard/atendimento` (lista + chat + acoes
+Assumir/Transferir/Devolver/Fechar/Nota, inspirada na estrutura do
+wacalls-chat estudado mas com identidade visual propria), e gestao de
+filas/vinculo de agentes na pagina `/dashboard/equipe` (Administrador).
+
+Testado de ponta a ponta com uma combinacao de tecnicas (numero de
+WhatsApp real pareado via QR nao pode ser automatizado neste
+ambiente): contexto standalone do Nest para disparar os use cases que
+normalmente rodam via evento, Playwright para toda a UI real
+(classificar, assumir, transferir, devolver, fechar, nota - trilha de
+auditoria completa confirmada), e uma chamada REAL a API da Anthropic
+(Claude Haiku, sem mock) confirmando que a VIVI decide sozinha por
+"transferir_para_fila" numa pergunta de suporte financeiro e classifica
+na fila certa, sem criar Card. Envio de mensagem retornou o erro
+esperado (sem numero real conectado neste ambiente de teste - mesma
+limitacao ja documentada para outras fatias que dependem de WhatsApp
+real). Dados de teste removidos ao final.
+
 ## Decisoes tecnicas importantes (ver CLAUDE.md para detalhes completos)
 - NestJS v11 + Prisma v7 (nao suporta MongoDB - usar driver nativo no futuro)
 - WhatsApp: dois caminhos propositalmente separados - QR/Baileys (corretor,
@@ -354,7 +414,12 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
 - Portal do Cliente (/minha-conta): CONCLUIDO (Meus Imoveis, Meu
   Atendimento, Assinaturas Pendentes, Meus Documentos - vinculo por
   e-mail, ver limitacao conhecida em CLAUDE.md)
-- Atendimento, Marketing, Agente de Atendimento Online (Meta), Pagamentos: nao iniciados
+- Central de Atendimento (Filas + Inbox para WhatsApp de suporte/
+  financeiro/duvidas gerais, VIVI orquestrando a classificacao entre
+  Kanban de vendas vs Fila de atendimento): CONCLUIDA - nao confundir
+  com o futuro "Agente de Atendimento Online" (API oficial da Meta),
+  que continua nao iniciado
+- Marketing, Agente de Atendimento Online (Meta), Pagamentos: nao iniciados
 
 ### Fase B - Frontend completo
 Login e Kanban (com formulario/filtros) prontos. Demais modulos

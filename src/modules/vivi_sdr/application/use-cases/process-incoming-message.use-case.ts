@@ -14,6 +14,9 @@ import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/applicati
 import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
 import { CreateNoteUseCase } from '../../../vendas_kanban/application/use-cases/create-note.use-case';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
+import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
+import { ClassifyAndRouteAtendimentoUseCase } from '../../../atendimento/application/use-cases/classify-and-route-atendimento.use-case';
+import { CATEGORIA_TO_FILA_NOME } from '../../../atendimento/domain/services/fila-categorias';
 import { VIVI_SYSTEM_PROMPT } from '../../constants/vivi-prompt';
 
 interface ProcessIncomingMessageInput {
@@ -41,6 +44,8 @@ export class ProcessIncomingMessageUseCase {
     private readonly sendWhatsAppMessageUseCase: SendWhatsAppMessageUseCase,
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
     private readonly createNoteUseCase: CreateNoteUseCase,
+    private readonly getOrCreateAtendimentoUseCase: GetOrCreateAtendimentoUseCase,
+    private readonly classifyAndRouteAtendimentoUseCase: ClassifyAndRouteAtendimentoUseCase,
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
@@ -55,6 +60,7 @@ export class ProcessIncomingMessageUseCase {
 
     const collected = this.mergeCollectedData(conversation, toolCalls);
     const transferCall = toolCalls.find((call) => call.name === 'transferir_para_corretor');
+    const filaCall = toolCalls.find((call) => call.name === 'transferir_para_fila');
 
     const updates: ViviConversationUpdateInput = { ...collected };
 
@@ -66,6 +72,11 @@ export class ProcessIncomingMessageUseCase {
       if (cardId) {
         updates.cardId = cardId;
       }
+    } else if (filaCall) {
+      // Pergunta fora do fluxo de venda (suporte/financeiro/duvida generica) -
+      // vai para a Central de Atendimento em vez de virar Card no Kanban.
+      updates.status = 'encaminhado_fila';
+      await this.transferToFila(input, remoteJid, filaCall);
     }
 
     await this.viviConversationRepository.update(conversation.id, updates);
@@ -204,5 +215,34 @@ export class ProcessIncomingMessageUseCase {
     });
 
     return card.id;
+  }
+
+  private async transferToFila(
+    input: ProcessIncomingMessageInput,
+    remoteJid: string | null,
+    filaCall: { name: string; input: Record<string, unknown> },
+  ): Promise<void> {
+    const categoria = String(filaCall.input.categoria ?? 'duvida_geral');
+    const resumo = typeof filaCall.input.resumo === 'string' ? filaCall.input.resumo : undefined;
+    const filaNome = CATEGORIA_TO_FILA_NOME[categoria] ?? CATEGORIA_TO_FILA_NOME.duvida_geral;
+
+    // remoteJid deveria sempre vir preenchido a essa altura (a mensagem que
+    // acabou de chegar ja foi persistida com remoteJid antes do evento ser
+    // emitido) - fallback so cobre um cenario teorico de mensagem antiga.
+    const jid = remoteJid ?? `${input.phoneNumber}@s.whatsapp.net`;
+
+    const atendimento = await this.getOrCreateAtendimentoUseCase.execute({
+      tenantId: input.tenantId,
+      sessionId: input.sessionId,
+      remoteJid: jid,
+      phoneNumber: input.phoneNumber,
+    });
+
+    await this.classifyAndRouteAtendimentoUseCase.execute({
+      tenantId: input.tenantId,
+      atendimentoId: atendimento.id,
+      filaNome,
+      resumo,
+    });
   }
 }

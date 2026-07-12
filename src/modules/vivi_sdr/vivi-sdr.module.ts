@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing.module';
 import { VendasKanbanModule } from '../vendas_kanban/vendas-kanban.module';
+import { AtendimentoModule } from '../atendimento/atendimento.module';
 import { ViviSessionController } from './infra/http/vivi-session.controller';
 import { ViviConversationController } from './infra/http/vivi-conversation.controller';
 import { EnableViviOnSessionUseCase } from './application/use-cases/enable-vivi-on-session.use-case';
@@ -15,10 +16,13 @@ import { PrismaService } from '../../config/prisma.service';
 
 @Module({
   // Dependencia de modulo (nao circular): vivi_sdr consome use cases ja
-  // exportados por whatsappmarketing e vendas_kanban. O caminho inverso
-  // (whatsappmarketing -> vivi_sdr) nao existe - o provider so emite um
-  // evento generico, ver infra/listeners/whatsapp-message-received.listener.ts.
-  imports: [WhatsAppMarketingModule, VendasKanbanModule],
+  // exportados por whatsappmarketing, vendas_kanban e atendimento (Central
+  // de Atendimento - GetOrCreateAtendimentoUseCase/
+  // ClassifyAndRouteAtendimentoUseCase, usados pelo listener e pela tool
+  // "transferir_para_fila"). O caminho inverso (whatsappmarketing ->
+  // vivi_sdr, atendimento -> vivi_sdr) nao existe - os providers so emitem
+  // eventos genericos, ver infra/listeners/whatsapp-message-received.listener.ts.
+  imports: [WhatsAppMarketingModule, VendasKanbanModule, AtendimentoModule],
   controllers: [ViviSessionController, ViviConversationController],
   providers: [
     PrismaService,

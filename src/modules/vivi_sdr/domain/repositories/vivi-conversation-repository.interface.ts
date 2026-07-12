@@ -5,6 +5,7 @@ export type ViviConversationStatus =
   | 'em_andamento'
   | 'qualificado_transferido'
   | 'duvida_transferido'
+  | 'encaminhado_fila'
   | 'encerrada';
 
 export interface ViviConversationRecord {

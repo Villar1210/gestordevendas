@@ -41,6 +41,9 @@ model Tenant {
 
   viviConversations ViviConversation[]
 
+  filas        Fila[]
+  atendimentos Atendimento[]
+
   roletaConfig RoletaConfig?
 
   signatureEnvelopes SignatureEnvelope[]
@@ -113,6 +116,10 @@ model User {
   suggestedCards      Card[] @relation("CardSuggestedOwner")
   createdSignatureEnvelopes SignatureEnvelope[]
 
+  filaVinculos       FilaUsuario[]
+  atendimentosDono   Atendimento[]
+  atendimentoEventos AtendimentoEvento[]
+
   @@map("users")
 }
 
@@ -163,6 +170,7 @@ model WhatsAppSession {
   owner             User?              @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
   messages          WhatsAppMessage[]
   viviConversations ViviConversation[]
+  atendimentos      Atendimento[]
 
   @@map("whatsapp_sessions")
 }
@@ -216,6 +224,94 @@ model ViviConversation {
   card    Card?           @relation(fields: [cardId], references: [id], onDelete: SetNull)
 
   @@map("vivi_conversations")
+}
+
+// Fila de atendimento (modulo Central de Atendimento) - agrupa
+// atendimentos por categoria (ex: Suporte, Financeiro, Duvidas Gerais) e
+// define quais agentes podem atende-los (ver FilaUsuario). Independente
+// de Pipeline/Stage do Kanban - atendimento de suporte/duvida nao e um
+// "negocio" no funil de vendas, por isso vive num modulo proprio.
+model Fila {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  nome      String   @db.VarChar(100)
+  descricao String?  @db.VarChar(300)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usuarios     FilaUsuario[]
+  atendimentos Atendimento[]
+
+  @@map("filas")
+}
+
+// Vinculo N:N entre agente (User) e Fila - so agentes vinculados podem
+// assumir atendimentos daquela fila (Administrador sempre pode, mesmo sem
+// vinculo - ver AssignAtendimentoUseCase).
+model FilaUsuario {
+  id        String   @id @default(uuid()) @db.Uuid
+  filaId    String   @map("fila_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  fila Fila @relation(fields: [filaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([filaId, userId])
+  @@map("fila_usuarios")
+}
+
+// Uma conversa de atendimento (Central de Atendimento) com um contato via
+// WhatsApp - paralelo ao Card do Kanban, mas para suporte/duvidas em vez
+// de negociacao de venda. Criado automaticamente
+// (GetOrCreateAtendimentoUseCase) quando uma mensagem chega numa sessao
+// SEM VIVI ativa, ou quando a propria VIVI decide que a duvida nao e de
+// venda (tool "transferir_para_fila" - ver ProcessIncomingMessageUseCase
+// no modulo vivi_sdr).
+model Atendimento {
+  id                String @id @default(uuid()) @db.Uuid
+  tenantId          String @map("tenant_id") @db.Uuid
+  whatsappSessionId String @map("whatsapp_session_id") @db.Uuid
+  // JID completo (com sufixo @lid ou @s.whatsapp.net) - necessario para
+  // responder corretamente (ver CLAUDE.md, bug do JID @lid).
+  remoteJid   String @map("remote_jid") @db.VarChar(50)
+  phoneNumber String @map("phone_number") @db.VarChar(30)
+  // Nulo ate ser classificado manualmente (ClassifyAndRouteAtendimentoUseCase)
+  // ou pela VIVI.
+  filaId String? @map("fila_id") @db.Uuid
+  // Nulo ate um agente assumir (AssignAtendimentoUseCase).
+  ownerId String? @map("owner_id") @db.Uuid
+  // aguardando -> em_atendimento -> fechado (ou devolvido para aguardando
+  // via RequeueAtendimentoUseCase).
+  status           String    @default("aguardando") @db.VarChar(20)
+  motivoFechamento String?   @map("motivo_fechamento") @db.VarChar(300)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  closedAt         DateTime? @map("closed_at")
+
+  tenant  Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session WhatsAppSession     @relation(fields: [whatsappSessionId], references: [id], onDelete: Cascade)
+  fila    Fila?               @relation(fields: [filaId], references: [id], onDelete: SetNull)
+  owner   User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  eventos AtendimentoEvento[]
+
+  @@map("atendimentos")
+}
+
+// Trilha de auditoria de um Atendimento - um evento por acao relevante
+// (criado, atribuido, transferido, devolvido, fechado, nota).
+model AtendimentoEvento {
+  id            String   @id @default(uuid()) @db.Uuid
+  atendimentoId String   @map("atendimento_id") @db.Uuid
+  tipo          String   @db.VarChar(20)
+  userId        String?  @map("user_id") @db.Uuid
+  detalhe       String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("atendimento_eventos")
 }
 
 // Um funil de vendas (ex: "Vendas Imoveis"). Um tenant pode ter varios.
