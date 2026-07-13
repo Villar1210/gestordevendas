@@ -126,7 +126,13 @@ export default function WhatsAppPage() {
   }
 
   const isConnected = session?.status === "CONNECTED";
-  const isConnecting = Boolean(session) && !isConnected && session?.status !== "DISCONNECTED";
+  // "RECONNECTING" e um valor so-de-resposta do backend (nunca gravado no
+  // banco): o banco ainda diz CONNECTED, mas o socket Baileys em memoria
+  // nao esta aberto agora (ex: logo apos um restart do processo, antes da
+  // reconexao automatica terminar) - ver GetMyWhatsAppSessionUseCase.
+  const isReconnecting = session?.status === "RECONNECTING";
+  const isConnecting =
+    Boolean(session) && !isConnected && !isReconnecting && session?.status !== "DISCONNECTED";
 
   return (
     <div className="flex min-h-full items-center justify-center px-4 py-12">
@@ -181,6 +187,17 @@ export default function WhatsAppPage() {
             >
               Desconectar
             </button>
+          </>
+        ) : isReconnecting ? (
+          <>
+            <p className="mb-4 text-sm text-slate-500">
+              O servidor reiniciou e esta restabelecendo a conexao com o WhatsApp
+              automaticamente. Nao e necessario escanear o QR Code de novo.
+            </p>
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-1.5 text-sm font-medium text-amber-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Reconectando...
+            </div>
           </>
         ) : isConnecting ? (
           <>

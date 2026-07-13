@@ -2,7 +2,7 @@
 // Camada de INFRA: adapta o contrato de dominio (IWhatsAppProvider) para a
 // biblioteca nao-oficial Baileys (conexao via QR Code). Ver CLAUDE.md
 // "Decisao tecnica: Integracao WhatsApp" - nao misturar com a API oficial da Meta.
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -23,9 +23,16 @@ import { IWhatsAppMessageRepository } from '../../domain/repositories/whatsapp-m
 const SESSIONS_FOLDER = '.whatsapp-sessions';
 
 @Injectable()
-export class BaileysWhatsAppProvider implements IWhatsAppProvider {
+export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit {
   private readonly sockets = new Map<string, WASocket>();
   private readonly latestQr = new Map<string, string>();
+  // Sessoes com o socket REALMENTE aberto agora (evento 'open' ja
+  // disparou). Diferente de `sockets` (que pode ter uma entrada durante o
+  // handshake, antes de 'open') - usado por isConnected() para o frontend
+  // saber se o "CONNECTED" do banco ainda e verdade ou so um valor stale
+  // (ex: logo apos um restart do processo, antes da reconexao automatica
+  // do onModuleInit terminar).
+  private readonly connectedSessions = new Set<string>();
   // Pino com nivel "silent" suprime todos os logs internos do Baileys,
   // inclusive os erros "Bad MAC" (falhas de descriptografia Signal Protocol
   // que acontecem antes do nosso filtro de mensagens ser aplicado - ver
@@ -40,6 +47,29 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
     private readonly messageRepository: IWhatsAppMessageRepository,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  // Reconexao automatica no boot: para cada sessao que o banco diz estar
+  // CONNECTED, tenta reabrir o socket usando as credenciais ja salvas em
+  // disco (.whatsapp-sessions/<id>/, via useMultiFileAuthState) - sem gerar
+  // QR novo, exceto se o WhatsApp tiver invalidado a sessao remotamente
+  // enquanto o processo estava fora (nesse caso o handler de 'close' ja
+  // existente assume e marca DISCONNECTED normalmente).
+  // Fire-and-forget por sessao (nao usa await no loop): o NestJS aguarda
+  // a Promise retornada por onModuleInit antes de terminar o boot do app -
+  // bloquear aqui atrasaria app.listen() esperando o handshake do Baileys,
+  // e uma sessao lenta/travada nao pode impedir as demais nem a subida do
+  // resto do sistema.
+  async onModuleInit(): Promise<void> {
+    const connectedSessions = await this.sessionRepository.findAllConnected();
+    for (const session of connectedSessions) {
+      this.connect(session.id).catch((err) => {
+        console.error(
+          `[WhatsApp] Falha ao reconectar sessao ${session.id} no boot:`,
+          err instanceof Error ? err.message : err,
+        );
+      });
+    }
+  }
 
   async createSession(sessionId: string): Promise<void> {
     await this.connect(sessionId);
@@ -72,6 +102,7 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
 
       if (update.connection === 'open') {
         this.latestQr.delete(sessionId);
+        this.connectedSessions.add(sessionId);
         const phoneNumber = sock.user?.id?.split(':')[0] ?? null;
         await this.sessionRepository.updateStatus(sessionId, 'CONNECTED', phoneNumber);
       }
@@ -79,6 +110,7 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
       if (update.connection === 'close') {
         this.latestQr.delete(sessionId);
         this.sockets.delete(sessionId);
+        this.connectedSessions.delete(sessionId);
 
         const statusCode = (update.lastDisconnect?.error as Boom | undefined)?.output
           ?.statusCode;
@@ -190,6 +222,14 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
     return QRCode.toDataURL(qr);
   }
 
+  // Estado REAL do socket em memoria, sincrono - usado pelos use cases de
+  // status para nao confiar cegamente no valor gravado no banco (que so
+  // muda quando um evento 'open'/'close' do Baileys realmente acontece,
+  // nunca quando o processo e simplesmente morto por um restart).
+  isConnected(sessionId: string): boolean {
+    return this.connectedSessions.has(sessionId);
+  }
+
   async sendMessage(sessionId: string, to: string, body: string): Promise<void> {
     const sock = this.sockets.get(sessionId);
     if (!sock) {
@@ -224,6 +264,7 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider {
       this.sockets.delete(sessionId);
     }
     this.latestQr.delete(sessionId);
+    this.connectedSessions.delete(sessionId);
 
     const sessionFolder = path.join(SESSIONS_FOLDER, sessionId);
     await fs.rm(sessionFolder, { recursive: true, force: true }).catch(() => {});

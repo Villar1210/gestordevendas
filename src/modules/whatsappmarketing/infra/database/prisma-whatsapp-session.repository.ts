@@ -40,6 +40,10 @@ export class PrismaWhatsAppSessionRepository implements IWhatsAppSessionReposito
     });
   }
 
+  async findAllConnected(): Promise<WhatsAppSessionRecord[]> {
+    return this.prisma.whatsAppSession.findMany({ where: { status: 'CONNECTED' } });
+  }
+
   async updateStatus(id: string, status: string, phoneNumber?: string | null): Promise<void> {
     await this.prisma.whatsAppSession.update({
       where: { id },

@@ -23,6 +23,10 @@ export interface IWhatsAppSessionRepository {
   findByIdAndTenant(id: string, tenantId: string): Promise<WhatsAppSessionRecord | null>;
   // Sessao mais recente do tenant (independente do status), ou null se nao existir nenhuma.
   findMostRecentByTenant(tenantId: string): Promise<WhatsAppSessionRecord | null>;
+  // Todas as sessoes CONNECTED de TODOS os tenants - usado so pela
+  // reconexao automatica no boot (BaileysWhatsAppProvider.onModuleInit),
+  // uma tarefa de infraestrutura sem escopo de tenant/requisicao.
+  findAllConnected(): Promise<WhatsAppSessionRecord[]>;
   updateStatus(id: string, status: string, phoneNumber?: string | null): Promise<void>;
   updateAiEnabled(id: string, isAiEnabled: boolean): Promise<void>;
 }

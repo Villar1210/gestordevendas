@@ -11,4 +11,8 @@ export interface IWhatsAppProvider {
   // tem o numero de telefone digitado, nunca o JID completo do WhatsApp.
   sendMessage(sessionId: string, to: string, body: string): Promise<void>;
   disconnect(sessionId: string): Promise<void>;
+  // Estado real do socket em memoria (sincrono, sem I/O) - diferente do
+  // status gravado no banco, que so reflete o ultimo evento 'open'/'close'
+  // processado e pode ficar stale apos um restart do processo.
+  isConnected(sessionId: string): boolean;
 }
