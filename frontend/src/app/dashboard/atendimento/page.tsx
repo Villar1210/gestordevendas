@@ -1,12 +1,13 @@
 // src/app/dashboard/atendimento/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "@/core/api/client";
 import { useAtendimentoStore } from "@/features/atendimento/store/useAtendimentoStore";
 import { useAtendimentoIntegration } from "@/features/atendimento/hooks/useAtendimentoIntegration";
 import { AtendimentoList } from "@/features/atendimento/components/AtendimentoList";
 import { AtendimentoChatPanel } from "@/features/atendimento/components/AtendimentoChatPanel";
+import { AtendimentoTab } from "@/features/atendimento/constants";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -36,7 +37,8 @@ export default function AtendimentoPage() {
     handleEnviarMensagem,
   } = useAtendimentoIntegration();
 
-  const [activeTab, setActiveTab] = useState("todos");
+  const [activeTab, setActiveTab] = useState<AtendimentoTab>("todos");
+  const [filaFilter, setFilaFilter] = useState("todas");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [agentes, setAgentes] = useState<Agente[]>([]);
@@ -80,6 +82,15 @@ export default function AtendimentoPage() {
 
   const selectedAtendimento = atendimentos.find((a) => a.id === selectedAtendimentoId) ?? null;
 
+  // Historico do numero: sem endpoint dedicado no backend nesta fatia -
+  // filtra client-side a partir da lista completa ja carregada em memoria.
+  const historico = useMemo(() => {
+    if (!selectedAtendimento) return [];
+    return atendimentos.filter(
+      (a) => a.phoneNumber === selectedAtendimento.phoneNumber && a.id !== selectedAtendimento.id,
+    );
+  }, [atendimentos, selectedAtendimento]);
+
   return (
     <div className="flex h-screen flex-col bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-6 py-4">
@@ -90,10 +101,17 @@ export default function AtendimentoPage() {
         <AtendimentoList
           atendimentos={atendimentos}
           filas={filas}
+          agentes={agentes}
           selectedId={selectedAtendimentoId}
           onSelect={handleSelect}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          filaFilter={filaFilter}
+          onFilaFilterChange={setFilaFilter}
+          onQuickAssign={handleAssign}
+          onQuickTransfer={handleTransfer}
+          onQuickRequeue={handleRequeue}
+          onQuickClose={handleClose}
         />
         <AtendimentoChatPanel
           atendimento={selectedAtendimento}
@@ -101,6 +119,7 @@ export default function AtendimentoPage() {
           mensagens={mensagens}
           filas={filas}
           agentes={agentes}
+          historico={historico}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
           isLoading={isLoadingDetail}

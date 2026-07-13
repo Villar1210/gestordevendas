@@ -215,6 +215,20 @@ export function useAtendimentoIntegration() {
     [loadFilas],
   );
 
+  const handleDeleteFila = useCallback(
+    async (filaId: string) => {
+      try {
+        await apiRequest(`/filas/${filaId}`, { method: "DELETE" });
+        await loadFilas();
+        return true;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel excluir a fila.");
+        return false;
+      }
+    },
+    [loadFilas],
+  );
+
   return {
     loadAtendimentos,
     loadFilas,
@@ -228,5 +242,6 @@ export function useAtendimentoIntegration() {
     handleCreateFila,
     handleAddUsuarioToFila,
     handleRemoveUsuarioFromFila,
+    handleDeleteFila,
   };
 }

@@ -8,6 +8,7 @@ import { CreateFilaUseCase } from './application/use-cases/create-fila.use-case'
 import { ListFilasUseCase } from './application/use-cases/list-filas.use-case';
 import { AddUsuarioToFilaUseCase } from './application/use-cases/add-usuario-to-fila.use-case';
 import { RemoveUsuarioFromFilaUseCase } from './application/use-cases/remove-usuario-from-fila.use-case';
+import { DeleteFilaUseCase } from './application/use-cases/delete-fila.use-case';
 import { GetOrCreateAtendimentoUseCase } from './application/use-cases/get-or-create-atendimento.use-case';
 import { ClassifyAndRouteAtendimentoUseCase } from './application/use-cases/classify-and-route-atendimento.use-case';
 import { AssignAtendimentoUseCase } from './application/use-cases/assign-atendimento.use-case';
@@ -38,6 +39,7 @@ import { PrismaService } from '../../config/prisma.service';
     ListFilasUseCase,
     AddUsuarioToFilaUseCase,
     RemoveUsuarioFromFilaUseCase,
+    DeleteFilaUseCase,
     GetOrCreateAtendimentoUseCase,
     ClassifyAndRouteAtendimentoUseCase,
     AssignAtendimentoUseCase,

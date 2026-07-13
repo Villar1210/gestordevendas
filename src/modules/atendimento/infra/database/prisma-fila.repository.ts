@@ -50,6 +50,10 @@ export class PrismaFilaRepository implements IFilaRepository {
     return this.prisma.fila.count({ where: { tenantId } });
   }
 
+  async deleteById(id: string): Promise<void> {
+    await this.prisma.fila.delete({ where: { id } });
+  }
+
   async addUsuario(filaId: string, userId: string): Promise<void> {
     await this.prisma.filaUsuario.upsert({
       where: { filaId_userId: { filaId, userId } },

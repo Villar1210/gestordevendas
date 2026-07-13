@@ -81,3 +81,18 @@ documento, canvas ou nome digitado, ordem sequencial, trilha de
 auditoria) e a Fatia 2 (editor de posicionamento de campos arrastando
 sobre o PDF, geracao do PDF final assinado) ja foram CONCLUIDAS - ver
 CLAUDE.md e PROGRESS.md.
+
+## Modulo Central de Atendimento
+NOTA: o port visual (4 fatias - layout/abas/filtro de fila, ChatRow,
+ChatView header/corpo/historico, composer) ja foi CONCLUIDO - ver
+CLAUDE.md e PROGRESS.md. Os itens abaixo ficaram fora de escopo na
+Fatia 4 (composer) por falta de endpoint de midia no backend hoje -
+confirmado por busca no codigo antes de implementar, nao pendencia
+esquecida.
+- [ ] Upload de midia (imagem/video/documento) no composer - estender
+      SendWhatsAppMessageUseCase para aceitar midia (Baileys ja
+      suporta)
+- [ ] Envio de contato via WhatsApp no composer - mesmo pre-requisito
+      acima
+- [ ] Gravacao e envio de audio - endpoint de audio + UI
+      MediaRecorder/waveform

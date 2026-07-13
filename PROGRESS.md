@@ -34,7 +34,63 @@
   conversao, renderiza o PDF convertido no FieldPositionEditor -
   CONCLUIDA
 
+### Port visual da Central de Atendimento (4 fatias) - CONCLUIDO
+Baseado no levantamento do design original do wacalls-chat (referencia
+MIT estudada como conceito, sem copiar codigo - ver CLAUDE.md), 4
+fatias implementadas em sequencia, cada uma revisada e aprovada antes
+de avancar para a proxima:
+- Fatia 1 (layout base + abas): cards flutuantes `rounded-2xl border
+  shadow-sm`, 3 abas de status (Atendendo/Aguardando/Todos) com pill
+  de contagem, dropdown de filtro por fila coexistindo com as abas
+  (nao substituindo), grid colorido de filas em /dashboard/equipe (cor
+  por hash deterministico do nome, sem alterar o Prisma) com editar
+  (expande vinculo de agentes) e excluir - unica mudanca de BACKEND
+  desta leva, `DELETE /filas/:id`, aprovada explicitamente antes de
+  implementar (atendimentos vinculados voltam a "nao classificado" via
+  onDelete:SetNull, nunca sao apagados).
+- Fatia 2 (ChatRow): avatar com iniciais do telefone (sem avatarUrl no
+  backend), badge de canal WhatsApp, chip de fila colorido, botoes de
+  acao 24x24 contextuais PELA ABA ATIVA (Aceitar/Transferir/Finalizar
+  em Aguardando; Transferir/Finalizar/Devolver em Atendendo; so
+  Finalizar, desabilitado se ja fechado, em Todos), popover inline de
+  transferencia.
+- Fatia 3 (ChatView header/corpo/historico): header com
+  avatar/chip de fila/badges e os mesmos 4 botoes coloridos (Aceitar
+  restrito a status=aguardando - mudanca deliberada de comportamento,
+  ver detalhe abaixo), fundo com padrao sutil de losangos (SVG inline
+  em camada propria opacity-5, sem imagem externa), bolhas agrupadas
+  por dia (Hoje/Ontem/data), aviso ambar quando aguardando, painel de
+  historico deslizante w-80 (ESC + clique fora fecham) calculado
+  client-side a partir da lista ja carregada (sem endpoint novo).
+- Fatia 4 (composer): nota privada (reaproveita o
+  `POST /atendimentos/:id/nota` ja existente, sem payload novo), emoji
+  picker (grid estatica 8 colunas - emoji-mart nao instalado, sem
+  dependencia nova), dropdown de anexos e botao de audio presentes na
+  UI mas DESABILITADOS ("em breve") porque nao existe nenhum endpoint
+  de upload de midia no backend hoje (confirmado por busca no codigo
+  ANTES de implementar, nao e pendencia esquecida) - os 3 itens
+  faltantes registrados no BACKLOG.md.
+
+Mudanca de comportamento deliberada (Fatia 3): o botao "Aceitar" do
+header agora so aparece com `status=aguardando` - antes tambem
+aparecia para "tomar" um atendimento `em_atendimento` de outro agente
+sem passar por Transferir. Simplificacao pedida explicitamente nesta
+fatia; o Transferir continua cobrindo esse caso.
+
+`tsc --noEmit` limpo (frontend e backend) em cada uma das 4 fatias;
+`/dashboard/atendimento` confirmado renderizando 200 apos cada uma.
+100% frontend, exceto o `DELETE /filas/:id` ja citado - nenhuma outra
+mudanca de schema/autenticacao.
+
 ### Pendencias conhecidas registradas para retomar
+- Correcoes da sessao anterior (13/07/2026: guard anti-duplicidade da
+  VIVI para nao responder por cima de corretor ja responsavel,
+  supressao de ruido "Bad MAC" no log do WhatsApp, preview de
+  Word/Excel no Passo 2 do wizard de E-doc) ainda NAO foram
+  commitadas no Git - alteracoes presentes no working directory,
+  deliberadamente fora do commit do port visual da Central de
+  Atendimento (escopos distintos) - aguardando commit numa proxima
+  sessao.
 - RH: campo "Contrato de prestacao de servico automatico" ainda nao
   implementado (dados ja coletados no cadastro publico)
 - Modulo de Cloud API oficial da Meta (Agente de Atendimento

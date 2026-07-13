@@ -11,6 +11,7 @@ import { CreateFilaUseCase } from '../../application/use-cases/create-fila.use-c
 import { ListFilasUseCase } from '../../application/use-cases/list-filas.use-case';
 import { AddUsuarioToFilaUseCase } from '../../application/use-cases/add-usuario-to-fila.use-case';
 import { RemoveUsuarioFromFilaUseCase } from '../../application/use-cases/remove-usuario-from-fila.use-case';
+import { DeleteFilaUseCase } from '../../application/use-cases/delete-fila.use-case';
 
 @Controller('filas')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -21,6 +22,7 @@ export class FilaController {
     private readonly listFilasUseCase: ListFilasUseCase,
     private readonly addUsuarioToFilaUseCase: AddUsuarioToFilaUseCase,
     private readonly removeUsuarioFromFilaUseCase: RemoveUsuarioFromFilaUseCase,
+    private readonly deleteFilaUseCase: DeleteFilaUseCase,
   ) {}
 
   // POST /filas - so Administrador gerencia filas
@@ -69,6 +71,16 @@ export class FilaController {
       filaId,
       userId,
     });
+    return { ok: true };
+  }
+
+  // DELETE /filas/:id - so Administrador exclui filas. Atendimentos
+  // vinculados nao sao apagados, so voltam a "nao classificado"
+  // (onDelete: SetNull no schema - ver DeleteFilaUseCase).
+  @Delete(':id')
+  @Roles('Administrador')
+  async delete(@Param('id') filaId: string, @Req() req: Request) {
+    await this.deleteFilaUseCase.execute({ tenantId: req.user!.tenantId, filaId });
     return { ok: true };
   }
 }

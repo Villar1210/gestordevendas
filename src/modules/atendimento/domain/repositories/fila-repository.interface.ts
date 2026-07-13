@@ -21,6 +21,10 @@ export interface IFilaRepository {
   // Usado por GetOrCreateAtendimentoUseCase para decidir se cria as 3 filas
   // padrao (tenant ainda sem nenhuma fila).
   countByTenant(tenantId: string): Promise<number>;
+  // Atendimentos vinculados ficam com filaId=null (onDelete: SetNull no
+  // schema) - excluir uma fila nunca apaga atendimentos, so os devolve
+  // para "nao classificado".
+  deleteById(id: string): Promise<void>;
   addUsuario(filaId: string, userId: string): Promise<void>;
   removeUsuario(filaId: string, userId: string): Promise<void>;
   isUsuarioInFila(filaId: string, userId: string): Promise<boolean>;

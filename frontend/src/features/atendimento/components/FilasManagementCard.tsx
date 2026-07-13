@@ -4,10 +4,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Headset, Plus } from "lucide-react";
+import { Headset, Plus, Pencil, Trash2 } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 import { useAtendimentoStore } from "../store/useAtendimentoStore";
 import { useAtendimentoIntegration } from "../hooks/useAtendimentoIntegration";
+import { colorForFilaNome } from "../constants";
 
 interface Agente {
   id: string;
@@ -16,14 +17,24 @@ interface Agente {
 
 export function FilasManagementCard() {
   const filas = useAtendimentoStore((state) => state.filas);
-  const { loadFilas, handleCreateFila, handleAddUsuarioToFila, handleRemoveUsuarioFromFila } =
-    useAtendimentoIntegration();
+  const {
+    loadFilas,
+    handleCreateFila,
+    handleAddUsuarioToFila,
+    handleRemoveUsuarioFromFila,
+    handleDeleteFila,
+  } = useAtendimentoIntegration();
   const hasInitialized = useRef(false);
 
   const [agentes, setAgentes] = useState<Agente[]>([]);
   const [novoNome, setNovoNome] = useState("");
   const [creating, setCreating] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Card "editar" abre/fecha o vinculo de agentes logo abaixo do grid -
+  // nao existe rota de renomear fila no backend (decisao desta fatia: sem
+  // alterar schema), entao "editar" aqui significa gerenciar os agentes.
+  const [expandedFilaId, setExpandedFilaId] = useState<string | null>(null);
 
   useEffect(() => {
     if (hasInitialized.current) return;
@@ -60,6 +71,20 @@ export function FilasManagementCard() {
     }
   }
 
+  async function handleDelete(filaId: string, nome: string) {
+    if (!confirm(`Excluir a fila "${nome}"? Atendimentos vinculados voltam para "Nao Classificados".`))
+      return;
+    setDeletingId(filaId);
+    try {
+      const ok = await handleDeleteFila(filaId);
+      if (ok && expandedFilaId === filaId) setExpandedFilaId(null);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const expandedFila = filas.find((f) => f.id === expandedFilaId) ?? null;
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center gap-2">
@@ -95,17 +120,70 @@ export function FilasManagementCard() {
           assim que o primeiro atendimento chegar.
         </p>
       ) : (
-        <div className="space-y-4">
-          {filas.map((fila) => (
-            <div key={fila.id} className="rounded-lg border border-slate-200 p-4">
-              <p className="mb-2 text-sm font-medium text-slate-800">{fila.nome}</p>
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {filas.map((fila) => {
+              const color = colorForFilaNome(fila.nome);
+              const isExpanded = expandedFilaId === fila.id;
+              return (
+                <div
+                  key={fila.id}
+                  className={`rounded-xl border p-4 transition ${
+                    isExpanded ? "border-blue-300 ring-1 ring-blue-200" : "border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="h-8 w-8 shrink-0 rounded-lg"
+                        style={{ backgroundColor: color }}
+                        aria-hidden
+                      />
+                      <p className="truncate text-sm font-semibold text-slate-800">{fila.nome}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        onClick={() => setExpandedFilaId(isExpanded ? null : fila.id)}
+                        title="Gerenciar agentes vinculados"
+                        aria-label="Editar"
+                        className={`grid h-7 w-7 place-items-center rounded-md transition ${
+                          isExpanded ? "bg-blue-100 text-blue-700" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        }`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(fila.id, fila.nome)}
+                        disabled={deletingId === fila.id}
+                        title="Excluir fila"
+                        aria-label="Excluir"
+                        className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    {fila.usuarioIds.length} agente{fila.usuarioIds.length === 1 ? "" : "s"} vinculado
+                    {fila.usuarioIds.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {expandedFila && (
+            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+              <p className="mb-2 text-sm font-medium text-slate-800">
+                Agentes vinculados a &quot;{expandedFila.nome}&quot;
+              </p>
               {agentes.length === 0 ? (
                 <p className="text-xs text-slate-400">Nenhum corretor cadastrado ainda.</p>
               ) : (
                 <div className="flex flex-wrap gap-3">
                   {agentes.map((agente) => {
-                    const isMember = fila.usuarioIds.includes(agente.id);
-                    const key = `${fila.id}:${agente.id}`;
+                    const isMember = expandedFila.usuarioIds.includes(agente.id);
+                    const key = `${expandedFila.id}:${agente.id}`;
                     return (
                       <label
                         key={agente.id}
@@ -115,7 +193,7 @@ export function FilasManagementCard() {
                           type="checkbox"
                           checked={isMember}
                           disabled={busyKey === key}
-                          onChange={() => toggleUsuario(fila.id, agente.id, isMember)}
+                          onChange={() => toggleUsuario(expandedFila.id, agente.id, isMember)}
                           className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
                         />
                         {agente.name}
@@ -125,8 +203,8 @@ export function FilasManagementCard() {
                 </div>
               )}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

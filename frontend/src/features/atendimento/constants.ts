@@ -30,3 +30,42 @@ export const EVENTO_TIPO_LABELS: Record<string, string> = {
   fechado: "Fechado",
   nota: "Nota",
 };
+
+// As 3 abas de status da Central de Atendimento (lista de atendimentos).
+// Independente do filtro de fila, que e um controle separado (dropdown).
+export type AtendimentoTab = "atendendo" | "aguardando" | "todos";
+
+export const ATENDIMENTO_TABS: { id: AtendimentoTab; label: string }[] = [
+  { id: "atendendo", label: "Atendendo" },
+  { id: "aguardando", label: "Aguardando" },
+  { id: "todos", label: "Todos" },
+];
+
+// Fila nao tem campo de cor no schema (decisao desta fatia: sem alterar o
+// Prisma) - a cor do card/chip e derivada de um hash deterministico do
+// nome, para toda fila com o mesmo nome sempre cair na mesma cor.
+const FILA_COLORS = [
+  "#57adf8",
+  "#10b981",
+  "#f59e0b",
+  "#f43f5e",
+  "#8b5cf6",
+  "#06b6d4",
+  "#eab308",
+];
+
+export function colorForFilaNome(nome: string): string {
+  let hash = 0;
+  for (let i = 0; i < nome.length; i++) {
+    hash = nome.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return FILA_COLORS[Math.abs(hash) % FILA_COLORS.length];
+}
+
+// Estilo do chip de fila (ChatRow, header do ChatView): fundo translucido
+// (hex + alpha) na mesma cor do texto, mesmo truque usado no wacalls-chat
+// estudado como referencia (tagChipStyle).
+export function filaChipStyle(nome: string): { backgroundColor: string; color: string } {
+  const color = colorForFilaNome(nome);
+  return { backgroundColor: `${color}22`, color };
+}
