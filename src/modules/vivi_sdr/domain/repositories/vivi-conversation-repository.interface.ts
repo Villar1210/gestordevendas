@@ -1,5 +1,6 @@
 // src/modules/vivi_sdr/domain/repositories/vivi-conversation-repository.interface.ts
 // Camada de DOMINIO: define o contrato sem saber que existe Prisma ou Postgres.
+import { CategoriaHabitacional } from '../services/classificar-renda';
 
 export type ViviConversationStatus =
   | 'em_andamento'
@@ -21,6 +22,8 @@ export interface ViviConversationRecord {
   finalidadeColetado: string | null;
   cardId: string | null;
   visitaAgendadaEm: Date | null;
+  rendaDeclarada: number | null;
+  categoriaHabitacional: CategoriaHabitacional | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +37,8 @@ export interface ViviConversationUpdateInput {
   finalidadeColetado?: string;
   cardId?: string;
   visitaAgendadaEm?: Date;
+  rendaDeclarada?: number;
+  categoriaHabitacional?: CategoriaHabitacional;
 }
 
 export interface IViviConversationRepository {

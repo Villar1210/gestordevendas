@@ -35,6 +35,11 @@ const TOOLS: Anthropic.Tool[] = [
         orcamento: { type: 'string', description: 'Orcamento aproximado informado pelo lead' },
         regiao: { type: 'string', description: 'Regiao ou bairro de interesse' },
         finalidade: { type: 'string', description: 'Finalidade: comprar ou alugar' },
+        rendaDeclarada: {
+          type: 'number',
+          description:
+            'Renda familiar mensal aproximada declarada pelo lead, em reais (numero, sem simbolo de moeda, ex: 3500)',
+        },
       },
     },
   },

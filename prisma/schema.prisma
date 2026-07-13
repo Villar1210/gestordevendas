@@ -222,6 +222,13 @@ model ViviConversation {
   // conversa (status continua "em_andamento") - a VIVI segue coletando
   // dados pos-visita (nascimento/email/tipo de renda/IR) depois disso.
   visitaAgendadaEm    DateTime? @map("visita_agendada_em")
+  // Renda familiar mensal aproximada declarada pelo lead, e a categoria
+  // habitacional resultante (HIS1/HIS2/HMP/R2V/SEM_PERFIL) - sempre
+  // calculada em codigo puro (ver domain/services/classificar-renda.ts),
+  // nunca decidida pela IA. Usada para o argumento de venda certo na
+  // conversa.
+  rendaDeclarada        Float?  @map("renda_declarada")
+  categoriaHabitacional String? @map("categoria_habitacional") @db.VarChar(20)
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
