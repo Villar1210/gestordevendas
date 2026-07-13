@@ -7,7 +7,7 @@
 // rascunho" disponivel em qualquer passo.
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { X, Plus, Trash2, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { useEdocStore } from "../store/useEdocStore";
@@ -25,7 +25,7 @@ import {
   DEFAULT_EMAIL_SUBJECT,
   EMAIL_SUBJECT_MAX_LENGTH,
 } from "../constants";
-import { API_BASE_URL } from "@/core/api/client";
+import { API_BASE_URL, TOKEN_STORAGE_KEY } from "@/core/api/client";
 
 // ssr:false e obrigatorio aqui - ver comentario em PdfViewer.tsx.
 const FieldPositionEditor = dynamic(
@@ -106,19 +106,72 @@ export function CreateEnvelopeModal() {
   const [saving, setSaving] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  // previewPdfUrl: URL de um blob PDF para o FieldPositionEditor.
+  // Para PDFs: URL.createObjectURL(file) direto.
+  // Para Word/Excel: PDF convertido via POST /edoc/convert-preview (backend
+  //   chama LibreOffice) - a conversao e so para preview; o arquivo original
+  //   e o que sera enviado ao salvar/enviar, e o backend converte de novo.
+  // Para documentos de rascunho ja no servidor: null (usa existingDocumentUrl).
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewConverting, setPreviewConverting] = useState(false);
 
-  const fileUrl = useMemo(() => {
-    if (file) return URL.createObjectURL(file);
-    if (existingDocumentUrl) return `${API_BASE_URL}${existingDocumentUrl}`;
-    return null;
-  }, [file, existingDocumentUrl]);
+  // URL usada pelo FieldPositionEditor: PDF local (novo arquivo selecionado)
+  // ou PDF ja salvo no servidor (rascunho existente).
+  const editorUrl = previewPdfUrl ?? (existingDocumentUrl ? `${API_BASE_URL}${existingDocumentUrl}` : null);
 
+  // Quando o usuario troca o arquivo, atualiza o preview PDF para o editor.
   useEffect(() => {
+    if (!file) {
+      setPreviewPdfUrl(null);
+      return;
+    }
+
+    const isPdf =
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      const url = URL.createObjectURL(file);
+      setPreviewPdfUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+
+    // Word/Excel: converte via backend e usa o PDF resultante como preview.
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    setPreviewConverting(true);
+    setPreviewPdfUrl(null);
+
+    const token =
+      typeof window !== 'undefined' ? window.localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch(`${API_BASE_URL}/edoc/convert-preview`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+      .then(async (res) => {
+        if (cancelled || !res.ok) return;
+        const blob = await res.blob();
+        if (cancelled) return;
+        blobUrl = URL.createObjectURL(blob);
+        setPreviewPdfUrl(blobUrl);
+      })
+      .catch(() => {
+        // Conversao falhou no servidor: o editor ficara vazio (sem preview),
+        // mas o usuario ainda pode continuar - a conversao real acontece ao
+        // salvar/enviar e o backend exibira um erro claro se falhar de novo.
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewConverting(false);
+      });
+
     return () => {
-      if (file && fileUrl) URL.revokeObjectURL(fileUrl);
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileUrl]);
+  }, [file]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -127,6 +180,8 @@ export function CreateEnvelopeModal() {
     setTitle("");
     setFile(null);
     setExistingDocumentUrl(null);
+    setPreviewPdfUrl(null);
+    setPreviewConverting(false);
     setRecipients([emptyRecipient("destinatario")]);
     setRecipientErrors({});
     setFields([]);
@@ -499,13 +554,25 @@ export function CreateEnvelopeModal() {
               alem da assinatura; Testemunhas so tem assinatura, na ultima pagina.
             </p>
 
-            {fileUrl && (
+            {previewConverting ? (
+              <div className="flex h-64 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <span className="text-sm text-slate-500">Convertendo arquivo para PDF…</span>
+              </div>
+            ) : editorUrl ? (
               <FieldPositionEditor
-                documentUrl={fileUrl}
+                documentUrl={editorUrl}
                 recipients={recipients.map((r) => ({ name: r.name, role: r.role }))}
                 fields={fields}
                 onChange={setFields}
               />
+            ) : (
+              <div className="flex h-64 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+                <span className="text-sm text-slate-400">
+                  Nao foi possivel gerar o preview. Voce ainda pode continuar — o
+                  documento sera convertido ao salvar.
+                </span>
+              </div>
             )}
 
             <div className="flex gap-3 pt-2">
