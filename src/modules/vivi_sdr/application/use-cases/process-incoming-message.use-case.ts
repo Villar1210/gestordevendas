@@ -15,10 +15,19 @@ import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-c
 import { CreateNoteUseCase } from '../../../vendas_kanban/application/use-cases/create-note.use-case';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
+import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
 import { ClassifyAndRouteAtendimentoUseCase } from '../../../atendimento/application/use-cases/classify-and-route-atendimento.use-case';
 import { CATEGORIA_TO_FILA_NOME } from '../../../atendimento/domain/services/fila-categorias';
+import { AgendarVisitaUseCase } from './agendar-visita.use-case';
+import { classificarRenda } from '../../domain/services/classificar-renda';
+import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
 import { VIVI_SYSTEM_PROMPT } from '../../constants/vivi-prompt';
+
+// Nome fixo da coluna de deposito estrategico de leads sem perfil de renda
+// para nenhuma faixa de financiamento hoje - ver
+// create-default-pipeline.use-case.ts (modulo vendas_kanban).
+const STAGE_REPIQUE_NOME = 'Repique';
 
 interface ProcessIncomingMessageInput {
   tenantId: string;
@@ -44,11 +53,14 @@ export class ProcessIncomingMessageUseCase {
     private readonly pipelineRepository: IPipelineRepository,
     @Inject('ICardRepository')
     private readonly cardRepository: ICardRepository,
+    @Inject('IStageRepository')
+    private readonly stageRepository: IStageRepository,
     private readonly sendWhatsAppMessageUseCase: SendWhatsAppMessageUseCase,
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
     private readonly createNoteUseCase: CreateNoteUseCase,
     private readonly getOrCreateAtendimentoUseCase: GetOrCreateAtendimentoUseCase,
     private readonly classifyAndRouteAtendimentoUseCase: ClassifyAndRouteAtendimentoUseCase,
+    private readonly agendarVisitaUseCase: AgendarVisitaUseCase,
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
@@ -93,21 +105,112 @@ export class ProcessIncomingMessageUseCase {
     const conversation = await this.findOrCreateConversation(input);
 
     const { history, remoteJid } = await this.buildHistory(input);
+    // Sem isso, o modelo nao sabe a data de hoje e pode chutar o ano errado
+    // ao interpretar uma data relativa/sem ano dita pelo lead (ex: "dia 17/07"
+    // virou 2024 num teste real da Fatia 1 de agendar_visita).
+    const today = new Date().toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const systemPrompt = `Hoje é ${today}.\n\n${VIVI_SYSTEM_PROMPT}`;
     const { replyText, toolCalls } = await this.aiConversationService.generateReply({
-      systemPrompt: VIVI_SYSTEM_PROMPT,
+      systemPrompt,
       history,
       userMessage: input.messageBody,
     });
 
     const collected = this.mergeCollectedData(conversation, toolCalls);
+    const agendarVisitaCall = toolCalls.find((call) => call.name === 'agendar_visita');
     const transferCall = toolCalls.find((call) => call.name === 'transferir_para_corretor');
     const filaCall = toolCalls.find((call) => call.name === 'transferir_para_fila');
+    const posVisitaCall = toolCalls.find((call) => call.name === 'salvar_dados_pos_visita');
 
     const updates: ViviConversationUpdateInput = { ...collected };
 
-    if (transferCall) {
+    if (posVisitaCall) {
+      // Defesa em profundidade: mesmo que o prompt instrua a IA a so chamar
+      // esta tool depois de agendar_visita, o codigo REJEITA (nao aplica
+      // nenhum campo) se a conversa ainda nao tem visita agendada. So
+      // registra um aviso - nunca derruba o processamento da mensagem.
+      if (conversation.visitaAgendadaEm) {
+        this.applyPostVisitaData(updates, posVisitaCall);
+      } else {
+        this.logger.warn(
+          `[VIVI] Tool salvar_dados_pos_visita chamada para ${input.phoneNumber} (conversa ${conversation.id}) SEM visita agendada ainda - dados REJEITADOS.`,
+        );
+      }
+    }
+
+    if (agendarVisitaCall) {
+      // Meta absoluta da VIVI (ver vivi-prompt.ts) - tem prioridade sobre as
+      // demais tools se o modelo chamar mais de uma na mesma resposta.
+      // Deliberadamente NAO seta updates.status: ao contrario de
+      // transferir_para_corretor/transferir_para_fila, agendar uma visita
+      // NAO encerra a conversa - a VIVI continua no "em_andamento" para
+      // coletar os dados pos-visita (nascimento/email/tipo de renda/IR)
+      // numa fatia futura.
+      const dataVisita = String(agendarVisitaCall.input.dataVisita ?? '');
+      const horario = String(agendarVisitaCall.input.horario ?? '');
+      const imovelInteresse =
+        typeof agendarVisitaCall.input.imovelInteresse === 'string'
+          ? agendarVisitaCall.input.imovelInteresse
+          : undefined;
+
+      const resumo = buildResumoAtendimento({
+        motivo: 'visita agendada',
+        nome: collected.nomeColetado ?? conversation.nomeColetado,
+        phoneNumber: input.phoneNumber,
+        tipoImovel: collected.tipoImovelColetado ?? conversation.tipoImovelColetado,
+        orcamento: collected.orcamentoColetado ?? conversation.orcamentoColetado,
+        rendaDeclarada: collected.rendaDeclarada ?? conversation.rendaDeclarada,
+        categoriaHabitacional: collected.categoriaHabitacional ?? conversation.categoriaHabitacional,
+        regiao: collected.regiaoColetado ?? conversation.regiaoColetado,
+        finalidade: collected.finalidadeColetado ?? conversation.finalidadeColetado,
+        // Ainda nao temos o Date parseado (isso acontece dentro de
+        // AgendarVisitaUseCase) - mostra o texto bruto extraido pela IA,
+        // legivel do mesmo jeito para o corretor.
+        visitaAgendadaEm: `${dataVisita} as ${horario}`,
+        dataNascimento: collected.dataNascimento ?? conversation.dataNascimento,
+        email: collected.email ?? conversation.email,
+        tipoRenda: collected.tipoRenda ?? conversation.tipoRenda,
+        fezDeclaracaoIR: collected.fezDeclaracaoIR ?? conversation.fezDeclaracaoIR,
+        urgente: false,
+      });
+
+      const result = await this.agendarVisitaUseCase.execute({
+        tenantId: input.tenantId,
+        phoneNumber: input.phoneNumber,
+        dataVisita,
+        horario,
+        imovelInteresse,
+        // Evita Card duplicado se a IA re-chamar agendar_visita num turno
+        // seguinte da mesma conversa (observado em teste real) - ver
+        // comentario em AgendarVisitaUseCase.
+        existingCardId: conversation.cardId,
+        resumo,
+      });
+      if (result) {
+        updates.cardId = result.cardId;
+        updates.visitaAgendadaEm = result.visitaAgendadaEm;
+        // Nota de auditoria com o mesmo resumo (mesmo padrao ja usado em
+        // transferToBroker) - reconfirmacoes em turnos seguintes acumulam
+        // mais de uma nota, aceitavel (historico de cada confirmacao).
+        await this.createNoteUseCase.execute({
+          tenantId: input.tenantId,
+          cardId: result.cardId,
+          body: resumo,
+        });
+      }
+    } else if (transferCall) {
       const motivo = String(transferCall.input.motivo ?? 'lead qualificado');
-      updates.status = motivo === 'duvida especifica' ? 'duvida_transferido' : 'qualificado_transferido';
+      updates.status =
+        motivo === 'duvida especifica'
+          ? 'duvida_transferido'
+          : motivo === 'sem_perfil'
+            ? 'repique'
+            : 'qualificado_transferido';
 
       const cardId = await this.transferToBroker(input, conversation, collected, motivo);
       if (cardId) {
@@ -127,13 +230,17 @@ export class ProcessIncomingMessageUseCase {
     // que Prisma nao bumpa @updatedAt quando o update() e chamado com
     // data={} (nenhum campo alterado) - achado confirmado durante a
     // investigacao do caso da Antonia (07/2026).
-    const toolCalled = transferCall
-      ? 'transferir_para_corretor'
-      : filaCall
-        ? 'transferir_para_fila'
-        : 'nenhuma';
+    const toolsCalled =
+      [
+        agendarVisitaCall && 'agendar_visita',
+        transferCall && 'transferir_para_corretor',
+        filaCall && 'transferir_para_fila',
+        posVisitaCall && 'salvar_dados_pos_visita',
+      ]
+        .filter((name): name is string => !!name)
+        .join(',') || 'nenhuma';
     this.logger.log(
-      `[VIVI] Mensagem de ${input.phoneNumber} processada (conversa ${conversation.id}): tool=${toolCalled}`,
+      `[VIVI] Mensagem de ${input.phoneNumber} processada (conversa ${conversation.id}): tool=${toolsCalled}`,
     );
 
     await this.viviConversationRepository.update(conversation.id, updates);
@@ -219,9 +326,47 @@ export class ProcessIncomingMessageUseCase {
       if (typeof regiao === 'string' && regiao.trim()) collected.regiaoColetado = regiao.trim();
       if (typeof finalidade === 'string' && finalidade.trim())
         collected.finalidadeColetado = finalidade.trim();
+
+      // Classificacao SEMPRE em codigo puro (classificarRenda), nunca
+      // decidida pela IA - a IA so extrai o numero da conversa. Aceita
+      // tanto number (o schema da tool pede number) quanto string (defesa
+      // contra o modelo mandar "3500" como texto).
+      const renda = this.parseRenda(call.input.rendaDeclarada);
+      if (renda !== null) {
+        collected.rendaDeclarada = renda;
+        collected.categoriaHabitacional = classificarRenda(renda);
+      }
     }
 
     return collected;
+  }
+
+  private applyPostVisitaData(
+    updates: ViviConversationUpdateInput,
+    call: { name: string; input: Record<string, unknown> },
+  ): void {
+    const dataNascimento = call.input.dataNascimento;
+    const email = call.input.email;
+    const tipoRenda = call.input.tipoRenda;
+    const fezDeclaracaoIR = call.input.fezDeclaracaoIR;
+
+    if (typeof dataNascimento === 'string' && dataNascimento.trim())
+      updates.dataNascimento = dataNascimento.trim();
+    if (typeof email === 'string' && email.trim()) updates.email = email.trim();
+    if (tipoRenda === 'CLT' || tipoRenda === 'AUTONOMO') updates.tipoRenda = tipoRenda;
+    // So faz sentido preencher fezDeclaracaoIR quando tipoRenda e AUTONOMO
+    // (ver vivi-prompt.ts, Passo 3 do loop de captura) - mas nao bloqueamos
+    // aqui se a IA mandar fora de ordem, so aceitamos o boolean como veio.
+    if (typeof fezDeclaracaoIR === 'boolean') updates.fezDeclaracaoIR = fezDeclaracaoIR;
+  }
+
+  private parseRenda(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value.replace(/[^\d.,-]/g, '').replace(',', '.'));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
   }
 
   private async transferToBroker(
@@ -241,34 +386,63 @@ export class ProcessIncomingMessageUseCase {
       return null;
     }
 
+    // "sem_perfil" (renda SEM_PERFIL, ver classificar-renda.ts) deposita o
+    // Card direto na coluna "Repique" em vez da Caixa de Entrada - deposito
+    // estrategico para remarketing futuro, nao um lead ativo para
+    // distribuir agora (por isso CreateQuickCardUseCase NAO dispara a
+    // Roleta Online quando stageId vem preenchido, ver comentario la).
+    let stageId: string | null = null;
+    if (motivo === 'sem_perfil') {
+      const stages = await this.stageRepository.findAllByPipeline(pipeline.id);
+      const repiqueStage = stages.find((stage) => stage.name === STAGE_REPIQUE_NOME);
+      stageId = repiqueStage?.id ?? null;
+      if (!stageId) {
+        this.logger.warn(
+          `Stage "${STAGE_REPIQUE_NOME}" nao encontrada para tenant ${input.tenantId} - Card criado na Caixa de Entrada normalmente.`,
+        );
+      }
+    }
+
     const nome = collected.nomeColetado ?? conversation.nomeColetado;
     const tipoImovel = collected.tipoImovelColetado ?? conversation.tipoImovelColetado;
     const orcamento = collected.orcamentoColetado ?? conversation.orcamentoColetado;
     const regiao = collected.regiaoColetado ?? conversation.regiaoColetado;
     const finalidade = collected.finalidadeColetado ?? conversation.finalidadeColetado;
+    const rendaDeclarada = collected.rendaDeclarada ?? conversation.rendaDeclarada;
+    const categoriaHabitacional = collected.categoriaHabitacional ?? conversation.categoriaHabitacional;
+
+    const resumo = buildResumoAtendimento({
+      motivo,
+      nome,
+      phoneNumber: input.phoneNumber,
+      tipoImovel,
+      orcamento,
+      rendaDeclarada,
+      categoriaHabitacional,
+      regiao,
+      finalidade,
+      visitaAgendadaEm: conversation.visitaAgendadaEm,
+      dataNascimento: collected.dataNascimento ?? conversation.dataNascimento,
+      email: collected.email ?? conversation.email,
+      tipoRenda: collected.tipoRenda ?? conversation.tipoRenda,
+      fezDeclaracaoIR: collected.fezDeclaracaoIR ?? conversation.fezDeclaracaoIR,
+      urgente: false,
+    });
 
     const card = await this.createQuickCardUseCase.execute({
       tenantId: input.tenantId,
       pipelineId: pipeline.id,
+      stageId,
       title: nome || 'Lead via VIVI',
-      origem: 'roleta_online',
+      origem: motivo === 'sem_perfil' ? 'vivi_repique' : 'roleta_online',
       phone: input.phoneNumber,
+      description: resumo,
     });
-
-    const summaryLines = [
-      'Lead qualificado pela VIVI (assistente de IA).',
-      `Motivo da transferencia: ${motivo}.`,
-      `Nome: ${nome ?? 'nao informado'}`,
-      `Tipo de imovel: ${tipoImovel ?? 'nao informado'}`,
-      `Orcamento: ${orcamento ?? 'nao informado'}`,
-      `Regiao: ${regiao ?? 'nao informado'}`,
-      `Finalidade: ${finalidade ?? 'nao informado'}`,
-    ];
 
     await this.createNoteUseCase.execute({
       tenantId: input.tenantId,
       cardId: card.id,
-      body: summaryLines.join('\n'),
+      body: resumo,
     });
 
     return card.id;
@@ -281,6 +455,7 @@ export class ProcessIncomingMessageUseCase {
   ): Promise<void> {
     const categoria = String(filaCall.input.categoria ?? 'duvida_geral');
     const resumo = typeof filaCall.input.resumo === 'string' ? filaCall.input.resumo : undefined;
+    const urgente = filaCall.input.urgente === true;
     const filaNome = CATEGORIA_TO_FILA_NOME[categoria] ?? CATEGORIA_TO_FILA_NOME.duvida_geral;
 
     // remoteJid deveria sempre vir preenchido a essa altura (a mensagem que
@@ -300,6 +475,7 @@ export class ProcessIncomingMessageUseCase {
       atendimentoId: atendimento.id,
       filaNome,
       resumo,
+      urgente,
     });
   }
 }

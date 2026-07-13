@@ -58,7 +58,9 @@ import { PrismaService } from '../../config/prisma.service';
     { provide: 'INoteRepository', useClass: PrismaNoteRepository },
   ],
   // Exportados para o modulo vivi_sdr: a VIVI cria o Card e a Note de
-  // qualificacao reaproveitando os mesmos casos de uso do "+ Novo Negocio".
+  // qualificacao reaproveitando os mesmos casos de uso do "+ Novo Negocio";
+  // CreateActivityUseCase reaproveitado pela tool "agendar_visita"
+  // (AgendarVisitaUseCase) para criar a Activity tipo "visita".
   // Exportados para o modulo roleta_online: DistributeLeadUseCase e
   // ConfirmSuggestedOwnerUseCase reaproveitam ClaimCardUseCase (mesma logica
   // de "assumir o lead") e os repositorios de Card/Stage.
@@ -66,6 +68,7 @@ import { PrismaService } from '../../config/prisma.service';
     CreateQuickCardUseCase,
     CreateNoteUseCase,
     ClaimCardUseCase,
+    CreateActivityUseCase,
     'IPipelineRepository',
     'ICardRepository',
     'IStageRepository',

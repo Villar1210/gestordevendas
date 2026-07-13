@@ -80,6 +80,34 @@ const TOOLS: Anthropic.Tool[] = [
       required: ['categoria', 'resumo'],
     },
   },
+  {
+    name: 'agendar_visita',
+    description:
+      'Confirma o agendamento de uma visita presencial com o lead - a meta principal de ' +
+      'toda conversa da VIVI. Chame assim que o lead confirmar um dia e horario para a visita, ' +
+      'mesmo que a qualificacao (nome/tipo de imovel/orcamento/regiao/finalidade) ainda nao ' +
+      'esteja 100% completa.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        dataVisita: {
+          type: 'string',
+          description: 'Data da visita confirmada pelo lead, no formato AAAA-MM-DD',
+        },
+        horario: {
+          type: 'string',
+          description:
+            'Horario da visita confirmado pelo lead, da forma mais literal possivel ' +
+            '(ex: "14:00", "de manha", "depois do almoco")',
+        },
+        imovelInteresse: {
+          type: 'string',
+          description: 'Nome/identificacao do imovel ou empreendimento de interesse, se mencionado',
+        },
+      },
+      required: ['dataVisita', 'horario'],
+    },
+  },
 ];
 
 @Injectable()

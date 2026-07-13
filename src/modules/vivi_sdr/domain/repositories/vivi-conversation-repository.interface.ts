@@ -20,6 +20,7 @@ export interface ViviConversationRecord {
   regiaoColetado: string | null;
   finalidadeColetado: string | null;
   cardId: string | null;
+  visitaAgendadaEm: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +33,7 @@ export interface ViviConversationUpdateInput {
   regiaoColetado?: string;
   finalidadeColetado?: string;
   cardId?: string;
+  visitaAgendadaEm?: Date;
 }
 
 export interface IViviConversationRepository {

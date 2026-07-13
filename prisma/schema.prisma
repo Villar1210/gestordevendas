@@ -216,6 +216,12 @@ model ViviConversation {
   regiaoColetado      String?  @map("regiao_coletado") @db.VarChar(150)
   finalidadeColetado  String?  @map("finalidade_coletado") @db.VarChar(20)
   cardId              String?  @map("card_id") @db.Uuid
+  // Preenchido quando a tool "agendar_visita" e chamada - a meta absoluta
+  // da VIVI (ver constants/vivi-prompt.ts). Diferente de qualificado_
+  // transferido/encaminhado_fila, agendar uma visita NAO encerra a
+  // conversa (status continua "em_andamento") - a VIVI segue coletando
+  // dados pos-visita (nascimento/email/tipo de renda/IR) depois disso.
+  visitaAgendadaEm    DateTime? @map("visita_agendada_em")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
