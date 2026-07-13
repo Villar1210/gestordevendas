@@ -120,6 +120,22 @@ export class ProcessIncomingMessageUseCase {
       await this.transferToFila(input, remoteJid, filaCall);
     }
 
+    // Log de auditoria: unico ponto do caminho de sucesso que registra algo -
+    // sem isso, uma mensagem processada sem nenhuma tool chamada (ex: troca
+    // de assunto que o modelo respondeu so conversacionalmente) fica
+    // impossivel de diferenciar de "nao processou" so olhando o banco, ja
+    // que Prisma nao bumpa @updatedAt quando o update() e chamado com
+    // data={} (nenhum campo alterado) - achado confirmado durante a
+    // investigacao do caso da Antonia (07/2026).
+    const toolCalled = transferCall
+      ? 'transferir_para_corretor'
+      : filaCall
+        ? 'transferir_para_fila'
+        : 'nenhuma';
+    this.logger.log(
+      `[VIVI] Mensagem de ${input.phoneNumber} processada (conversa ${conversation.id}): tool=${toolCalled}`,
+    );
+
     await this.viviConversationRepository.update(conversation.id, updates);
 
     if (replyText.trim()) {
