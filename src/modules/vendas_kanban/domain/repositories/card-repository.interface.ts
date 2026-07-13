@@ -94,4 +94,8 @@ export interface ICardRepository {
     },
   ): Promise<CardRecord>;
   delete(id: string): Promise<void>;
+  // Usado pela VIVI (ProcessIncomingMessageUseCase) para verificar se um
+  // lead que enviou mensagem ja tem corretor responsavel no Kanban -
+  // se sim, a VIVI nao responde (o corretor esta cuidando do lead).
+  existsByTenantAndPhoneWithOwner(tenantId: string, phone: string): Promise<boolean>;
 }

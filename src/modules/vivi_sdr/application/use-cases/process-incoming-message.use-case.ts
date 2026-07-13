@@ -14,6 +14,7 @@ import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/applicati
 import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
 import { CreateNoteUseCase } from '../../../vendas_kanban/application/use-cases/create-note.use-case';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
+import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
 import { ClassifyAndRouteAtendimentoUseCase } from '../../../atendimento/application/use-cases/classify-and-route-atendimento.use-case';
 import { CATEGORIA_TO_FILA_NOME } from '../../../atendimento/domain/services/fila-categorias';
@@ -41,6 +42,8 @@ export class ProcessIncomingMessageUseCase {
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
     @Inject('IPipelineRepository')
     private readonly pipelineRepository: IPipelineRepository,
+    @Inject('ICardRepository')
+    private readonly cardRepository: ICardRepository,
     private readonly sendWhatsAppMessageUseCase: SendWhatsAppMessageUseCase,
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
     private readonly createNoteUseCase: CreateNoteUseCase,
@@ -49,6 +52,44 @@ export class ProcessIncomingMessageUseCase {
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
+    // Guarda 1: se a conversa mais recente neste numero/sessao ja foi
+    // transferida (qualificado_transferido, duvida_transferido ou
+    // encaminhado_fila), a VIVI nao deve reabrir o dialogo - o corretor
+    // ou agente esta cuidando do lead. Uma nova conversa so e permitida
+    // se o status anterior era "em_andamento" (conversa ainda ativa) ou
+    // "encerrada" (ciclo anterior concluido, lead pode voltar a interagir).
+    const latestConversation =
+      await this.viviConversationRepository.findLatestBySessionAndPhone(
+        input.sessionId,
+        input.phoneNumber,
+      );
+    if (
+      latestConversation &&
+      latestConversation.status !== 'em_andamento' &&
+      latestConversation.status !== 'encerrada'
+    ) {
+      this.logger.log(
+        `[VIVI] Mensagem ignorada para ${input.phoneNumber}: conversa ja ${latestConversation.status} (nao reabre dialogo enquanto corretor/fila responsavel).`,
+      );
+      return;
+    }
+
+    // Guarda 2: se existe um Card com corretor responsavel (ownerId preenchido)
+    // para este numero no Kanban (criado manualmente ou pela propria VIVI em
+    // sessao anterior), a VIVI tambem nao deve responder.
+    if (input.phoneNumber) {
+      const hasActiveCard = await this.cardRepository.existsByTenantAndPhoneWithOwner(
+        input.tenantId,
+        input.phoneNumber,
+      );
+      if (hasActiveCard) {
+        this.logger.log(
+          `[VIVI] Mensagem ignorada para ${input.phoneNumber}: lead ja tem Card com corretor responsavel no Kanban.`,
+        );
+        return;
+      }
+    }
+
     const conversation = await this.findOrCreateConversation(input);
 
     const { history, remoteJid } = await this.buildHistory(input);

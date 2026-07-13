@@ -38,6 +38,17 @@ export class PrismaViviConversationRepository implements IViviConversationReposi
     return record as ViviConversationRecord | null;
   }
 
+  async findLatestBySessionAndPhone(
+    whatsappSessionId: string,
+    phoneNumber: string,
+  ): Promise<ViviConversationRecord | null> {
+    const record = await this.prisma.viviConversation.findFirst({
+      where: { whatsappSessionId, phoneNumber },
+      orderBy: { createdAt: 'desc' },
+    });
+    return record as ViviConversationRecord | null;
+  }
+
   async update(id: string, data: ViviConversationUpdateInput): Promise<ViviConversationRecord> {
     const record = await this.prisma.viviConversation.update({
       where: { id },

@@ -221,4 +221,16 @@ export class PrismaCardRepository implements ICardRepository {
   async delete(id: string): Promise<void> {
     await this.prisma.card.delete({ where: { id } });
   }
+
+ 
+  async existsByTenantAndPhoneWithOwner(tenantId: string, phone: string): Promise<boolean> {
+    const count = await this.prisma.card.count({
+      where: {
+        tenantId,
+        phone,
+        ownerId: { not: null },
+      },
+    });
+    return count > 0;
+  }
 }

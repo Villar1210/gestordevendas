@@ -46,6 +46,14 @@ export interface IViviConversationRepository {
     whatsappSessionId: string,
     phoneNumber: string,
   ): Promise<ViviConversationRecord | null>;
+  // A conversa mais recente (qualquer status) para este numero nesta sessao.
+  // Usado pela VIVI para detectar leads ja transferidos: se a conversa mais
+  // recente nao esta "em_andamento", o lead ja foi encaminhado - nao criar
+  // uma nova conversa e nao responder.
+  findLatestBySessionAndPhone(
+    whatsappSessionId: string,
+    phoneNumber: string,
+  ): Promise<ViviConversationRecord | null>;
   update(id: string, data: ViviConversationUpdateInput): Promise<ViviConversationRecord>;
   findAllByTenant(tenantId: string): Promise<ViviConversationRecord[]>;
 }
