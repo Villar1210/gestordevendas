@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Inbox, Check, ArrowLeftRight, X, RotateCcw, MessageCircle } from "lucide-react";
+import { Search, Inbox, Check, ArrowLeftRight, X, RotateCcw, MessageCircle, AlertTriangle } from "lucide-react";
 import { Atendimento, Fila } from "../store/useAtendimentoStore";
 import { ATENDIMENTO_TABS, AtendimentoTab, filaChipStyle } from "../constants";
 import { formatRelativeTime, formatPhoneDisplay, initialsFromPhone } from "../format";
@@ -242,7 +242,11 @@ function AtendimentoRow({
   }
 
   return (
-    <div className={`border-b border-slate-50 transition ${isSelected ? "bg-blue-50" : "hover:bg-slate-50"}`}>
+    <div
+      className={`border-b border-slate-50 transition ${isSelected ? "bg-blue-50" : "hover:bg-slate-50"} ${
+        atendimento.urgente ? "border-l-4 border-l-rose-500" : ""
+      }`}
+    >
       <button onClick={onClick} className="flex w-full items-start gap-3 px-3 pt-3 text-left">
         <div className="relative shrink-0">
           <span className="grid h-11 w-11 place-items-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
@@ -267,14 +271,21 @@ function AtendimentoRow({
           <p className="mt-0.5 truncate text-xs text-slate-500">
             {atendimento.lastMessageBody || "Sem mensagens ainda"}
           </p>
-          {atendimento.filaNome && (
-            <span
-              className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
-              style={filaChipStyle(atendimento.filaNome)}
-            >
-              {atendimento.filaNome}
-            </span>
-          )}
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {atendimento.urgente && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                <AlertTriangle className="h-2.5 w-2.5" /> Urgente
+              </span>
+            )}
+            {atendimento.filaNome && (
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                style={filaChipStyle(atendimento.filaNome)}
+              >
+                {atendimento.filaNome}
+              </span>
+            )}
+          </div>
         </div>
       </button>
 

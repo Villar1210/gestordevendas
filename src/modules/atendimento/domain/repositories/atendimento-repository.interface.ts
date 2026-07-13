@@ -11,6 +11,7 @@ export interface AtendimentoRecord {
   ownerId: string | null;
   status: string;
   motivoFechamento: string | null;
+  urgente: boolean;
   createdAt: Date;
   updatedAt: Date;
   closedAt: Date | null;
@@ -56,6 +57,7 @@ export interface IAtendimentoRepository {
       status: string;
       motivoFechamento: string | null;
       closedAt: Date | null;
+      urgente: boolean;
     }>,
   ): Promise<AtendimentoRecord>;
   findAllByTenant(tenantId: string, filter: ListAtendimentosFilter): Promise<AtendimentoWithNames[]>;

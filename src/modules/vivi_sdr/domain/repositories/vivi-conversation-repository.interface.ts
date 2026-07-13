@@ -9,6 +9,8 @@ export type ViviConversationStatus =
   | 'encaminhado_fila'
   | 'encerrada';
 
+export type TipoRenda = 'CLT' | 'AUTONOMO';
+
 export interface ViviConversationRecord {
   id: string;
   tenantId: string;
@@ -24,6 +26,10 @@ export interface ViviConversationRecord {
   visitaAgendadaEm: Date | null;
   rendaDeclarada: number | null;
   categoriaHabitacional: CategoriaHabitacional | null;
+  dataNascimento: string | null;
+  email: string | null;
+  tipoRenda: TipoRenda | null;
+  fezDeclaracaoIR: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +45,10 @@ export interface ViviConversationUpdateInput {
   visitaAgendadaEm?: Date;
   rendaDeclarada?: number;
   categoriaHabitacional?: CategoriaHabitacional;
+  dataNascimento?: string;
+  email?: string;
+  tipoRenda?: TipoRenda;
+  fezDeclaracaoIR?: boolean;
 }
 
 export interface IViviConversationRepository {

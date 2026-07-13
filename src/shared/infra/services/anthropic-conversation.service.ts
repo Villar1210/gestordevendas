@@ -81,6 +81,13 @@ const TOOLS: Anthropic.Tool[] = [
           type: 'string',
           description: 'Breve resumo do que o lead perguntou, para o agente humano ter contexto',
         },
+        urgente: {
+          type: 'boolean',
+          description:
+            'true quando o lead pediu explicitamente para falar com uma pessoa/corretor humano ' +
+            'AGORA (ex: "quero falar com uma pessoa", "me passa o telefone", "nao quero falar ' +
+            'com robo", "urgente", "preciso agora"). Default false para os demais casos.',
+        },
       },
       required: ['categoria', 'resumo'],
     },
@@ -111,6 +118,35 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['dataVisita', 'horario'],
+    },
+  },
+  {
+    name: 'salvar_dados_pos_visita',
+    description:
+      'Registra os dados coletados DEPOIS que uma visita ja foi confirmada (data de ' +
+      'nascimento, e-mail, tipo de renda, declaracao de IR). NUNCA chame esta tool antes de ' +
+      'ja ter confirmado uma visita com "agendar_visita" nesta mesma conversa - o sistema ' +
+      'rejeita a chamada se nao houver visita agendada ainda.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        dataNascimento: {
+          type: 'string',
+          description: 'Data de nascimento informada pelo lead, da forma mais literal possivel',
+        },
+        email: { type: 'string', description: 'Melhor e-mail informado pelo lead' },
+        tipoRenda: {
+          type: 'string',
+          enum: ['CLT', 'AUTONOMO'],
+          description: 'Tipo de renda: carteira assinada (CLT) ou autonomo',
+        },
+        fezDeclaracaoIR: {
+          type: 'boolean',
+          description:
+            'So preencher se tipoRenda for AUTONOMO: true se o lead fez a Declaracao do ' +
+            'Imposto de Renda este ano, false se comprova renda por extratos bancarios.',
+        },
+      },
     },
   },
 ];

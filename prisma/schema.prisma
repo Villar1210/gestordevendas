@@ -229,6 +229,13 @@ model ViviConversation {
   // conversa.
   rendaDeclarada        Float?  @map("renda_declarada")
   categoriaHabitacional String? @map("categoria_habitacional") @db.VarChar(20)
+  // Coletados SOMENTE apos visitaAgendadaEm ser preenchido (ver tool
+  // "salvar_dados_pos_visita" - rejeitada em codigo se a visita ainda nao
+  // foi confirmada, defesa em profundidade alem da ordem pedida no prompt).
+  dataNascimento  String?  @map("data_nascimento") @db.VarChar(20)
+  email           String?  @db.VarChar(150)
+  tipoRenda       String?  @map("tipo_renda") @db.VarChar(20)
+  fezDeclaracaoIR Boolean? @map("fez_declaracao_ir")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
@@ -298,6 +305,10 @@ model Atendimento {
   // via RequeueAtendimentoUseCase).
   status           String    @default("aguardando") @db.VarChar(20)
   motivoFechamento String?   @map("motivo_fechamento") @db.VarChar(300)
+  // Marcado pela VIVI quando o lead pede explicitamente para falar com um
+  // humano AGORA (ver ProcessIncomingMessageUseCase/vivi-prompt.ts) -
+  // exibido como badge visual na Central de Atendimento.
+  urgente          Boolean   @default(false)
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   closedAt         DateTime? @map("closed_at")

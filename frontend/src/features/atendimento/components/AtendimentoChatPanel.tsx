@@ -20,6 +20,7 @@ import {
   FileText,
   Contact2,
   Mic,
+  AlertTriangle,
 } from "lucide-react";
 import { Atendimento, AtendimentoEvento, AtendimentoMensagem, Fila } from "../store/useAtendimentoStore";
 import { getStatusOption, EVENTO_TIPO_LABELS, filaChipStyle } from "../constants";
@@ -224,6 +225,11 @@ export function AtendimentoChatPanel({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-sm font-semibold text-slate-800">{displayName}</p>
+            {atendimento.urgente && (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                <AlertTriangle className="h-2.5 w-2.5" /> Urgente
+              </span>
+            )}
             {atendimento.filaNome && (
               <span
                 className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"

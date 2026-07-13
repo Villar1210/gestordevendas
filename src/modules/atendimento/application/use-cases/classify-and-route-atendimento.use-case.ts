@@ -15,6 +15,9 @@ interface ClassifyAndRouteAtendimentoInput {
   // Preenchido quando a classificacao e manual (Administrador escolhendo a
   // fila pela UI) - nulo quando quem classifica e a VIVI.
   userId?: string | null;
+  // Marcado pela VIVI quando o lead pede para falar com um humano AGORA
+  // (ver ProcessIncomingMessageUseCase) - vira badge visual na UI.
+  urgente?: boolean;
 }
 
 @Injectable()
@@ -45,14 +48,17 @@ export class ClassifyAndRouteAtendimentoUseCase {
       fila = await this.filaRepository.create({ tenantId: input.tenantId, nome });
     }
 
-    const updated = await this.atendimentoRepository.update(atendimento.id, { filaId: fila.id });
+    const updated = await this.atendimentoRepository.update(atendimento.id, {
+      filaId: fila.id,
+      ...(input.urgente ? { urgente: true } : {}),
+    });
 
     const resumo = input.resumo?.trim();
     await this.eventoRepository.create({
       atendimentoId: atendimento.id,
       tipo: 'criado',
       userId: input.userId ?? null,
-      detalhe: `Classificado na fila "${fila.nome}"${resumo ? `: ${resumo}` : ''}`,
+      detalhe: `Classificado na fila "${fila.nome}"${input.urgente ? ' [URGENTE]' : ''}${resumo ? `: ${resumo}` : ''}`,
     });
 
     return updated;

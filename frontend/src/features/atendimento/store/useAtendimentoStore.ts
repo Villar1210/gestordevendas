@@ -13,6 +13,7 @@ export interface Atendimento {
   ownerName: string | null;
   status: string;
   motivoFechamento: string | null;
+  urgente: boolean;
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;
