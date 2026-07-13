@@ -17,6 +17,13 @@ interface CreateQuickCardInput {
   temperatura?: string;
   imovelId?: string;
   customFields?: Record<string, unknown>;
+  // Nulo/omitido = Caixa de Entrada (comportamento padrao ja existente).
+  // Preenchido pela VIVI para depositar leads sem perfil de renda direto
+  // na coluna "Repique" (ver ProcessIncomingMessageUseCase).
+  stageId?: string | null;
+  // Resumo automatico legivel pelo corretor sem abrir outra tela (ver
+  // vivi_sdr/domain/services/build-resumo-atendimento.ts).
+  description?: string;
 }
 
 @Injectable()
@@ -39,7 +46,7 @@ export class CreateQuickCardUseCase {
     const card = await this.cardRepository.create({
       tenantId: input.tenantId,
       pipelineId: pipeline.id,
-      stageId: null,
+      stageId: input.stageId ?? null,
       ownerId: null,
       title: input.title,
       value: input.value,
@@ -47,6 +54,7 @@ export class CreateQuickCardUseCase {
       phone: input.phone,
       temperatura: input.temperatura,
       imovelId: input.imovelId,
+      description: input.description,
       customFields: input.customFields,
       position: 0,
     });
@@ -54,11 +62,17 @@ export class CreateQuickCardUseCase {
     // Dispara a Roleta Online (se estiver ativa) - emit() nao aguarda o
     // listener, nao bloqueia a criacao do card (mesmo padrao do
     // BaileysWhatsAppProvider para nao acoplar os modulos entre si).
-    this.eventEmitter.emit('card.sem_dono.criado', {
-      tenantId: input.tenantId,
-      cardId: card.id,
-      pipelineId: pipeline.id,
-    });
+    // SO dispara se o card realmente caiu na Caixa de Entrada (sem stageId) -
+    // um card criado ja com stage explicito (ex: "Repique", deposito
+    // estrategico para remarketing futuro) foi posicionado de proposito e
+    // NAO deve ser distribuido/movido pela Roleta.
+    if (!card.stageId) {
+      this.eventEmitter.emit('card.sem_dono.criado', {
+        tenantId: input.tenantId,
+        cardId: card.id,
+        pipelineId: pipeline.id,
+      });
+    }
 
     return card;
   }

@@ -28,6 +28,7 @@ type PrismaCardRow = {
   complemento: string | null;
   bairro: string | null;
   cep: string | null;
+  description: string | null;
   customFields: unknown;
   createdAt: Date;
   updatedAt: Date;
@@ -63,6 +64,7 @@ export class PrismaCardRepository implements ICardRepository {
       complemento: row.complemento,
       bairro: row.bairro,
       cep: row.cep,
+      description: row.description,
       customFields: (row.customFields as Record<string, unknown>) ?? {},
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -81,6 +83,7 @@ export class PrismaCardRepository implements ICardRepository {
     origem?: string;
     phone?: string | null;
     temperatura?: string | null;
+    description?: string | null;
     customFields?: Record<string, unknown>;
   }): Promise<CardRecord> {
     const row = await this.prisma.card.create({
@@ -96,6 +99,7 @@ export class PrismaCardRepository implements ICardRepository {
         origem: input.origem ?? 'manual',
         phone: input.phone ?? null,
         temperatura: input.temperatura ?? null,
+        description: input.description ?? null,
         customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
       },
     });

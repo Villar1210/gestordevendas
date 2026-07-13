@@ -28,6 +28,9 @@ export interface CardRecord {
   complemento: string | null;
   bairro: string | null;
   cep: string | null;
+  // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
+  // preenchido pela VIVI (ver vivi_sdr/domain/services/build-resumo-atendimento.ts).
+  description: string | null;
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -46,6 +49,7 @@ export interface ICardRepository {
     origem?: string;
     phone?: string | null;
     temperatura?: string | null;
+    description?: string | null;
     customFields?: Record<string, unknown>;
   }): Promise<CardRecord>;
   findById(id: string): Promise<CardRecord | null>;

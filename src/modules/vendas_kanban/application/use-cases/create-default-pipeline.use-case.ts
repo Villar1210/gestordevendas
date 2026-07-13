@@ -6,12 +6,19 @@ import {
 } from '../../domain/repositories/pipeline-repository.interface';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 
+// "Repique" e sempre a ULTIMA coluna do board - deposito estrategico de
+// leads sem perfil de renda para nenhuma faixa de financiamento hoje (ver
+// domain/services/classificar-renda.ts no modulo vivi_sdr), para
+// remarketing futuro. Sem cor propria no banco (Stage nao tem campo de
+// cor) - a coluna ja renderiza neutra/cinza, igual as demais (ver
+// KanbanColumn.tsx), entao nao precisa de nenhum tratamento visual extra.
 const DEFAULT_STAGE_NAMES = [
   'Em Atendimento',
   'Qualificacao',
   'Analise de Credito',
   'Negociacao',
   'Fechamento',
+  'Repique',
 ];
 const POSITION_STEP = 1000;
 

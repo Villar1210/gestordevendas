@@ -7,6 +7,10 @@ export type ViviConversationStatus =
   | 'qualificado_transferido'
   | 'duvida_transferido'
   | 'encaminhado_fila'
+  // Renda declarada classificada como SEM_PERFIL (ver classificar-renda.ts) -
+  // Card criado direto na coluna "Repique" do Kanban (deposito estrategico
+  // para remarketing futuro), NAO uma Fila da Central de Atendimento.
+  | 'repique'
   | 'encerrada';
 
 export type TipoRenda = 'CLT' | 'AUTONOMO';

@@ -395,6 +395,11 @@ model Card {
   complemento  String?  @db.VarChar(100)
   bairro       String?  @db.VarChar(100)
   cep          String?  @db.VarChar(10)
+  // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
+  // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
+  // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas
+  // disponivel para qualquer outro fluxo futuro que queira usa-lo.
+  description  String?  @db.Text
   customFields Json     @default("{}") @map("custom_fields")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")

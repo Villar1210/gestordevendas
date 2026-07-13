@@ -6,6 +6,10 @@
 
 // Criadas automaticamente para um tenant que ainda nao tem nenhuma Fila, na
 // primeira vez que um Atendimento e criado (ver GetOrCreateAtendimentoUseCase).
+// NOTA: "Repique" NAO e uma Fila (correcao aplicada na Fatia 5 do escopo
+// completo da VIVI - leads sem perfil de renda agora viram Card direto na
+// coluna "Repique" do Kanban, ver vendas_kanban/create-default-pipeline.use-case.ts
+// e vivi_sdr/application/use-cases/process-incoming-message.use-case.ts).
 export const DEFAULT_FILA_NAMES = ['Suporte', 'Financeiro', 'Duvidas Gerais'];
 
 export const CATEGORIA_TO_FILA_NOME: Record<string, string> = {
