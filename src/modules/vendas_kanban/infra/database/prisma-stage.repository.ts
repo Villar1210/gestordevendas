@@ -45,4 +45,12 @@ export class PrismaStageRepository implements IStageRepository {
   async updatePosition(id: string, position: number): Promise<void> {
     await this.prisma.stage.update({ where: { id }, data: { position } });
   }
+
+  async updateName(id: string, name: string): Promise<void> {
+    await this.prisma.stage.update({ where: { id }, data: { name } });
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.stage.delete({ where: { id } });
+  }
 }

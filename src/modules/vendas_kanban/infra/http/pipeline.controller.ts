@@ -1,5 +1,5 @@
 // src/modules/vendas_kanban/infra/http/pipeline.controller.ts
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
@@ -7,6 +7,7 @@ import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator'
 import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreatePipelineDto } from './dtos/create-pipeline.dto';
 import { CreateStageDto } from './dtos/create-stage.dto';
+import { UpdateStageDto } from './dtos/update-stage.dto';
 import { MoveStageDto } from './dtos/move-stage.dto';
 import { CreatePipelineUseCase } from '../../application/use-cases/create-pipeline.use-case';
 import { CreateDefaultPipelineUseCase } from '../../application/use-cases/create-default-pipeline.use-case';
@@ -14,6 +15,8 @@ import { ListPipelinesUseCase } from '../../application/use-cases/list-pipelines
 import { GetBoardUseCase } from '../../application/use-cases/get-board.use-case';
 import { CreateStageUseCase } from '../../application/use-cases/create-stage.use-case';
 import { MoveStageUseCase } from '../../application/use-cases/move-stage.use-case';
+import { RenameStageUseCase } from '../../application/use-cases/rename-stage.use-case';
+import { DeleteStageUseCase } from '../../application/use-cases/delete-stage.use-case';
 import { GetInboxUseCase } from '../../application/use-cases/get-inbox.use-case';
 
 @Controller()
@@ -27,6 +30,8 @@ export class PipelineController {
     private readonly getBoardUseCase: GetBoardUseCase,
     private readonly createStageUseCase: CreateStageUseCase,
     private readonly moveStageUseCase: MoveStageUseCase,
+    private readonly renameStageUseCase: RenameStageUseCase,
+    private readonly deleteStageUseCase: DeleteStageUseCase,
     private readonly getInboxUseCase: GetInboxUseCase,
   ) {}
 
@@ -96,5 +101,26 @@ export class PipelineController {
       tenantId: req.user!.tenantId,
       targetIndex: dto.targetIndex,
     });
+  }
+
+  // PATCH /stages/:id - renomeia uma coluna
+  @Patch('stages/:id')
+  async renameStage(
+    @Param('id') id: string,
+    @Body() dto: UpdateStageDto,
+    @Req() req: Request,
+  ) {
+    return this.renameStageUseCase.execute({
+      stageId: id,
+      tenantId: req.user!.tenantId,
+      name: dto.name,
+    });
+  }
+
+  // DELETE /stages/:id - remove uma coluna vazia
+  @Delete('stages/:id')
+  async deleteStage(@Param('id') id: string, @Req() req: Request) {
+    await this.deleteStageUseCase.execute({ stageId: id, tenantId: req.user!.tenantId });
+    return { success: true };
   }
 }

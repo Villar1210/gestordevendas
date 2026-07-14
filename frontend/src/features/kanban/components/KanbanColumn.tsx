@@ -1,7 +1,10 @@
 // src/features/kanban/components/KanbanColumn.tsx
+import { useState } from "react";
 import { Droppable, DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Stage, useKanbanStore } from "../store/useKanbanStore";
+import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
+import { isProtectedStageName } from "../constants";
 import { KanbanCard } from "./KanbanCard";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -27,8 +30,34 @@ export function KanbanColumn({
   const origemFilter = useKanbanStore((state) => state.origemFilter);
   const hasActiveFilters = useKanbanStore((state) => state.hasActiveFilters());
   const openCreateCardModal = useKanbanStore((state) => state.openCreateCardModal);
+  const { handleRenameStage, handleDeleteStage } = useKanbanIntegration();
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(stage.name);
+  const isProtected = isProtectedStageName(stage.name);
 
   const total = stage.cards.reduce((sum, card) => sum + card.value, 0);
+
+  function startEditing() {
+    if (isProtected) return;
+    setNameDraft(stage.name);
+    setIsEditingName(true);
+  }
+
+  function commitEditing() {
+    const trimmed = nameDraft.trim();
+    setIsEditingName(false);
+    if (trimmed && trimmed !== stage.name) {
+      handleRenameStage(stage.id, trimmed);
+    }
+  }
+
+  function handleDeleteClick() {
+    if (isProtected) return;
+    if (window.confirm(`Excluir a coluna "${stage.name}"? Essa acao nao pode ser desfeita.`)) {
+      handleDeleteStage(stage.id);
+    }
+  }
 
   // Filtragem e so visual: nao remove nada do estado do Zustand, apenas
   // decide o que renderizar. Enquanto algum filtro estiver ativo, o
@@ -47,14 +76,60 @@ export function KanbanColumn({
     <div
       ref={innerRef}
       {...draggableProps}
+      data-testid={`kanban-column-${stage.name}`}
       className="flex w-72 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm"
     >
-      <div {...dragHandleProps} className="cursor-grab border-b border-slate-200 p-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800">{stage.name}</h2>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-            {stage.cards.length}
-          </span>
+      <div {...dragHandleProps} className="group cursor-grab border-b border-slate-200 p-3">
+        <div className="flex items-center justify-between gap-2">
+          {isEditingName ? (
+            <input
+              autoFocus
+              data-testid="stage-name-input"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitEditing}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitEditing();
+                if (e.key === "Escape") setIsEditingName(false);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="min-w-0 flex-1 rounded border border-blue-300 px-1.5 py-0.5 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
+            />
+          ) : (
+            <h2
+              onDoubleClick={startEditing}
+              className="truncate text-sm font-semibold text-slate-800"
+              title={isProtected ? undefined : "Duplo clique para renomear"}
+            >
+              {stage.name}
+            </h2>
+          )}
+
+          <div className="flex shrink-0 items-center gap-1">
+            {!isEditingName && !isProtected && (
+              <>
+                <button
+                  onClick={startEditing}
+                  data-testid="rename-stage-button"
+                  className="rounded p-1 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-blue-600 group-hover:opacity-100"
+                  title="Renomear coluna"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={handleDeleteClick}
+                  data-testid="delete-stage-button"
+                  className="rounded p-1 text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                  title="Excluir coluna"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+              {stage.cards.length}
+            </span>
+          </div>
         </div>
         <p className="mt-1 text-xs text-slate-500">{currencyFormatter.format(total)}</p>
       </div>

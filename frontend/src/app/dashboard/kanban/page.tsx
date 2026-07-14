@@ -1,7 +1,7 @@
 // src/app/dashboard/kanban/page.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 import { useKanbanStore } from "@/features/kanban/store/useKanbanStore";
@@ -23,8 +23,14 @@ export default function KanbanDashboardPage() {
   const activeView = useKanbanStore((state) => state.activeView);
   const setActiveView = useKanbanStore((state) => state.setActiveView);
   const openQuickCardModal = useKanbanStore((state) => state.openQuickCardModal);
-  const { loadBoard } = useKanbanIntegration();
+  const pipelineId = useKanbanStore((state) => state.pipelineId);
+  const pipelines = useKanbanStore((state) => state.pipelines);
+  const setPipelines = useKanbanStore((state) => state.setPipelines);
+  const { loadBoard, handleCreatePipeline } = useKanbanIntegration();
   const hasInitialized = useRef(false);
+
+  const [isCreatingPipeline, setIsCreatingPipeline] = useState(false);
+  const [newPipelineName, setNewPipelineName] = useState("");
 
   useEffect(() => {
     if (hasInitialized.current) return;
@@ -33,13 +39,15 @@ export default function KanbanDashboardPage() {
     async function init() {
       setLoading(true);
       try {
-        const pipelines = await apiRequest<Pipeline[]>("/pipelines");
-        let pipeline = pipelines[0];
+        const fetchedPipelines = await apiRequest<Pipeline[]>("/pipelines");
+        let pipeline = fetchedPipelines[0];
 
         if (!pipeline) {
           pipeline = await apiRequest<Pipeline>("/pipelines/default", { method: "POST" });
+          fetchedPipelines.push(pipeline);
         }
 
+        setPipelines(fetchedPipelines);
         await loadBoard(pipeline.id);
       } finally {
         setLoading(false);
@@ -50,11 +58,76 @@ export default function KanbanDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function handleSelectPipeline(id: string) {
+    if (id === pipelineId) return;
+    setActiveView("kanban");
+    loadBoard(id);
+  }
+
+  async function commitNewPipeline() {
+    const name = newPipelineName.trim();
+    setNewPipelineName("");
+    setIsCreatingPipeline(false);
+    if (!name) return;
+
+    const pipeline = await handleCreatePipeline(name);
+    if (pipeline) {
+      setActiveView("kanban");
+      await loadBoard(pipeline.id);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold text-slate-800">Pipeline de Vendas</h1>
+          {pipelines.length > 1 ? (
+            <select
+              data-testid="pipeline-select"
+              value={pipelineId ?? ""}
+              onChange={(e) => handleSelectPipeline(e.target.value)}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-lg font-semibold text-slate-800 outline-none focus:border-blue-500"
+            >
+              {pipelines.map((pipeline) => (
+                <option key={pipeline.id} value={pipeline.id}>
+                  {pipeline.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <h1 className="text-lg font-semibold text-slate-800">
+              {pipelines[0]?.name ?? "Pipeline de Vendas"}
+            </h1>
+          )}
+
+          {isCreatingPipeline ? (
+            <input
+              autoFocus
+              data-testid="new-pipeline-input"
+              value={newPipelineName}
+              onChange={(e) => setNewPipelineName(e.target.value)}
+              onBlur={commitNewPipeline}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitNewPipeline();
+                if (e.key === "Escape") {
+                  setNewPipelineName("");
+                  setIsCreatingPipeline(false);
+                }
+              }}
+              placeholder="Nome do novo funil"
+              className="rounded-lg border border-blue-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
+            />
+          ) : (
+            <button
+              onClick={() => setIsCreatingPipeline(true)}
+              data-testid="add-pipeline-button"
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:border-blue-400 hover:text-blue-600"
+              title="Criar novo funil"
+            >
+              <Plus className="h-3.5 w-3.5" /> Novo Funil
+            </button>
+          )}
+
           <div className="flex rounded-lg border border-slate-200 p-0.5">
             <button
               onClick={() => setActiveView("kanban")}

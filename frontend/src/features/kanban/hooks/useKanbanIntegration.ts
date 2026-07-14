@@ -1,7 +1,7 @@
 // src/features/kanban/hooks/useKanbanIntegration.ts
 import { useCallback } from "react";
 import { apiRequest, ApiError } from "@/core/api/client";
-import { useKanbanStore, Stage, Card } from "../store/useKanbanStore";
+import { useKanbanStore, Stage, Card, Pipeline } from "../store/useKanbanStore";
 
 interface BoardResponse {
   id: string;
@@ -70,6 +70,8 @@ export interface CreateActivityInput {
 
 export function useKanbanIntegration() {
   const setPipelineId = useKanbanStore((state) => state.setPipelineId);
+  const setPipelines = useKanbanStore((state) => state.setPipelines);
+  const addPipeline = useKanbanStore((state) => state.addPipeline);
   const setStages = useKanbanStore((state) => state.setStages);
   const setLoading = useKanbanStore((state) => state.setLoading);
   const moveCardOptimistic = useKanbanStore((state) => state.moveCardOptimistic);
@@ -78,6 +80,9 @@ export function useKanbanIntegration() {
   const updateCardInPlace = useKanbanStore((state) => state.updateCardInPlace);
   const closeCardModal = useKanbanStore((state) => state.closeCardModal);
   const closeQuickCardModal = useKanbanStore((state) => state.closeQuickCardModal);
+  const addStage = useKanbanStore((state) => state.addStage);
+  const renameStageOptimistic = useKanbanStore((state) => state.renameStageOptimistic);
+  const removeStageOptimistic = useKanbanStore((state) => state.removeStageOptimistic);
 
   const loadBoard = useCallback(
     async (pipelineId: string) => {
@@ -128,6 +133,80 @@ export function useKanbanIntegration() {
       }
     },
     [moveStageOptimistic],
+  );
+
+  const handleCreateStage = useCallback(
+    async (pipelineId: string, name: string) => {
+      try {
+        const stage = await apiRequest<Stage>(`/pipelines/${pipelineId}/stages`, {
+          method: "POST",
+          body: JSON.stringify({ name }),
+        });
+        addStage({ ...stage, cards: [] });
+        return stage;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar a coluna.");
+        return null;
+      }
+    },
+    [addStage],
+  );
+
+  const handleRenameStage = useCallback(
+    async (stageId: string, name: string) => {
+      const rollback = renameStageOptimistic(stageId, name);
+      try {
+        await apiRequest(`/stages/${stageId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ name }),
+        });
+      } catch (err) {
+        rollback();
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel renomear a coluna.");
+      }
+    },
+    [renameStageOptimistic],
+  );
+
+  const handleDeleteStage = useCallback(
+    async (stageId: string) => {
+      const rollback = removeStageOptimistic(stageId);
+      try {
+        await apiRequest(`/stages/${stageId}`, { method: "DELETE" });
+      } catch (err) {
+        rollback();
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel excluir a coluna.");
+      }
+    },
+    [removeStageOptimistic],
+  );
+
+  const handleListPipelines = useCallback(async () => {
+    try {
+      const pipelines = await apiRequest<Pipeline[]>("/pipelines");
+      setPipelines(pipelines);
+      return pipelines;
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os funis.");
+      return [];
+    }
+  }, [setPipelines]);
+
+  const handleCreatePipeline = useCallback(
+    async (name: string) => {
+      try {
+        const pipeline = await apiRequest<Pipeline>("/pipelines", {
+          method: "POST",
+          body: JSON.stringify({ name }),
+        });
+        addPipeline(pipeline);
+        return pipeline;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o funil.");
+        return null;
+      }
+    },
+    [addPipeline],
   );
 
   const handleCreateCard = useCallback(
@@ -275,6 +354,11 @@ export function useKanbanIntegration() {
     loadBoard,
     handleMoveCard,
     handleMoveStage,
+    handleCreateStage,
+    handleRenameStage,
+    handleDeleteStage,
+    handleListPipelines,
+    handleCreatePipeline,
     handleCreateCard,
     handleUpdateCard,
     handleCreateActivity,

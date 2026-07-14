@@ -21,4 +21,6 @@ export interface IStageRepository {
   // Retorna ordenado por position (crescente).
   findAllByPipeline(pipelineId: string): Promise<StageRecord[]>;
   updatePosition(id: string, position: number): Promise<void>;
+  updateName(id: string, name: string): Promise<void>;
+  delete(id: string): Promise<void>;
 }

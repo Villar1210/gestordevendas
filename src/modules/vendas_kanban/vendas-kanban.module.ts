@@ -8,6 +8,8 @@ import { ListPipelinesUseCase } from './application/use-cases/list-pipelines.use
 import { GetBoardUseCase } from './application/use-cases/get-board.use-case';
 import { CreateStageUseCase } from './application/use-cases/create-stage.use-case';
 import { MoveStageUseCase } from './application/use-cases/move-stage.use-case';
+import { RenameStageUseCase } from './application/use-cases/rename-stage.use-case';
+import { DeleteStageUseCase } from './application/use-cases/delete-stage.use-case';
 import { CreateCardUseCase } from './application/use-cases/create-card.use-case';
 import { UpdateCardUseCase } from './application/use-cases/update-card.use-case';
 import { MoveCardUseCase } from './application/use-cases/move-card.use-case';
@@ -37,6 +39,8 @@ import { PrismaService } from '../../config/prisma.service';
     GetBoardUseCase,
     CreateStageUseCase,
     MoveStageUseCase,
+    RenameStageUseCase,
+    DeleteStageUseCase,
     CreateCardUseCase,
     UpdateCardUseCase,
     MoveCardUseCase,

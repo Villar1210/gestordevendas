@@ -32,6 +32,11 @@ export interface Stage {
   cards: Card[];
 }
 
+export interface Pipeline {
+  id: string;
+  name: string;
+}
+
 export type TemperatureFilter = "all" | "quente" | "morno" | "frio";
 export type OrigemFilter = "all" | "manual" | "webhook" | "roleta_online";
 export type KanbanView = "kanban" | "inbox";
@@ -48,6 +53,7 @@ interface CardDetailPanelState {
 
 interface KanbanState {
   pipelineId: string | null;
+  pipelines: Pipeline[];
   stages: Stage[];
   isLoading: boolean;
   activeView: KanbanView;
@@ -61,6 +67,8 @@ interface KanbanState {
   quickCardModalOpen: boolean;
 
   setPipelineId: (pipelineId: string) => void;
+  setPipelines: (pipelines: Pipeline[]) => void;
+  addPipeline: (pipeline: Pipeline) => void;
   setStages: (stages: Stage[]) => void;
   setLoading: (isLoading: boolean) => void;
   setActiveView: (view: KanbanView) => void;
@@ -89,6 +97,10 @@ interface KanbanState {
     targetIndex: number,
   ) => () => void;
   moveStageOptimistic: (stageId: string, targetIndex: number) => () => void;
+
+  addStage: (stage: Stage) => void;
+  renameStageOptimistic: (stageId: string, name: string) => () => void;
+  removeStageOptimistic: (stageId: string) => () => void;
 }
 
 // Mesmo algoritmo de posicionamento flutuante usado no backend, aplicado
@@ -105,6 +117,7 @@ function calculatePosition(siblings: { position: number }[], targetIndex: number
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
   pipelineId: null,
+  pipelines: [],
   stages: [],
   isLoading: false,
   activeView: "kanban",
@@ -118,6 +131,8 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   quickCardModalOpen: false,
 
   setPipelineId: (pipelineId) => set({ pipelineId }),
+  setPipelines: (pipelines) => set({ pipelines }),
+  addPipeline: (pipeline) => set({ pipelines: [...get().pipelines, pipeline] }),
   setStages: (stages) => set({ stages }),
   setLoading: (isLoading) => set({ isLoading }),
   setActiveView: (activeView) => set({ activeView }),
@@ -218,6 +233,22 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
     set({ stages: nextStages });
 
+    return () => set({ stages: previousStages });
+  },
+
+  addStage: (stage) => set({ stages: [...get().stages, stage] }),
+
+  renameStageOptimistic: (stageId, name) => {
+    const previousStages = get().stages;
+    set({
+      stages: previousStages.map((stage) => (stage.id === stageId ? { ...stage, name } : stage)),
+    });
+    return () => set({ stages: previousStages });
+  },
+
+  removeStageOptimistic: (stageId) => {
+    const previousStages = get().stages;
+    set({ stages: previousStages.filter((stage) => stage.id !== stageId) });
     return () => set({ stages: previousStages });
   },
 }));
