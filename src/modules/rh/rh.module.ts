@@ -12,6 +12,7 @@ import { ListPossiveisSuperioresUseCase } from './application/use-cases/list-pos
 import { GetOrCreateContratoTemplateUseCase } from './application/use-cases/get-or-create-contrato-template.use-case';
 import { GerarContratoPrestacaoServicoUseCase } from './application/use-cases/gerar-contrato-prestacao-servico.use-case';
 import { ListCadastrosAprovadosUseCase } from './application/use-cases/list-cadastros-aprovados.use-case';
+import { UpdateContratoTemplateUseCase } from './application/use-cases/update-contrato-template.use-case';
 import { GerarPdfContratoService } from './application/services/gerar-pdf-contrato.service';
 import { PrismaCorretorRepository } from './infra/database/prisma-corretor.repository';
 import { PrismaRoleRepository } from './infra/database/prisma-role.repository';
@@ -38,6 +39,7 @@ import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
     GetOrCreateContratoTemplateUseCase,
     GerarContratoPrestacaoServicoUseCase,
     ListCadastrosAprovadosUseCase,
+    UpdateContratoTemplateUseCase,
     GerarPdfContratoService,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).

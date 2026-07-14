@@ -9,6 +9,7 @@ import { CreateCorretorDto } from './dtos/create-corretor.dto';
 import { UpdateStatusDisponibilidadeDto } from './dtos/update-status-disponibilidade.dto';
 import { PublicSignupDto } from './dtos/public-signup.dto';
 import { AprovarCadastroDto } from './dtos/aprovar-cadastro.dto';
+import { UpdateContratoTemplateDto } from './dtos/update-contrato-template.dto';
 import { CreateCorretorUseCase } from '../../application/use-cases/create-corretor.use-case';
 import { ListCorretoresUseCase } from '../../application/use-cases/list-corretores.use-case';
 import { UpdateStatusDisponibilidadeUseCase } from '../../application/use-cases/update-status-disponibilidade.use-case';
@@ -21,6 +22,8 @@ import { AprovarCadastroUseCase } from '../../application/use-cases/aprovar-cada
 import { RejeitarCadastroUseCase } from '../../application/use-cases/rejeitar-cadastro.use-case';
 import { ListPossiveisSuperioresUseCase } from '../../application/use-cases/list-possiveis-superiores.use-case';
 import { ListCadastrosAprovadosUseCase } from '../../application/use-cases/list-cadastros-aprovados.use-case';
+import { GetOrCreateContratoTemplateUseCase } from '../../application/use-cases/get-or-create-contrato-template.use-case';
+import { UpdateContratoTemplateUseCase } from '../../application/use-cases/update-contrato-template.use-case';
 
 @Controller('rh')
 export class RhController {
@@ -34,6 +37,8 @@ export class RhController {
     private readonly rejeitarCadastroUseCase: RejeitarCadastroUseCase,
     private readonly listPossiveisSuperioresUseCase: ListPossiveisSuperioresUseCase,
     private readonly listCadastrosAprovadosUseCase: ListCadastrosAprovadosUseCase,
+    private readonly getOrCreateContratoTemplateUseCase: GetOrCreateContratoTemplateUseCase,
+    private readonly updateContratoTemplateUseCase: UpdateContratoTemplateUseCase,
   ) {}
 
   // POST /rh/corretores - cadastra um novo corretor (so Administrador)
@@ -154,5 +159,29 @@ export class RhController {
   @Roles('Administrador')
   async listCadastrosAprovados(@Req() req: Request) {
     return this.listCadastrosAprovadosUseCase.execute({ tenantId: req.user!.tenantId });
+  }
+
+  // GET /rh/contrato-template - texto atual do template de contrato de
+  // prestacao de servico do tenant (cria automaticamente o padrao na
+  // primeira vez, so Administrador).
+  @Get('contrato-template')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async getContratoTemplate(@Req() req: Request) {
+    return this.getOrCreateContratoTemplateUseCase.execute({ tenantId: req.user!.tenantId });
+  }
+
+  // PATCH /rh/contrato-template - Administrador edita o texto do template
+  // (usado nas proximas aprovacoes de cadastro).
+  @Patch('contrato-template')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async updateContratoTemplate(@Body() dto: UpdateContratoTemplateDto, @Req() req: Request) {
+    return this.updateContratoTemplateUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      nome: dto.nome,
+      corpo: dto.corpo,
+    });
   }
 }

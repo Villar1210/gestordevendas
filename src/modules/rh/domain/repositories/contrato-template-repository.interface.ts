@@ -13,4 +13,5 @@ export interface ContratoTemplateRecord {
 export interface IContratoTemplateRepository {
   create(input: { tenantId: string; nome: string; corpo: string }): Promise<ContratoTemplateRecord>;
   findPadraoByTenant(tenantId: string): Promise<ContratoTemplateRecord | null>;
+  update(id: string, input: { nome: string; corpo: string }): Promise<ContratoTemplateRecord>;
 }

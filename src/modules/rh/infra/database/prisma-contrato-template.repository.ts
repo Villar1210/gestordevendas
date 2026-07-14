@@ -23,4 +23,11 @@ export class PrismaContratoTemplateRepository implements IContratoTemplateReposi
       orderBy: { createdAt: 'asc' },
     });
   }
+
+  async update(id: string, input: { nome: string; corpo: string }): Promise<ContratoTemplateRecord> {
+    return this.prisma.contratoTemplate.update({
+      where: { id },
+      data: { nome: input.nome, corpo: input.corpo },
+    });
+  }
 }
