@@ -1,8 +1,8 @@
 # Progresso do Ecossistema gestordevendas
 
-## Sessao 13-14/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH - resumo
+## Sessao 13-14/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca - resumo
 
-Sessao longa, 5 frentes concluidas e deployadas em producao, cada uma com
+Sessao longa, 7 frentes concluidas e deployadas em producao, cada uma com
 commit(s) proprio(s) e verificacao de ponta a ponta antes do deploy
 seguinte.
 
@@ -121,6 +121,106 @@ refresh). Aproveitado para renomear "Aprovacoes" -> "RH" no menu
 (icone trocado de UserCheck para Briefcase, evitando repetir o Users ja
 usado em "Equipe").
 
+### Rate limiting no login + helmet + log de auditoria (Fase C parcial) - CONCLUIDO
+Primeira fatia de hardening de seguranca (Fase C), disparada por pedido
+explicito do usuario ("seguranca urgente"). Sem NENHUM pacote de rate
+limiting/seguranca instalado antes desta fatia - `@nestjs/throttler` e
+`helmet` sao dependencias novas, aprovadas explicitamente antes de
+instalar.
+
+- `ThrottlerModule` global (`APP_GUARD`, throttler nomeado `default`,
+  100 req/min por IP) + `@Throttle` sobrescrevendo so a rota
+  `POST /auth/login` para 5 tentativas / 15 min (429 depois disso) -
+  um so throttler nomeado, nao dois, para o override por decorator
+  funcionar (dois throttlers nomeados aplicariam AMBOS os limites a
+  TODAS as rotas, nao so a de login).
+- `app.set('trust proxy', 1)` em `main.ts` - necessario porque a VPS
+  roda atras de nginx (reverse proxy); confirmado via SSH que o nginx ja
+  envia `X-Forwarded-For`/`X-Real-IP` num unico hop - sem isso, todo
+  mundo apareceria com o IP do proprio nginx e um usuario bloqueado
+  bloquearia todos os outros.
+- `helmet()` em `main.ts` com `crossOriginResourcePolicy: 'cross-origin'`
+  - o default do helmet (`same-origin`) quebraria o carregamento das
+    fotos de imoveis/documentos em `/uploads`, servidas pelo backend e
+    consumidas pelo frontend numa origem separada (`NEXT_PUBLIC_API_URL`).
+    Testado explicitamente apos aplicar (header confirmado tanto em
+    `/auth/login` quanto em `/uploads/*`).
+- `AuthenticateUserUseCase` loga um `WARN` (Logger nativo do NestJS, sem
+  pacote novo) a cada tentativa de login com falha (e-mail inexistente
+  ou senha errada), com e-mail + IP + timestamp - visivel via
+  `pm2 logs`. Decisao deliberada de NAO usar `pino`/logger estruturado
+  nesta fatia (pino ja e dependencia do projeto, mas so usado hoje para
+  silenciar o log interno do Baileys - nao ha logger de aplicacao
+  configurado ainda, fica para uma fatia futura de Fase C se fizer
+  falta).
+
+Achado curioso durante o teste em producao: a primeira tentativa de
+testar `/auth/login` direto bateu 404 - a API de producao fica sob
+`/api/` (nginx remove esse prefixo ao repassar pro backend,
+`/api/auth/login` chega la como `/auth/login`), diferente do dev local
+(sem prefixo). Corrigido no proprio teste, sem mudanca de codigo.
+
+Testado em producao de verdade (nao so local): 6 tentativas de login
+errado em `https://gestordevendas.ivillar.com.br/api/auth/login` - 5x
+401, 6a retornou 429; `pm2 logs` confirmou os 5 WARNs com o IP REAL do
+cliente (nao `127.0.0.1`/loopback), confirmando que `trust proxy` esta
+funcionando corretamente atras do nginx.
+
+Nota lateral (nao e problema de seguranca, so registro): o pacote
+oficial `dotenv` (v17.4.2, ja usado no projeto) imprime uma linha de
+autopromocao ("dica") no console a cada `.config()` chamado, incluindo
+no boot do backend em producao (`pm2 logs`) - confirmado lendo o
+proprio `CHANGELOG.md`/codigo-fonte do pacote instalado, nao e injecao
+nem pacote comprometido. Cosmetico, nao foi silenciado.
+
+Pendente ainda dentro da Fase C (nao coberto por esta fatia): testes
+automatizados, logs estruturados/monitoramento mais amplo (alem do
+`Logger` pontual do login), revisao de seguranca mais ampla.
+
+### RH Fatia 3 - template de contrato editavel pelo Administrador - CONCLUIDO
+Fecha a ultima pendencia do modulo RH (Fatias 1+2 do contrato automatico
+de prestacao de servico ja estavam concluidas - ver secao propria mais
+acima). Antes desta fatia, `ContratoTemplate` ja existia no banco (model
+pronto desde a Fatia 1) mas sem NENHUM endpoint HTTP - so `create` e
+`findPadraoByTenant` no repositorio, usados internamente pelo
+`GetOrCreateContratoTemplateUseCase`. Escopo desta fatia foi
+deliberadamente limitado a editar o template padrao UNICO existente por
+tenant (nao "multiplos templates") - o proprio backlog so pedia editar o
+texto, e suportar multiplos exigiria tambem mudar
+`GerarContratoPrestacaoServicoUseCase` para escolher qual usar.
+
+Backend: `IContratoTemplateRepository.update()` + implementacao Prisma;
+`UpdateContratoTemplateUseCase` (Administrador only, bloqueia corpo
+vazio, reaproveita `GetOrCreateContratoTemplateUseCase` para garantir
+que existe uma linha antes de atualizar); rotas
+`GET/PATCH /rh/contrato-template` em `RhController`.
+
+Frontend: nova 3a aba "Template de Contrato" em
+`/dashboard/rh/aprovacoes` (`ContratoTemplateTab.tsx`) - textarea +
+input de nome, lista lateral dos 9 placeholders disponiveis
+(`{{NOME_TENANT}}`, `{{CNPJ_TENANT}}`, `{{ENDERECO_TENANT}}`, `{{NOME}}`,
+`{{CPF}}`, `{{CRECI}}`, `{{ENDERECO}}`, `{{CEP}}`, `{{DATA_ATUAL}}`),
+clicaveis para inserir na posicao do cursor. Preview em TEXTO PURO (nao
+PDF, decisao deliberada para nao exigir uma chamada nova ao backend/
+pdf-lib so para isso) com dados ficticios fixos, atualizado em tempo
+real conforme o Administrador digita. Botao "Restaurar Padrao" so
+preenche o formulario com o texto padrao (mirror local, mesmo padrao ja
+usado para `DEFAULT_EMAIL_SUBJECT` no E-doc) - nao salva sozinho, o
+Administrador ainda precisa clicar "Salvar" para confirmar. Texto padrao
+mirror conferido programaticamente como identico byte-a-byte ao do
+backend (1606 caracteres, `===` estrito) antes do teste.
+
+Testado de ponta a ponta com Playwright real (script descartavel,
+removido ao final): aba carrega o texto padrao corretamente, edicao do
+corpo + nome, preview em tempo real confirmado substituindo `{{NOME}}`
+por dado ficticio, clique num placeholder da lista lateral insere o
+token no textarea, "Salvar" persiste (confirmado apos reload da
+pagina), e o teste decisivo - um cadastro de Corretor pendente (CPF+
+CRECI preenchidos) aprovado via API gerou um envelope de assinatura com
+o TITULO igual ao nome EDITADO do template, confirmando que a proxima
+aprovacao usa mesmo o template atualizado, nao o padrao antigo em
+cache/hardcoded. Tenant de teste removido ao final (cascata).
+
 ### Metodologia desta sessao (registrar para as proximas)
 - Todo commit de cada frente foi feito **separado por assunto** (nunca
   um commit unico misturando fatias/modulos diferentes), mesmo quando
@@ -233,27 +333,30 @@ originalmente aqui (guard anti-duplicidade da VIVI, supressao de "Bad
 MAC", preview Word/Excel no E-doc) ja foram commitadas ha algumas
 sessoes (`07b4fc7`, `8ebdc1b`, `d7c1d02`) - a nota antiga ficou
 desatualizada, removida. RH: contrato automatico de prestacao de
-servico (Fatias 1+2) tambem ja foi CONCLUIDO - ver secao propria acima.
+servico (Fatias 1+2) e RH Fatia 3 (template editavel) ja foram
+CONCLUIDAS - ver secoes proprias acima. Rate limiting no login + helmet
++ log de auditoria (parte da Fase C) tambem ja CONCLUIDO - ver secao
+propria acima.
 Pendencias reais atuais:
-- RH Fatia 3: template de contrato editavel pelo Administrador (base de
-  dados ja pronta, falta a tela - ver BACKLOG.md)
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
-- Fase C do roteiro (rate limiting, testes automatizados, logs/
-  monitoramento, revisao de seguranca) nunca foi iniciada, e o sistema
-  ja esta em producao desde 07/07 - risco operacional crescente
+- Fase C do roteiro, restante: testes automatizados, logs estruturados/
+  monitoramento mais amplo (alem do log pontual de login), revisao de
+  seguranca mais ampla - rate limiting/helmet/auditoria de login ja
+  feitos, mas o resto ainda nao foi iniciado
 - Modulo de Cloud API oficial da Meta (Agente de Atendimento
   Online/multicanal) - ainda nao iniciado
 
 ### Proximos passos sugeridos (em ordem de prioridade discutida)
-1. RH Fatia 3: template de contrato editavel pelo Administrador
-2. Fase C (hardening): rate limiting no login e logs estruturados/
-   monitoramento basico sao os itens mais baratos e urgentes - sistema
-   publico sem nenhum dos dois ha uma semana
-3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+1. Logs estruturados + monitoramento basico (restante da Fase C) -
+   unico item de hardening ainda nao coberto que e barato de
+   implementar; testes automatizados ficam para quando houver superficie
+   estavel o suficiente para valer a pena
+2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
-   WhatsApp") - maior escopo, decisao estrategica de priorizacao
+   WhatsApp") - maior escopo, decisao estrategica de priorizacao,
+   sessao dedicada
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
@@ -663,8 +766,8 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
   documentos dos inquilinos so Administrador acessa)
 - RH/Cadastros e Perfis: CONCLUIDO (fatia minima + cadastro publico
   multi-perfil + aprovacao + hierarquia + contrato automatico de
-  prestacao de servico Fatias 1+2 - ver CLAUDE.md). E-mails reais via
-  ResendEmailSender. RH Fatia 3 (template editavel) no backlog.
+  prestacao de servico Fatias 1+2+3, incluindo template editavel pelo
+  Administrador - ver CLAUDE.md). E-mails reais via ResendEmailSender.
 - VIVI (Assistente SDR de IA): escopo COMPLETO (agendar visita,
   conteudo pedagogico, enquadramento por renda, coleta pos-visita,
   Repique no Kanban) - ver secao propria no topo deste arquivo.
