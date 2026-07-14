@@ -6,10 +6,31 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Em producao, o nginx e o unico processo que fala com o backend
+  // (proxy_pass para 127.0.0.1:3003, ja envia X-Forwarded-For/X-Real-IP -
+  // confirmado na config da VPS). "1" = confia no primeiro hop de proxy
+  // reverso na frente da app, para req.ip resolver o IP real do cliente em
+  // vez do loopback do nginx - necessario para o rate limiting por IP
+  // (ThrottlerModule) funcionar corretamente. Sem reverse proxy em dev
+  // local, isso e inofensivo (nao ha X-Forwarded-For para confiar).
+  app.set('trust proxy', 1);
+
+  // Headers de seguranca HTTP (helmet). crossOriginResourcePolicy precisa
+  // ficar "cross-origin" porque o frontend (outra origem, NEXT_PUBLIC_API_URL)
+  // carrega imagens direto de /uploads deste backend (fotos de imoveis,
+  // documentos) - o default "same-origin" do helmet bloquearia esse
+  // carregamento.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // Habilita CORS apenas para o dominio do frontend definido no .env
   app.enableCors({

@@ -1,5 +1,6 @@
 // src/modules/auth/infra/http/auth.controller.ts
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { LoginDto } from './dtos/login.dto';
 import { RegisterDto } from './dtos/register.dto';
@@ -47,10 +48,13 @@ export class AuthController {
   }
 
   // POST /auth/login - autentica e devolve o token JWT
+  // Sobrescreve o throttler "default" global (100/min) para 5 tentativas
+  // a cada 15 minutos por IP - ver app.module.ts.
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto) {
-    return this.authenticateUserUseCase.execute(dto);
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.authenticateUserUseCase.execute({ ...dto, ip: req.ip });
   }
 
   // POST /auth/forgot-password - dispara o e-mail de redefinicao de senha.

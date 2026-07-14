@@ -1,5 +1,5 @@
 // src/modules/auth/application/use-cases/authenticate-user.use-case.ts
-import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Inject, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -11,12 +11,15 @@ interface AuthenticateInput {
   email: string;
   password: string;
   rememberMe?: boolean;
+  ip?: string;
 }
 
 const TWO_FACTOR_CODE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 @Injectable()
 export class AuthenticateUserUseCase {
+  private readonly logger = new Logger(AuthenticateUserUseCase.name);
+
   constructor(
     @Inject('IUserRepository') private readonly userRepository: IUserRepository,
     @Inject('ITwoFactorCodeRepository')
@@ -29,11 +32,13 @@ export class AuthenticateUserUseCase {
     const user = await this.userRepository.findByEmail(input.email);
 
     if (!user) {
+      this.logFailedAttempt(input.email, input.ip);
       throw new UnauthorizedException('E-mail ou senha incorretos.');
     }
 
     const isPasswordValid = await bcrypt.compare(input.password, user.password);
     if (!isPasswordValid) {
+      this.logFailedAttempt(input.email, input.ip);
       throw new UnauthorizedException('E-mail ou senha incorretos.');
     }
 
@@ -91,5 +96,12 @@ export class AuthenticateUserUseCase {
       },
       token,
     };
+  }
+
+  // Auditoria de tentativas de login com falha (e-mail inexistente ou senha
+  // errada) - so console/pm2 logs por enquanto, sem logger estruturado (ver
+  // CLAUDE.md/plano aprovado: pino fica de fora deste escopo).
+  private logFailedAttempt(email: string, ip?: string): void {
+    this.logger.warn(`Tentativa de login falhou - email: ${email}, ip: ${ip ?? 'desconhecido'}`);
   }
 }
