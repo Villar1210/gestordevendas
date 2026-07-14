@@ -115,6 +115,7 @@ export class RhController {
       cadastroId: id,
       tenantId: req.user!.tenantId,
       requesterRole: req.user!.role,
+      requesterUserId: req.user!.id,
       cargoHierarquico: dto.cargoHierarquico,
       superiorId: dto.superiorId,
     });

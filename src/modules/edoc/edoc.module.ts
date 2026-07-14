@@ -65,6 +65,9 @@ import { LibreOfficeConverterService } from './infra/services/libreoffice-conver
   // Exportado para o modulo portal_cliente: GetMinhasAssinaturasPendentesUseCase
   // e GetMeusDocumentosAssinadosUseCase buscam SignatureRecipient pelo
   // e-mail do usuario logado.
-  exports: ['ISignatureRecipientRepository'],
+  // Exportados para o modulo rh: GerarContratoPrestacaoServicoUseCase cria e
+  // envia o envelope do contrato de prestacao de servico, reaproveitando os
+  // mesmos casos de uso do wizard de E-doc.
+  exports: ['ISignatureRecipientRepository', CreateEnvelopeUseCase, SendEnvelopeUseCase],
 })
 export class EdocModule {}

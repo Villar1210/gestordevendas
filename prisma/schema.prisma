@@ -48,6 +48,8 @@ model Tenant {
 
   signatureEnvelopes SignatureEnvelope[]
 
+  contratoTemplates ContratoTemplate[]
+
   @@map("tenants")
 }
 
@@ -121,6 +123,30 @@ model User {
   atendimentoEventos AtendimentoEvento[]
 
   @@map("users")
+}
+
+// Modulo RH - geracao automatica de contrato de prestacao de servico.
+// Texto do contrato com placeholders ({{NOME}}, {{CPF}}, etc, preenchidos
+// por preencher-contrato-template.ts) guardado no banco (nao fixo no
+// codigo) para permitir customizacao futura pelo Administrador. "padrao"
+// marca qual template e usado automaticamente na aprovacao de um cadastro
+// (GetOrCreateContratoTemplateUseCase cria um com texto generico na
+// primeira vez que um tenant precisa, mesmo padrao ja usado para as filas
+// padrao do modulo Atendimento) - nao e @@unique de proposito, para deixar
+// aberto ter mais de um template por tenant no futuro (so 1 marcado como
+// padrao por vez, mas isso nao e reforcado no banco ainda nesta fatia).
+model ContratoTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  nome      String   @db.VarChar(150)
+  corpo     String   @db.Text
+  padrao    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("contrato_templates")
 }
 
 // Tokens de uso unico para o fluxo de "esqueci a senha"
