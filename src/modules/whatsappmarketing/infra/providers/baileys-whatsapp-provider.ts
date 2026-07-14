@@ -249,7 +249,17 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
       sessionId,
       direction: 'OUT',
       fromNumber: session?.phoneNumber || '',
-      toNumber: to,
+      // Sempre so digitos (mesmo padrao ja usado em fromNumber das
+      // mensagens IN, ver messages.upsert acima) - "to" pode chegar com
+      // sufixo "@s.whatsapp.net"/"@lid" (remoteJid completo, usado para o
+      // envio de fato) ou so digitos (envio manual via formulario). Gravar
+      // o JID completo aqui quebrava a busca de historico
+      // (findRecentBySessionAndNumber compara com o numero so-digitos de
+      // Atendimento.phoneNumber/ViviConversation.phoneNumber) - o JID
+      // completo nao e necessario aqui porque a resposta e sempre enviada
+      // via remoteJid da MENSAGEM RECEBIDA, nunca reconstruida a partir de
+      // uma mensagem OUT salva.
+      toNumber: jid.split('@')[0],
       body,
       timestamp: new Date(),
     });

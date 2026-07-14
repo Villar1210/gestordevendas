@@ -68,7 +68,9 @@ export default function AtendimentoPage() {
     const interval = setInterval(() => {
       loadAtendimentos();
       if (selectedAtendimentoId) {
-        loadAtendimentoDetail(selectedAtendimentoId);
+        // silent=true: atualizacao em segundo plano, nao aciona o spinner
+        // de carregamento (ver comentario em useAtendimentoIntegration).
+        loadAtendimentoDetail(selectedAtendimentoId, true);
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);

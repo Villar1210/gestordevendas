@@ -54,8 +54,14 @@ export function useAtendimentoIntegration() {
   }, [setFilas]);
 
   const loadAtendimentoDetail = useCallback(
-    async (atendimentoId: string) => {
-      setLoadingDetail(true);
+    // silent=true (usado pelo poll em segundo plano, ver page.tsx) NAO
+    // aciona isLoadingDetail - o painel de chat troca todo o conteudo por
+    // um spinner enquanto essa flag fica true (ver AtendimentoChatPanel),
+    // entao acionar isso a cada 5s piscava a tela inteira mesmo sem
+    // nenhuma mensagem nova. So a troca manual de atendimento (handleSelect)
+    // deve bloquear a tela com o spinner de carregamento inicial.
+    async (atendimentoId: string, silent = false) => {
+      if (!silent) setLoadingDetail(true);
       try {
         const result = await apiRequest<{
           atendimento: Atendimento;
@@ -66,10 +72,12 @@ export function useAtendimentoIntegration() {
         updateAtendimentoInPlace(result.atendimento);
         return result;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o atendimento.");
+        if (!silent) {
+          alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o atendimento.");
+        }
         return null;
       } finally {
-        setLoadingDetail(false);
+        if (!silent) setLoadingDetail(false);
       }
     },
     [setDetail, setLoadingDetail, updateAtendimentoInPlace],

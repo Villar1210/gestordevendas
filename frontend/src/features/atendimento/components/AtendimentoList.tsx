@@ -247,7 +247,11 @@ function AtendimentoRow({
         atendimento.urgente ? "border-l-4 border-l-rose-500" : ""
       }`}
     >
-      <button onClick={onClick} className="flex w-full items-start gap-3 px-3 pt-3 text-left">
+      <button
+        onClick={onClick}
+        data-testid="atendimento-row"
+        className="flex w-full items-start gap-3 px-3 pt-3 text-left"
+      >
         <div className="relative shrink-0">
           <span className="grid h-11 w-11 place-items-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
             {initials}
