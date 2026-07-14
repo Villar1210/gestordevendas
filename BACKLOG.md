@@ -15,10 +15,15 @@ de codigo, nao so de conceito - registrar aqui se isso se repetir.
 ## Modulo Kanban/Vendas
 - [ ] Score do lead (barra de progresso 0-100)
 - [ ] SLA por etapa com alerta visual (dias sem contato)
-- [ ] Multiplos pipelines com seletor no cabecalho
-- [ ] Reordenar colunas por arraste (ja suportado no backend via
-      MoveStageUseCase, falta habilitar no frontend)
-- [ ] Editar/excluir etapa direto no cabecalho da coluna (hover)
+- [x] Multiplos pipelines com seletor no cabecalho - CONCLUIDO: seletor
+      no header de /dashboard/kanban (so aparece com mais de 1 pipeline)
+      + "+ Novo Funil" - ver CLAUDE.md.
+- [x] Reordenar colunas por arraste - CONCLUIDO (ja estava implementado
+      ponta a ponta, backend e frontend, quando investigado - so
+      confirmado durante a fatia de melhorias do Kanban).
+- [x] Editar/excluir etapa direto no cabecalho da coluna (hover) -
+      CONCLUIDO: lapis/lixeira no hover, ocultos nas colunas protegidas
+      "Fechamento"/"Repique" - ver CLAUDE.md.
 - [ ] Modal obrigatorio de "motivo da perda" ao mover card para
       estagio de perda/desqualificacao
 - [ ] "Modo de agrupamento" de colunas
@@ -63,11 +68,21 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       fizer falta na pratica, sem copiar codigo
 
 ## Modulo RH
-- [ ] Geracao automatica de contrato de prestacao de servico a partir
-      dos dados coletados no cadastro publico - ainda nao implementado,
-      dados pessoais ja estao sendo coletados (nome, cpf, telefone,
-      endereco, CRECI/CNPJ conforme o perfil) e podem ser reaproveitados
-      quando essa funcionalidade for construida.
+- [x] Geracao automatica de contrato de prestacao de servico - Fatia 1
+      (bloqueio de aprovacao sem CPF/CRECI/CNPJ, geracao do PDF via
+      pdf-lib, envelope E-doc criado e enviado automaticamente) e
+      Fatia 2 (rastreamento visivel na aba "Aprovados" da tela de
+      Aprovacoes, com badge de status + link para o envelope) ja foram
+      CONCLUIDAS - ver CLAUDE.md.
+- [ ] RH Fatia 3: template de contrato editavel pelo Administrador -
+      hoje o texto (ContratoTemplate) e criado automaticamente com um
+      modelo generico de teste na primeira aprovacao que precisar dele
+      (nao e assessoria juridica), mas nao ha tela para o Administrador
+      editar esse texto nem criar templates adicionais - so existe a
+      base de dados (model ja preparado para isso, ver
+      GetOrCreateContratoTemplateUseCase). Precisa de: tela de edicao
+      no painel (texto com os mesmos placeholders {{NOME}}, {{CPF}},
+      {{CRECI}}, {{CNPJ_TENANT}}, etc.), por tenant.
 
 ## Modulo WhatsApp Marketing / VIVI
 - [ ] Investigar erros "Bad MAC" recorrentes no log do backend em
