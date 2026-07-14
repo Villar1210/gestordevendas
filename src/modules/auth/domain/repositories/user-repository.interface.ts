@@ -22,6 +22,7 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<UserWithRole | null>;
   findById(id: string): Promise<UserWithRole | null>;
   updatePassword(userId: string, hashedPassword: string): Promise<void>;
+  updateName(userId: string, name: string): Promise<void>;
   setTwoFactorEnabled(userId: string, enabled: boolean): Promise<void>;
 }
 

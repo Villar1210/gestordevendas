@@ -1,4 +1,4 @@
-// src/features/aprovacoes/components/ContratoTemplateTab.tsx
+// src/features/configuracoes/components/ContratoTemplateTab.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";

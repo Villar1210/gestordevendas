@@ -7,12 +7,11 @@ import { Loader2, UserCheck, FileSignature, ExternalLink } from "lucide-react";
 import { useAprovacoesStore } from "@/features/aprovacoes/store/useAprovacoesStore";
 import { useAprovacoesIntegration } from "@/features/aprovacoes/hooks/useAprovacoesIntegration";
 import { CadastroDetailPanel } from "@/features/aprovacoes/components/CadastroDetailPanel";
-import { ContratoTemplateTab } from "@/features/aprovacoes/components/ContratoTemplateTab";
 import { getStatusContratoLabel } from "@/features/aprovacoes/constants";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
-type AbaAprovacoes = "pendentes" | "aprovados" | "template-contrato";
+type AbaAprovacoes = "pendentes" | "aprovados";
 
 export default function AprovacoesPage() {
   const pendentes = useAprovacoesStore((state) => state.pendentes);
@@ -60,22 +59,11 @@ export default function AprovacoesPage() {
           >
             Aprovados
           </button>
-          <button
-            onClick={() => handleTabChange("template-contrato")}
-            data-testid="tab-template-contrato"
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              aba === "template-contrato" ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Template de Contrato
-          </button>
         </div>
       </header>
 
       <div className="p-6">
-        {aba === "template-contrato" ? (
-          <ContratoTemplateTab />
-        ) : aba === "pendentes" ? (
+        {aba === "pendentes" ? (
           isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
               <Loader2 className="h-6 w-6 animate-spin text-blue-600" />

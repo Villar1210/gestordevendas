@@ -42,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     icon: Settings,
-    label: "Configuracoes",
+    label: "Painel Administrativo",
     href: "/dashboard/configuracoes",
     requiredRole: "Administrador",
   },

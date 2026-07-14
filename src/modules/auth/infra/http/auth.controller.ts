@@ -1,5 +1,5 @@
 // src/modules/auth/infra/http/auth.controller.ts
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { LoginDto } from './dtos/login.dto';
@@ -7,6 +7,7 @@ import { RegisterDto } from './dtos/register.dto';
 import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { VerifyTwoFactorCodeDto } from './dtos/verify-two-factor-code.dto';
+import { UpdateMyProfileDto } from './dtos/update-my-profile.dto';
 import { AuthenticateUserUseCase } from '../../application/use-cases/authenticate-user.use-case';
 import { RegisterTenantUseCase } from '../../application/use-cases/register-tenant.use-case';
 import { RequestPasswordResetUseCase } from '../../application/use-cases/request-password-reset.use-case';
@@ -15,6 +16,7 @@ import { VerifyTwoFactorCodeUseCase } from '../../application/use-cases/verify-t
 import { EnableTwoFactorUseCase } from '../../application/use-cases/enable-two-factor.use-case';
 import { DisableTwoFactorUseCase } from '../../application/use-cases/disable-two-factor.use-case';
 import { GetMeUseCase } from '../../application/use-cases/get-me.use-case';
+import { UpdateMyProfileUseCase } from '../../application/use-cases/update-my-profile.use-case';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -28,6 +30,7 @@ export class AuthController {
     private readonly enableTwoFactorUseCase: EnableTwoFactorUseCase,
     private readonly disableTwoFactorUseCase: DisableTwoFactorUseCase,
     private readonly getMeUseCase: GetMeUseCase,
+    private readonly updateMyProfileUseCase: UpdateMyProfileUseCase,
   ) {}
 
   // GET /auth/me - dados do usuario autenticado (usado pela Topbar)
@@ -35,6 +38,20 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async me(@Req() req: Request) {
     return this.getMeUseCase.execute(req.user!.id);
+  }
+
+  // PATCH /auth/me - aba "Meu Perfil" do Painel Administrativo: o proprio
+  // usuario logado edita nome e/ou troca a senha (exige senha atual).
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  async updateMe(@Body() dto: UpdateMyProfileDto, @Req() req: Request) {
+    await this.updateMyProfileUseCase.execute({
+      userId: req.user!.id,
+      name: dto.name,
+      currentPassword: dto.currentPassword,
+      newPassword: dto.newPassword,
+    });
+    return { message: 'Perfil atualizado com sucesso.' };
   }
 
   // POST /auth/register - cria a empresa (Tenant) + usuario Administrador

@@ -11,6 +11,7 @@ import { VerifyTwoFactorCodeUseCase } from './application/use-cases/verify-two-f
 import { EnableTwoFactorUseCase } from './application/use-cases/enable-two-factor.use-case';
 import { DisableTwoFactorUseCase } from './application/use-cases/disable-two-factor.use-case';
 import { GetMeUseCase } from './application/use-cases/get-me.use-case';
+import { UpdateMyProfileUseCase } from './application/use-cases/update-my-profile.use-case';
 import { PrismaUserRepository } from './infra/database/prisma-user.repository';
 import { PrismaPasswordResetTokenRepository } from './infra/database/prisma-password-reset-token.repository';
 import { PrismaTwoFactorCodeRepository } from './infra/database/prisma-two-factor-code.repository';
@@ -37,6 +38,7 @@ import { ResendEmailSender } from '../../shared/infra/services/resend-email-send
     EnableTwoFactorUseCase,
     DisableTwoFactorUseCase,
     GetMeUseCase,
+    UpdateMyProfileUseCase,
     JwtStrategy,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).

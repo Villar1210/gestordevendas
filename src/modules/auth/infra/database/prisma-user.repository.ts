@@ -35,6 +35,13 @@ export class PrismaUserRepository
     });
   }
 
+  async updateName(userId: string, name: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { name },
+    });
+  }
+
   async setTwoFactorEnabled(userId: string, enabled: boolean): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
