@@ -74,15 +74,27 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       Fatia 2 (rastreamento visivel na aba "Aprovados" da tela de
       Aprovacoes, com badge de status + link para o envelope) ja foram
       CONCLUIDAS - ver CLAUDE.md.
-- [ ] RH Fatia 3: template de contrato editavel pelo Administrador -
-      hoje o texto (ContratoTemplate) e criado automaticamente com um
-      modelo generico de teste na primeira aprovacao que precisar dele
-      (nao e assessoria juridica), mas nao ha tela para o Administrador
-      editar esse texto nem criar templates adicionais - so existe a
-      base de dados (model ja preparado para isso, ver
-      GetOrCreateContratoTemplateUseCase). Precisa de: tela de edicao
-      no painel (texto com os mesmos placeholders {{NOME}}, {{CPF}},
-      {{CRECI}}, {{CNPJ_TENANT}}, etc.), por tenant.
+- [x] RH Fatia 3: template de contrato editavel pelo Administrador -
+      CONCLUIDO: nova aba "Template de Contrato" em
+      /dashboard/rh/aprovacoes, com editor + lista de placeholders
+      clicaveis + preview em tempo real + restaurar padrao - ver
+      CLAUDE.md/PROGRESS.md. NOTA: planejado mover essa aba para dentro
+      do futuro Painel Administrativo (ver secao propria abaixo) quando
+      ele for implementado - por enquanto continua em RH/Aprovacoes.
+
+## Painel Administrativo (expansao do modulo Configuracoes)
+- [ ] Expandir "Configuracoes" (hoje so a aba "Dados da Empresa" -
+      razao social/CNPJ/endereco) para um Painel Administrativo
+      completo, com abas: Dados da Empresa (atual), Meu Perfil,
+      Permissoes/Cargos, Template de Contrato (mover de dentro de RH/
+      Aprovacoes - ver Modulo RH, RH Fatia 3, ja concluida la por
+      enquanto), Configuracoes da VIVI, Templates de E-mail,
+      Notificacoes.
+- [ ] Implementar junto com o modulo de cargos hierarquicos (Diretor/
+      Gerente/Coordenador/Corretor) - User ja tem cargoHierarquico/
+      superiorId desde o modulo RH (preenchidos na aprovacao do
+      cadastro), mas ainda nao ha tela dedicada de gestao de cargos/
+      permissoes nem edicao posterior a aprovacao.
 
 ## Modulo WhatsApp Marketing / VIVI
 - [ ] Investigar erros "Bad MAC" recorrentes no log do backend em
