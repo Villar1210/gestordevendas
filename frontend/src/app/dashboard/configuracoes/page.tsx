@@ -5,16 +5,22 @@ import { useState } from "react";
 import { DadosEmpresaTab } from "@/features/configuracoes/components/DadosEmpresaTab";
 import { MeuPerfilTab } from "@/features/configuracoes/components/MeuPerfilTab";
 import { ContratoTemplateTab } from "@/features/configuracoes/components/ContratoTemplateTab";
+import { PermissoesCargosTab } from "@/features/configuracoes/components/PermissoesCargosTab";
 
-// Fatia 1 do Painel Administrativo: 3 abas (Dados da Empresa, Meu Perfil,
-// Template de Contrato - migrada de RH/Aprovacoes). Abas futuras
-// (Permissoes/Cargos, Configuracoes da VIVI, Templates de E-mail,
-// Notificacoes) entram em fatias seguintes - ver BACKLOG.md.
-type AbaPainelAdministrativo = "dados-empresa" | "meu-perfil" | "template-contrato";
+// Fatia 1 (Dados da Empresa, Meu Perfil, Template de Contrato) + Fatia 2
+// (Permissoes/Cargos) do Painel Administrativo. Abas futuras (Configuracoes
+// da VIVI, Templates de E-mail, Notificacoes) entram em fatias seguintes -
+// ver BACKLOG.md.
+type AbaPainelAdministrativo =
+  | "dados-empresa"
+  | "meu-perfil"
+  | "permissoes-cargos"
+  | "template-contrato";
 
 const TABS: { id: AbaPainelAdministrativo; label: string; testId: string }[] = [
   { id: "dados-empresa", label: "Dados da Empresa", testId: "tab-dados-empresa" },
   { id: "meu-perfil", label: "Meu Perfil", testId: "tab-meu-perfil" },
+  { id: "permissoes-cargos", label: "Permissões/Cargos", testId: "tab-permissoes-cargos" },
   { id: "template-contrato", label: "Template de Contrato", testId: "tab-template-contrato" },
 ];
 
@@ -44,6 +50,7 @@ export default function ConfiguracoesPage() {
       <div className="p-6">
         {aba === "dados-empresa" && <DadosEmpresaTab />}
         {aba === "meu-perfil" && <MeuPerfilTab />}
+        {aba === "permissoes-cargos" && <PermissoesCargosTab />}
         {aba === "template-contrato" && <ContratoTemplateTab />}
       </div>
     </div>

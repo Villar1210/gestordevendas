@@ -165,4 +165,19 @@ export class PrismaCadastroRepository implements ICadastroRepository {
       data: { contratoPrestacaoServicoEnvelopeId: envelopeId },
     });
   }
+
+  async updateCargoHierarquico(
+    userId: string,
+    input: { cargoHierarquico: string | null; superiorId: string | null },
+  ): Promise<CadastroRecord> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        cargoHierarquico: input.cargoHierarquico,
+        superiorId: input.superiorId,
+      },
+      include: { role: true },
+    });
+    return this.toRecord(user);
+  }
 }

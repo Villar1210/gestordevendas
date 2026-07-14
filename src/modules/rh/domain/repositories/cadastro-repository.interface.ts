@@ -77,4 +77,11 @@ export interface ICadastroRepository {
   // "superior" no seletor de hierarquia (tela de aprovacao).
   findPossiveisSuperioresByTenant(tenantId: string): Promise<SuperiorCandidateRecord[]>;
   updateContratoEnvelopeId(userId: string, envelopeId: string): Promise<void>;
+  // Aba "Permissoes/Cargos" do Painel Administrativo - reatribui cargo/
+  // superior de um usuario ja aprovado, a qualquer momento (nao so na
+  // aprovacao original). cargoHierarquico/superiorId nulos limpam o campo.
+  updateCargoHierarquico(
+    userId: string,
+    input: { cargoHierarquico: string | null; superiorId: string | null },
+  ): Promise<CadastroRecord>;
 }

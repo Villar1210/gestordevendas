@@ -1,18 +1,9 @@
 // src/features/aprovacoes/constants.ts
 // Espelha os valores aceitos pelo backend (public-signup.dto.ts /
-// aprovar-cadastro.dto.ts).
-
-export const CARGO_HIERARQUICO_OPTIONS = [
-  { value: "diretor", label: "Diretor" },
-  { value: "superintendente", label: "Superintendente" },
-  { value: "gerente", label: "Gerente" },
-  { value: "coordenador", label: "Coordenador" },
-  { value: "corretor", label: "Corretor" },
-];
-
-// Roles que ganham os campos extras (cargoHierarquico + superior) na
-// aprovacao - ver RhController/AprovarCadastroUseCase.
-export const ROLES_COM_HIERARQUIA = ["Corretor", "Imobiliaria Parceira"];
+// aprovar-cadastro.dto.ts). CARGO_HIERARQUICO_OPTIONS/ROLES_COM_HIERARQUIA
+// moraram aqui, mas foram promovidas para core/constants/cargoHierarquico.ts
+// quando passaram a ser usadas tambem pela aba "Permissoes/Cargos" do
+// Painel Administrativo (features/configuracoes) - reaproveitadas daqui.
 
 // Badge de status do contrato de prestacao de servico (aba "Aprovados") -
 // reaproveita os mesmos 4 status do E-doc (rascunho/aguardando_assinaturas/

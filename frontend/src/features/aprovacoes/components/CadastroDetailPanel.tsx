@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { X, Check, Ban } from "lucide-react";
 import { useAprovacoesStore } from "../store/useAprovacoesStore";
 import { useAprovacoesIntegration } from "../hooks/useAprovacoesIntegration";
-import { CARGO_HIERARQUICO_OPTIONS, ROLES_COM_HIERARQUIA, getTipoClienteLabel } from "../constants";
+import { getTipoClienteLabel } from "../constants";
+import { CARGO_HIERARQUICO_OPTIONS, ROLES_COM_HIERARQUIA } from "@/core/constants/cargoHierarquico";
 
 const selectClass =
   "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";

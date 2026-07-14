@@ -14,15 +14,8 @@ import {
 } from '../../domain/repositories/cadastro-repository.interface';
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
 import { exigeContrato, ehPessoaJuridica } from '../../domain/services/roles-com-contrato';
+import { VALID_CARGOS_HIERARQUICOS } from '../../domain/services/cargos-hierarquicos';
 import { GerarContratoPrestacaoServicoUseCase } from './gerar-contrato-prestacao-servico.use-case';
-
-const VALID_CARGOS_HIERARQUICOS = [
-  'diretor',
-  'superintendente',
-  'gerente',
-  'coordenador',
-  'corretor',
-];
 
 interface AprovarCadastroInput {
   cadastroId: string;

@@ -10,6 +10,7 @@ import { UpdateStatusDisponibilidadeDto } from './dtos/update-status-disponibili
 import { PublicSignupDto } from './dtos/public-signup.dto';
 import { AprovarCadastroDto } from './dtos/aprovar-cadastro.dto';
 import { UpdateContratoTemplateDto } from './dtos/update-contrato-template.dto';
+import { UpdateUserCargoDto } from './dtos/update-user-cargo.dto';
 import { CreateCorretorUseCase } from '../../application/use-cases/create-corretor.use-case';
 import { ListCorretoresUseCase } from '../../application/use-cases/list-corretores.use-case';
 import { UpdateStatusDisponibilidadeUseCase } from '../../application/use-cases/update-status-disponibilidade.use-case';
@@ -24,6 +25,8 @@ import { ListPossiveisSuperioresUseCase } from '../../application/use-cases/list
 import { ListCadastrosAprovadosUseCase } from '../../application/use-cases/list-cadastros-aprovados.use-case';
 import { GetOrCreateContratoTemplateUseCase } from '../../application/use-cases/get-or-create-contrato-template.use-case';
 import { UpdateContratoTemplateUseCase } from '../../application/use-cases/update-contrato-template.use-case';
+import { ListUsuariosComHierarquiaUseCase } from '../../application/use-cases/list-usuarios-com-hierarquia.use-case';
+import { UpdateUserCargoUseCase } from '../../application/use-cases/update-user-cargo.use-case';
 
 @Controller('rh')
 export class RhController {
@@ -39,6 +42,8 @@ export class RhController {
     private readonly listCadastrosAprovadosUseCase: ListCadastrosAprovadosUseCase,
     private readonly getOrCreateContratoTemplateUseCase: GetOrCreateContratoTemplateUseCase,
     private readonly updateContratoTemplateUseCase: UpdateContratoTemplateUseCase,
+    private readonly listUsuariosComHierarquiaUseCase: ListUsuariosComHierarquiaUseCase,
+    private readonly updateUserCargoUseCase: UpdateUserCargoUseCase,
   ) {}
 
   // POST /rh/corretores - cadastra um novo corretor (so Administrador)
@@ -182,6 +187,37 @@ export class RhController {
       requesterRole: req.user!.role,
       nome: dto.nome,
       corpo: dto.corpo,
+    });
+  }
+
+  // GET /rh/usuarios-hierarquia - aba "Permissoes/Cargos" do Painel
+  // Administrativo: usuarios com cargo/superior atuais (so Administrador).
+  @Get('usuarios-hierarquia')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async listUsuariosComHierarquia(@Req() req: Request) {
+    return this.listUsuariosComHierarquiaUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+    });
+  }
+
+  // PATCH /rh/usuarios-hierarquia/:id - reatribui cargo/superior de um
+  // usuario ja aprovado, a qualquer momento (so Administrador).
+  @Patch('usuarios-hierarquia/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async updateUserCargo(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserCargoDto,
+    @Req() req: Request,
+  ) {
+    return this.updateUserCargoUseCase.execute({
+      userId: id,
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      cargoHierarquico: dto.cargoHierarquico ?? null,
+      superiorId: dto.superiorId ?? null,
     });
   }
 }
