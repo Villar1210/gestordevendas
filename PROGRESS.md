@@ -1,5 +1,150 @@
 # Progresso do Ecossistema gestordevendas
 
+## Sessao 13-14/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH - resumo
+
+Sessao longa, 5 frentes concluidas e deployadas em producao, cada uma com
+commit(s) proprio(s) e verificacao de ponta a ponta antes do deploy
+seguinte.
+
+### VIVI - escopo completo do documento original de instrucoes (5 fatias) - CONCLUIDO
+Documento original de instrucoes da VIVI (encontrado pelo usuario)
+descrevia um escopo bem maior do que o implementado ate entao. 5 fatias
+implementadas em sequencia, cada uma testada com chamada REAL a API da
+Anthropic (Claude Haiku, sem mock) antes de avancar:
+- **Fatia 1**: meta absoluta da VIVI vira agendar uma visita presencial
+  (qualificacao passa a ser o meio, nao o fim). Nova tool
+  `agendar_visita` (dataVisita, horario, imovelInteresse) ->
+  `AgendarVisitaUseCase` cria Card + Activity tipo "visita".
+  `ViviConversation` ganha `visitaAgendadaEm`. Injecao da data de hoje
+  no prompt (sem isso o modelo chutava o ano errado em datas relativas).
+- **Fatia 2**: 3 blocos de conhecimento de fundo no prompt (financiamento
+  80/20 Caixa/construtora, Evolucao de Obra - analogia do restaurante -,
+  regra de preco "a partir de R$ 264 mil") - usados com reciprocidade,
+  nunca despejados de uma vez.
+- **Fatia 3**: `classificarRenda()` (funcao pura de dominio) classifica a
+  renda declarada em HIS1/HIS2/HMP/R2V/SEM_PERFIL por faixa fixa -
+  classificacao SEMPRE em codigo, nunca pela IA. Cada faixa usa um
+  argumento de venda diferente no prompt, sem nunca revelar a sigla ao
+  lead.
+- **Fatia 4**: apos visita confirmada, loop de captura pos-visita (data
+  de nascimento + e-mail, tipo de renda, declaracao de IR se autonomo) via
+  nova tool `salvar_dados_pos_visita` (rejeitada em codigo se ainda nao
+  ha visita agendada). Deteccao de urgencia ("quero falar com uma
+  pessoa") aciona `transferir_para_fila` com `urgente=true`, badge
+  visual na Central de Atendimento.
+- **Fatia 5**: correcao de design - "Repique" (leads SEM_PERFIL) deixa de
+  ser uma Fila da Central de Atendimento e vira uma **Stage fixa do
+  Kanban** (ultima coluna, deposito estrategico para remarketing
+  futuro). `transferir_para_corretor` ganha motivo `"sem_perfil"`,
+  cria Card direto na coluna Repique sem disparar a Roleta Online. Nova
+  funcao `buildResumoAtendimento()` monta um resumo automatico (nome,
+  telefone, tipo de imovel, renda/categoria interna, regiao, finalidade,
+  visita, dados pos-visita, urgencia) gravado em `Card.description`
+  toda vez que a VIVI cria um Card.
+
+2 bugs reais encontrados e corrigidos durante os testes: duplicacao de
+Card quando a IA re-chamava `agendar_visita` no mesmo turno (resolvido
+com idempotencia via `existingCardId`), e `salvar_dados_pos_visita`
+as vezes chamada sem `tipoRenda` no mesmo turno (resolvido reforcando o
+prompt a exigir a chamada na MESMA resposta). Deploy: 5 commits
+separados por fatia + script de backfill (`Repique` como Stage nos
+pipelines existentes) rodado em producao. Confirmado em producao com
+teste real: lead SEM_PERFIL cai na coluna Repique, Card com resumo
+completo, Roleta Online nao disparada.
+
+### Modulo Central de Atendimento - 2 bugs corrigidos - CONCLUIDO
+- **Painel piscando continuamente**: o poll de 5s chamava
+  `loadAtendimentoDetail()` acionando a MESMA flag de loading do
+  carregamento inicial, que troca todo o conteudo do chat por um
+  spinner - piscava a tela mesmo sem mensagem nova. Corrigido com um
+  parametro `silent` (poll em segundo plano nao aciona mais o loading).
+- **Mensagens da VIVI (OUT) nao apareciam no chat**: `toNumber` das
+  mensagens OUT era gravado com o JID completo
+  ("...@s.whatsapp.net"/"...@lid"), enquanto `fromNumber` (IN) e
+  `Atendimento.phoneNumber` guardam so digitos - a busca de historico
+  (`findRecentBySessionAndNumber`, tambem usada pela VIVI para montar o
+  proprio historico de conversa) nunca batia no lado OUT. Corrigido
+  gravando so digitos; backfill rodado em producao corrigiu **27
+  mensagens antigas malformadas**.
+
+### Kanban - melhorias (renomear/excluir/nova coluna, multiplos pipelines) - CONCLUIDO
+Diagnostico revelou que reordenar colunas por arraste **ja estava
+implementado** ponta a ponta (backend `MoveStageUseCase` + frontend
+`@hello-pangea/dnd`) - so nao tinha sido percebido. Implementado nesta
+fatia: renomear coluna (duplo-clique ou lapis, inline), excluir coluna
+(lixeira, bloqueada se tiver cards dentro ou se protegida), "+
+Adicionar Coluna" no final do board, seletor de multiplos funis no
+cabecalho + "+ Novo Funil". Colunas **"Fechamento" e "Repique"** sao
+protegidas (rename/delete bloqueados no backend, nao so escondidos na
+UI) por serem referenciadas por nome literal na Roleta Online e na
+VIVI. Testado de ponta a ponta com Playwright real (renomear, criar,
+excluir, trocar de funil, e os 4 bloqueios de seguranca testados direto
+via API).
+
+### RH - contrato automatico de prestacao de servico - CONCLUIDO (Fatias 1+2)
+- **Fatia 1**: `AprovarCadastroUseCase` bloqueia a aprovacao de
+  Corretor/Corretor Parceiro/Imobiliaria Parceira se faltar CPF, ou
+  CRECI (pessoa fisica)/CNPJ (Imobiliaria Parceira). Novo model
+  `ContratoTemplate` (texto com placeholders, por tenant, guardado no
+  banco - nao fixo no codigo, ja pensando na Fatia 3) com um modelo
+  generico de teste criado automaticamente na primeira aprovacao que
+  precisar dele (NAO e assessoria juridica - revisar com advogado antes
+  de usar como contrato real). `GerarPdfContratoService` desenha o
+  texto preenchido num PDF A4 multi-pagina via `pdf-lib`. O contrato
+  vira um `SignatureEnvelope` real, criado e enviado automaticamente
+  (reaproveitando `CreateEnvelopeUseCase`/`SendEnvelopeUseCase` do
+  modulo edoc).
+- **Fatia 2**: `User` ganha `contratoPrestacaoServicoEnvelopeId` (FK
+  para o envelope) - rastreamento visivel numa nova aba "Aprovados" na
+  tela de Aprovacoes (badge de status do contrato + link direto para o
+  envelope no E-doc).
+- **Gap resolvido durante a Fatia 1**: `Tenant` nao tinha CNPJ/endereco
+  proprios para qualificar o CONTRATANTE no contrato. Novo modulo
+  `configuracoes` (dono canonico desses dados, `GET/PATCH
+  /configuracoes/empresa`, so Administrador edita) com tela em
+  `/dashboard/configuracoes`.
+
+Testado de ponta a ponta com Playwright real (bloqueio de aprovacao sem
+CPF, aprovacao completa gerando o contrato, dados da empresa preenchidos
+pela UI alimentando o texto do contrato, aba "Aprovados" mostrando o
+status e o link certo). RH Fatia 3 (template editavel pelo
+Administrador) registrada no BACKLOG.md como proximo passo natural.
+
+### Sidebar - investigacao de bug + rename - CONCLUIDO
+Usuario reportou "Equipe"/"Aprovacoes" sumindo do menu. Investigado a
+fundo (codigo-fonte, dados do usuario real em producao, teste ao vivo
+com conta admin nova contra producao) - **nao havia bug de codigo**:
+role do usuario e o filtro do Sidebar estavam corretos, o menu renderizou
+normalmente no teste. Causa mais provavel: chunk JS desatualizado numa
+aba aberta durante os varios deploys seguidos do dia (resolve com hard
+refresh). Aproveitado para renomear "Aprovacoes" -> "RH" no menu
+(icone trocado de UserCheck para Briefcase, evitando repetir o Users ja
+usado em "Equipe").
+
+### Metodologia desta sessao (registrar para as proximas)
+- Todo commit de cada frente foi feito **separado por assunto** (nunca
+  um commit unico misturando fatias/modulos diferentes), mesmo quando
+  os arquivos-fonte evoluiram de forma entrelacada entre fatias - nesses
+  casos, os estados intermediarios de cada arquivo foram reconstruidos
+  manualmente para produzir um historico git fiel a cada fatia.
+- Todo deploy seguiu o mesmo roteiro: `git pull` -> (`prisma migrate
+  deploy` + `npm run db:generate`, se houver migration nova) -> `npm
+  run build` (backend e/ou frontend) -> `pm2 restart` SO dos processos
+  `gestordevendas-backend`/`gestordevendas-frontend` (nunca
+  `igrejaboamorte`/`ivillar-crm`) -> confirmacao de
+  `https://gestordevendas.ivillar.com.br` retornando 200.
+- Achado operacional importante: `npx prisma migrate deploy` **nao
+  regenera o Prisma Client automaticamente** neste projeto (sem
+  `postinstall`) - sempre rodar `npm run db:generate` explicitamente
+  antes do build apos aplicar migrations, local ou em producao, ou o
+  build falha com "Unknown field" do Prisma.
+- Todo teste de ponta a ponta que precisou de navegador real usou
+  Playwright contra um tenant descartavel (criado direto via Prisma,
+  removido via cascade ao final) - inclusive contra a **propria
+  producao** quando o objetivo era confirmar comportamento real do
+  ambiente deployado (ex: investigacao do bug do Sidebar, verificacao
+  do Repique).
+
 ## Ultima sessao de trabalho (12/07/2026) - resumo
 
 - E-doc Fatia 3: papeis Destinatario/Remetente/Testemunha + rubrica
@@ -83,26 +228,32 @@ fatia; o Transferir continua cobrindo esse caso.
 mudanca de schema/autenticacao.
 
 ### Pendencias conhecidas registradas para retomar
-- Correcoes da sessao anterior (13/07/2026: guard anti-duplicidade da
-  VIVI para nao responder por cima de corretor ja responsavel,
-  supressao de ruido "Bad MAC" no log do WhatsApp, preview de
-  Word/Excel no Passo 2 do wizard de E-doc) ainda NAO foram
-  commitadas no Git - alteracoes presentes no working directory,
-  deliberadamente fora do commit do port visual da Central de
-  Atendimento (escopos distintos) - aguardando commit numa proxima
-  sessao.
-- RH: campo "Contrato de prestacao de servico automatico" ainda nao
-  implementado (dados ja coletados no cadastro publico)
+NOTA (atualizada na sessao 13-14/07): as 3 correcoes citadas
+originalmente aqui (guard anti-duplicidade da VIVI, supressao de "Bad
+MAC", preview Word/Excel no E-doc) ja foram commitadas ha algumas
+sessoes (`07b4fc7`, `8ebdc1b`, `d7c1d02`) - a nota antiga ficou
+desatualizada, removida. RH: contrato automatico de prestacao de
+servico (Fatias 1+2) tambem ja foi CONCLUIDO - ver secao propria acima.
+Pendencias reais atuais:
+- RH Fatia 3: template de contrato editavel pelo Administrador (base de
+  dados ja pronta, falta a tela - ver BACKLOG.md)
+- Central de Atendimento: upload de midia/audio/contato no composer
+  (sem endpoint de midia no backend hoje - ver BACKLOG.md)
+- Fase C do roteiro (rate limiting, testes automatizados, logs/
+  monitoramento, revisao de seguranca) nunca foi iniciada, e o sistema
+  ja esta em producao desde 07/07 - risco operacional crescente
 - Modulo de Cloud API oficial da Meta (Agente de Atendimento
   Online/multicanal) - ainda nao iniciado
 
 ### Proximos passos sugeridos (em ordem de prioridade discutida)
-1. RH: geracao automatica de contrato de prestacao de servico a partir
-   dos dados do cadastro publico (corretores/parceiros aprovados)
-2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+1. RH Fatia 3: template de contrato editavel pelo Administrador
+2. Fase C (hardening): rate limiting no login e logs estruturados/
+   monitoramento basico sao os itens mais baratos e urgentes - sistema
+   publico sem nenhum dos dois ha uma semana
+3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
-   WhatsApp")
+   WhatsApp") - maior escopo, decisao estrategica de priorizacao
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
@@ -129,12 +280,17 @@ mudanca de schema/autenticacao.
   (.whatsapp-sessions/) foram limpos ao final dos testes - nenhuma
   sessao ativa no momento
 
-### Modulo VIVI (Assistente SDR de IA) - CONFIRMADA
-Conversa/qualificacao CONFIRMADA funcionando de ponta a ponta com
-teste real e prova visual de entrega. Pronta para uso, dentro do
-escopo desta primeira fatia (follow-up automatico continua no
-backlog). Ver CLAUDE.md "Bug RESOLVIDO: VIVI agora entrega mensagens
-para destinatarios reais via @lid".
+### Modulo VIVI (Assistente SDR de IA) - ESCOPO COMPLETO CONCLUIDO
+Conversa/qualificacao CONFIRMADA funcionando de ponta a ponta com teste
+real e prova visual de entrega (ver CLAUDE.md "Bug RESOLVIDO: VIVI
+agora entrega mensagens para destinatarios reais via @lid"). Sessao
+13-14/07 implementou as 5 fatias do documento original de instrucoes
+da VIVI (encontrado pelo usuario, descrevia escopo maior do que o
+implementado ate entao) - ver secao "VIVI - escopo completo..." no
+topo deste arquivo para o detalhe de cada fatia: meta de agendar visita,
+conteudo pedagogico de financiamento, enquadramento por renda (HIS1/
+HIS2/HMP/R2V), coleta pos-visita + urgencia, e Repique como Stage do
+Kanban com resumo automatico no Card.
 
 ### Modulo RH - fatia minima (contas de Corretor + status + Kanban) - CONCLUIDA
 Contas de Corretor (cadastro pelo Administrador, Role "Corretor"
@@ -498,15 +654,21 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
 - Autenticacao: COMPLETO
 - WhatsApp Marketing (conexao do corretor): COMPLETO
 - Vendas/Kanban: backend completo, frontend com formulario/filtros
-  completo (badges de temperatura, WhatsApp, busca)
+  completo (badges de temperatura, WhatsApp, busca), + melhorias
+  13-14/07 (renomear/excluir/nova coluna, multiplos pipelines)
 - Gestao Imobiliaria: Fatias 1-5 CONCLUIDAS - COMPLETO (Catalogo/
   Espelho de Vendas, Proprietarios/Contratos, Financeiro com geracao
   automatica de cobranca de aluguel, Moradores/Inquilinos com analise
   de credito e documentos - Financeiro e a analise de credito/
   documentos dos inquilinos so Administrador acessa)
 - RH/Cadastros e Perfis: CONCLUIDO (fatia minima + cadastro publico
-  multi-perfil + aprovacao + hierarquia - ver CLAUDE.md). E-mails reais
-  via ResendEmailSender.
+  multi-perfil + aprovacao + hierarquia + contrato automatico de
+  prestacao de servico Fatias 1+2 - ver CLAUDE.md). E-mails reais via
+  ResendEmailSender. RH Fatia 3 (template editavel) no backlog.
+- VIVI (Assistente SDR de IA): escopo COMPLETO (agendar visita,
+  conteudo pedagogico, enquadramento por renda, coleta pos-visita,
+  Repique no Kanban) - ver secao propria no topo deste arquivo.
+- Configuracoes (dados da empresa - razao social/CNPJ/endereco): CONCLUIDO
 - Roleta Online (distribuicao automatica de leads entre corretores): CONCLUIDA
 - E-doc (assinatura eletronica): Fatias 1, 2, 3 e 4 CONCLUIDAS
   (envelope + assinatura sequencial + editor de posicionamento de
@@ -514,15 +676,16 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
   Destinatario/Remetente/Testemunha com rubrica multi-pagina + edicao
   de rascunho + conversao Word/Excel via LibreOffice + e-mail
   customizavel + dashboard com estatisticas/filtros/busca -
-  LibreOffice ainda precisa ser instalado na VPS de producao)
+  LibreOffice confirmado instalado na VPS de producao)
 - Portal do Cliente (/minha-conta): CONCLUIDO (Meus Imoveis, Meu
   Atendimento, Assinaturas Pendentes, Meus Documentos - vinculo por
   e-mail, ver limitacao conhecida em CLAUDE.md)
 - Central de Atendimento (Filas + Inbox para WhatsApp de suporte/
   financeiro/duvidas gerais, VIVI orquestrando a classificacao entre
-  Kanban de vendas vs Fila de atendimento): CONCLUIDA - nao confundir
-  com o futuro "Agente de Atendimento Online" (API oficial da Meta),
-  que continua nao iniciado
+  Kanban de vendas vs Fila de atendimento): CONCLUIDA + 2 bugs
+  corrigidos 13-14/07 (painel piscando, mensagens OUT da VIVI nao
+  aparecendo) - nao confundir com o futuro "Agente de Atendimento
+  Online" (API oficial da Meta), que continua nao iniciado
 - Marketing, Agente de Atendimento Online (Meta), Pagamentos: nao iniciados
 
 ### Fase B - Frontend completo
