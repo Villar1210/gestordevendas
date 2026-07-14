@@ -29,6 +29,7 @@ type PrismaUserWithRole = {
   statusCadastro: string;
   roleId: string;
   createdAt: Date;
+  contratoPrestacaoServicoEnvelopeId: string | null;
   role: { name: string };
 };
 
@@ -58,6 +59,7 @@ export class PrismaCadastroRepository implements ICadastroRepository {
       roleId: user.roleId,
       roleName: user.role.name,
       createdAt: user.createdAt,
+      contratoPrestacaoServicoEnvelopeId: user.contratoPrestacaoServicoEnvelopeId,
     };
   }
 
@@ -107,6 +109,22 @@ export class PrismaCadastroRepository implements ICadastroRepository {
     return users.map((user) => this.toRecord(user));
   }
 
+  async findAllAprovadosComContratoByTenant(
+    tenantId: string,
+    roleNames: string[],
+  ): Promise<CadastroRecord[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        statusCadastro: 'aprovado',
+        role: { name: { in: roleNames } },
+      },
+      include: { role: true },
+      orderBy: { name: 'asc' },
+    });
+    return users.map((user) => this.toRecord(user));
+  }
+
   async aprovar(input: {
     id: string;
     cargoHierarquico?: string;
@@ -138,6 +156,13 @@ export class PrismaCadastroRepository implements ICadastroRepository {
       where: { tenantId, cargoHierarquico: { not: null } },
       select: { id: true, name: true, cargoHierarquico: true },
       orderBy: { name: 'asc' },
+    });
+  }
+
+  async updateContratoEnvelopeId(userId: string, envelopeId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { contratoPrestacaoServicoEnvelopeId: envelopeId },
     });
   }
 }

@@ -29,16 +29,29 @@ export interface SuperiorCandidate {
   cargoHierarquico: string | null;
 }
 
+export interface CadastroAprovadoComContrato {
+  id: string;
+  name: string;
+  email: string;
+  roleName: string;
+  statusContrato: "sem_contrato" | "aguardando_assinaturas" | "concluido" | "cancelado" | "rascunho";
+  envelopeId: string | null;
+}
+
 interface AprovacoesState {
   pendentes: CadastroPendente[];
+  aprovados: CadastroAprovadoComContrato[];
   superiores: SuperiorCandidate[];
   isLoading: boolean;
+  isLoadingAprovados: boolean;
   isSaving: boolean;
   selectedId: string | null;
 
   setPendentes: (pendentes: CadastroPendente[]) => void;
+  setAprovados: (aprovados: CadastroAprovadoComContrato[]) => void;
   setSuperiores: (superiores: SuperiorCandidate[]) => void;
   setLoading: (isLoading: boolean) => void;
+  setLoadingAprovados: (isLoading: boolean) => void;
   setSaving: (isSaving: boolean) => void;
   selectCadastro: (id: string | null) => void;
   removePendente: (id: string) => void;
@@ -46,14 +59,18 @@ interface AprovacoesState {
 
 export const useAprovacoesStore = create<AprovacoesState>((set, get) => ({
   pendentes: [],
+  aprovados: [],
   superiores: [],
   isLoading: false,
+  isLoadingAprovados: false,
   isSaving: false,
   selectedId: null,
 
   setPendentes: (pendentes) => set({ pendentes }),
+  setAprovados: (aprovados) => set({ aprovados }),
   setSuperiores: (superiores) => set({ superiores }),
   setLoading: (isLoading) => set({ isLoading }),
+  setLoadingAprovados: (isLoadingAprovados) => set({ isLoadingAprovados }),
   setSaving: (isSaving) => set({ isSaving }),
   selectCadastro: (selectedId) => set({ selectedId }),
   removePendente: (id) =>

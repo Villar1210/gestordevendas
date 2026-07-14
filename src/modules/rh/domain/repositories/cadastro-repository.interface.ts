@@ -26,6 +26,10 @@ export interface CadastroRecord {
   roleId: string;
   roleName: string;
   createdAt: Date;
+  // Contrato de prestacao de servico gerado na aprovacao (ver
+  // GerarContratoPrestacaoServicoUseCase) - nulo ate a aprovacao
+  // acontecer, ou se o roleName nao exigir contrato.
+  contratoPrestacaoServicoEnvelopeId: string | null;
 }
 
 export interface CreateCadastroInput {
@@ -59,6 +63,10 @@ export interface ICadastroRepository {
   create(input: CreateCadastroInput): Promise<CadastroRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<CadastroRecord | null>;
   findAllPendentesByTenant(tenantId: string): Promise<CadastroRecord[]>;
+  // Cadastros ja aprovados cujo roleName exige contrato de prestacao de
+  // servico (Corretor/Corretor Parceiro/Imobiliaria Parceira) - usado pela
+  // aba "Aprovados" da tela de Aprovacoes (rastreamento do contrato).
+  findAllAprovadosComContratoByTenant(tenantId: string, roleNames: string[]): Promise<CadastroRecord[]>;
   aprovar(input: {
     id: string;
     cargoHierarquico?: string;
@@ -68,4 +76,5 @@ export interface ICadastroRepository {
   // Usuarios do tenant com cargoHierarquico preenchido - candidatos a
   // "superior" no seletor de hierarquia (tela de aprovacao).
   findPossiveisSuperioresByTenant(tenantId: string): Promise<SuperiorCandidateRecord[]>;
+  updateContratoEnvelopeId(userId: string, envelopeId: string): Promise<void>;
 }

@@ -5,7 +5,10 @@
 // desfaz a aprovacao ja concluida - o chamador so loga o erro, mesmo
 // padrao ja usado em GenerateSignedPdfUseCase (modulo edoc).
 import { Injectable, Inject } from '@nestjs/common';
-import { CadastroRecord } from '../../domain/repositories/cadastro-repository.interface';
+import {
+  CadastroRecord,
+  ICadastroRepository,
+} from '../../domain/repositories/cadastro-repository.interface';
 import { ITenantRepository } from '../../domain/repositories/tenant-repository.interface';
 import { preencherContratoTemplate } from '../../domain/services/preencher-contrato-template';
 import { ehPessoaJuridica } from '../../domain/services/roles-com-contrato';
@@ -34,6 +37,7 @@ const CAMPO_ASSINATURA_HEIGHT_PERCENT = 0.06;
 export class GerarContratoPrestacaoServicoUseCase {
   constructor(
     @Inject('ITenantRepository') private readonly tenantRepository: ITenantRepository,
+    @Inject('ICadastroRepository') private readonly cadastroRepository: ICadastroRepository,
     private readonly getOrCreateContratoTemplateUseCase: GetOrCreateContratoTemplateUseCase,
     private readonly gerarPdfContratoService: GerarPdfContratoService,
     private readonly createEnvelopeUseCase: CreateEnvelopeUseCase,
@@ -100,5 +104,10 @@ export class GerarContratoPrestacaoServicoUseCase {
       envelopeId: result.envelope.id,
       tenantId: cadastro.tenantId,
     });
+
+    // Vincula o envelope ao User (rastreamento visivel na aba "Aprovados"
+    // da tela de Aprovacoes) - depois do envio, ja que so importa se todo
+    // o resto deu certo.
+    await this.cadastroRepository.updateContratoEnvelopeId(cadastro.id, result.envelope.id);
   }
 }

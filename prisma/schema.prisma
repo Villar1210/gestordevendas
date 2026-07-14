@@ -104,10 +104,17 @@ model User {
   cep         String? @db.VarChar(10)
   endereco    String? @db.VarChar(200)
 
+  // Contrato de prestacao de servico gerado automaticamente na aprovacao
+  // (modulo rh, ver GerarContratoPrestacaoServicoUseCase) - nulo ate a
+  // aprovacao acontecer, ou se o roleName nao exigir contrato (ex:
+  // Cliente). Rastreamento visivel na tela de Aprovacoes (aba "Aprovados").
+  contratoPrestacaoServicoEnvelopeId String? @unique @map("contrato_prestacao_servico_envelope_id") @db.Uuid
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   role   Role   @relation(fields: [roleId], references: [id])
   superior      User?  @relation("UserHierarchy", fields: [superiorId], references: [id], onDelete: SetNull)
   subordinados  User[] @relation("UserHierarchy")
+  contratoPrestacaoServicoEnvelope SignatureEnvelope? @relation("UserContratoPrestacaoServico", fields: [contratoPrestacaoServicoEnvelopeId], references: [id], onDelete: SetNull)
 
   passwordResetTokens PasswordResetToken[]
   twoFactorCodes      TwoFactorCode[]
@@ -734,6 +741,10 @@ model SignatureEnvelope {
 
   tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdBy  User                 @relation(fields: [createdByUserId], references: [id])
+  // Relacao reversa do FK opcional em User.contratoPrestacaoServicoEnvelopeId
+  // (modulo rh) - o corretor/parceiro para quem este envelope especifico e
+  // o contrato de prestacao de servico (se for esse o caso).
+  usuarioContratado User? @relation("UserContratoPrestacaoServico")
   recipients SignatureRecipient[]
   events     SignatureEvent[]
   fields     SignatureField[]

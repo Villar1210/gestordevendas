@@ -67,7 +67,14 @@ import { LibreOfficeConverterService } from './infra/services/libreoffice-conver
   // e-mail do usuario logado.
   // Exportados para o modulo rh: GerarContratoPrestacaoServicoUseCase cria e
   // envia o envelope do contrato de prestacao de servico, reaproveitando os
-  // mesmos casos de uso do wizard de E-doc.
-  exports: ['ISignatureRecipientRepository', CreateEnvelopeUseCase, SendEnvelopeUseCase],
+  // mesmos casos de uso do wizard de E-doc; ListCadastrosAprovadosUseCase le
+  // o status do envelope (aguardando_assinaturas/concluido) para o
+  // rastreamento visivel na tela de Aprovacoes.
+  exports: [
+    'ISignatureRecipientRepository',
+    'ISignatureEnvelopeRepository',
+    CreateEnvelopeUseCase,
+    SendEnvelopeUseCase,
+  ],
 })
 export class EdocModule {}

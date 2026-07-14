@@ -20,6 +20,7 @@ import { ListCadastrosPendentesUseCase } from '../../application/use-cases/list-
 import { AprovarCadastroUseCase } from '../../application/use-cases/aprovar-cadastro.use-case';
 import { RejeitarCadastroUseCase } from '../../application/use-cases/rejeitar-cadastro.use-case';
 import { ListPossiveisSuperioresUseCase } from '../../application/use-cases/list-possiveis-superiores.use-case';
+import { ListCadastrosAprovadosUseCase } from '../../application/use-cases/list-cadastros-aprovados.use-case';
 
 @Controller('rh')
 export class RhController {
@@ -32,6 +33,7 @@ export class RhController {
     private readonly aprovarCadastroUseCase: AprovarCadastroUseCase,
     private readonly rejeitarCadastroUseCase: RejeitarCadastroUseCase,
     private readonly listPossiveisSuperioresUseCase: ListPossiveisSuperioresUseCase,
+    private readonly listCadastrosAprovadosUseCase: ListCadastrosAprovadosUseCase,
   ) {}
 
   // POST /rh/corretores - cadastra um novo corretor (so Administrador)
@@ -142,5 +144,15 @@ export class RhController {
       tenantId: req.user!.tenantId,
       requesterRole: req.user!.role,
     });
+  }
+
+  // GET /rh/cadastros-aprovados - corretores/parceiros ja aprovados, com
+  // status do contrato de prestacao de servico (so Administrador) - aba
+  // "Aprovados" da tela de Aprovacoes.
+  @Get('cadastros-aprovados')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async listCadastrosAprovados(@Req() req: Request) {
+    return this.listCadastrosAprovadosUseCase.execute({ tenantId: req.user!.tenantId });
   }
 }
