@@ -17,6 +17,20 @@ model Tenant {
   name      String   @db.VarChar(100)
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Dados da empresa (razao social = "name" acima, ja usado desde o
+  // cadastro inicial) para qualificar o CONTRATANTE no contrato de
+  // prestacao de servico (modulo rh, ver GerarContratoPrestacaoServicoUseCase)
+  // e qualquer outro documento futuro que precise dos dados formais da
+  // empresa. Preenchidos pelo Administrador em /dashboard/configuracoes
+  // (modulo configuracoes) - nulos ate la, ja que nenhum tenant existente
+  // tinha esses dados antes desta fatia.
+  cnpj        String? @db.VarChar(20)
+  endereco    String? @db.VarChar(200)
+  numero      String? @db.VarChar(20)
+  complemento String? @db.VarChar(100)
+  bairro      String? @db.VarChar(100)
+  cep         String? @db.VarChar(10)
+
   roles Role[]
   users User[]
 

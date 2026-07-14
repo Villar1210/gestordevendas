@@ -17,13 +17,13 @@ import { PrismaCorretorRepository } from './infra/database/prisma-corretor.repos
 import { PrismaRoleRepository } from './infra/database/prisma-role.repository';
 import { PrismaCadastroRepository } from './infra/database/prisma-cadastro.repository';
 import { PrismaContratoTemplateRepository } from './infra/database/prisma-contrato-template.repository';
-import { PrismaTenantRepository } from './infra/database/prisma-tenant.repository';
 import { PrismaService } from '../../config/prisma.service';
 import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
 import { EdocModule } from '../edoc/edoc.module';
+import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
 
 @Module({
-  imports: [EdocModule],
+  imports: [EdocModule, ConfiguracoesModule],
   controllers: [RhController],
   providers: [
     PrismaService,
@@ -45,7 +45,6 @@ import { EdocModule } from '../edoc/edoc.module';
     { provide: 'IRoleRepository', useClass: PrismaRoleRepository },
     { provide: 'ICadastroRepository', useClass: PrismaCadastroRepository },
     { provide: 'IContratoTemplateRepository', useClass: PrismaContratoTemplateRepository },
-    { provide: 'ITenantRepository', useClass: PrismaTenantRepository },
     // ResendEmailSender (mesma implementacao ja usada no AuthModule) - e-mails
     // de boas-vindas do corretor e de aprovacao/rejeicao do cadastro publico
     // agora sao reais.

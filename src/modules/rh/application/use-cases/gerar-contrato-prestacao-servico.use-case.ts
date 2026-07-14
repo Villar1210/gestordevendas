@@ -9,9 +9,10 @@ import {
   CadastroRecord,
   ICadastroRepository,
 } from '../../domain/repositories/cadastro-repository.interface';
-import { ITenantRepository } from '../../domain/repositories/tenant-repository.interface';
+import { ITenantConfigRepository } from '../../../configuracoes/domain/repositories/tenant-config-repository.interface';
 import { preencherContratoTemplate } from '../../domain/services/preencher-contrato-template';
 import { ehPessoaJuridica } from '../../domain/services/roles-com-contrato';
+import { formatarEnderecoTenant } from '../../domain/services/formatar-endereco-tenant';
 import { GetOrCreateContratoTemplateUseCase } from './get-or-create-contrato-template.use-case';
 import { GerarPdfContratoService } from '../services/gerar-pdf-contrato.service';
 import { CreateEnvelopeUseCase } from '../../../edoc/application/use-cases/create-envelope.use-case';
@@ -36,7 +37,7 @@ const CAMPO_ASSINATURA_HEIGHT_PERCENT = 0.06;
 @Injectable()
 export class GerarContratoPrestacaoServicoUseCase {
   constructor(
-    @Inject('ITenantRepository') private readonly tenantRepository: ITenantRepository,
+    @Inject('ITenantConfigRepository') private readonly tenantConfigRepository: ITenantConfigRepository,
     @Inject('ICadastroRepository') private readonly cadastroRepository: ICadastroRepository,
     private readonly getOrCreateContratoTemplateUseCase: GetOrCreateContratoTemplateUseCase,
     private readonly gerarPdfContratoService: GerarPdfContratoService,
@@ -51,9 +52,17 @@ export class GerarContratoPrestacaoServicoUseCase {
       tenantId: cadastro.tenantId,
     });
 
-    // Tenant hoje nao tem CNPJ/endereco proprios (ver ITenantRepository) -
-    // so o nome esta disponivel para qualificar o CONTRATANTE.
-    const nomeTenant = (await this.tenantRepository.findNameById(cadastro.tenantId)) ?? 'a empresa contratante';
+    // Razao social/CNPJ/endereco da empresa (CONTRATANTE), preenchidos pelo
+    // Administrador em /dashboard/configuracoes (modulo configuracoes) -
+    // podem estar em branco se ninguem preencheu ainda, o contrato so sai
+    // com "nao informado" nesse caso (nao bloqueia a aprovacao do cadastro
+    // do corretor, diferente da checagem de CPF/CRECI dele mesmo).
+    const tenantConfig = await this.tenantConfigRepository.findByTenantId(cadastro.tenantId);
+    const nomeTenant = tenantConfig?.name ?? 'a empresa contratante';
+    const cnpjTenant = tenantConfig?.cnpj ?? 'não informado';
+    const enderecoTenant = tenantConfig
+      ? formatarEnderecoTenant(tenantConfig)
+      : 'endereço não informado';
 
     // "Imobiliaria Parceira" e pessoa juridica - usa nomeImobiliaria/cnpj
     // no lugar do nome/creci pessoais (ambos preenchidos no placeholder
@@ -64,6 +73,8 @@ export class GerarContratoPrestacaoServicoUseCase {
 
     const corpoPreenchido = preencherContratoTemplate(template.corpo, {
       nomeTenant,
+      cnpjTenant,
+      enderecoTenant,
       nome: nomeContratado,
       cpf: cadastro.cpf ?? '',
       creci: registroProfissional,

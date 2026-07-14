@@ -5,6 +5,8 @@
 // templates customizados (Fatia 3), desde que usem os mesmos placeholders.
 export interface DadosContrato {
   nomeTenant: string;
+  cnpjTenant: string;
+  enderecoTenant: string;
   nome: string;
   cpf: string;
   creci: string;
@@ -15,6 +17,8 @@ export interface DadosContrato {
 
 const PLACEHOLDERS: Record<keyof DadosContrato, string> = {
   nomeTenant: '{{NOME_TENANT}}',
+  cnpjTenant: '{{CNPJ_TENANT}}',
+  enderecoTenant: '{{ENDERECO_TENANT}}',
   nome: '{{NOME}}',
   cpf: '{{CPF}}',
   creci: '{{CRECI}}',

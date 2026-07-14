@@ -12,6 +12,7 @@ import {
   UserCheck,
   FileSignature,
   Headset,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
@@ -37,6 +38,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: UserCheck,
     label: "Aprovacoes",
     href: "/dashboard/rh/aprovacoes",
+    requiredRole: "Administrador",
+  },
+  {
+    icon: Settings,
+    label: "Configuracoes",
+    href: "/dashboard/configuracoes",
     requiredRole: "Administrador",
   },
 ];
