@@ -3,14 +3,18 @@ import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
+import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
+import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
 
 interface GetBoardInput {
   pipelineId: string;
   tenantId: string;
   // Quem esta pedindo o board - usado para restringir a visibilidade dos
-  // cards por dono quando o role for "Corretor" (ver CLAUDE.md, modulo RH).
+  // cards conforme o escopo do cargo hierarquico (RBAC) - ver
+  // shared/domain/services/cargo-escopo.ts.
   requesterRole: string;
   requesterUserId: string;
+  requesterCargo: string | null;
 }
 
 export interface BoardStage {
@@ -33,6 +37,7 @@ export class GetBoardUseCase {
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
+    private readonly getSubordinadosRecursivosUseCase: GetSubordinadosRecursivosUseCase,
   ) {}
 
   async execute(input: GetBoardInput): Promise<BoardResult> {
@@ -46,10 +51,25 @@ export class GetBoardUseCase {
 
     const stages = await this.stageRepository.findAllByPipeline(pipeline.id);
 
-    // Corretor so ve os proprios cards nas colunas do Kanban; Administrador
-    // ve tudo, sem filtro. A Caixa de Entrada (GetInboxUseCase) nao aplica
-    // este filtro - todo corretor pode ver e reivindicar leads sem dono.
-    const isCorretor = input.requesterRole === 'Corretor';
+    // Escopo por cargo hierarquico (RBAC): 'todos' (Administrador/Diretor)
+    // -> sem filtro; 'equipe' (Gerente/Coordenador) -> proprios cards +
+    // cards de toda a arvore de subordinados (recursivo); 'proprio'
+    // (Corretor) -> so os proprios, mesmo comportamento de antes desta
+    // fatia. A Caixa de Entrada (GetInboxUseCase) NAO aplica este filtro
+    // de proposito - leads sem dono nao "pertencem" a equipe nenhuma
+    // ainda, sao o pool de onde qualquer um reivindica um lead.
+    const escopo = resolveEscopo(input.requesterRole, input.requesterCargo);
+
+    let idsPermitidos: string[] | null = null; // null = sem filtro ('todos')
+    if (escopo === 'proprio') {
+      idsPermitidos = [input.requesterUserId];
+    } else if (escopo === 'equipe') {
+      const subordinados = await this.getSubordinadosRecursivosUseCase.execute({
+        tenantId: input.tenantId,
+        userId: input.requesterUserId,
+      });
+      idsPermitidos = [input.requesterUserId, ...subordinados];
+    }
 
     const stagesWithCards: BoardStage[] = await Promise.all(
       stages.map(async (stage) => {
@@ -58,8 +78,8 @@ export class GetBoardUseCase {
           id: stage.id,
           name: stage.name,
           position: stage.position,
-          cards: isCorretor
-            ? cards.filter((card) => card.ownerId === input.requesterUserId)
+          cards: idsPermitidos
+            ? cards.filter((card) => card.ownerId && idsPermitidos!.includes(card.ownerId))
             : cards,
         };
       }),

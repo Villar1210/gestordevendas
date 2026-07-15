@@ -13,12 +13,15 @@ import {
   IWhatsAppMessageRepository,
   WhatsAppMessageRecord,
 } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
+import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
+import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
 
 interface GetAtendimentoDetailInput {
   tenantId: string;
   atendimentoId: string;
   requesterRole: string;
   requesterUserId: string;
+  requesterCargo: string | null;
 }
 
 export interface GetAtendimentoDetailResult {
@@ -42,6 +45,7 @@ export class GetAtendimentoDetailUseCase {
     private readonly eventoRepository: IAtendimentoEventoRepository,
     @Inject('IWhatsAppMessageRepository')
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
+    private readonly getSubordinadosRecursivosUseCase: GetSubordinadosRecursivosUseCase,
   ) {}
 
   async execute(input: GetAtendimentoDetailInput): Promise<GetAtendimentoDetailResult> {
@@ -53,8 +57,20 @@ export class GetAtendimentoDetailUseCase {
       throw new NotFoundException('Atendimento nao encontrado.');
     }
 
-    if (input.requesterRole !== 'Administrador') {
-      const isOwner = atendimento.ownerId === input.requesterUserId;
+    // Escopo por cargo hierarquico (RBAC) SOMADO ao acesso por fila ja
+    // existente (nao substitui) - mesma logica de ListAtendimentosUseCase.
+    const escopo = resolveEscopo(input.requesterRole, input.requesterCargo);
+    if (escopo !== 'todos') {
+      let idsPermitidos = [input.requesterUserId];
+      if (escopo === 'equipe') {
+        const subordinados = await this.getSubordinadosRecursivosUseCase.execute({
+          tenantId: input.tenantId,
+          userId: input.requesterUserId,
+        });
+        idsPermitidos = [input.requesterUserId, ...subordinados];
+      }
+
+      const isOwner = !!atendimento.ownerId && idsPermitidos.includes(atendimento.ownerId);
       const belongsToFila =
         !!atendimento.filaId &&
         (await this.filaRepository.isUsuarioInFila(atendimento.filaId, input.requesterUserId));

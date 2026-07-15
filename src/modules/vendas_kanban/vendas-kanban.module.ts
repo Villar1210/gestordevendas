@@ -28,8 +28,12 @@ import { PrismaCardRepository } from './infra/database/prisma-card.repository';
 import { PrismaActivityRepository } from './infra/database/prisma-activity.repository';
 import { PrismaNoteRepository } from './infra/database/prisma-note.repository';
 import { PrismaService } from '../../config/prisma.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
+  // AuthModule: GetSubordinadosRecursivosUseCase, usado por GetBoardUseCase
+  // para resolver o escopo "equipe" do RBAC por cargo hierarquico.
+  imports: [AuthModule],
   controllers: [PipelineController, CardController],
   providers: [
     PrismaService,

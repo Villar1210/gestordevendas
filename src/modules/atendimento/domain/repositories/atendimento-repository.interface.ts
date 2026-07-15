@@ -23,16 +23,18 @@ export interface AtendimentoWithNames extends AtendimentoRecord {
 }
 
 // Filtros de listagem: filaId/status/ownerId narrowam por igualdade.
-// visibleFilaIds/visibleOwnerId sao o ESCOPO de visibilidade de um agente
-// nao-Administrador (ve atendimentos cujo filaId esteja em visibleFilaIds
-// OU cujo ownerId seja visibleOwnerId) - ausentes quando quem pede e
-// Administrador (sem restricao de escopo).
+// visibleFilaIds/visibleOwnerIds sao o ESCOPO de visibilidade (RBAC por
+// cargo - ver shared/domain/services/cargo-escopo.ts): ve atendimentos
+// cujo filaId esteja em visibleFilaIds OU cujo ownerId esteja em
+// visibleOwnerIds (proprio id sozinho para escopo "proprio", proprio +
+// subordinados recursivos para escopo "equipe") - ambos ausentes quando o
+// escopo e "todos" (Administrador/Diretor, sem restricao).
 export interface ListAtendimentosFilter {
   filaId?: string;
   status?: string;
   ownerId?: string;
   visibleFilaIds?: string[];
-  visibleOwnerId?: string;
+  visibleOwnerIds?: string[];
 }
 
 export interface IAtendimentoRepository {

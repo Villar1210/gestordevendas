@@ -60,7 +60,7 @@ export class PrismaAtendimentoRepository implements IAtendimentoRepository {
       ...(filter.status ? { status: filter.status } : {}),
       ...(filter.ownerId ? { ownerId: filter.ownerId } : {}),
       ...(filter.visibleFilaIds !== undefined
-        ? { OR: [{ filaId: { in: filter.visibleFilaIds } }, { ownerId: filter.visibleOwnerId }] }
+        ? { OR: [{ filaId: { in: filter.visibleFilaIds } }, { ownerId: { in: filter.visibleOwnerIds } } ] }
         : {}),
     };
 

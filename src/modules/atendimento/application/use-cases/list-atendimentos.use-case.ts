@@ -6,11 +6,14 @@ import {
 } from '../../domain/repositories/atendimento-repository.interface';
 import { IFilaRepository } from '../../domain/repositories/fila-repository.interface';
 import { IWhatsAppMessageRepository } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
+import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
+import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
 
 interface ListAtendimentosInput {
   tenantId: string;
   requesterRole: string;
   requesterUserId: string;
+  requesterCargo: string | null;
   filaId?: string;
   status?: string;
   ownerId?: string;
@@ -29,25 +32,39 @@ export class ListAtendimentosUseCase {
     @Inject('IFilaRepository') private readonly filaRepository: IFilaRepository,
     @Inject('IWhatsAppMessageRepository')
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
+    private readonly getSubordinadosRecursivosUseCase: GetSubordinadosRecursivosUseCase,
   ) {}
 
   async execute(input: ListAtendimentosInput): Promise<AtendimentoListItem[]> {
-    const isAdmin = input.requesterRole === 'Administrador';
+    // Escopo por cargo hierarquico (RBAC) SOMADO ao escopo por fila ja
+    // existente (nao substitui) - visivel se pertencer a uma fila do
+    // requisitante OU se o dono estiver dentro do escopo de cargo dele
+    // (proprio/equipe/todos). Administrador/Diretor ('todos') nao tem
+    // restricao nenhuma, igual antes desta fatia.
+    const escopo = resolveEscopo(input.requesterRole, input.requesterCargo);
 
-    // Corretor/Agente so ve o que pertence as proprias filas + o que ja
-    // assumiu - Administrador nao tem restricao de escopo (ve tudo, inclusive
-    // atendimentos ainda "nao classificados" para poder atribui-los).
-    const visibleFilaIds = isAdmin
-      ? undefined
-      : await this.filaRepository.findFilaIdsByUsuario(input.requesterUserId);
-    const visibleOwnerId = isAdmin ? undefined : input.requesterUserId;
+    let visibleFilaIds: string[] | undefined;
+    let visibleOwnerIds: string[] | undefined;
+
+    if (escopo !== 'todos') {
+      visibleFilaIds = await this.filaRepository.findFilaIdsByUsuario(input.requesterUserId);
+      if (escopo === 'equipe') {
+        const subordinados = await this.getSubordinadosRecursivosUseCase.execute({
+          tenantId: input.tenantId,
+          userId: input.requesterUserId,
+        });
+        visibleOwnerIds = [input.requesterUserId, ...subordinados];
+      } else {
+        visibleOwnerIds = [input.requesterUserId];
+      }
+    }
 
     const atendimentos = await this.atendimentoRepository.findAllByTenant(input.tenantId, {
       filaId: input.filaId,
       status: input.status,
       ownerId: input.ownerId,
       visibleFilaIds,
-      visibleOwnerId,
+      visibleOwnerIds,
     });
 
     // Preview da ultima mensagem para a lista da Central de Atendimento -
