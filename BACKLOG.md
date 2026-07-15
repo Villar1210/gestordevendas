@@ -39,6 +39,23 @@ de codigo, nao so de conceito - registrar aqui se isso se repetir.
 - [ ] Aba "Atividades" incluir mensagens agendadas (e-mail, WhatsApp),
       nao so compromissos presenciais/ligacao
 
+## Dashboard do Corretor
+- [ ] Tela inicial dedicada ao Corretor, diferente da visao do
+      Administrador - hoje NAO existe nenhuma tela de "home"/overview no
+      dashboard: `/` redireciona direto para `/dashboard/kanban` pra
+      qualquer role autenticado (ver commit "feat: redireciona / para
+      /dashboard/kanban ou /login conforme sessao"), entao o Corretor cai
+      direto no Kanban ja filtrado por RBAC (escopo 'proprio', ver
+      cargo-escopo.ts), sem nenhuma visao agregada separada. Escopo
+      pedido: visao dos proprios leads/pipeline (resumo, nao so o board
+      cru), atividades do dia (reaproveitar Activity ja existente no
+      Kanban, ver `create-activity.use-case.ts`), e leads atribuidos pela
+      VIVI/Roleta (destaque visual pros que chegaram por automacao,
+      distinto dos criados manualmente - ja existe `Card.origem` pra
+      diferenciar). Definir com o usuario se vira uma rota nova
+      (`/dashboard/inicio` ou similar) ou uma visao dentro do proprio
+      Kanban antes de planejar fatias.
+
 ## Futuro modulo de Atendimento
 - [x] Timeline de atividades por lead - CONCLUIDO (versao simplificada):
       implementado dentro do proprio card do Kanban (CardDetailPanel),
@@ -66,6 +83,22 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       antigo (por peso, status pausado - hoje so existe online/ausente/
       offline -, respeita horario de trabalho) - olhar com calma se
       fizer falta na pratica, sem copiar codigo
+- [ ] Notificacao de lead atribuido pela Roleta - o sino de notificacoes
+      in-app ja existe (modulo `notificacoes`, Fatia 5 do Painel
+      Administrativo, ver PROGRESS.md), mas hoje so tem 1 gatilho
+      (`cadastro.pendente.criado`, ver
+      `CadastroPendenteCriadoListener`). Confirmado por leitura de
+      codigo: nem `DistributeLeadUseCase` nem
+      `ConfirmSuggestedOwnerUseCase` emitem evento nenhum hoje - o
+      corretor so descobre que ganhou um lead abrindo o Kanban/Caixa de
+      Entrada manualmente. Escopo: emitir um evento generico (mesmo
+      padrao ja usado por `card.sem_dono.criado`, desacoplado - roleta_online
+      nao precisa conhecer o modulo notificacoes) quando o modo for
+      `automatico` (atribuicao direta, ver ClaimCardUseCase) e quando o
+      modo for `semi_automatico` E o corretor sugerido confirmar
+      (`ConfirmSuggestedOwnerUseCase`) - decidir se o modo
+      `semi_automatico` tambem notifica no momento da SUGESTAO (antes da
+      confirmacao) ou so depois, com o usuario antes de implementar.
 
 ## Modulo RH
 - [x] Geracao automatica de contrato de prestacao de servico - Fatia 1
@@ -79,6 +112,22 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       /dashboard/rh/aprovacoes para dentro do Painel Administrativo
       (ver secao propria abaixo, ja concluida) - so o backend continua
       no modulo rh, a UI mudou de lugar.
+- [ ] Fluxo de onboarding do Corretor - troca de senha obrigatoria no
+      primeiro login. Hoje `CreateCorretorUseCase` ja gera senha
+      temporaria aleatoria e ja envia por e-mail (via ResendEmailSender,
+      ver CLAUDE.md "Envio de e-mail real") com o texto "Recomendamos
+      troca-la apos o primeiro login" (`email-template-padrao.ts`) - mas
+      isso e so uma RECOMENDACAO no texto do e-mail, nada FORCA a troca:
+      confirmado por busca no codigo que nao existe nenhum campo tipo
+      `mustChangePassword` no schema nem verificacao equivalente em
+      `AuthenticateUserUseCase`. Escopo: novo campo booleano em `User`
+      (default `true` quando a conta e criada com senha temporaria pelo
+      Administrador, `false` em cadastro publico onde o proprio usuario
+      escolhe a senha), checagem em `AuthenticateUserUseCase` retornando
+      um sinalizador pro frontend forcar a tela de troca de senha antes
+      de liberar o dashboard, e `UpdateMyProfileUseCase` (modulo auth, ja
+      atualiza senha via `updatePassword` no fluxo de "Meu Perfil")
+      zerando o campo ao trocar com sucesso.
 
 ## Painel Administrativo (expansao do modulo Configuracoes) - CONCLUIDO
 - [x] Expandir "Configuracoes" para um Painel Administrativo completo -
