@@ -12,6 +12,7 @@ import { KanbanFilters } from "@/features/kanban/components/KanbanFilters";
 import { InboxView } from "@/features/kanban/components/InboxView";
 import { QuickCardModal } from "@/features/kanban/components/QuickCardModal";
 import { CardDetailPanel } from "@/features/kanban/components/CardDetailPanel";
+import { PlantaoStatusBadge } from "@/features/plantao/components/PlantaoStatusBadge";
 
 interface Pipeline {
   id: string;
@@ -169,6 +170,8 @@ export default function KanbanDashboardPage() {
               Caixa de Entrada
             </button>
           </div>
+
+          <PlantaoStatusBadge />
         </div>
 
         <button

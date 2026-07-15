@@ -9,6 +9,7 @@ import { SetEscalaUseCase } from './application/use-cases/set-escala.use-case';
 import { RemoveEscalaUseCase } from './application/use-cases/remove-escala.use-case';
 import { ListEscalasByStandUseCase } from './application/use-cases/list-escalas-by-stand.use-case';
 import { GetCorretoresEscaladosHojeUseCase } from './application/use-cases/get-corretores-escalados-hoje.use-case';
+import { GetMeuPlantaoHojeUseCase } from './application/use-cases/get-meu-plantao-hoje.use-case';
 import { PrismaStandRepository } from './infra/database/prisma-stand.repository';
 import { PrismaEscalaPlantaoRepository } from './infra/database/prisma-escala-plantao.repository';
 import { PrismaService } from '../../config/prisma.service';
@@ -30,6 +31,7 @@ import { AuthModule } from '../auth/auth.module';
     RemoveEscalaUseCase,
     ListEscalasByStandUseCase,
     GetCorretoresEscaladosHojeUseCase,
+    GetMeuPlantaoHojeUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IStandRepository', useClass: PrismaStandRepository },

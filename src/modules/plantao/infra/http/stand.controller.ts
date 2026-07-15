@@ -7,6 +7,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
+import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreateStandDto } from './dtos/create-stand.dto';
 import { UpdateStandDto } from './dtos/update-stand.dto';
 import { SetEscalaDto } from './dtos/set-escala.dto';
@@ -17,6 +18,7 @@ import { DeleteStandUseCase } from '../../application/use-cases/delete-stand.use
 import { SetEscalaUseCase } from '../../application/use-cases/set-escala.use-case';
 import { RemoveEscalaUseCase } from '../../application/use-cases/remove-escala.use-case';
 import { ListEscalasByStandUseCase } from '../../application/use-cases/list-escalas-by-stand.use-case';
+import { GetMeuPlantaoHojeUseCase } from '../../application/use-cases/get-meu-plantao-hoje.use-case';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,7 +32,23 @@ export class StandController {
     private readonly setEscalaUseCase: SetEscalaUseCase,
     private readonly removeEscalaUseCase: RemoveEscalaUseCase,
     private readonly listEscalasByStandUseCase: ListEscalasByStandUseCase,
+    private readonly getMeuPlantaoHojeUseCase: GetMeuPlantaoHojeUseCase,
   ) {}
+
+  // GET /stands/meu-status-hoje - status do PROPRIO stand do Coordenador
+  // logado (nome + quantos corretores estao escalados hoje). Sobrescreve o
+  // @Roles('Administrador') da classe: qualquer role de dashboard pode
+  // chamar (o use case ja resolve para "vazio" se o requisitante nao tiver
+  // standId, entao nao vaza dado de outro Coordenador nem exige ser
+  // Administrador so pra ver o proprio status).
+  @Get('stands/meu-status-hoje')
+  @Roles(...DASHBOARD_ROLES)
+  async getMeuStatusHoje(@Req() req: Request) {
+    return this.getMeuPlantaoHojeUseCase.execute({
+      tenantId: req.user!.tenantId,
+      standId: req.user!.standId,
+    });
+  }
 
   // POST /stands - cria um novo stand
   @Post('stands')

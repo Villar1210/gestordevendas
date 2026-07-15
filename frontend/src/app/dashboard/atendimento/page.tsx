@@ -8,6 +8,7 @@ import { useAtendimentoIntegration } from "@/features/atendimento/hooks/useAtend
 import { AtendimentoList } from "@/features/atendimento/components/AtendimentoList";
 import { AtendimentoChatPanel } from "@/features/atendimento/components/AtendimentoChatPanel";
 import { AtendimentoTab } from "@/features/atendimento/constants";
+import { PlantaoStatusBadge } from "@/features/plantao/components/PlantaoStatusBadge";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -95,8 +96,9 @@ export default function AtendimentoPage() {
 
   return (
     <div className="flex h-screen flex-col bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-4">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <h1 className="text-lg font-semibold text-slate-800">Central de Atendimento</h1>
+        <PlantaoStatusBadge />
       </header>
 
       <div className="flex flex-1 gap-4 overflow-hidden p-4">

@@ -22,6 +22,11 @@ export class GetMeUseCase {
       // isso pra decidir o que esconder (ver core/constants/cargoEscopo.ts,
       // mirror de shared/domain/services/cargo-escopo.ts do backend).
       cargoHierarquico: user.cargoHierarquico,
+      // Modulo Plantao/Stand: stand fixo do Coordenador (null para outros
+      // cargos) - frontend usa isso so pra decidir SE busca o status do dia
+      // (GET /stands/meu-status-hoje), sem precisar de outra consulta so
+      // pra saber se o usuario e Coordenador com stand.
+      standId: user.standId,
     };
   }
 }
