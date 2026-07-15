@@ -9,6 +9,7 @@ import {
   STATUS_DISPONIBILIDADE_OPTIONS,
   getStatusDisponibilidadeOption,
 } from "@/features/equipe/constants";
+import { NotificationBell } from "./NotificationBell";
 
 interface Me {
   id: string;
@@ -55,6 +56,8 @@ export function Topbar() {
 
   return (
     <header className="flex h-16 items-center justify-end gap-4 border-b border-slate-200 bg-white px-6">
+      <NotificationBell />
+
       <div className="relative flex items-center gap-2 rounded-lg border border-slate-200 pl-3 pr-1 py-1.5">
         <span className={`h-2.5 w-2.5 rounded-full ${statusOption.dotClassName}`} />
         <select

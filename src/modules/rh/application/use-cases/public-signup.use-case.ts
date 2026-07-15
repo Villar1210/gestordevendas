@@ -7,6 +7,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ICadastroRepository } from '../../domain/repositories/cadastro-repository.interface';
 import { IRoleRepository } from '../../domain/repositories/role-repository.interface';
 
@@ -50,6 +51,7 @@ export class PublicSignupUseCase {
   constructor(
     @Inject('ICadastroRepository') private readonly cadastroRepository: ICadastroRepository,
     @Inject('IRoleRepository') private readonly roleRepository: IRoleRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: PublicSignupInput): Promise<{ message: string }> {
@@ -93,6 +95,15 @@ export class PublicSignupUseCase {
       tipoCliente: input.tipoCliente,
       cep: input.cep,
       endereco: input.endereco,
+    });
+
+    // Desacoplado de proposito - este modulo (rh) nao conhece o modulo
+    // notificacoes, so emite o evento generico (mesmo padrao ja usado por
+    // vendas_kanban -> roleta_online, ver CardSemDonoCriadoListener).
+    this.eventEmitter.emit('cadastro.pendente.criado', {
+      tenantId,
+      nome: input.name,
+      roleName,
     });
 
     return {

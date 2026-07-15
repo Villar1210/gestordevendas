@@ -65,6 +65,7 @@ model Tenant {
 
   contratoTemplates ContratoTemplate[]
   emailTemplates    EmailTemplate[]
+  notifications     Notification[]
 
   @@map("tenants")
 }
@@ -144,6 +145,7 @@ model User {
   filaVinculos       FilaUsuario[]
   atendimentosDono   Atendimento[]
   atendimentoEventos AtendimentoEvento[]
+  notifications      Notification[]
 
   @@map("users")
 }
@@ -191,6 +193,28 @@ model EmailTemplate {
 
   @@unique([tenantId, tipo])
   @@map("email_templates")
+}
+
+// Notificacoes in-app (Fatia 5 do Painel Administrativo) - sino na Topbar.
+// Sempre por USUARIO especifico (nao por tenant inteiro) - um gatilho pode
+// gerar 1 notificacao por Administrador, por exemplo (ver
+// infra/listeners/cadastro-pendente-criado.listener.ts no modulo
+// notificacoes). "link" e opcional (nem toda notificacao leva a algum
+// lugar clicavel).
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tipo      String   @db.VarChar(50)
+  mensagem  String   @db.VarChar(300)
+  link      String?  @db.VarChar(300)
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
 
 // Tokens de uso unico para o fluxo de "esqueci a senha"

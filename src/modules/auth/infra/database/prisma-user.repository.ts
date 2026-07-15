@@ -49,6 +49,13 @@ export class PrismaUserRepository
     });
   }
 
+  async findAllByTenantAndRole(tenantId: string, roleName: string): Promise<{ id: string }[]> {
+    return this.prisma.user.findMany({
+      where: { tenantId, role: { name: roleName } },
+      select: { id: true },
+    });
+  }
+
   async registerCompanyWithOwner(input: {
     companyName: string;
     ownerName: string;

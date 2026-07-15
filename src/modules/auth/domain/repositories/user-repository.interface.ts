@@ -24,6 +24,9 @@ export interface IUserRepository {
   updatePassword(userId: string, hashedPassword: string): Promise<void>;
   updateName(userId: string, name: string): Promise<void>;
   setTwoFactorEnabled(userId: string, enabled: boolean): Promise<void>;
+  // Usado pelo modulo notificacoes (CadastroPendenteCriadoListener) para
+  // encontrar todos os Administradores de um tenant e notificar cada um.
+  findAllByTenantAndRole(tenantId: string, roleName: string): Promise<{ id: string }[]>;
 }
 
 export interface ITenantOnboardingRepository {

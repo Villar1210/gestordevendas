@@ -15,6 +15,7 @@ import { EdocModule } from './modules/edoc/edoc.module';
 import { PortalClienteModule } from './modules/portal_cliente/portal-cliente.module';
 import { AtendimentoModule } from './modules/atendimento/atendimento.module';
 import { ConfiguracoesModule } from './modules/configuracoes/configuracoes.module';
+import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 import { PrismaService } from './config/prisma.service';
 
 @Module({
@@ -45,6 +46,7 @@ import { PrismaService } from './config/prisma.service';
     PortalClienteModule,
     AtendimentoModule,
     ConfiguracoesModule,
+    NotificacoesModule,
   ],
   providers: [PrismaService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
   exports: [PrismaService],
