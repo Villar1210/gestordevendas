@@ -7,17 +7,19 @@ import { MeuPerfilTab } from "@/features/configuracoes/components/MeuPerfilTab";
 import { ContratoTemplateTab } from "@/features/configuracoes/components/ContratoTemplateTab";
 import { PermissoesCargosTab } from "@/features/configuracoes/components/PermissoesCargosTab";
 import { ConfiguracoesViviTab } from "@/features/configuracoes/components/ConfiguracoesViviTab";
+import { EmailTemplatesTab } from "@/features/configuracoes/components/EmailTemplatesTab";
 
 // Fatia 1 (Dados da Empresa, Meu Perfil, Template de Contrato) + Fatia 2
-// (Permissoes/Cargos) + Fatia 3 (Configuracoes da VIVI) do Painel
-// Administrativo. Abas futuras (Templates de E-mail, Notificacoes) entram
-// em fatias seguintes - ver BACKLOG.md.
+// (Permissoes/Cargos) + Fatia 3 (Configuracoes da VIVI) + Fatia 4
+// (Templates de E-mail) do Painel Administrativo. Aba futura (Notificacoes)
+// entra numa fatia seguinte - ver BACKLOG.md.
 type AbaPainelAdministrativo =
   | "dados-empresa"
   | "meu-perfil"
   | "permissoes-cargos"
   | "template-contrato"
-  | "config-vivi";
+  | "config-vivi"
+  | "templates-email";
 
 const TABS: { id: AbaPainelAdministrativo; label: string; testId: string }[] = [
   { id: "dados-empresa", label: "Dados da Empresa", testId: "tab-dados-empresa" },
@@ -25,6 +27,7 @@ const TABS: { id: AbaPainelAdministrativo; label: string; testId: string }[] = [
   { id: "permissoes-cargos", label: "Permissões/Cargos", testId: "tab-permissoes-cargos" },
   { id: "template-contrato", label: "Template de Contrato", testId: "tab-template-contrato" },
   { id: "config-vivi", label: "Configurações da VIVI", testId: "tab-config-vivi" },
+  { id: "templates-email", label: "Templates de E-mail", testId: "tab-templates-email" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -56,6 +59,7 @@ export default function ConfiguracoesPage() {
         {aba === "permissoes-cargos" && <PermissoesCargosTab />}
         {aba === "template-contrato" && <ContratoTemplateTab />}
         {aba === "config-vivi" && <ConfiguracoesViviTab />}
+        {aba === "templates-email" && <EmailTemplatesTab />}
       </div>
     </div>
   );

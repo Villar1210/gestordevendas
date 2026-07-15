@@ -77,3 +77,59 @@ export function preencherContratoTemplatePreview(corpo: string): string {
   }
   return resultado;
 }
+
+// Espelha domain/services/email-template-tipos.ts (backend) - os 3 tipos
+// de e-mail editaveis na aba "Templates de E-mail".
+export const EMAIL_TEMPLATE_TIPOS = [
+  { tipo: "boas_vindas_corretor", label: "Boas-vindas do Corretor" },
+  { tipo: "rejeicao_cadastro", label: "Rejeição de Cadastro" },
+  { tipo: "aprovacao_cadastro", label: "Aprovação de Cadastro" },
+] as const;
+
+// Espelha domain/services/preencher-email-template.ts (backend). Nem todo
+// placeholder faz sentido em todo template (ex: SENHA_TEMPORARIA so no
+// boas-vindas) - a lista fica disponivel em todos por simplicidade, o
+// Administrador escolhe o que faz sentido para cada um.
+export const EMAIL_TEMPLATE_PLACEHOLDERS: { token: string; label: string }[] = [
+  { token: "{{NOME}}", label: "Nome do destinatário" },
+  { token: "{{EMAIL}}", label: "E-mail do destinatário" },
+  { token: "{{EMPRESA}}", label: "Razão social da empresa" },
+  { token: "{{SENHA_TEMPORARIA}}", label: "Senha temporária (só boas-vindas)" },
+  { token: "{{CARGO}}", label: "Cargo hierárquico (só aprovação)" },
+  { token: "{{PERFIL}}", label: "Perfil/role (só aprovação)" },
+];
+
+// Espelha domain/services/email-template-padrao.ts (backend) - usado pelo
+// botao "Restaurar Padrao" de cada template (so preenche o formulario,
+// nao salva sozinho).
+export const EMAIL_TEMPLATE_PADRAO: Record<string, { assunto: string; corpo: string }> = {
+  boas_vindas_corretor: {
+    assunto: "Bem-vindo(a) à {{EMPRESA}}",
+    corpo: `<p>Olá, {{NOME}}.</p><p>Sua conta de corretor foi criada na {{EMPRESA}}.</p><p>Acesse com o e-mail <strong>{{EMAIL}}</strong> e a senha temporária abaixo. Recomendamos trocá-la após o primeiro login.</p><p><strong>Senha temporária:</strong> {{SENHA_TEMPORARIA}}</p>`,
+  },
+  rejeicao_cadastro: {
+    assunto: "Sobre o seu cadastro",
+    corpo: `<p>Olá, {{NOME}}.</p><p>Analisamos seu cadastro na {{EMPRESA}} e, no momento, não foi possível aprová-lo. Se tiver dúvidas, entre em contato com a nossa equipe.</p>`,
+  },
+  aprovacao_cadastro: {
+    assunto: "Seu cadastro foi aprovado!",
+    corpo: `<p>Olá, {{NOME}}.</p><p>Seu cadastro na {{EMPRESA}} foi aprovado! Você já pode entrar no sistema com o e-mail e a senha que você escolheu no cadastro.</p>`,
+  },
+};
+
+const DADOS_FICTICIOS_EMAIL_PREVIEW: Record<string, string> = {
+  "{{NOME}}": "João da Silva",
+  "{{EMAIL}}": "joao.silva@exemplo.com",
+  "{{EMPRESA}}": "Imobiliaria Exemplo Ltda",
+  "{{SENHA_TEMPORARIA}}": "a1b2c3d4e5f6",
+  "{{CARGO}}": "corretor",
+  "{{PERFIL}}": "Corretor",
+};
+
+export function preencherEmailTemplatePreview(texto: string): string {
+  let resultado = texto;
+  for (const [token, valor] of Object.entries(DADOS_FICTICIOS_EMAIL_PREVIEW)) {
+    resultado = resultado.split(token).join(valor);
+  }
+  return resultado;
+}

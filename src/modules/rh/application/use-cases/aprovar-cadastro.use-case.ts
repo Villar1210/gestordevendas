@@ -13,9 +13,12 @@ import {
   CadastroRecord,
 } from '../../domain/repositories/cadastro-repository.interface';
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
+import { ITenantConfigRepository } from '../../../configuracoes/domain/repositories/tenant-config-repository.interface';
 import { exigeContrato, ehPessoaJuridica } from '../../domain/services/roles-com-contrato';
 import { VALID_CARGOS_HIERARQUICOS } from '../../domain/services/cargos-hierarquicos';
+import { preencherEmailTemplate } from '../../domain/services/preencher-email-template';
 import { GerarContratoPrestacaoServicoUseCase } from './gerar-contrato-prestacao-servico.use-case';
+import { GetOrCreateEmailTemplateUseCase } from './get-or-create-email-template.use-case';
 
 interface AprovarCadastroInput {
   cadastroId: string;
@@ -36,7 +39,9 @@ export class AprovarCadastroUseCase {
   constructor(
     @Inject('ICadastroRepository') private readonly cadastroRepository: ICadastroRepository,
     @Inject('IEmailSender') private readonly emailSender: IEmailSender,
+    @Inject('ITenantConfigRepository') private readonly tenantConfigRepository: ITenantConfigRepository,
     private readonly gerarContratoPrestacaoServicoUseCase: GerarContratoPrestacaoServicoUseCase,
+    private readonly getOrCreateEmailTemplateUseCase: GetOrCreateEmailTemplateUseCase,
   ) {}
 
   async execute(input: AprovarCadastroInput): Promise<CadastroRecord> {
@@ -93,10 +98,23 @@ export class AprovarCadastroUseCase {
       superiorId: input.superiorId,
     });
 
+    const template = await this.getOrCreateEmailTemplateUseCase.execute({
+      tenantId: input.tenantId,
+      tipo: 'aprovacao_cadastro',
+    });
+    const tenantConfig = await this.tenantConfigRepository.findByTenantId(input.tenantId);
+    const dadosTemplate = {
+      nome: aprovado.name,
+      email: aprovado.email,
+      empresa: tenantConfig?.name ?? 'nossa empresa',
+      cargo: aprovado.cargoHierarquico ?? '',
+      perfil: aprovado.roleName,
+    };
+
     await this.emailSender.send({
       to: aprovado.email,
-      subject: 'Seu cadastro foi aprovado!',
-      body: `<p>Ola, ${aprovado.name}.</p><p>Seu cadastro no gestordevendas foi aprovado! Voce ja pode entrar no sistema com o e-mail e a senha que voce escolheu no cadastro.</p>`,
+      subject: preencherEmailTemplate(template.assunto, dadosTemplate),
+      body: preencherEmailTemplate(template.corpo, dadosTemplate),
     });
 
     // Geracao do contrato e um efeito colateral POS-aprovacao - uma falha

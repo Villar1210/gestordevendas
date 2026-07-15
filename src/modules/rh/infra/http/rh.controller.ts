@@ -11,6 +11,7 @@ import { PublicSignupDto } from './dtos/public-signup.dto';
 import { AprovarCadastroDto } from './dtos/aprovar-cadastro.dto';
 import { UpdateContratoTemplateDto } from './dtos/update-contrato-template.dto';
 import { UpdateUserCargoDto } from './dtos/update-user-cargo.dto';
+import { UpdateEmailTemplateDto } from './dtos/update-email-template.dto';
 import { CreateCorretorUseCase } from '../../application/use-cases/create-corretor.use-case';
 import { ListCorretoresUseCase } from '../../application/use-cases/list-corretores.use-case';
 import { UpdateStatusDisponibilidadeUseCase } from '../../application/use-cases/update-status-disponibilidade.use-case';
@@ -27,6 +28,8 @@ import { GetOrCreateContratoTemplateUseCase } from '../../application/use-cases/
 import { UpdateContratoTemplateUseCase } from '../../application/use-cases/update-contrato-template.use-case';
 import { ListUsuariosComHierarquiaUseCase } from '../../application/use-cases/list-usuarios-com-hierarquia.use-case';
 import { UpdateUserCargoUseCase } from '../../application/use-cases/update-user-cargo.use-case';
+import { ListEmailTemplatesUseCase } from '../../application/use-cases/list-email-templates.use-case';
+import { UpdateEmailTemplateUseCase } from '../../application/use-cases/update-email-template.use-case';
 
 @Controller('rh')
 export class RhController {
@@ -44,6 +47,8 @@ export class RhController {
     private readonly updateContratoTemplateUseCase: UpdateContratoTemplateUseCase,
     private readonly listUsuariosComHierarquiaUseCase: ListUsuariosComHierarquiaUseCase,
     private readonly updateUserCargoUseCase: UpdateUserCargoUseCase,
+    private readonly listEmailTemplatesUseCase: ListEmailTemplatesUseCase,
+    private readonly updateEmailTemplateUseCase: UpdateEmailTemplateUseCase,
   ) {}
 
   // POST /rh/corretores - cadastra um novo corretor (so Administrador)
@@ -218,6 +223,36 @@ export class RhController {
       requesterRole: req.user!.role,
       cargoHierarquico: dto.cargoHierarquico ?? null,
       superiorId: dto.superiorId ?? null,
+    });
+  }
+
+  // GET /rh/email-templates - aba "Templates de E-mail" do Painel
+  // Administrativo: os 3 templates do fluxo de RH (so Administrador).
+  @Get('email-templates')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async listEmailTemplates(@Req() req: Request) {
+    return this.listEmailTemplatesUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+    });
+  }
+
+  // PATCH /rh/email-templates/:tipo - Administrador edita um dos 3 templates.
+  @Patch('email-templates/:tipo')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async updateEmailTemplate(
+    @Param('tipo') tipo: string,
+    @Body() dto: UpdateEmailTemplateDto,
+    @Req() req: Request,
+  ) {
+    return this.updateEmailTemplateUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      tipo,
+      assunto: dto.assunto,
+      corpo: dto.corpo,
     });
   }
 }

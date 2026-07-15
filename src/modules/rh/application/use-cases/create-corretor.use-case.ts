@@ -5,6 +5,9 @@ import * as crypto from 'crypto';
 import { ICorretorRepository, CorretorRecord } from '../../domain/repositories/corretor-repository.interface';
 import { IRoleRepository } from '../../domain/repositories/role-repository.interface';
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
+import { ITenantConfigRepository } from '../../../configuracoes/domain/repositories/tenant-config-repository.interface';
+import { GetOrCreateEmailTemplateUseCase } from './get-or-create-email-template.use-case';
+import { preencherEmailTemplate } from '../../domain/services/preencher-email-template';
 
 const CORRETOR_ROLE_NAME = 'Corretor';
 
@@ -28,6 +31,8 @@ export class CreateCorretorUseCase {
     @Inject('ICorretorRepository') private readonly corretorRepository: ICorretorRepository,
     @Inject('IRoleRepository') private readonly roleRepository: IRoleRepository,
     @Inject('IEmailSender') private readonly emailSender: IEmailSender,
+    @Inject('ITenantConfigRepository') private readonly tenantConfigRepository: ITenantConfigRepository,
+    private readonly getOrCreateEmailTemplateUseCase: GetOrCreateEmailTemplateUseCase,
   ) {}
 
   async execute(input: CreateCorretorInput): Promise<CorretorRecord> {
@@ -60,10 +65,22 @@ export class CreateCorretorUseCase {
       hashedPassword,
     });
 
+    const template = await this.getOrCreateEmailTemplateUseCase.execute({
+      tenantId: input.tenantId,
+      tipo: 'boas_vindas_corretor',
+    });
+    const tenantConfig = await this.tenantConfigRepository.findByTenantId(input.tenantId);
+    const dadosTemplate = {
+      nome: corretor.name,
+      email: corretor.email,
+      empresa: tenantConfig?.name ?? 'nossa empresa',
+      senhaTemporaria: temporaryPassword,
+    };
+
     await this.emailSender.send({
       to: corretor.email,
-      subject: 'Bem-vindo(a) ao gestordevendas',
-      body: `<p>Ola, ${corretor.name}.</p><p>Sua conta de corretor foi criada no gestordevendas.</p><p>Acesse com o e-mail <strong>${corretor.email}</strong> e a senha temporaria abaixo. Recomendamos troca-la apos o primeiro login.</p><p><strong>Senha temporaria:</strong> ${temporaryPassword}</p>`,
+      subject: preencherEmailTemplate(template.assunto, dadosTemplate),
+      body: preencherEmailTemplate(template.corpo, dadosTemplate),
     });
 
     return corretor;

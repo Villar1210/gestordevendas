@@ -64,6 +64,7 @@ model Tenant {
   signatureEnvelopes SignatureEnvelope[]
 
   contratoTemplates ContratoTemplate[]
+  emailTemplates    EmailTemplate[]
 
   @@map("tenants")
 }
@@ -169,6 +170,27 @@ model ContratoTemplate {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("contrato_templates")
+}
+
+// Templates de e-mail editaveis por tenant (Fatia 4 do Painel
+// Administrativo) - "tipo" identifica QUAL e-mail do fluxo de RH
+// (boas_vindas_corretor/rejeicao_cadastro/aprovacao_cadastro, ver
+// domain/services/email-template-tipos.ts), unico por tenant+tipo.
+// Get-or-create com defaults hardcoded na primeira leitura (mesmo padrao
+// ja usado por ContratoTemplate/ViviConfig).
+model EmailTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tipo      String   @db.VarChar(50)
+  assunto   String   @db.VarChar(200)
+  corpo     String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, tipo])
+  @@map("email_templates")
 }
 
 // Tokens de uso unico para o fluxo de "esqueci a senha"
