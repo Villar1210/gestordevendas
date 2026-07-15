@@ -1,11 +1,11 @@
 # Progresso do Ecossistema gestordevendas
 
-## Sessao 13-15/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca, Painel Administrativo - resumo
+## Sessao 13-15/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca, Painel Administrativo, RBAC por cargo - resumo
 
-Sessao muito longa, 12 frentes concluidas e deployadas em producao, cada
+Sessao muito longa, 13 frentes concluidas e deployadas em producao, cada
 uma com commit(s) proprio(s) e verificacao de ponta a ponta antes do
-deploy seguinte. Fecha com o Painel Administrativo completo (5 fatias -
-ver secao propria abaixo).
+deploy seguinte. Fecha com o Painel Administrativo completo (5 fatias) e
+o RBAC por cargo hierarquico (3 fatias) - ver secoes proprias abaixo.
 
 ### VIVI - escopo completo do documento original de instrucoes (5 fatias) - CONCLUIDO
 Documento original de instrucoes da VIVI (encontrado pelo usuario)
@@ -301,9 +301,95 @@ antes do deploy seguinte:
 Escopo deliberadamente NAO incluido nesta leva (registrado no BACKLOG.md
 como trabalho futuro, nao esquecido): RBAC granular de verdade
 (permissoes continuam fixas em `@Roles(...)` no codigo, so o cargo
-hierarquico em si ficou editavel), mais gatilhos de notificacao (so
-"cadastro pendente" por enquanto), e mais tipos de e-mail alem dos 3 do
-fluxo de RH (reset de senha, e-mails do E-doc continuam hardcoded).
+hierarquico em si ficou editavel - ver secao propria logo abaixo, onde
+isso e resolvido), mais gatilhos de notificacao (so "cadastro pendente"
+por enquanto), e mais tipos de e-mail alem dos 3 do fluxo de RH (reset de
+senha, e-mails do E-doc continuam hardcoded).
+
+### RBAC por cargo hierarquico (3 fatias) - CONCLUIDO
+Fecha a lacuna deixada pelo Painel Administrativo: o cargo hierarquico
+(Diretor/Gerente/Coordenador/Corretor, ver Permissoes/Cargos acima) ate
+entao era so um campo descritivo, sem nenhum efeito real de acesso -
+`RolesGuard` sempre leu so `Role.name` (Administrador/Corretor/etc.),
+nunca o cargo. Diagnostico previo (auditoria completa dos ~70 endpoints
+do backend, todos os `@Roles()` mapeados) confirmou isso antes de
+codar - cargo controla QUANTO DADO o usuario ve dentro das telas que o
+Role dele ja acessa, Role continua controlando QUAIS TELAS abrem
+(inalterado). Escopo final (apos discussao) deixou "Plantao" de fora
+desta leva (registrado como pendencia, ver Proximos passos) - Coordenador
+usa a MESMA logica hierarquica do Gerente por enquanto.
+
+```ts
+CARGO_ESCOPO = {
+  diretor: { escopo: 'todos', podeExcluir: false },
+  diretor_regional: { escopo: 'todos', podeExcluir: false },
+  gerente: { escopo: 'equipe', podeExcluir: false },       // equipe = recursivo
+  gerente_regional: { escopo: 'equipe', podeExcluir: false },
+  superintendente: { escopo: 'equipe', podeExcluir: false }, // legado, tratado como gerente
+  coordenador: { escopo: 'equipe', podeExcluir: false },
+  corretor: { escopo: 'proprio', podeExcluir: true },       // comportamento preservado
+};
+// Administrador: sempre 'todos'+podeExcluir=true (bypass). Sem cargo
+// definido / Corretor Parceiro: fallback 'proprio'+podeExcluir=true.
+```
+
+- **Fatia 1 (infraestrutura)**: `GetSubordinadosRecursivosUseCase` (modulo
+  auth, BFS por niveis, nao 1 CTE recursiva - Prisma nao suporta isso via
+  query builder) + `findAllByTenantAndSuperiorIds` (busca em lote, 1 query
+  por nivel); `shared/domain/services/cargo-escopo.ts` (`resolveEscopo`/
+  `podeExcluirRegistroDeNegocio`, funcoes puras); JWT ganhou o claim
+  `cargo` (corrigido em 2 pontos de emissao - login direto E o fluxo de
+  2FA, achado durante a auditoria de todos os `jwtService.sign()` do
+  projeto); `BlockDeleteForCargoGuard` aplicado SO em
+  `DELETE /cards/:id` e `DELETE /stages/:id` (as unicas 2 rotas de
+  exclusao de registro de negocio abertas a `DASHBOARD_ROLES` amplo -
+  as demais ja eram Administrador-only via Role, sem relacao com cargo);
+  `VALID_CARGOS_HIERARQUICOS` expandido com `diretor_regional`/
+  `gerente_regional`. Confirmado em producao (antes do deploy) que
+  nenhum usuario real tinha cargo definido ainda - risco pratico zero no
+  momento do deploy.
+- **Fatia 2 (filtro de dados)**: `GetBoardUseCase` (Kanban) trocou o
+  `if (role==='Corretor')` binario por `resolveEscopo()`. Caixa de
+  Entrada (`GetInboxUseCase`) ficou DELIBERADAMENTE intocada - lead sem
+  dono nao pertence a "equipe" nenhuma ainda. `ListAtendimentosUseCase`/
+  `GetAtendimentoDetailUseCase` passaram a SOMAR o escopo por cargo ao
+  filtro por fila ja existente (nao substituir) - visivel se pertencer a
+  uma fila do requisitante OU se o dono estiver dentro do escopo de
+  cargo dele. Achado sobre WhatsApp: `GetMyWhatsAppSessionUseCase`
+  filtra so por `tenantId`, nunca por dono - e uma conexao compartilhada
+  do tenant (QR/connect/disconnect), nao uma caixa de conversas por
+  corretor; visibilidade de conversa real ja e coberta por Kanban +
+  Atendimento, nenhuma mudanca feita ali.
+- **Fatia 3 (frontend)**: `GetMeUseCase`/`/auth/me` passou a devolver
+  `cargoHierarquico`. Achado real: nao existe nenhum botao de "excluir
+  Card" no frontend (so backend) - nada pra esconder ali. Botao de
+  excluir Stage (coluna) ganhou `core/constants/cargoEscopo.ts` (mirror
+  do backend) + `podeExcluirRegistroDeNegocio` no `useKanbanStore`,
+  calculado uma vez via `/auth/me` no init da pagina - o botao de
+  RENOMEAR continua visivel (so excluir e bloqueado). Outros botoes de
+  exclusao do sistema (fotos de imovel, filas, documentos de inquilino,
+  desconectar sessao WhatsApp) NAO foram tocados - nenhum e coberto pelo
+  `BlockDeleteForCargoGuard`, continuam controlados so pelo Role
+  existente, sem relacao com cargo (esconde-los por cargo seria
+  inconsistente com o que o backend realmente permite). RH/Financeiro/
+  Painel Administrativo ja ficavam ocultos pro Sidebar de
+  Diretor/Gerente/Coordenador SEM nenhuma mudanca de codigo - todos
+  continuam com `Role=Corretor` (so o cargo muda), e o Sidebar ja
+  gateava esses itens por `requiredRole: "Administrador"` desde antes
+  desta fatia - so confirmado com teste, nao reimplementado.
+
+Testado de ponta a ponta em cada fatia (scripts descartaveis, removidos
+ao final): Fatia 1 confirmou hierarquia de 4 niveis via JWT (login E
+2FA) + `getSubordinadosRecursivos` recursivo de verdade + Guard
+bloqueando Diretor/Gerente/Coordenador mas liberando Corretor + token
+sem o claim `cargo` (simulando sessao antiga) nao quebra. Fatia 2 rodou
+a matriz completa de 4 cenarios (Administrador/Diretor/Gerente-com-
+equipe/Corretor-solo) em 2 modulos (Kanban + Atendimento), 12
+verificacoes, incluindo a prova de que Caixa de Entrada continua igual
+pra todo mundo. Fatia 3 confirmou com Playwright real que o botao de
+excluir coluna some do DOM pro Gerente (nao so via CSS) mas o de
+renomear continua, e que o Administrador continua vendo tudo
+normalmente.
 
 ### Metodologia desta sessao (registrar para as proximas)
 - Todo commit de cada frente foi feito **separado por assunto** (nunca
@@ -412,23 +498,29 @@ fatia; o Transferir continua cobrindo esse caso.
 mudanca de schema/autenticacao.
 
 ### Pendencias conhecidas registradas para retomar
-NOTA (atualizada apos o Painel Administrativo): as 3 correcoes citadas
+NOTA (atualizada apos o RBAC por cargo): as 3 correcoes citadas
 originalmente aqui (guard anti-duplicidade da VIVI, supressao de "Bad
 MAC", preview Word/Excel no E-doc) ja foram commitadas ha algumas
 sessoes (`07b4fc7`, `8ebdc1b`, `d7c1d02`) - a nota antiga ficou
 desatualizada, removida. RH: contrato automatico de prestacao de
-servico (Fatias 1+2), RH Fatia 3 (template editavel) e o Painel
-Administrativo completo (5 fatias: Meu Perfil, Permissoes/Cargos,
-Configuracoes da VIVI, Templates de E-mail, Notificacoes) ja foram
-CONCLUIDOS - ver secoes proprias acima. Rate limiting no login + helmet
-+ log de auditoria (parte da Fase C) tambem ja CONCLUIDO - ver secao
-propria acima.
+servico (Fatias 1+2), RH Fatia 3 (template editavel), o Painel
+Administrativo completo (5 fatias) e o RBAC por cargo hierarquico (3
+fatias) ja foram CONCLUIDOS - ver secoes proprias acima. Rate limiting
+no login + helmet + log de auditoria (parte da Fase C) tambem ja
+CONCLUIDO - ver secao propria acima.
 Pendencias reais atuais:
-- Sistema de permissoes por cargo (RBAC real) - o Painel Administrativo
-  deixou o CARGO hierarquico editavel (Diretor/Gerente/Coordenador/
-  Corretor), mas o controle de ACESSO em si continua fixo em
-  `@Roles(...)` hardcoded no codigo, nao derivado do cargo - afeta
-  potencialmente todos os modulos que usam `RolesGuard`
+- Plantao/Stand: deixado de fora do RBAC por cargo de proposito (ver
+  secao propria acima) - Coordenador hoje usa a mesma logica hierarquica
+  do Gerente (equipe via superiorId). Escopo real: Stand de vendas +
+  escala semanal + Coordenador ve so os corretores escalados NO DIA, nao
+  a arvore de subordinados inteira - exige modelagem nova (nenhum
+  conceito de "escala"/"turno" existe hoje no schema)
+- Super Usuario: hoje nao existe conta que acesse MAIS DE UM tenant -
+  cada Administrador so ve o proprio tenant (isolamento multitenant
+  correto e desejado para clientes). Precisa de um papel novo, fora da
+  hierarquia normal de Role/cargo de um tenant, para o DONO da
+  plataforma SaaS (nao um cliente) acessar todos os tenants - avaliar
+  com cuidado pra nao abrir brecha de vazamento entre tenants
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 - Fase C do roteiro, restante: testes automatizados, logs estruturados/
@@ -439,18 +531,19 @@ Pendencias reais atuais:
   Online/multicanal) - ainda nao iniciado
 
 ### Proximos passos sugeridos (em ordem de prioridade discutida)
-1. Sistema de permissoes por cargo (Diretor/Gerente/Coordenador/
-   Corretor) - afeta todos os modulos que usam `RolesGuard`, precisa de
-   diagnostico cuidadoso antes de codar (escopo grande, risco de quebrar
-   acesso existente se malfeito)
-2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+1. Plantao/Stand (Stand de vendas + escala semanal + Coordenador ve so
+   quem esta escalado hoje) - fecha a lacuna deixada de proposito no
+   RBAC por cargo, exige modelagem nova
+2. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
+   escopo sensivel (isolamento multitenant), precisa de diagnostico
+   cuidadoso antes de codar
+3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
-3. Logs estruturados + monitoramento basico (restante da Fase C) -
-   barato de implementar, mas rebaixado de prioridade 1 pra 3 nesta
-   atualizacao (decisao do usuario)
+4. Logs estruturados + monitoramento basico (restante da Fase C) -
+   barato de implementar
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
@@ -870,6 +963,12 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
   Cargos, Template de Contrato, Configuracoes da VIVI, Templates de
   E-mail) + sino de Notificacoes na Topbar - ver secao propria "Painel
   Administrativo (5 fatias)" mais acima.
+- RBAC por cargo hierarquico: CONCLUIDO - cargo (Diretor/Gerente/
+  Coordenador/Corretor) agora controla visibilidade de dados (Kanban +
+  Atendimento) e permissao de exclusao, alem de so ser descritivo -
+  ver secao propria "RBAC por cargo hierarquico (3 fatias)" acima.
+  Plantao/Stand e Super Usuario ficaram fora desta leva, registrados
+  como proximos passos.
 - Roleta Online (distribuicao automatica de leads entre corretores): CONCLUIDA
 - E-doc (assinatura eletronica): Fatias 1, 2, 3 e 4 CONCLUIDAS
   (envelope + assinatura sequencial + editor de posicionamento de

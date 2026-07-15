@@ -90,15 +90,28 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
 - [x] Cargos hierarquicos (Diretor/Gerente/Coordenador/Corretor) -
       CONCLUIDO: aba "Permissoes/Cargos" permite reatribuir cargo/
       superior de qualquer usuario aprovado a qualquer momento (antes so
-      era definido uma vez, na aprovacao). NOTA: isso e so o CARGO em si
-      - RBAC/controle de acesso por cargo continua fora de escopo, ver
+      era definido uma vez, na aprovacao).
+- [x] Sistema de permissoes por cargo (RBAC real) - CONCLUIDO, 3 fatias:
+      infraestrutura (JWT com cargo, getSubordinadosRecursivos,
+      BlockDeleteForCargoGuard) na Fatia 1; filtro de dados por cargo
+      (Kanban + Atendimento, escopo todos/equipe/proprio) na Fatia 2;
+      frontend (ocultar excluir Stage, cargo em /auth/me) na Fatia 3 -
+      ver PROGRESS.md. NOTA: "Plantao/Stand" (Coordenador ver so quem
+      esta escalado no dia) ficou FORA desta leva de proposito - ver
       novo item abaixo.
-- [ ] Sistema de permissoes por cargo (RBAC real) - hoje o controle de
-      acesso continua fixo em `@Roles(...)` hardcoded no codigo
-      (RolesGuard), nao derivado do cargoHierarquico que agora e
-      editavel. Afeta potencialmente todos os modulos que usam
-      RolesGuard - escopo grande, precisa de diagnostico cuidadoso antes
-      de implementar (risco de quebrar acesso existente).
+- [ ] Plantao/Stand - Coordenador hoje usa a mesma logica hierarquica do
+      Gerente (equipe via superiorId, ver RBAC acima). Escopo real
+      pedido: Stand de vendas + escala semanal + Coordenador ve so os
+      corretores escalados NO DIA (nao a arvore de subordinados
+      inteira) - exige modelagem nova, nenhum conceito de "escala"/
+      "turno" existe hoje no schema. Sessao dedicada.
+- [ ] Super Usuario - hoje nenhuma conta acessa mais de 1 tenant (cada
+      Administrador so ve o proprio, isolamento multitenant correto e
+      desejado para clientes). Precisa de um papel novo, fora da
+      hierarquia normal de Role/cargo de um tenant, para o DONO da
+      plataforma SaaS (nao um cliente) acessar todos os tenants -
+      avaliar com cuidado pra nao abrir brecha de vazamento entre
+      tenants. Sessao dedicada.
 
 ## Modulo WhatsApp Marketing / VIVI
 - [ ] Investigar erros "Bad MAC" recorrentes no log do backend em
