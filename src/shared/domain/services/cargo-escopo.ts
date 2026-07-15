@@ -11,8 +11,11 @@
 // inalterado). Administrador sempre "todos"+podeExcluir=true, por bypass
 // direto (nao tem cargoHierarquico preenchido). Escopo "equipe" e a arvore
 // INTEIRA de subordinados (recursivo - ver GetSubordinadosRecursivosUseCase
-// no modulo auth), nao so os diretos.
-export type EscopoVisibilidade = 'todos' | 'equipe' | 'proprio';
+// no modulo auth), nao so os diretos. Escopo "plantao" (Coordenador, desde
+// o modulo Plantao/Stand) e os corretores ESCALADOS HOJE no stand fixo do
+// Coordenador (ver GetCorretoresEscaladosHojeUseCase no modulo plantao) -
+// eixo diferente de "equipe", nao usa superiorId.
+export type EscopoVisibilidade = 'todos' | 'equipe' | 'proprio' | 'plantao';
 
 interface CargoConfig {
   escopo: EscopoVisibilidade;
@@ -29,7 +32,7 @@ export const CARGO_ESCOPO: Record<string, CargoConfig> = {
   gerente: { escopo: 'equipe', podeExcluir: false },
   gerente_regional: { escopo: 'equipe', podeExcluir: false },
   superintendente: { escopo: 'equipe', podeExcluir: false },
-  coordenador: { escopo: 'equipe', podeExcluir: false },
+  coordenador: { escopo: 'plantao', podeExcluir: false },
   corretor: { escopo: 'proprio', podeExcluir: true },
 };
 

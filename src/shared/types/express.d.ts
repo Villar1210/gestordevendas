@@ -9,6 +9,10 @@ export interface AuthenticatedUser {
   // usuario nao tem cargo definido - tratado como fallback seguro
   // ('proprio'/podeExcluir=true) em cargo-escopo.ts, nunca quebra.
   cargo: string | null;
+  // Modulo Plantao/Stand: stand fixo do Coordenador (null para outros
+  // cargos, ou Coordenador ainda sem stand atribuido) - usado pelo escopo
+  // 'plantao' do RBAC (ver cargo-escopo.ts).
+  standId: string | null;
 }
 
 // O @types/passport ja declara `Request.user?: Express.User`.

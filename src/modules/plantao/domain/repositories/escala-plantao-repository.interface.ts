@@ -20,4 +20,9 @@ export interface IEscalaPlantaoRepository {
   // Grade semanal completa de um stand (7 dias), usada pela tela de
   // gestao no Painel Administrativo.
   findAllByStand(standId: string): Promise<EscalaPlantaoWithUserName[]>;
+  // Quem esta escalado num stand num dia especifico (0=domingo...6=sabado)
+  // - usado pelo escopo 'plantao' do RBAC (GetCorretoresEscaladosHojeUseCase)
+  // para restringir a visibilidade do Coordenador aos corretores escalados
+  // HOJE no stand dele.
+  findAllByStandAndDia(standId: string, diaSemana: number): Promise<{ userId: string }[]>;
 }

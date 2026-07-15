@@ -63,6 +63,7 @@ export class PipelineController {
       requesterRole: req.user!.role,
       requesterUserId: req.user!.id,
       requesterCargo: req.user!.cargo,
+      requesterStandId: req.user!.standId,
     });
   }
 

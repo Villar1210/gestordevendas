@@ -4,6 +4,7 @@ import { IPipelineRepository } from '../../domain/repositories/pipeline-reposito
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
 import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
+import { GetCorretoresEscaladosHojeUseCase } from '../../../plantao/application/use-cases/get-corretores-escalados-hoje.use-case';
 import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
 
 interface GetBoardInput {
@@ -15,6 +16,9 @@ interface GetBoardInput {
   requesterRole: string;
   requesterUserId: string;
   requesterCargo: string | null;
+  // Modulo Plantao/Stand: stand fixo do Coordenador, so relevante quando o
+  // escopo resolvido for 'plantao'.
+  requesterStandId: string | null;
 }
 
 export interface BoardStage {
@@ -38,6 +42,7 @@ export class GetBoardUseCase {
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     private readonly getSubordinadosRecursivosUseCase: GetSubordinadosRecursivosUseCase,
+    private readonly getCorretoresEscaladosHojeUseCase: GetCorretoresEscaladosHojeUseCase,
   ) {}
 
   async execute(input: GetBoardInput): Promise<BoardResult> {
@@ -52,8 +57,10 @@ export class GetBoardUseCase {
     const stages = await this.stageRepository.findAllByPipeline(pipeline.id);
 
     // Escopo por cargo hierarquico (RBAC): 'todos' (Administrador/Diretor)
-    // -> sem filtro; 'equipe' (Gerente/Coordenador) -> proprios cards +
-    // cards de toda a arvore de subordinados (recursivo); 'proprio'
+    // -> sem filtro; 'equipe' (Gerente) -> proprios cards + cards de toda a
+    // arvore de subordinados (recursivo); 'plantao' (Coordenador) -> cards
+    // dos corretores ESCALADOS HOJE no stand fixo do Coordenador (sem
+    // fallback se ele nao tiver standId - lista vazia); 'proprio'
     // (Corretor) -> so os proprios, mesmo comportamento de antes desta
     // fatia. A Caixa de Entrada (GetInboxUseCase) NAO aplica este filtro
     // de proposito - leads sem dono nao "pertencem" a equipe nenhuma
@@ -69,6 +76,10 @@ export class GetBoardUseCase {
         userId: input.requesterUserId,
       });
       idsPermitidos = [input.requesterUserId, ...subordinados];
+    } else if (escopo === 'plantao') {
+      idsPermitidos = await this.getCorretoresEscaladosHojeUseCase.execute({
+        standId: input.requesterStandId,
+      });
     }
 
     const stagesWithCards: BoardStage[] = await Promise.all(

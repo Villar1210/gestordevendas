@@ -44,6 +44,7 @@ export class VerifyTwoFactorCodeUseCase {
       tenantId: user.tenantId,
       role: user.role.name,
       cargo: user.cargoHierarquico,
+      standId: user.standId,
     };
 
     const token = this.jwtService.sign(payload);

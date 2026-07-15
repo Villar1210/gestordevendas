@@ -14,6 +14,7 @@ import {
   WhatsAppMessageRecord,
 } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
 import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
+import { GetCorretoresEscaladosHojeUseCase } from '../../../plantao/application/use-cases/get-corretores-escalados-hoje.use-case';
 import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
 
 interface GetAtendimentoDetailInput {
@@ -22,6 +23,7 @@ interface GetAtendimentoDetailInput {
   requesterRole: string;
   requesterUserId: string;
   requesterCargo: string | null;
+  requesterStandId: string | null;
 }
 
 export interface GetAtendimentoDetailResult {
@@ -46,6 +48,7 @@ export class GetAtendimentoDetailUseCase {
     @Inject('IWhatsAppMessageRepository')
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
     private readonly getSubordinadosRecursivosUseCase: GetSubordinadosRecursivosUseCase,
+    private readonly getCorretoresEscaladosHojeUseCase: GetCorretoresEscaladosHojeUseCase,
   ) {}
 
   async execute(input: GetAtendimentoDetailInput): Promise<GetAtendimentoDetailResult> {
@@ -68,6 +71,10 @@ export class GetAtendimentoDetailUseCase {
           userId: input.requesterUserId,
         });
         idsPermitidos = [input.requesterUserId, ...subordinados];
+      } else if (escopo === 'plantao') {
+        idsPermitidos = await this.getCorretoresEscaladosHojeUseCase.execute({
+          standId: input.requesterStandId,
+        });
       }
 
       const isOwner = !!atendimento.ownerId && idsPermitidos.includes(atendimento.ownerId);

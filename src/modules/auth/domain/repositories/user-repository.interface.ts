@@ -20,6 +20,10 @@ export interface UserWithRole {
   // ou Corretor ainda sem cargo atribuido). Ver
   // shared/domain/services/cargo-escopo.ts.
   cargoHierarquico: string | null;
+  // Modulo Plantao/Stand: stand FIXO que o Coordenador supervisiona (null
+  // para qualquer outro cargo, ou Coordenador ainda sem stand atribuido).
+  // Ver shared/domain/services/cargo-escopo.ts, escopo 'plantao'.
+  standId: string | null;
   role: { name: string };
 }
 

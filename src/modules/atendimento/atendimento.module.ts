@@ -1,6 +1,7 @@
 // src/modules/atendimento/atendimento.module.ts
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { PlantaoModule } from '../plantao/plantao.module';
 import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing.module';
 import { FilaController } from './infra/http/fila.controller';
 import { AtendimentoController } from './infra/http/atendimento.controller';
@@ -31,7 +32,9 @@ import { PrismaService } from '../../config/prisma.service';
   // (WhatsAppMarketingModule, para responder o contato e ler o historico).
   // O modulo vivi_sdr, por sua vez, importa ESTE modulo (atendimento) para
   // orquestrar a classificacao - ver CLAUDE.md sobre organizacao por modulo.
-  imports: [AuthModule, WhatsAppMarketingModule],
+  // PlantaoModule: GetCorretoresEscaladosHojeUseCase, usado pelo escopo
+  // "plantao" do RBAC (Coordenador) em List/GetAtendimentoDetail.
+  imports: [AuthModule, PlantaoModule, WhatsAppMarketingModule],
   controllers: [FilaController, AtendimentoController],
   providers: [
     PrismaService,

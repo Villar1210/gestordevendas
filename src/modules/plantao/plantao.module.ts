@@ -8,6 +8,7 @@ import { DeleteStandUseCase } from './application/use-cases/delete-stand.use-cas
 import { SetEscalaUseCase } from './application/use-cases/set-escala.use-case';
 import { RemoveEscalaUseCase } from './application/use-cases/remove-escala.use-case';
 import { ListEscalasByStandUseCase } from './application/use-cases/list-escalas-by-stand.use-case';
+import { GetCorretoresEscaladosHojeUseCase } from './application/use-cases/get-corretores-escalados-hoje.use-case';
 import { PrismaStandRepository } from './infra/database/prisma-stand.repository';
 import { PrismaEscalaPlantaoRepository } from './infra/database/prisma-escala-plantao.repository';
 import { PrismaService } from '../../config/prisma.service';
@@ -28,14 +29,18 @@ import { AuthModule } from '../auth/auth.module';
     SetEscalaUseCase,
     RemoveEscalaUseCase,
     ListEscalasByStandUseCase,
+    GetCorretoresEscaladosHojeUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IStandRepository', useClass: PrismaStandRepository },
     { provide: 'IEscalaPlantaoRepository', useClass: PrismaEscalaPlantaoRepository },
   ],
   // Exportado para o modulo rh (atribuir standId ao Coordenador na tela de
-  // Permissoes/Cargos) e para os modulos que vao consumir o escopo
-  // "plantao" do RBAC na Fatia 2 (vendas_kanban, atendimento).
-  exports: ['IStandRepository'],
+  // Permissoes/Cargos) e para os modulos que consomem o escopo "plantao" do
+  // RBAC (vendas_kanban, atendimento - Fatia 2 do modulo Plantao/Stand):
+  // GetCorretoresEscaladosHojeUseCase resolve quem esta escalado hoje num
+  // stand, usado no lugar de GetSubordinadosRecursivosUseCase quando o
+  // escopo resolvido e 'plantao' (Coordenador).
+  exports: ['IStandRepository', GetCorretoresEscaladosHojeUseCase],
 })
 export class PlantaoModule {}

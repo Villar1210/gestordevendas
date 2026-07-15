@@ -12,6 +12,9 @@ interface JwtPayload {
   // Ausente em tokens emitidos antes do RBAC por cargo - `validate` abaixo
   // trata `undefined` como `null` (fallback seguro, nunca quebra).
   cargo?: string | null;
+  // Ausente em tokens emitidos antes do modulo Plantao/Stand - mesmo
+  // fallback seguro de `cargo` acima.
+  standId?: string | null;
 }
 
 @Injectable()
@@ -29,6 +32,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!payload?.sub || !payload?.tenantId) {
       throw new UnauthorizedException('Token invalido.');
     }
-    return { id: payload.sub, tenantId: payload.tenantId, role: payload.role, cargo: payload.cargo ?? null };
+    return {
+      id: payload.sub,
+      tenantId: payload.tenantId,
+      role: payload.role,
+      cargo: payload.cargo ?? null,
+      standId: payload.standId ?? null,
+    };
   }
 }

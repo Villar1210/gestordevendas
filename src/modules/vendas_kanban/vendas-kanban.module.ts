@@ -29,11 +29,14 @@ import { PrismaActivityRepository } from './infra/database/prisma-activity.repos
 import { PrismaNoteRepository } from './infra/database/prisma-note.repository';
 import { PrismaService } from '../../config/prisma.service';
 import { AuthModule } from '../auth/auth.module';
+import { PlantaoModule } from '../plantao/plantao.module';
 
 @Module({
   // AuthModule: GetSubordinadosRecursivosUseCase, usado por GetBoardUseCase
   // para resolver o escopo "equipe" do RBAC por cargo hierarquico.
-  imports: [AuthModule],
+  // PlantaoModule: GetCorretoresEscaladosHojeUseCase, usado por
+  // GetBoardUseCase para resolver o escopo "plantao" (Coordenador).
+  imports: [AuthModule, PlantaoModule],
   controllers: [PipelineController, CardController],
   providers: [
     PrismaService,

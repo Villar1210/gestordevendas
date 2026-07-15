@@ -47,6 +47,7 @@ export class AtendimentoController {
       requesterRole: req.user!.role,
       requesterUserId: req.user!.id,
       requesterCargo: req.user!.cargo,
+      requesterStandId: req.user!.standId,
       filaId,
       status,
       ownerId,
@@ -62,6 +63,7 @@ export class AtendimentoController {
       requesterRole: req.user!.role,
       requesterUserId: req.user!.id,
       requesterCargo: req.user!.cargo,
+      requesterStandId: req.user!.standId,
     });
   }
 

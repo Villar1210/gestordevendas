@@ -54,4 +54,11 @@ export class PrismaEscalaPlantaoRepository implements IEscalaPlantaoRepository {
     });
     return rows.map(({ user, ...row }) => ({ ...row, userName: user.name }));
   }
+
+  async findAllByStandAndDia(standId: string, diaSemana: number): Promise<{ userId: string }[]> {
+    return this.prisma.escalaPlantao.findMany({
+      where: { standId, diaSemana },
+      select: { userId: true },
+    });
+  }
 }

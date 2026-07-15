@@ -7,6 +7,7 @@ import {
 import { IFilaRepository } from '../../domain/repositories/fila-repository.interface';
 import { IWhatsAppMessageRepository } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
 import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
+import { GetCorretoresEscaladosHojeUseCase } from '../../../plantao/application/use-cases/get-corretores-escalados-hoje.use-case';
 import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
 
 interface ListAtendimentosInput {
@@ -14,6 +15,7 @@ interface ListAtendimentosInput {
   requesterRole: string;
   requesterUserId: string;
   requesterCargo: string | null;
+  requesterStandId: string | null;
   filaId?: string;
   status?: string;
   ownerId?: string;
@@ -33,14 +35,15 @@ export class ListAtendimentosUseCase {
     @Inject('IWhatsAppMessageRepository')
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
     private readonly getSubordinadosRecursivosUseCase: GetSubordinadosRecursivosUseCase,
+    private readonly getCorretoresEscaladosHojeUseCase: GetCorretoresEscaladosHojeUseCase,
   ) {}
 
   async execute(input: ListAtendimentosInput): Promise<AtendimentoListItem[]> {
     // Escopo por cargo hierarquico (RBAC) SOMADO ao escopo por fila ja
     // existente (nao substitui) - visivel se pertencer a uma fila do
     // requisitante OU se o dono estiver dentro do escopo de cargo dele
-    // (proprio/equipe/todos). Administrador/Diretor ('todos') nao tem
-    // restricao nenhuma, igual antes desta fatia.
+    // (proprio/equipe/plantao/todos). Administrador/Diretor ('todos') nao
+    // tem restricao nenhuma, igual antes desta fatia.
     const escopo = resolveEscopo(input.requesterRole, input.requesterCargo);
 
     let visibleFilaIds: string[] | undefined;
@@ -54,6 +57,13 @@ export class ListAtendimentosUseCase {
           userId: input.requesterUserId,
         });
         visibleOwnerIds = [input.requesterUserId, ...subordinados];
+      } else if (escopo === 'plantao') {
+        // Coordenador: nao inclui o proprio id (nao e um dono tipico de
+        // atendimento), so os corretores escalados hoje no stand dele -
+        // lista vazia (nao fallback) se ele nao tiver standId.
+        visibleOwnerIds = await this.getCorretoresEscaladosHojeUseCase.execute({
+          standId: input.requesterStandId,
+        });
       } else {
         visibleOwnerIds = [input.requesterUserId];
       }
