@@ -1,11 +1,12 @@
 # Progresso do Ecossistema gestordevendas
 
-## Sessao 13-15/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca, Painel Administrativo, RBAC por cargo - resumo
+## Sessao 13-15/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca, Painel Administrativo, RBAC por cargo, Plantao/Stand - resumo
 
-Sessao muito longa, 13 frentes concluidas e deployadas em producao, cada
+Sessao muito longa, 14 frentes concluidas e deployadas em producao, cada
 uma com commit(s) proprio(s) e verificacao de ponta a ponta antes do
-deploy seguinte. Fecha com o Painel Administrativo completo (5 fatias) e
-o RBAC por cargo hierarquico (3 fatias) - ver secoes proprias abaixo.
+deploy seguinte. Fecha com o Painel Administrativo completo (5 fatias), o
+RBAC por cargo hierarquico (3 fatias) e o modulo Plantao/Stand (3 fatias)
+- ver secoes proprias abaixo.
 
 ### VIVI - escopo completo do documento original de instrucoes (5 fatias) - CONCLUIDO
 Documento original de instrucoes da VIVI (encontrado pelo usuario)
@@ -391,6 +392,70 @@ excluir coluna some do DOM pro Gerente (nao so via CSS) mas o de
 renomear continua, e que o Administrador continua vendo tudo
 normalmente.
 
+### Modulo Plantao/Stand (3 fatias) - CONCLUIDO
+Fecha a lacuna deixada de proposito pelo RBAC por cargo hierarquico (ver
+secao acima): ate aqui, Coordenador usava a MESMA logica do Gerente
+(`escopo: 'equipe'`, arvore de subordinados via `superiorId`). Este
+modulo modela "escala" pela primeira vez no schema e substitui isso por
+`escopo: 'plantao'` - Coordenador passa a ver so os corretores
+ESCALADOS HOJE no stand fisico que ele supervisiona, um eixo totalmente
+diferente de `superiorId`.
+
+Modelagem: `Stand` (local fisico de venda) + `EscalaPlantao`
+(corretor x stand x dia da semana recorrente, `diaSemana` 0-6 igual
+`Date.getDay()`, `@@unique([standId, userId, diaSemana])`) +
+`User.standId` (stand FIXO que um Coordenador supervisiona - diferente
+de `EscalaPlantao`, que e o padrao ROTATIVO de um corretor, podendo
+estar em varios stands em dias diferentes). Decisoes confirmadas antes
+de codar: escala semanal (nao data especifica), 1 corretor pode estar
+em varios stands, so Administrador gerencia, Coordenador sem `standId`
+resolve para lista VAZIA (nunca cai num fallback pra "ve tudo" ou "ve
+equipe").
+
+- **Fatia 1 (modelagem + CRUD)**: modulo `src/modules/plantao/`, Clean
+  Architecture, exporta `IStandRepository` (consumido por `rh` para
+  atribuir `standId` ao Coordenador na tela de Permissoes/Cargos, e por
+  `vendas_kanban`/`atendimento` na Fatia 2). CRUD de Stand
+  (`@Roles('Administrador')`) bloqueia exclusao se houver escala ou
+  Coordenador vinculados. `SetEscalaUseCase` idempotente (find-or-create,
+  sem erro em duplicata). Nova aba "Stands/Plantao" no Painel
+  Administrativo (grade semanal de 7 dias por stand) + coluna "Stand" em
+  Permissoes/Cargos (so aparece pra cargo="coordenador", limpa
+  automaticamente se o cargo mudar).
+- **Fatia 2 (integracao RBAC)**: `CARGO_ESCOPO.coordenador.escopo` migrou
+  de `'equipe'` para o novo valor `'plantao'`.
+  `GetCorretoresEscaladosHojeUseCase` (modulo `plantao`, exportado)
+  resolve `standId -> userId[]` via `new Date().getDay()` contra
+  `EscalaPlantao.diaSemana`, retornando lista vazia se `standId` for
+  `null` - sem fallback. `GetBoardUseCase`/`ListAtendimentosUseCase`/
+  `GetAtendimentoDetailUseCase` ganharam o branch `escopo === 'plantao'`
+  chamando esse use case. Peca extra descoberta como necessaria durante a
+  implementacao (fora da lista original, mas indispensavel): `standId`
+  passou a viajar no JWT (mesmo padrao ja usado pra `cargo` no RBAC
+  Fatia 1), pra o Coordenador nao precisar de uma consulta extra ao
+  banco a cada request so pra saber o proprio stand.
+- **Fatia 3 (frontend)**: `GetMeUseCase`/`/auth/me` passou a devolver
+  `standId`. Nova rota `GET /stands/meu-status-hoje` (sobrescreve o
+  `@Roles('Administrador')` da classe com `DASHBOARD_ROLES` no metodo -
+  qualquer role de dashboard pode chamar, o use case ja resolve "vazio"
+  se o requisitante nao tiver `standId`) devolve nome do stand + quantos
+  corretores estao escalados hoje. Componente reaproveitavel
+  `PlantaoStatusBadge` (so renderiza algo se `cargoHierarquico ===
+  "coordenador"`) mostra "Stand: X - N corretores hoje" (ou "Nenhum
+  stand atribuido") no header do Kanban e da Central de Atendimento.
+
+Testado de ponta a ponta em cada fatia (scripts descartaveis + Playwright
+real, removidos ao final): Fatia 2 rodou a matriz de 5 cenarios
+(Administrador/Diretor/Gerente-com-equipe/Coordenador-com-stand/
+Coordenador-sem-stand/Corretor-solo) em Kanban e Atendimento, confirmando
+que o Coordenador ve so o corretor escalado hoje (nao o proprio card) e
+que "sem stand" realmente resolve pra lista vazia, nao fallback. Fatia 3
+confirmou o badge certo pra Coordenador-com-stand e
+Coordenador-sem-stand, ausencia total do badge pra Corretor comum, e um
+teste de virada de dia (consulta simulando terca encontra o corretor
+escalado so na terca; consulta simulando quarta nao encontra - confirma
+que a fronteira do dia e respeitada na camada de dados).
+
 ### Metodologia desta sessao (registrar para as proximas)
 - Todo commit de cada frente foi feito **separado por assunto** (nunca
   um commit unico misturando fatias/modulos diferentes), mesmo quando
@@ -498,52 +563,49 @@ fatia; o Transferir continua cobrindo esse caso.
 mudanca de schema/autenticacao.
 
 ### Pendencias conhecidas registradas para retomar
-NOTA (atualizada apos o RBAC por cargo): as 3 correcoes citadas
+NOTA (atualizada apos o Plantao/Stand): as 3 correcoes citadas
 originalmente aqui (guard anti-duplicidade da VIVI, supressao de "Bad
 MAC", preview Word/Excel no E-doc) ja foram commitadas ha algumas
 sessoes (`07b4fc7`, `8ebdc1b`, `d7c1d02`) - a nota antiga ficou
 desatualizada, removida. RH: contrato automatico de prestacao de
 servico (Fatias 1+2), RH Fatia 3 (template editavel), o Painel
-Administrativo completo (5 fatias) e o RBAC por cargo hierarquico (3
-fatias) ja foram CONCLUIDOS - ver secoes proprias acima. Rate limiting
-no login + helmet + log de auditoria (parte da Fase C) tambem ja
-CONCLUIDO - ver secao propria acima.
+Administrativo completo (5 fatias), o RBAC por cargo hierarquico (3
+fatias) e o modulo Plantao/Stand (3 fatias) ja foram CONCLUIDOS - ver
+secoes proprias acima. Rate limiting no login + helmet + log de
+auditoria (parte da Fase C) tambem ja CONCLUIDO - ver secao propria
+acima.
 Pendencias reais atuais:
-- Plantao/Stand: deixado de fora do RBAC por cargo de proposito (ver
-  secao propria acima) - Coordenador hoje usa a mesma logica hierarquica
-  do Gerente (equipe via superiorId). Escopo real: Stand de vendas +
-  escala semanal + Coordenador ve so os corretores escalados NO DIA, nao
-  a arvore de subordinados inteira - exige modelagem nova (nenhum
-  conceito de "escala"/"turno" existe hoje no schema)
 - Super Usuario: hoje nao existe conta que acesse MAIS DE UM tenant -
   cada Administrador so ve o proprio tenant (isolamento multitenant
   correto e desejado para clientes). Precisa de um papel novo, fora da
   hierarquia normal de Role/cargo de um tenant, para o DONO da
   plataforma SaaS (nao um cliente) acessar todos os tenants - avaliar
   com cuidado pra nao abrir brecha de vazamento entre tenants
-- Central de Atendimento: upload de midia/audio/contato no composer
-  (sem endpoint de midia no backend hoje - ver BACKLOG.md)
+- Modulo de Cloud API oficial da Meta (Agente de Atendimento
+  Online/multicanal) - ainda nao iniciado, maior escopo do roteiro
 - Fase C do roteiro, restante: testes automatizados, logs estruturados/
   monitoramento mais amplo (alem do log pontual de login), revisao de
   seguranca mais ampla - rate limiting/helmet/auditoria de login ja
   feitos, mas o resto ainda nao foi iniciado
-- Modulo de Cloud API oficial da Meta (Agente de Atendimento
-  Online/multicanal) - ainda nao iniciado
+- Treinar a VIVI: item novo registrado sem escopo detalhado ainda -
+  avaliar com o usuario o que exatamente significa "treinar" (ajuste de
+  prompt? novos casos de teste? feedback loop sobre conversas reais?)
+  antes de planejar fatias
+- Central de Atendimento: upload de midia/audio/contato no composer
+  (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 
 ### Proximos passos sugeridos (em ordem de prioridade discutida)
-1. Plantao/Stand (Stand de vendas + escala semanal + Coordenador ve so
-   quem esta escalado hoje) - fecha a lacuna deixada de proposito no
-   RBAC por cargo, exige modelagem nova
-2. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
+1. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
    escopo sensivel (isolamento multitenant), precisa de diagnostico
    cuidadoso antes de codar
-3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
-4. Logs estruturados + monitoramento basico (restante da Fase C) -
+3. Logs estruturados + monitoramento basico (restante da Fase C) -
    barato de implementar
+4. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
@@ -967,8 +1029,13 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
   Coordenador/Corretor) agora controla visibilidade de dados (Kanban +
   Atendimento) e permissao de exclusao, alem de so ser descritivo -
   ver secao propria "RBAC por cargo hierarquico (3 fatias)" acima.
-  Plantao/Stand e Super Usuario ficaram fora desta leva, registrados
-  como proximos passos.
+- Plantao/Stand: CONCLUIDO - Stand (local fisico) + escala semanal por
+  corretor, Coordenador agora ve so os corretores escalados HOJE no
+  proprio stand (escopo 'plantao', substitui o 'equipe' generico que o
+  RBAC por cargo tinha deixado como fallback pra esse cargo) + badge
+  visual no Kanban/Atendimento - ver secao propria "Modulo Plantao/Stand
+  (3 fatias)" acima. Super Usuario continua fora, registrado como
+  proximo passo.
 - Roleta Online (distribuicao automatica de leads entre corretores): CONCLUIDA
 - E-doc (assinatura eletronica): Fatias 1, 2, 3 e 4 CONCLUIDAS
   (envelope + assinatura sequencial + editor de posicionamento de

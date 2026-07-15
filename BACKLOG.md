@@ -98,20 +98,36 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       frontend (ocultar excluir Stage, cargo em /auth/me) na Fatia 3 -
       ver PROGRESS.md. NOTA: "Plantao/Stand" (Coordenador ver so quem
       esta escalado no dia) ficou FORA desta leva de proposito - ver
-      novo item abaixo.
-- [ ] Plantao/Stand - Coordenador hoje usa a mesma logica hierarquica do
-      Gerente (equipe via superiorId, ver RBAC acima). Escopo real
-      pedido: Stand de vendas + escala semanal + Coordenador ve so os
-      corretores escalados NO DIA (nao a arvore de subordinados
-      inteira) - exige modelagem nova, nenhum conceito de "escala"/
-      "turno" existe hoje no schema. Sessao dedicada.
+      item abaixo, ja CONCLUIDO numa leva separada.
+- [x] Plantao/Stand - CONCLUIDO, 3 fatias: modelagem Stand +
+      EscalaPlantao + User.standId + CRUD/grade semanal no Painel
+      Administrativo na Fatia 1; integracao RBAC (CARGO_ESCOPO.
+      coordenador migrou de 'equipe' para o novo 'plantao',
+      GetCorretoresEscaladosHojeUseCase, Coordenador sem standId ->
+      lista vazia sem fallback) na Fatia 2; badge "Stand: X - N
+      corretores hoje" no Kanban/Atendimento na Fatia 3 - ver
+      PROGRESS.md.
 - [ ] Super Usuario - hoje nenhuma conta acessa mais de 1 tenant (cada
       Administrador so ve o proprio, isolamento multitenant correto e
       desejado para clientes). Precisa de um papel novo, fora da
       hierarquia normal de Role/cargo de um tenant, para o DONO da
       plataforma SaaS (nao um cliente) acessar todos os tenants -
       avaliar com cuidado pra nao abrir brecha de vazamento entre
-      tenants. Sessao dedicada.
+      tenants. Sessao dedicada. PRIORIDADE 1 dos proximos passos (ver
+      PROGRESS.md).
+- [ ] Modulo Agente de Atendimento Online (Cloud API oficial da Meta) -
+      multiatendimento/multicanal, distribuicao de leads entre SDRs,
+      tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica:
+      Integracao WhatsApp"). Maior escopo do roteiro, decisao
+      estrategica de priorizacao, sessao dedicada. PRIORIDADE 2 dos
+      proximos passos.
+- [ ] Logs estruturados + monitoramento (restante da Fase C - rate
+      limiting/helmet/auditoria de login ja CONCLUIDOS, ver PROGRESS.md)
+      - barato de implementar. PRIORIDADE 3 dos proximos passos.
+- [ ] Treinar a VIVI - item novo, escopo ainda nao detalhado (ajuste de
+      prompt? novos casos de teste? feedback loop sobre conversas
+      reais?) - avaliar com o usuario antes de planejar fatias.
+      PRIORIDADE 4 (por ultimo) dos proximos passos.
 
 ## Modulo WhatsApp Marketing / VIVI
 - [ ] Investigar erros "Bad MAC" recorrentes no log do backend em
