@@ -30,6 +30,7 @@ export function KanbanColumn({
   const origemFilter = useKanbanStore((state) => state.origemFilter);
   const hasActiveFilters = useKanbanStore((state) => state.hasActiveFilters());
   const openCreateCardModal = useKanbanStore((state) => state.openCreateCardModal);
+  const podeExcluirRegistroDeNegocio = useKanbanStore((state) => state.podeExcluirRegistroDeNegocio);
   const { handleRenameStage, handleDeleteStage } = useKanbanIntegration();
 
   const [isEditingName, setIsEditingName] = useState(false);
@@ -116,14 +117,16 @@ export function KanbanColumn({
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  onClick={handleDeleteClick}
-                  data-testid="delete-stage-button"
-                  className="rounded p-1 text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-                  title="Excluir coluna"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {podeExcluirRegistroDeNegocio && (
+                  <button
+                    onClick={handleDeleteClick}
+                    data-testid="delete-stage-button"
+                    className="rounded p-1 text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                    title="Excluir coluna"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </>
             )}
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">

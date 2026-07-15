@@ -57,6 +57,12 @@ interface KanbanState {
   stages: Stage[];
   isLoading: boolean;
   activeView: KanbanView;
+  // Sistema de permissoes por cargo hierarquico (RBAC) - so controla se o
+  // BOTAO de excluir aparece (UX). A regra de verdade e sempre aplicada
+  // pelo backend (BlockDeleteForCargoGuard) - default "true" (mostra) ate
+  // /auth/me carregar, pra nao esconder o botao por engano num piscar de
+  // olhos antes do fetch resolver.
+  podeExcluirRegistroDeNegocio: boolean;
 
   searchTerm: string;
   temperatureFilter: TemperatureFilter;
@@ -72,6 +78,7 @@ interface KanbanState {
   setStages: (stages: Stage[]) => void;
   setLoading: (isLoading: boolean) => void;
   setActiveView: (view: KanbanView) => void;
+  setPodeExcluirRegistroDeNegocio: (podeExcluir: boolean) => void;
 
   setSearchTerm: (term: string) => void;
   setTemperatureFilter: (filter: TemperatureFilter) => void;
@@ -121,6 +128,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   stages: [],
   isLoading: false,
   activeView: "kanban",
+  podeExcluirRegistroDeNegocio: true,
 
   searchTerm: "",
   temperatureFilter: "all",
@@ -136,6 +144,8 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   setStages: (stages) => set({ stages }),
   setLoading: (isLoading) => set({ isLoading }),
   setActiveView: (activeView) => set({ activeView }),
+  setPodeExcluirRegistroDeNegocio: (podeExcluirRegistroDeNegocio) =>
+    set({ podeExcluirRegistroDeNegocio }),
 
   setSearchTerm: (term) => set({ searchTerm: term }),
   setTemperatureFilter: (filter) => set({ temperatureFilter: filter }),

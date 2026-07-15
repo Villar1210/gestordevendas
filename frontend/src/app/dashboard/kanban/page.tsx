@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
+import { podeExcluirRegistroDeNegocio } from "@/core/constants/cargoEscopo";
 import { useKanbanStore } from "@/features/kanban/store/useKanbanStore";
 import { useKanbanIntegration } from "@/features/kanban/hooks/useKanbanIntegration";
 import { KanbanBoard } from "@/features/kanban/components/KanbanBoard";
@@ -17,6 +18,11 @@ interface Pipeline {
   name: string;
 }
 
+interface Me {
+  role: string;
+  cargoHierarquico: string | null;
+}
+
 export default function KanbanDashboardPage() {
   const isLoading = useKanbanStore((state) => state.isLoading);
   const setLoading = useKanbanStore((state) => state.setLoading);
@@ -26,6 +32,9 @@ export default function KanbanDashboardPage() {
   const pipelineId = useKanbanStore((state) => state.pipelineId);
   const pipelines = useKanbanStore((state) => state.pipelines);
   const setPipelines = useKanbanStore((state) => state.setPipelines);
+  const setPodeExcluirRegistroDeNegocio = useKanbanStore(
+    (state) => state.setPodeExcluirRegistroDeNegocio,
+  );
   const { loadBoard, handleCreatePipeline } = useKanbanIntegration();
   const hasInitialized = useRef(false);
 
@@ -53,6 +62,16 @@ export default function KanbanDashboardPage() {
         setLoading(false);
       }
     }
+
+    // Sistema de permissoes por cargo hierarquico (RBAC) - decide se o
+    // botao de excluir coluna aparece. Nao bloqueia nada de verdade (isso
+    // e sempre feito pelo backend, BlockDeleteForCargoGuard) - so evita
+    // mostrar um botao que a API ja rejeitaria.
+    apiRequest<Me>("/auth/me")
+      .then((me) => {
+        setPodeExcluirRegistroDeNegocio(podeExcluirRegistroDeNegocio(me.role, me.cargoHierarquico));
+      })
+      .catch(() => {});
 
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps

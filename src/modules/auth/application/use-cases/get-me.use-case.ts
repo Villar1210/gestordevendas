@@ -18,6 +18,10 @@ export class GetMeUseCase {
       email: user.email,
       role: user.role.name,
       tipoCliente: user.tipoCliente,
+      // Sistema de permissoes por cargo hierarquico (RBAC) - frontend usa
+      // isso pra decidir o que esconder (ver core/constants/cargoEscopo.ts,
+      // mirror de shared/domain/services/cargo-escopo.ts do backend).
+      cargoHierarquico: user.cargoHierarquico,
     };
   }
 }
