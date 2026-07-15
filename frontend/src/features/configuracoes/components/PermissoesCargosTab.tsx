@@ -13,12 +13,18 @@ interface UsuarioComHierarquia {
   roleName: string;
   cargoHierarquico: string | null;
   superiorId: string | null;
+  standId: string | null;
 }
 
 interface SuperiorCandidate {
   id: string;
   name: string;
   cargoHierarquico: string | null;
+}
+
+interface Stand {
+  id: string;
+  nome: string;
 }
 
 const selectClass =
@@ -28,15 +34,18 @@ export function PermissoesCargosTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [usuarios, setUsuarios] = useState<UsuarioComHierarquia[]>([]);
   const [superiores, setSuperiores] = useState<SuperiorCandidate[]>([]);
+  const [stands, setStands] = useState<Stand[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
-    const [usuariosResp, superioresResp] = await Promise.all([
+    const [usuariosResp, superioresResp, standsResp] = await Promise.all([
       apiRequest<UsuarioComHierarquia[]>("/rh/usuarios-hierarquia"),
       apiRequest<SuperiorCandidate[]>("/rh/possiveis-superiores"),
+      apiRequest<Stand[]>("/stands"),
     ]);
     setUsuarios(usuariosResp);
     setSuperiores(superioresResp);
+    setStands(standsResp);
   }, []);
 
   useEffect(() => {
@@ -59,6 +68,7 @@ export function PermissoesCargosTab() {
         body: JSON.stringify({
           cargoHierarquico: usuario.cargoHierarquico,
           superiorId: usuario.superiorId,
+          standId: usuario.cargoHierarquico === "coordenador" ? usuario.standId : null,
         }),
       });
       // Recarrega os dois (o proprio usuario editado pode ter passado a
@@ -97,6 +107,7 @@ export function PermissoesCargosTab() {
             <th className="px-4 py-3 font-medium">Perfil</th>
             <th className="px-4 py-3 font-medium">Cargo</th>
             <th className="px-4 py-3 font-medium">Superior</th>
+            <th className="px-4 py-3 font-medium">Stand</th>
             <th className="px-4 py-3 font-medium"></th>
           </tr>
         </thead>
@@ -111,9 +122,15 @@ export function PermissoesCargosTab() {
               <td className="px-4 py-3">
                 <select
                   value={usuario.cargoHierarquico ?? ""}
-                  onChange={(e) =>
-                    updateLocal(usuario.id, { cargoHierarquico: e.target.value || null })
-                  }
+                  onChange={(e) => {
+                    const novoCargo = e.target.value || null;
+                    // Stand so se aplica a Coordenador - limpa ao trocar
+                    // pra outro cargo, mesma regra que o backend exige.
+                    updateLocal(usuario.id, {
+                      cargoHierarquico: novoCargo,
+                      standId: novoCargo === "coordenador" ? usuario.standId : null,
+                    });
+                  }}
                   className={selectClass}
                 >
                   <option value="">Sem cargo</option>
@@ -139,6 +156,25 @@ export function PermissoesCargosTab() {
                       </option>
                     ))}
                 </select>
+              </td>
+              <td className="px-4 py-3">
+                {usuario.cargoHierarquico === "coordenador" ? (
+                  <select
+                    value={usuario.standId ?? ""}
+                    onChange={(e) => updateLocal(usuario.id, { standId: e.target.value || null })}
+                    data-testid="permissoes-stand-select"
+                    className={selectClass}
+                  >
+                    <option value="">Sem stand</option>
+                    {stands.map((stand) => (
+                      <option key={stand.id} value={stand.id}>
+                        {stand.nome}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs text-slate-400">—</span>
+                )}
               </td>
               <td className="px-4 py-3 text-right">
                 <button

@@ -19,6 +19,8 @@ export interface UsuarioComHierarquia {
   roleName: string;
   cargoHierarquico: string | null;
   superiorId: string | null;
+  // Modulo Plantao/Stand - so preenchido quando cargoHierarquico e "coordenador".
+  standId: string | null;
 }
 
 @Injectable()
@@ -44,6 +46,7 @@ export class ListUsuariosComHierarquiaUseCase {
       roleName: usuario.roleName,
       cargoHierarquico: usuario.cargoHierarquico,
       superiorId: usuario.superiorId,
+      standId: usuario.standId,
     }));
   }
 }

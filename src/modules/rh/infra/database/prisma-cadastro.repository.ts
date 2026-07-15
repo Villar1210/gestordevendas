@@ -23,6 +23,7 @@ type PrismaUserWithRole = {
   cargoNaEmpresa: string | null;
   cargoHierarquico: string | null;
   superiorId: string | null;
+  standId: string | null;
   tipoCliente: string | null;
   cep: string | null;
   endereco: string | null;
@@ -52,6 +53,7 @@ export class PrismaCadastroRepository implements ICadastroRepository {
       cargoNaEmpresa: user.cargoNaEmpresa,
       cargoHierarquico: user.cargoHierarquico,
       superiorId: user.superiorId,
+      standId: user.standId,
       tipoCliente: user.tipoCliente,
       cep: user.cep,
       endereco: user.endereco,
@@ -168,13 +170,14 @@ export class PrismaCadastroRepository implements ICadastroRepository {
 
   async updateCargoHierarquico(
     userId: string,
-    input: { cargoHierarquico: string | null; superiorId: string | null },
+    input: { cargoHierarquico: string | null; superiorId: string | null; standId: string | null },
   ): Promise<CadastroRecord> {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         cargoHierarquico: input.cargoHierarquico,
         superiorId: input.superiorId,
+        standId: input.standId,
       },
       include: { role: true },
     });

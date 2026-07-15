@@ -9,4 +9,9 @@ export class UpdateUserCargoDto {
   @IsOptional()
   @IsString()
   superiorId?: string | null;
+
+  // Modulo Plantao/Stand - so se aplica quando cargoHierarquico e "coordenador".
+  @IsOptional()
+  @IsString()
+  standId?: string | null;
 }

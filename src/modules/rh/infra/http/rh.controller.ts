@@ -223,6 +223,7 @@ export class RhController {
       requesterRole: req.user!.role,
       cargoHierarquico: dto.cargoHierarquico ?? null,
       superiorId: dto.superiorId ?? null,
+      standId: dto.standId ?? null,
     });
   }
 

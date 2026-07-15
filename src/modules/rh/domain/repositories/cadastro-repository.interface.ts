@@ -19,6 +19,9 @@ export interface CadastroRecord {
   cargoNaEmpresa: string | null;
   cargoHierarquico: string | null;
   superiorId: string | null;
+  // Modulo Plantao/Stand - so relevante quando cargoHierarquico e
+  // "coordenador" (o stand FIXO que ele coordena).
+  standId: string | null;
   tipoCliente: string | null;
   cep: string | null;
   endereco: string | null;
@@ -82,6 +85,6 @@ export interface ICadastroRepository {
   // aprovacao original). cargoHierarquico/superiorId nulos limpam o campo.
   updateCargoHierarquico(
     userId: string,
-    input: { cargoHierarquico: string | null; superiorId: string | null },
+    input: { cargoHierarquico: string | null; superiorId: string | null; standId: string | null },
   ): Promise<CadastroRecord>;
 }

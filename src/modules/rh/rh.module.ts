@@ -28,9 +28,12 @@ import { PrismaService } from '../../config/prisma.service';
 import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
 import { EdocModule } from '../edoc/edoc.module';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
+import { PlantaoModule } from '../plantao/plantao.module';
 
 @Module({
-  imports: [EdocModule, ConfiguracoesModule],
+  // PlantaoModule: UpdateUserCargoUseCase valida/atribui o standId do
+  // Coordenador (IStandRepository) - ver modulo plantao.
+  imports: [EdocModule, ConfiguracoesModule, PlantaoModule],
   controllers: [RhController],
   providers: [
     PrismaService,

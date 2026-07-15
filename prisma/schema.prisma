@@ -66,6 +66,8 @@ model Tenant {
   contratoTemplates ContratoTemplate[]
   emailTemplates    EmailTemplate[]
   notifications     Notification[]
+  stands            Stand[]
+  escalasPlantao    EscalaPlantao[]
 
   @@map("tenants")
 }
@@ -127,11 +129,21 @@ model User {
   // Cliente). Rastreamento visivel na tela de Aprovacoes (aba "Aprovados").
   contratoPrestacaoServicoEnvelopeId String? @unique @map("contrato_prestacao_servico_envelope_id") @db.Uuid
 
+  // Modulo Plantao/Stand - stand FIXO que este usuario coordena, so
+  // relevante quando cargoHierarquico = "coordenador" (diferente de
+  // EscalaPlantao, que e o padrao ROTATIVO dos corretores - podem
+  // trabalhar em varios stands por dia). onDelete: SetNull para nao travar
+  // a exclusao de um Stand por causa do Coordenador vinculado (a propria
+  // DeleteStandUseCase ja bloqueia antes disso, ver modulo plantao).
+  standId String? @map("stand_id") @db.Uuid
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   role   Role   @relation(fields: [roleId], references: [id])
   superior      User?  @relation("UserHierarchy", fields: [superiorId], references: [id], onDelete: SetNull)
   subordinados  User[] @relation("UserHierarchy")
   contratoPrestacaoServicoEnvelope SignatureEnvelope? @relation("UserContratoPrestacaoServico", fields: [contratoPrestacaoServicoEnvelopeId], references: [id], onDelete: SetNull)
+  standCoordenado Stand? @relation(fields: [standId], references: [id], onDelete: SetNull)
+  escalasPlantao  EscalaPlantao[]
 
   passwordResetTokens PasswordResetToken[]
   twoFactorCodes      TwoFactorCode[]
@@ -215,6 +227,49 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+// Modulo Plantao/Stand de vendas. Um stand e um local fisico onde
+// corretores atendem (ex: "Stand Centro") - conceito novo, distinto de
+// Empreendimento (que e um imovel/obra a venda, nao um escritorio da
+// equipe). So Administrador gerencia (criar/editar/excluir stands e
+// definir a escala) - ver modulo plantao.
+model Stand {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  nome      String   @db.VarChar(150)
+  endereco  String?  @db.VarChar(200)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  escalas    EscalaPlantao[]
+  coordenadores User[]
+
+  @@map("stands")
+}
+
+// Escala SEMANAL recorrente (nao uma data especifica) - diaSemana segue
+// o mesmo padrao de Date.getDay() do JavaScript (0=domingo...6=sabado).
+// Um corretor pode ter varias linhas (varios stands e/ou varios dias) -
+// a unique constraint so impede duplicar a MESMA combinacao
+// stand+corretor+dia. Editavel a qualquer momento pelo Administrador -
+// "escala semanal" aqui significa um padrao vigente, nao um historico
+// (sem coluna de data, de proposito).
+model EscalaPlantao {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  standId   String @map("stand_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  diaSemana Int    @map("dia_semana")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stand  Stand  @relation(fields: [standId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([standId, userId, diaSemana])
+  @@map("escalas_plantao")
 }
 
 // Tokens de uso unico para o fluxo de "esqueci a senha"
