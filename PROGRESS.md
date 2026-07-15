@@ -1,10 +1,11 @@
 # Progresso do Ecossistema gestordevendas
 
-## Sessao 13-14/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca - resumo
+## Sessao 13-15/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca, Painel Administrativo - resumo
 
-Sessao longa, 7 frentes concluidas e deployadas em producao, cada uma com
-commit(s) proprio(s) e verificacao de ponta a ponta antes do deploy
-seguinte.
+Sessao muito longa, 12 frentes concluidas e deployadas em producao, cada
+uma com commit(s) proprio(s) e verificacao de ponta a ponta antes do
+deploy seguinte. Fecha com o Painel Administrativo completo (5 fatias -
+ver secao propria abaixo).
 
 ### VIVI - escopo completo do documento original de instrucoes (5 fatias) - CONCLUIDO
 Documento original de instrucoes da VIVI (encontrado pelo usuario)
@@ -221,6 +222,89 @@ o TITULO igual ao nome EDITADO do template, confirmando que a proxima
 aprovacao usa mesmo o template atualizado, nao o padrao antigo em
 cache/hardcoded. Tenant de teste removido ao final (cascata).
 
+### Painel Administrativo (5 fatias) - CONCLUIDO
+Expande o modulo `configuracoes` (ate entao so "Dados da Empresa") para um
+Painel Administrativo completo com 6 abas em `/dashboard/configuracoes`
+(Sidebar renomeado de "Configuracoes" para "Painel Administrativo").
+5 fatias implementadas em sequencia, cada uma testada com Playwright real
+(script descartavel, tenant/admin de teste via Prisma, removido ao final)
+antes do deploy seguinte:
+
+- **Fatia 1** (casca + Meu Perfil + mover Template de Contrato): abas
+  "Dados da Empresa" (realocada, comportamento identico) e "Meu Perfil"
+  (nova - editar nome/trocar senha, `PATCH /auth/me`). A aba "Template de
+  Contrato" (ja existente desde RH Fatia 3) migrou de RH/Aprovacoes pra ca
+  - `ContratoTemplateTab.tsx` + as constantes de placeholder foram
+  fisicamente movidas de `features/aprovacoes/` para `features/
+  configuracoes/` (backend continua em `rh`, so a UI mudou de lugar).
+  **Bug real pego pelo teste**: `UpdateMyProfileUseCase` usava
+  `UnauthorizedException` (401) pra "senha atual incorreta" - como
+  `apiRequest` do frontend trata QUALQUER 401 numa chamada autenticada
+  como "sessao expirada" e forca logout, digitar a senha atual errada
+  deslogava o Administrador no meio do fluxo. Corrigido pra
+  `BadRequestException` (400) antes do deploy.
+- **Fatia 2** (Permissoes/Cargos): nova aba lista usuarios aprovados
+  (roles com hierarquia - Corretor/Imobiliaria Parceira) com cargo/
+  superior atuais, editaveis a qualquer momento (antes so eram definidos
+  uma vez, na aprovacao, e ficavam travados). `VALID_CARGOS_HIERARQUICOS`
+  extraido de dentro de `AprovarCadastroUseCase` pra
+  `domain/services/cargos-hierarquicos.ts` (fonte unica de verdade,
+  reaproveitada pelos dois fluxos). `CARGO_HIERARQUICO_OPTIONS`/
+  `ROLES_COM_HIERARQUIA` promovidos de `features/aprovacoes/constants.ts`
+  para `core/constants/cargoHierarquico.ts` (agora usados por 2 features).
+- **Fatia 3** (Configuracoes da VIVI): novo model `ViviConfig` por
+  tenant - preco minimo (antes fixo em "R$ 264 mil" no prompt) e as 4
+  faixas de renda (SEM_PERFIL/HIS1/HIS2/HMP - acima de HMP e R2V) viram
+  editaveis. `VIVI_SYSTEM_PROMPT` (constante estatica) virou
+  `buildViviSystemPrompt(config)` (funcao que interpola os 5 valores) e
+  `classificarRenda()` passou a receber os limites como parametro em vez
+  de hardcoded - `ProcessIncomingMessageUseCase` busca o `ViviConfig` do
+  tenant no inicio do `execute()` e usa nos dois lugares. SEM toggle
+  geral de liga/desliga (ja existe um controle por-sessao de WhatsApp,
+  seria redundante - decisao tomada com o usuario antes de implementar).
+  Fraseado do preco mudou de "R$ 264 mil" pra "R$ 264.000" (formatacao
+  padrao), ja que um valor editavel nao-redondo ficaria estranho
+  abreviado. Teste decisivo: `classificarRenda(3200, ...)` retorna HIS1
+  com o novo limite HIS1=3500 configurado via UI, mas retornaria HIS2 com
+  o limite antigo (2850) - mesma renda, categoria diferente, provando que
+  a mudanca via UI realmente chega na classificacao real.
+- **Fatia 4** (Templates de E-mail): novo model `EmailTemplate`
+  (unico por tenant+tipo), 3 tipos migrados dos 3 pontos de e-mail
+  hardcoded do fluxo de RH (`boas_vindas_corretor`, `rejeicao_cadastro`,
+  `aprovacao_cadastro` - `CreateCorretorUseCase`/`RejeitarCadastroUseCase`/
+  `AprovarCadastroUseCase`), com placeholders `{{NOME}}`, `{{EMAIL}}`,
+  `{{EMPRESA}}`, `{{SENHA_TEMPORARIA}}`, `{{CARGO}}`, `{{PERFIL}}`. O
+  texto trocou "gestordevendas" (nome do produto) por `{{EMPRESA}}` (razao
+  social do tenant) - mais apropriado, ja que quem manda o e-mail e a
+  imobiliaria especifica, nao a plataforma. Teste decisivo: usando
+  `Test.createTestingModule` com o `AppModule` real (so `IEmailSender`
+  substituido por um capturador, sem mandar e-mail de verdade via Resend),
+  `RejeitarCadastroUseCase.execute()` real confirmou que o e-mail gerado
+  usa o template EDITADO com `{{NOME}}` interpolado corretamente.
+- **Fatia 5** (Notificacoes in-app): novo modulo `notificacoes` (model
+  `Notification` por usuario, nao por tenant inteiro), sino na Topbar com
+  contador de nao lidas + dropdown + poll de 5s (mesmo padrao do modulo
+  Atendimento). Gatilho unico desta leva:
+  `PublicSignupUseCase` (modulo `rh`) emite o evento generico
+  `cadastro.pendente.criado` (desacoplado - `rh` nao conhece
+  `notificacoes`, mesmo padrao ja usado em `vendas_kanban` ->
+  `roleta_online`), `CadastroPendenteCriadoListener` cria 1 notificacao
+  por Administrador do tenant (fan-out), engolindo qualquer erro (nunca
+  derruba o cadastro publico). Teste decisivo: `PublicSignupUseCase` REAL
+  chamado via `Test.createTestingModule(AppModule)` (com
+  `PUBLIC_SIGNUP_TENANT_ID` trocado so durante a chamada, ja que essa env
+  var e fixa pra 1 imobiliaria) confirmou 1 notificacao por Administrador
+  de teste (2 no cenario), sino mostrando contador certo, clique marcando
+  como lida E navegando pro link, com a notificacao do outro Admin
+  permanecendo intocada (independencia por usuario confirmada).
+
+Escopo deliberadamente NAO incluido nesta leva (registrado no BACKLOG.md
+como trabalho futuro, nao esquecido): RBAC granular de verdade
+(permissoes continuam fixas em `@Roles(...)` no codigo, so o cargo
+hierarquico em si ficou editavel), mais gatilhos de notificacao (so
+"cadastro pendente" por enquanto), e mais tipos de e-mail alem dos 3 do
+fluxo de RH (reset de senha, e-mails do E-doc continuam hardcoded).
+
 ### Metodologia desta sessao (registrar para as proximas)
 - Todo commit de cada frente foi feito **separado por assunto** (nunca
   um commit unico misturando fatias/modulos diferentes), mesmo quando
@@ -328,16 +412,23 @@ fatia; o Transferir continua cobrindo esse caso.
 mudanca de schema/autenticacao.
 
 ### Pendencias conhecidas registradas para retomar
-NOTA (atualizada na sessao 13-14/07): as 3 correcoes citadas
+NOTA (atualizada apos o Painel Administrativo): as 3 correcoes citadas
 originalmente aqui (guard anti-duplicidade da VIVI, supressao de "Bad
 MAC", preview Word/Excel no E-doc) ja foram commitadas ha algumas
 sessoes (`07b4fc7`, `8ebdc1b`, `d7c1d02`) - a nota antiga ficou
 desatualizada, removida. RH: contrato automatico de prestacao de
-servico (Fatias 1+2) e RH Fatia 3 (template editavel) ja foram
-CONCLUIDAS - ver secoes proprias acima. Rate limiting no login + helmet
+servico (Fatias 1+2), RH Fatia 3 (template editavel) e o Painel
+Administrativo completo (5 fatias: Meu Perfil, Permissoes/Cargos,
+Configuracoes da VIVI, Templates de E-mail, Notificacoes) ja foram
+CONCLUIDOS - ver secoes proprias acima. Rate limiting no login + helmet
 + log de auditoria (parte da Fase C) tambem ja CONCLUIDO - ver secao
 propria acima.
 Pendencias reais atuais:
+- Sistema de permissoes por cargo (RBAC real) - o Painel Administrativo
+  deixou o CARGO hierarquico editavel (Diretor/Gerente/Coordenador/
+  Corretor), mas o controle de ACESSO em si continua fixo em
+  `@Roles(...)` hardcoded no codigo, nao derivado do cargo - afeta
+  potencialmente todos os modulos que usam `RolesGuard`
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 - Fase C do roteiro, restante: testes automatizados, logs estruturados/
@@ -348,15 +439,18 @@ Pendencias reais atuais:
   Online/multicanal) - ainda nao iniciado
 
 ### Proximos passos sugeridos (em ordem de prioridade discutida)
-1. Logs estruturados + monitoramento basico (restante da Fase C) -
-   unico item de hardening ainda nao coberto que e barato de
-   implementar; testes automatizados ficam para quando houver superficie
-   estavel o suficiente para valer a pena
+1. Sistema de permissoes por cargo (Diretor/Gerente/Coordenador/
+   Corretor) - afeta todos os modulos que usam `RolesGuard`, precisa de
+   diagnostico cuidadoso antes de codar (escopo grande, risco de quebrar
+   acesso existente se malfeito)
 2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
+3. Logs estruturados + monitoramento basico (restante da Fase C) -
+   barato de implementar, mas rebaixado de prioridade 1 pra 3 nesta
+   atualizacao (decisao do usuario)
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
@@ -771,7 +865,11 @@ se quer continuar do proximo passo sugerido ou mudar de direcao.
 - VIVI (Assistente SDR de IA): escopo COMPLETO (agendar visita,
   conteudo pedagogico, enquadramento por renda, coleta pos-visita,
   Repique no Kanban) - ver secao propria no topo deste arquivo.
-- Configuracoes (dados da empresa - razao social/CNPJ/endereco): CONCLUIDO
+- Painel Administrativo (ex-"Configuracoes"): CONCLUIDO - 6 abas em
+  /dashboard/configuracoes (Dados da Empresa, Meu Perfil, Permissoes/
+  Cargos, Template de Contrato, Configuracoes da VIVI, Templates de
+  E-mail) + sino de Notificacoes na Topbar - ver secao propria "Painel
+  Administrativo (5 fatias)" mais acima.
 - Roleta Online (distribuicao automatica de leads entre corretores): CONCLUIDA
 - E-doc (assinatura eletronica): Fatias 1, 2, 3 e 4 CONCLUIDAS
   (envelope + assinatura sequencial + editor de posicionamento de

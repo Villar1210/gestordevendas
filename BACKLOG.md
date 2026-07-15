@@ -75,26 +75,30 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       Aprovacoes, com badge de status + link para o envelope) ja foram
       CONCLUIDAS - ver CLAUDE.md.
 - [x] RH Fatia 3: template de contrato editavel pelo Administrador -
-      CONCLUIDO: nova aba "Template de Contrato" em
-      /dashboard/rh/aprovacoes, com editor + lista de placeholders
-      clicaveis + preview em tempo real + restaurar padrao - ver
-      CLAUDE.md/PROGRESS.md. NOTA: planejado mover essa aba para dentro
-      do futuro Painel Administrativo (ver secao propria abaixo) quando
-      ele for implementado - por enquanto continua em RH/Aprovacoes.
+      CONCLUIDO. NOTA: a aba "Template de Contrato" foi migrada de
+      /dashboard/rh/aprovacoes para dentro do Painel Administrativo
+      (ver secao propria abaixo, ja concluida) - so o backend continua
+      no modulo rh, a UI mudou de lugar.
 
-## Painel Administrativo (expansao do modulo Configuracoes)
-- [ ] Expandir "Configuracoes" (hoje so a aba "Dados da Empresa" -
-      razao social/CNPJ/endereco) para um Painel Administrativo
-      completo, com abas: Dados da Empresa (atual), Meu Perfil,
-      Permissoes/Cargos, Template de Contrato (mover de dentro de RH/
-      Aprovacoes - ver Modulo RH, RH Fatia 3, ja concluida la por
-      enquanto), Configuracoes da VIVI, Templates de E-mail,
-      Notificacoes.
-- [ ] Implementar junto com o modulo de cargos hierarquicos (Diretor/
-      Gerente/Coordenador/Corretor) - User ja tem cargoHierarquico/
-      superiorId desde o modulo RH (preenchidos na aprovacao do
-      cadastro), mas ainda nao ha tela dedicada de gestao de cargos/
-      permissoes nem edicao posterior a aprovacao.
+## Painel Administrativo (expansao do modulo Configuracoes) - CONCLUIDO
+- [x] Expandir "Configuracoes" para um Painel Administrativo completo -
+      CONCLUIDO, 5 fatias: Dados da Empresa (realocada) + Meu Perfil +
+      Template de Contrato (migrada de RH) na Fatia 1; Permissoes/Cargos
+      na Fatia 2; Configuracoes da VIVI na Fatia 3; Templates de E-mail
+      na Fatia 4; Notificacoes in-app (sino na Topbar) na Fatia 5 - ver
+      PROGRESS.md.
+- [x] Cargos hierarquicos (Diretor/Gerente/Coordenador/Corretor) -
+      CONCLUIDO: aba "Permissoes/Cargos" permite reatribuir cargo/
+      superior de qualquer usuario aprovado a qualquer momento (antes so
+      era definido uma vez, na aprovacao). NOTA: isso e so o CARGO em si
+      - RBAC/controle de acesso por cargo continua fora de escopo, ver
+      novo item abaixo.
+- [ ] Sistema de permissoes por cargo (RBAC real) - hoje o controle de
+      acesso continua fixo em `@Roles(...)` hardcoded no codigo
+      (RolesGuard), nao derivado do cargoHierarquico que agora e
+      editavel. Afeta potencialmente todos os modulos que usam
+      RolesGuard - escopo grande, precisa de diagnostico cuidadoso antes
+      de implementar (risco de quebrar acesso existente).
 
 ## Modulo WhatsApp Marketing / VIVI
 - [ ] Investigar erros "Bad MAC" recorrentes no log do backend em
