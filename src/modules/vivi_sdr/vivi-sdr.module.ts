@@ -5,13 +5,17 @@ import { VendasKanbanModule } from '../vendas_kanban/vendas-kanban.module';
 import { AtendimentoModule } from '../atendimento/atendimento.module';
 import { ViviSessionController } from './infra/http/vivi-session.controller';
 import { ViviConversationController } from './infra/http/vivi-conversation.controller';
+import { ViviConfigController } from './infra/http/vivi-config.controller';
 import { EnableViviOnSessionUseCase } from './application/use-cases/enable-vivi-on-session.use-case';
 import { DisableViviOnSessionUseCase } from './application/use-cases/disable-vivi-on-session.use-case';
 import { ListViviConversationsUseCase } from './application/use-cases/list-vivi-conversations.use-case';
 import { ProcessIncomingMessageUseCase } from './application/use-cases/process-incoming-message.use-case';
 import { AgendarVisitaUseCase } from './application/use-cases/agendar-visita.use-case';
+import { GetOrCreateViviConfigUseCase } from './application/use-cases/get-or-create-vivi-config.use-case';
+import { UpdateViviConfigUseCase } from './application/use-cases/update-vivi-config.use-case';
 import { WhatsAppMessageReceivedListener } from './infra/listeners/whatsapp-message-received.listener';
 import { PrismaViviConversationRepository } from './infra/database/prisma-vivi-conversation.repository';
+import { PrismaViviConfigRepository } from './infra/database/prisma-vivi-config.repository';
 import { AnthropicConversationService } from '../../shared/infra/services/anthropic-conversation.service';
 import { PrismaService } from '../../config/prisma.service';
 
@@ -24,7 +28,7 @@ import { PrismaService } from '../../config/prisma.service';
   // vivi_sdr, atendimento -> vivi_sdr) nao existe - os providers so emitem
   // eventos genericos, ver infra/listeners/whatsapp-message-received.listener.ts.
   imports: [WhatsAppMarketingModule, VendasKanbanModule, AtendimentoModule],
-  controllers: [ViviSessionController, ViviConversationController],
+  controllers: [ViviSessionController, ViviConversationController, ViviConfigController],
   providers: [
     PrismaService,
     EnableViviOnSessionUseCase,
@@ -32,10 +36,13 @@ import { PrismaService } from '../../config/prisma.service';
     ListViviConversationsUseCase,
     ProcessIncomingMessageUseCase,
     AgendarVisitaUseCase,
+    GetOrCreateViviConfigUseCase,
+    UpdateViviConfigUseCase,
     WhatsAppMessageReceivedListener,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma / Anthropic).
     { provide: 'IViviConversationRepository', useClass: PrismaViviConversationRepository },
+    { provide: 'IViviConfigRepository', useClass: PrismaViviConfigRepository },
     { provide: 'IAiConversationService', useClass: AnthropicConversationService },
   ],
 })

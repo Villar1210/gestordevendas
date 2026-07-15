@@ -59,6 +59,7 @@ model Tenant {
   atendimentos Atendimento[]
 
   roletaConfig RoletaConfig?
+  viviConfig   ViviConfig?
 
   signatureEnvelopes SignatureEnvelope[]
 
@@ -723,6 +724,28 @@ model RoletaConfig {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("roleta_configs")
+}
+
+// Configuracao de negocio da VIVI (assistente SDR de IA) - uma unica config
+// por tenant. Preco minimo e as 4 faixas de renda (SEM_PERFIL/HIS1/HIS2/
+// HMP - acima de limiteHmp e R2V) sao interpolados no system prompt (ver
+// buildViviSystemPrompt) E usados por classificarRenda() para a
+// classificacao autoritativa - as duas fontes leem os mesmos valores desta
+// tabela, nunca hardcoded. Get-or-create com os defaults abaixo na
+// primeira leitura (mesmo padrao ja usado por ContratoTemplate/RoletaConfig).
+model ViviConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @unique @map("tenant_id") @db.Uuid
+  precoMinimo     Decimal  @default(264000) @map("preco_minimo") @db.Decimal(12, 2)
+  limiteSemPerfil Decimal  @default(1500) @map("limite_sem_perfil") @db.Decimal(12, 2)
+  limiteHis1      Decimal  @default(2850) @map("limite_his1") @db.Decimal(12, 2)
+  limiteHis2      Decimal  @default(4700) @map("limite_his2") @db.Decimal(12, 2)
+  limiteHmp       Decimal  @default(8000) @map("limite_hmp") @db.Decimal(12, 2)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("vivi_configs")
 }
 
 // Modulo E-doc (assinatura eletronica). Um envelope agrupa um documento

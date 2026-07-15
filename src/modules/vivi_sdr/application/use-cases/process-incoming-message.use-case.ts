@@ -20,9 +20,10 @@ import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/
 import { ClassifyAndRouteAtendimentoUseCase } from '../../../atendimento/application/use-cases/classify-and-route-atendimento.use-case';
 import { CATEGORIA_TO_FILA_NOME } from '../../../atendimento/domain/services/fila-categorias';
 import { AgendarVisitaUseCase } from './agendar-visita.use-case';
-import { classificarRenda } from '../../domain/services/classificar-renda';
+import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
+import { classificarRenda, FaixasRenda } from '../../domain/services/classificar-renda';
 import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
-import { VIVI_SYSTEM_PROMPT } from '../../constants/vivi-prompt';
+import { buildViviSystemPrompt } from '../../constants/vivi-prompt';
 
 // Nome fixo da coluna de deposito estrategico de leads sem perfil de renda
 // para nenhuma faixa de financiamento hoje - ver
@@ -61,6 +62,7 @@ export class ProcessIncomingMessageUseCase {
     private readonly getOrCreateAtendimentoUseCase: GetOrCreateAtendimentoUseCase,
     private readonly classifyAndRouteAtendimentoUseCase: ClassifyAndRouteAtendimentoUseCase,
     private readonly agendarVisitaUseCase: AgendarVisitaUseCase,
+    private readonly getOrCreateViviConfigUseCase: GetOrCreateViviConfigUseCase,
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
@@ -103,6 +105,7 @@ export class ProcessIncomingMessageUseCase {
     }
 
     const conversation = await this.findOrCreateConversation(input);
+    const viviConfig = await this.getOrCreateViviConfigUseCase.execute({ tenantId: input.tenantId });
 
     const { history, remoteJid } = await this.buildHistory(input);
     // Sem isso, o modelo nao sabe a data de hoje e pode chutar o ano errado
@@ -114,14 +117,14 @@ export class ProcessIncomingMessageUseCase {
       month: 'long',
       day: 'numeric',
     });
-    const systemPrompt = `Hoje é ${today}.\n\n${VIVI_SYSTEM_PROMPT}`;
+    const systemPrompt = `Hoje é ${today}.\n\n${buildViviSystemPrompt(viviConfig)}`;
     const { replyText, toolCalls } = await this.aiConversationService.generateReply({
       systemPrompt,
       history,
       userMessage: input.messageBody,
     });
 
-    const collected = this.mergeCollectedData(conversation, toolCalls);
+    const collected = this.mergeCollectedData(conversation, toolCalls, viviConfig);
     const agendarVisitaCall = toolCalls.find((call) => call.name === 'agendar_visita');
     const transferCall = toolCalls.find((call) => call.name === 'transferir_para_corretor');
     const filaCall = toolCalls.find((call) => call.name === 'transferir_para_fila');
@@ -306,6 +309,7 @@ export class ProcessIncomingMessageUseCase {
   private mergeCollectedData(
     conversation: ViviConversationRecord,
     toolCalls: { name: string; input: Record<string, unknown> }[],
+    faixasRenda: FaixasRenda,
   ): ViviConversationUpdateInput {
     const collected: ViviConversationUpdateInput = {};
 
@@ -334,7 +338,7 @@ export class ProcessIncomingMessageUseCase {
       const renda = this.parseRenda(call.input.rendaDeclarada);
       if (renda !== null) {
         collected.rendaDeclarada = renda;
-        collected.categoriaHabitacional = classificarRenda(renda);
+        collected.categoriaHabitacional = classificarRenda(renda, faixasRenda);
       }
     }
 

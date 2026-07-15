@@ -3,16 +3,23 @@
 // faixa de renda e responsabilidade do CODIGO, nunca da IA - matematica de
 // faixa de renda nao pode depender do modelo acertar. O valor persistido em
 // ViviConversation.categoriaHabitacional SEMPRE vem desta funcao. A IA
-// recebe as mesmas faixas descritas em constants/vivi-prompt.ts so para
-// escolher o argumento de venda certo na conversa - as duas fontes usam os
-// mesmos numeros, mas so esta funcao e autoritativa para fins de registro/
-// roteamento (ex: Repique).
+// recebe as mesmas faixas (agora configuraveis por tenant via ViviConfig,
+// ver constants/vivi-prompt.ts) so para escolher o argumento de venda certo
+// na conversa - as duas fontes usam os mesmos numeros, mas so esta funcao e
+// autoritativa para fins de registro/roteamento (ex: Repique).
 export type CategoriaHabitacional = 'HIS1' | 'HIS2' | 'HMP' | 'R2V' | 'SEM_PERFIL';
 
-export function classificarRenda(renda: number): CategoriaHabitacional {
-  if (renda < 1500) return 'SEM_PERFIL';
-  if (renda <= 2850) return 'HIS1';
-  if (renda <= 4700) return 'HIS2';
-  if (renda <= 8000) return 'HMP';
+export interface FaixasRenda {
+  limiteSemPerfil: number;
+  limiteHis1: number;
+  limiteHis2: number;
+  limiteHmp: number;
+}
+
+export function classificarRenda(renda: number, faixas: FaixasRenda): CategoriaHabitacional {
+  if (renda < faixas.limiteSemPerfil) return 'SEM_PERFIL';
+  if (renda <= faixas.limiteHis1) return 'HIS1';
+  if (renda <= faixas.limiteHis2) return 'HIS2';
+  if (renda <= faixas.limiteHmp) return 'HMP';
   return 'R2V';
 }
