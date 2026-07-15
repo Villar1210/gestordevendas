@@ -81,6 +81,7 @@ export class AuthenticateUserUseCase {
       sub: user.id,
       tenantId: user.tenantId,
       role: user.role.name,
+      cargo: user.cargoHierarquico,
     };
 
     const token = input.rememberMe

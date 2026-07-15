@@ -3,6 +3,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { BlockDeleteForCargoGuard } from '../../../../shared/infra/http/guards/block-delete-for-cargo.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
 import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreateCardDto } from './dtos/create-card.dto';
@@ -118,9 +119,12 @@ export class CardController {
     });
   }
 
-  // DELETE /cards/:id - remove o card definitivamente
+  // DELETE /cards/:id - remove o card definitivamente. Sistema de
+  // permissoes por cargo (RBAC): Diretor/Gerente/Coordenador nao podem
+  // excluir registros de negocio - ver BlockDeleteForCargoGuard.
   @Delete('cards/:id')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(BlockDeleteForCargoGuard)
   async delete(@Param('id') id: string, @Req() req: Request) {
     await this.deleteCardUseCase.execute({ cardId: id, tenantId: req.user!.tenantId });
     return { message: 'Card removido com sucesso.' };

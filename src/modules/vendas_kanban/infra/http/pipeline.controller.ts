@@ -3,6 +3,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } fro
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { BlockDeleteForCargoGuard } from '../../../../shared/infra/http/guards/block-delete-for-cargo.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
 import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreatePipelineDto } from './dtos/create-pipeline.dto';
@@ -117,8 +118,11 @@ export class PipelineController {
     });
   }
 
-  // DELETE /stages/:id - remove uma coluna vazia
+  // DELETE /stages/:id - remove uma coluna vazia. Sistema de permissoes
+  // por cargo (RBAC): Diretor/Gerente/Coordenador nao podem excluir
+  // registros de negocio - ver BlockDeleteForCargoGuard.
   @Delete('stages/:id')
+  @UseGuards(BlockDeleteForCargoGuard)
   async deleteStage(@Param('id') id: string, @Req() req: Request) {
     await this.deleteStageUseCase.execute({ stageId: id, tenantId: req.user!.tenantId });
     return { success: true };

@@ -4,6 +4,11 @@ export interface AuthenticatedUser {
   id: string;
   tenantId: string;
   role: string;
+  // Sistema de permissoes por cargo hierarquico (RBAC) - null se o token
+  // foi emitido antes desta mudanca (usuario ainda nao relogou) ou se o
+  // usuario nao tem cargo definido - tratado como fallback seguro
+  // ('proprio'/podeExcluir=true) em cargo-escopo.ts, nunca quebra.
+  cargo: string | null;
 }
 
 // O @types/passport ja declara `Request.user?: Express.User`.

@@ -56,6 +56,17 @@ export class PrismaUserRepository
     });
   }
 
+  async findAllByTenantAndSuperiorIds(
+    tenantId: string,
+    superiorIds: string[],
+  ): Promise<{ id: string }[]> {
+    if (superiorIds.length === 0) return [];
+    return this.prisma.user.findMany({
+      where: { tenantId, superiorId: { in: superiorIds } },
+      select: { id: true },
+    });
+  }
+
   async registerCompanyWithOwner(input: {
     companyName: string;
     ownerName: string;

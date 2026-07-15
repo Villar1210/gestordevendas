@@ -15,6 +15,11 @@ export interface UserWithRole {
   // ambos - ver Portal do Cliente (GetMeUseCase devolve para o frontend
   // decidir quais secoes mostrar em /minha-conta).
   tipoCliente: string | null;
+  // Sistema de permissoes por cargo hierarquico (RBAC) - null para quem
+  // nao tem cargo definido (Administrador, Cliente, Corretor Parceiro,
+  // ou Corretor ainda sem cargo atribuido). Ver
+  // shared/domain/services/cargo-escopo.ts.
+  cargoHierarquico: string | null;
   role: { name: string };
 }
 
@@ -27,6 +32,10 @@ export interface IUserRepository {
   // Usado pelo modulo notificacoes (CadastroPendenteCriadoListener) para
   // encontrar todos os Administradores de um tenant e notificar cada um.
   findAllByTenantAndRole(tenantId: string, roleName: string): Promise<{ id: string }[]>;
+  // Usado por GetSubordinadosRecursivosUseCase (RBAC por cargo) - busca em
+  // LOTE os subordinados diretos de varios superiores de uma vez (1 query
+  // por nivel da hierarquia, nao 1 por pessoa).
+  findAllByTenantAndSuperiorIds(tenantId: string, superiorIds: string[]): Promise<{ id: string }[]>;
 }
 
 export interface ITenantOnboardingRepository {

@@ -12,6 +12,7 @@ import { EnableTwoFactorUseCase } from './application/use-cases/enable-two-facto
 import { DisableTwoFactorUseCase } from './application/use-cases/disable-two-factor.use-case';
 import { GetMeUseCase } from './application/use-cases/get-me.use-case';
 import { UpdateMyProfileUseCase } from './application/use-cases/update-my-profile.use-case';
+import { GetSubordinadosRecursivosUseCase } from './application/use-cases/get-subordinados-recursivos.use-case';
 import { PrismaUserRepository } from './infra/database/prisma-user.repository';
 import { PrismaPasswordResetTokenRepository } from './infra/database/prisma-password-reset-token.repository';
 import { PrismaTwoFactorCodeRepository } from './infra/database/prisma-two-factor-code.repository';
@@ -39,6 +40,7 @@ import { ResendEmailSender } from '../../shared/infra/services/resend-email-send
     DisableTwoFactorUseCase,
     GetMeUseCase,
     UpdateMyProfileUseCase,
+    GetSubordinadosRecursivosUseCase,
     JwtStrategy,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
@@ -51,6 +53,9 @@ import { ResendEmailSender } from '../../shared/infra/services/resend-email-send
   // IUserRepository exportado para o modulo portal_cliente: o
   // PortalClienteController resolve o e-mail do usuario logado (nao vem no
   // payload do JWT, so id/tenantId/role) a partir do proprio id.
-  exports: [JwtModule, 'IUserRepository'],
+  // GetSubordinadosRecursivosUseCase exportado para os modulos que
+  // precisam do escopo "equipe" do RBAC por cargo (vendas_kanban,
+  // atendimento, whatsappmarketing - ver shared/domain/services/cargo-escopo.ts).
+  exports: [JwtModule, 'IUserRepository', GetSubordinadosRecursivosUseCase],
 })
 export class AuthModule {}

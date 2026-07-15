@@ -3,10 +3,16 @@
 // Unico lugar de verdade dos cargos hierarquicos validos - usado tanto na
 // aprovacao de cadastro (AprovarCadastroUseCase) quanto na tela de gestao
 // de Permissoes/Cargos do Painel Administrativo (UpdateUserCargoUseCase).
+// "diretor_regional"/"gerente_regional" adicionados junto com o sistema de
+// permissoes por cargo (RBAC) - mesmo escopo de "diretor"/"gerente" no
+// mapeamento de permissoes, so uma variacao de titulo (ver
+// shared/domain/services/cargo-escopo.ts).
 export const VALID_CARGOS_HIERARQUICOS = [
   'diretor',
+  'diretor_regional',
   'superintendente',
   'gerente',
+  'gerente_regional',
   'coordenador',
   'corretor',
 ];
