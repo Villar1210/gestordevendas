@@ -1,5 +1,56 @@
 # Progresso do Ecossistema gestordevendas
 
+## Sessao 17-18/07/2026 - Dashboard do Corretor (2 fatias) - CONCLUIDO
+Fecha a lacuna registrada no BACKLOG.md ("Dashboard do Corretor"): nova
+tela `/dashboard/inicio`, landing page padrao para quem NAO supervisiona
+equipe (role Corretor/Corretor Parceiro sem cargo hierarquico de
+supervisao) - Administrador e quem tem cargo Diretor/Gerente/
+Coordenador continuam indo direto pro Kanban, como antes.
+
+- **Fatia 1**: `GetMeuDashboardUseCase` (modulo `vendas_kanban`) -
+  resumo dos proprios leads por etapa (contagem), atividades de hoje
+  ainda pendentes (join `Activity`->`Card.ownerId`, janela do dia em
+  horario local do processo) e os 5 ultimos leads recebidos. Rota nova
+  `GET /pipelines/meu-dashboard`, sempre escopada a `ownerId =
+  requesterUserId` (independente de cargo/RBAC - e sempre "o que e
+  meu", diferente do escopo todos/equipe/plantao usado no Kanban).
+  Login/`/` passam a decidir a landing page por `role` +
+  `cargoHierarquico` (`ehCargoSupervisor()`, novo em
+  `core/constants/cargoHierarquico.ts`) - a resposta de login
+  (`AuthenticateUserUseCase`/`VerifyTwoFactorCodeUseCase`) passou a
+  incluir `cargoHierarquico` no objeto `user` pra essa decisao nao
+  exigir uma chamada extra a `/auth/me`. Item "Inicio" novo no
+  Sidebar. `ACTIVITY_TYPE_OPTIONS` extraido de
+  `CardDetailPanel.tsx` para `core/constants/activityTypes.ts`
+  (reaproveitado agora pelos dois lugares).
+- **Fatia 2**: badge de origem do lead na lista "Ultimos leads
+  recebidos" (`vivi_repique` -> "VIVI" azul, `roleta_online` ->
+  "Roleta" verde, `webhook` -> "Web" cinza, `manual` sem badge - cores
+  proprias deste contexto, deliberadamente distintas do badge de
+  origem ja existente no `KanbanCard`, que continua igual). Clique num
+  lead ou numa atividade do dia navega para
+  `/dashboard/kanban?pipelineId=&cardId=` com o card correspondente ja
+  aberto e destacado (`highlightedCardId` novo no `useKanbanStore`,
+  com scroll automatico ate o card). Poll silencioso de 60s (mesmo
+  padrao ja usado em `/dashboard/atendimento`) atualiza os dados sem
+  piscar a tela.
+
+Testado de ponta a ponta com Playwright real contra PRODUCAO (sem
+banco local disponivel nesta sessao) - tenant/corretor/pipeline/cards
+de teste criados direto via Prisma na propria VPS (script descartavel,
+sem tocar dados reais), removidos ao final via cascata. Confirmado:
+redirecionamento certo por cargo (Administrador e Gerente -> Kanban;
+Corretor -> Inicio); os 4 badges de origem corretos; clique em lead e
+em atividade do dia abrindo o card certo, destacado, no Kanban; poll de
+60s sem o spinner de carregamento reaparecer (um falso-positivo do
+proprio script de teste, capturado no instante exato da transicao de
+rota entre login e o dashboard, foi investigado e descartado - nao era
+um bug real). Antes da aprovacao final de cada fatia, o codigo foi
+testado numa copia temporaria dos arquivos direto na VPS (sem commit),
+depois revertido (`git checkout`) e a VPS trazida de volta ao ultimo
+commit aprovado - so depois da aprovacao explicita o commit real foi
+feito e re-deployado.
+
 ## Sessao 13-15/07/2026 - VIVI escopo completo, Kanban, Atendimento, RH, seguranca, Painel Administrativo, RBAC por cargo, Plantao/Stand - resumo
 
 Sessao muito longa, 14 frentes concluidas e deployadas em producao, cada
@@ -594,18 +645,28 @@ Pendencias reais atuais:
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 
-### Proximos passos sugeridos (em ordem de prioridade discutida)
-1. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
+### Proximos passos sugeridos (atualizado apos o Dashboard do Corretor)
+NOTA: Dashboard do Corretor (2 fatias) ja CONCLUIDO - ver secao propria
+no topo deste arquivo. Ordem de prioridade revisada:
+1. Onboarding do Corretor (troca de senha obrigatoria no primeiro
+   login) - ja registrado em detalhe no BACKLOG.md ("Modulo RH"), campo
+   `mustChangePassword` ainda nao existe no schema
+2. Notificacao de lead atribuido pela Roleta Online - o sino de
+   notificacoes in-app ja existe (modulo `notificacoes`), so falta o
+   gatilho quando `DistributeLeadUseCase`/`ConfirmSuggestedOwnerUseCase`
+   atribuem um lead - ver detalhe em BACKLOG.md ("Futuro modulo Roleta
+   Online")
+3. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
    escopo sensivel (isolamento multitenant), precisa de diagnostico
    cuidadoso antes de codar
-2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+4. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
-3. Logs estruturados + monitoramento basico (restante da Fase C) -
+5. Logs estruturados + monitoramento basico (restante da Fase C) -
    barato de implementar
-4. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
+6. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
