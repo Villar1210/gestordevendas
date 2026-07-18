@@ -5,6 +5,7 @@
 // inativa ou nao houver ninguem online, nao faz nada - o lead fica na
 // Caixa de Entrada normal, do jeito que ja funciona hoje.
 import { Injectable, Inject, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IRoletaConfigRepository } from '../../domain/repositories/roleta-config-repository.interface';
 import { ICorretorRepository, CorretorRecord } from '../../../rh/domain/repositories/corretor-repository.interface';
 import { IRoleRepository } from '../../../rh/domain/repositories/role-repository.interface';
@@ -35,6 +36,7 @@ export class DistributeLeadUseCase {
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     private readonly claimCardUseCase: ClaimCardUseCase,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: DistributeLeadInput): Promise<void> {
@@ -74,6 +76,14 @@ export class DistributeLeadUseCase {
         userId: chosen.id,
       });
       this.logger.log(`Lead ${input.cardId} atribuido automaticamente a ${chosen.id}.`);
+      // Notifica o corretor que recebeu o lead (modulo notificacoes, ver
+      // LeadAtribuidoListener) - emit() nao aguarda o listener, mesmo
+      // padrao ja usado por CreateQuickCardUseCase para 'card.sem_dono.criado'.
+      this.eventEmitter.emit('lead.atribuido', {
+        tenantId: input.tenantId,
+        cardId: input.cardId,
+        ownerId: chosen.id,
+      });
     } else {
       await this.cardRepository.updateSuggestedOwner(input.cardId, chosen.id);
       this.logger.log(`Lead ${input.cardId} sugerido para ${chosen.id} (aguardando confirmacao).`);

@@ -3,6 +3,7 @@
 // de "assumir o lead" do ClaimCardUseCase, so que o novo dono e o
 // suggestedOwnerId gravado no card, nao necessariamente quem esta logado.
 import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ICardRepository, CardRecord } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { ClaimCardUseCase } from '../../../vendas_kanban/application/use-cases/claim-card.use-case';
 
@@ -18,6 +19,7 @@ export class ConfirmSuggestedOwnerUseCase {
   constructor(
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     private readonly claimCardUseCase: ClaimCardUseCase,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: ConfirmSuggestedOwnerInput): Promise<CardRecord> {
@@ -41,6 +43,15 @@ export class ConfirmSuggestedOwnerUseCase {
       cardId: input.cardId,
       tenantId: input.tenantId,
       userId: card.suggestedOwnerId,
+    });
+
+    // Notifica o corretor que confirmou a sugestao (modulo notificacoes,
+    // ver LeadAtribuidoListener) - mesmo evento generico emitido pelo modo
+    // automatico em DistributeLeadUseCase.
+    this.eventEmitter.emit('lead.atribuido', {
+      tenantId: input.tenantId,
+      cardId: input.cardId,
+      ownerId: card.suggestedOwnerId,
     });
 
     // Limpa a sugestao agora que virou dono de verdade.
