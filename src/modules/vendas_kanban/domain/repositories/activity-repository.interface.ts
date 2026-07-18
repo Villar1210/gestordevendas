@@ -10,9 +10,12 @@ export interface ActivityRecord {
   scheduledAt: Date | null;
   done: boolean;
   createdAt: Date;
-  // So preenchido pela consulta do Dashboard do Corretor
-  // (findPendingTodayByOwner), que faz o join com o titulo do card.
+  // So preenchidos pela consulta do Dashboard do Corretor
+  // (findPendingTodayByOwner), que faz o join com o titulo/pipeline do card
+  // - cardPipelineId permite o frontend montar o link de volta pro Kanban
+  // (/dashboard/kanban?pipelineId=...&cardId=...).
   cardTitle?: string;
+  cardPipelineId?: string;
 }
 
 export interface IActivityRepository {

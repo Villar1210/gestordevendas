@@ -3,23 +3,19 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Loader2, CheckSquare, Kanban, MessageCircle, Inbox, CalendarClock } from "lucide-react";
 import { useMeuDashboardStore } from "@/features/dashboard-corretor/store/useMeuDashboardStore";
 import { useMeuDashboardIntegration } from "@/features/dashboard-corretor/hooks/useMeuDashboardIntegration";
 import { getActivityTypeOption } from "@/core/constants/activityTypes";
+import { getOrigemBadgeOption } from "@/features/dashboard-corretor/constants";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", { timeStyle: "short" });
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
 
-// Rotula a origem do lead so quando ela veio de automacao ("manual" - o
-// caso mais comum, "+ Novo Negocio" do proprio corretor - fica sem rotulo).
-// Diferenciacao visual mais rica (cor/icone) fica para uma fatia futura -
-// ver PROGRESS.md "Dashboard do Corretor".
-const ORIGEM_LABELS: Record<string, string> = {
-  roleta_online: "Roleta",
-  vivi_repique: "VIVI",
-  webhook: "Webhook",
-};
+// Poll simples (mesmo padrao ja usado em /dashboard/atendimento) - sem
+// websocket neste modulo ainda.
+const POLL_INTERVAL_MS = 60_000;
 
 export default function DashboardInicioPage() {
   const isLoading = useMeuDashboardStore((state) => state.isLoading);
@@ -28,6 +24,7 @@ export default function DashboardInicioPage() {
   const ultimosLeads = useMeuDashboardStore((state) => state.ultimosLeads);
   const { loadDashboard, handleToggleActivityDone } = useMeuDashboardIntegration();
   const hasInitialized = useRef(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (hasInitialized.current) return;
@@ -35,6 +32,19 @@ export default function DashboardInicioPage() {
     loadDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // silent=true: atualizacao em segundo plano, nao aciona o spinner de
+      // carregamento (ver comentario em useMeuDashboardIntegration).
+      loadDashboard(true);
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadDashboard]);
+
+  function goToCardNoKanban(pipelineId: string, cardId: string) {
+    router.push(`/dashboard/kanban?pipelineId=${pipelineId}&cardId=${cardId}`);
+  }
 
   const totalLeads = leadsPorEstagio.reduce((sum, s) => sum + s.count, 0);
 
@@ -104,11 +114,13 @@ export default function DashboardInicioPage() {
                   return (
                     <div
                       key={activity.id}
-                      className="flex items-center gap-3 rounded-lg border border-slate-200 p-3"
+                      onClick={() => goToCardNoKanban(activity.cardPipelineId, activity.cardId)}
+                      className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50/40"
                     >
                       <input
                         type="checkbox"
                         checked={activity.done}
+                        onClick={(e) => e.stopPropagation()}
                         onChange={() => handleToggleActivityDone(activity.id)}
                         className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
                       />
@@ -141,25 +153,31 @@ export default function DashboardInicioPage() {
               <p className="text-sm text-slate-400">Nenhum lead recebido ainda.</p>
             ) : (
               <div className="space-y-2">
-                {ultimosLeads.map((lead) => (
-                  <div
-                    key={lead.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-800">{lead.title}</p>
-                      <p className="text-xs text-slate-400">
-                        {lead.stageName ?? "Caixa de Entrada"} -{" "}
-                        {dateFormatter.format(new Date(lead.createdAt))}
-                      </p>
+                {ultimosLeads.map((lead) => {
+                  const origemBadge = getOrigemBadgeOption(lead.origem);
+                  return (
+                    <div
+                      key={lead.id}
+                      onClick={() => goToCardNoKanban(lead.pipelineId, lead.id)}
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50/40"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-800">{lead.title}</p>
+                        <p className="text-xs text-slate-400">
+                          {lead.stageName ?? "Caixa de Entrada"} -{" "}
+                          {dateFormatter.format(new Date(lead.createdAt))}
+                        </p>
+                      </div>
+                      {origemBadge && (
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${origemBadge.className}`}
+                        >
+                          {origemBadge.label}
+                        </span>
+                      )}
                     </div>
-                    {ORIGEM_LABELS[lead.origem] && (
-                      <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                        {ORIGEM_LABELS[lead.origem]}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

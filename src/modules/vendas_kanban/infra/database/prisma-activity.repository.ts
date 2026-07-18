@@ -64,7 +64,7 @@ export class PrismaActivityRepository implements IActivityRepository {
         card: { ownerId },
       },
       orderBy: { scheduledAt: 'asc' },
-      include: { card: { select: { title: true } } },
+      include: { card: { select: { title: true, pipelineId: true } } },
     });
     return rows.map((row) => ({
       id: row.id,
@@ -76,6 +76,7 @@ export class PrismaActivityRepository implements IActivityRepository {
       done: row.done,
       createdAt: row.createdAt,
       cardTitle: row.card.title,
+      cardPipelineId: row.card.pipelineId,
     }));
   }
 }

@@ -19,15 +19,22 @@ export function useMeuDashboardIntegration() {
   const setDashboard = useMeuDashboardStore((state) => state.setDashboard);
   const setAtividadeDone = useMeuDashboardStore((state) => state.setAtividadeDone);
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiRequest<MeuDashboardResponse>("/pipelines/meu-dashboard");
-      setDashboard(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [setLoading, setDashboard]);
+  const loadDashboard = useCallback(
+    // silent=true (usado pelo poll em segundo plano, ver page.tsx) NAO
+    // aciona isLoading - evita trocar a tela inteira por um spinner a cada
+    // atualizacao automatica (mesmo padrao ja usado em
+    // useAtendimentoIntegration.loadAtendimentoDetail).
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const data = await apiRequest<MeuDashboardResponse>("/pipelines/meu-dashboard");
+        setDashboard(data);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [setLoading, setDashboard],
+  );
 
   const handleToggleActivityDone = useCallback(
     async (activityId: string) => {

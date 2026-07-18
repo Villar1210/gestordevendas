@@ -41,6 +41,7 @@ interface KanbanCardProps {
 
 export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
   const openCardDetailPanel = useKanbanStore((state) => state.openCardDetailPanel);
+  const isHighlighted = useKanbanStore((state) => state.highlightedCardId === card.id);
 
   const origemStyle = ORIGEM_STYLES[card.origem] ?? ORIGEM_STYLES.manual;
   const origemLabel = ORIGEM_LABELS[card.origem] ?? card.origem;
@@ -61,10 +62,11 @@ export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
+          data-card-id={card.id}
           onClick={() => openCardDetailPanel(card)}
           className={`mb-3 cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition ${
             snapshot.isDragging ? "shadow-md" : ""
-          }`}
+          } ${isHighlighted ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
         >
           <p className="mb-2 text-sm font-medium text-slate-800">{card.title}</p>
 

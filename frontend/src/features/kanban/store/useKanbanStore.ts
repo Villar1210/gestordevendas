@@ -71,6 +71,11 @@ interface KanbanState {
   cardModal: CardModalState;
   cardDetailPanel: CardDetailPanelState;
   quickCardModalOpen: boolean;
+  // Deep-link a partir do Dashboard do Corretor (/dashboard/inicio?...) -
+  // destaca visualmente o card por alguns segundos apos abrir o board via
+  // ?pipelineId=&cardId= (ver app/dashboard/kanban/page.tsx). Null = nenhum
+  // destaque ativo.
+  highlightedCardId: string | null;
 
   setPipelineId: (pipelineId: string) => void;
   setPipelines: (pipelines: Pipeline[]) => void;
@@ -93,6 +98,8 @@ interface KanbanState {
 
   openQuickCardModal: () => void;
   closeQuickCardModal: () => void;
+
+  setHighlightedCardId: (cardId: string | null) => void;
 
   addCard: (card: Card) => void;
   updateCardInPlace: (card: Card) => void;
@@ -137,6 +144,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   cardModal: { isOpen: false, stageId: null },
   cardDetailPanel: { isOpen: false, card: null },
   quickCardModalOpen: false,
+  highlightedCardId: null,
 
   setPipelineId: (pipelineId) => set({ pipelineId }),
   setPipelines: (pipelines) => set({ pipelines }),
@@ -163,6 +171,8 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
   openQuickCardModal: () => set({ quickCardModalOpen: true }),
   closeQuickCardModal: () => set({ quickCardModalOpen: false }),
+
+  setHighlightedCardId: (highlightedCardId) => set({ highlightedCardId }),
 
   addCard: (card) => {
     if (!card.stageId) return;

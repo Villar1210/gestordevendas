@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 import { podeExcluirRegistroDeNegocio } from "@/core/constants/cargoEscopo";
@@ -36,8 +37,11 @@ export default function KanbanDashboardPage() {
   const setPodeExcluirRegistroDeNegocio = useKanbanStore(
     (state) => state.setPodeExcluirRegistroDeNegocio,
   );
+  const openCardDetailPanel = useKanbanStore((state) => state.openCardDetailPanel);
+  const setHighlightedCardId = useKanbanStore((state) => state.setHighlightedCardId);
   const { loadBoard, handleCreatePipeline } = useKanbanIntegration();
   const hasInitialized = useRef(false);
+  const router = useRouter();
 
   const [isCreatingPipeline, setIsCreatingPipeline] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
@@ -50,7 +54,17 @@ export default function KanbanDashboardPage() {
       setLoading(true);
       try {
         const fetchedPipelines = await apiRequest<Pipeline[]>("/pipelines");
-        let pipeline = fetchedPipelines[0];
+
+        // Deep-link a partir do Dashboard do Corretor
+        // (/dashboard/inicio?pipelineId=&cardId=) - le direto de
+        // window.location (nao useSearchParams, que exigiria envolver a
+        // pagina numa Suspense boundary so por causa disso).
+        const params = new URLSearchParams(window.location.search);
+        const pipelineIdParam = params.get("pipelineId");
+        const cardIdParam = params.get("cardId");
+
+        let pipeline =
+          fetchedPipelines.find((p) => p.id === pipelineIdParam) ?? fetchedPipelines[0];
 
         if (!pipeline) {
           pipeline = await apiRequest<Pipeline>("/pipelines/default", { method: "POST" });
@@ -59,6 +73,22 @@ export default function KanbanDashboardPage() {
 
         setPipelines(fetchedPipelines);
         await loadBoard(pipeline.id);
+
+        if (cardIdParam) {
+          const loadedStages = useKanbanStore.getState().stages;
+          const card = loadedStages.flatMap((stage) => stage.cards).find((c) => c.id === cardIdParam);
+          if (card) {
+            openCardDetailPanel(card);
+            setHighlightedCardId(card.id);
+            setTimeout(() => setHighlightedCardId(null), 3000);
+            requestAnimationFrame(() => {
+              document
+                .querySelector(`[data-card-id="${card.id}"]`)
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            });
+          }
+          router.replace("/dashboard/kanban");
+        }
       } finally {
         setLoading(false);
       }

@@ -10,6 +10,7 @@ export interface LeadPorEstagio {
 export interface AtividadeHoje {
   id: string;
   cardId: string;
+  cardPipelineId: string;
   type: string;
   subject: string | null;
   scheduledAt: string | null;
@@ -19,6 +20,7 @@ export interface AtividadeHoje {
 
 export interface UltimoLead {
   id: string;
+  pipelineId: string;
   title: string;
   stageId: string | null;
   stageName: string | null;
