@@ -3,14 +3,34 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { TOKEN_STORAGE_KEY } from "@/core/api/client";
+import { apiRequest, TOKEN_STORAGE_KEY } from "@/core/api/client";
+import { DASHBOARD_ROLES } from "@/core/constants/dashboardRoles";
+import { ehCargoSupervisor } from "@/core/constants/cargoHierarquico";
 
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
     const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-    router.replace(token ? "/dashboard/kanban" : "/login");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    // Mesma regra de landing page do login/page.tsx (goToDashboard) -
+    // repetida aqui porque `/` e alcancada em sessoes ja existentes (reload,
+    // link direto), sem passar pelo formulario de login.
+    apiRequest<{ role: string; cargoHierarquico: string | null }>("/auth/me")
+      .then((me) => {
+        if (!DASHBOARD_ROLES.includes(me.role)) {
+          router.replace("/minha-conta");
+        } else if (me.role !== "Administrador" && !ehCargoSupervisor(me.cargoHierarquico)) {
+          router.replace("/dashboard/inicio");
+        } else {
+          router.replace("/dashboard/kanban");
+        }
+      })
+      .catch(() => router.replace("/login"));
   }, [router]);
 
   return null;

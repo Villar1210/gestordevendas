@@ -19,6 +19,7 @@ import { MoveStageUseCase } from '../../application/use-cases/move-stage.use-cas
 import { RenameStageUseCase } from '../../application/use-cases/rename-stage.use-case';
 import { DeleteStageUseCase } from '../../application/use-cases/delete-stage.use-case';
 import { GetInboxUseCase } from '../../application/use-cases/get-inbox.use-case';
+import { GetMeuDashboardUseCase } from '../../application/use-cases/get-meu-dashboard.use-case';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,6 +35,7 @@ export class PipelineController {
     private readonly renameStageUseCase: RenameStageUseCase,
     private readonly deleteStageUseCase: DeleteStageUseCase,
     private readonly getInboxUseCase: GetInboxUseCase,
+    private readonly getMeuDashboardUseCase: GetMeuDashboardUseCase,
   ) {}
 
   // POST /pipelines - cria um pipeline vazio (sem stages)
@@ -88,6 +90,17 @@ export class PipelineController {
       pipelineId: id,
       tenantId: req.user!.tenantId,
       requesterRole: req.user!.role,
+      requesterUserId: req.user!.id,
+    });
+  }
+
+  // GET /pipelines/meu-dashboard - resumo dos proprios leads/atividades do
+  // usuario logado (Dashboard do Corretor) - sempre escopado a ownerId=self,
+  // independente de role/cargo.
+  @Get('pipelines/meu-dashboard')
+  async getMeuDashboard(@Req() req: Request) {
+    return this.getMeuDashboardUseCase.execute({
+      tenantId: req.user!.tenantId,
       requesterUserId: req.user!.id,
     });
   }

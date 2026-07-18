@@ -47,4 +47,35 @@ export class PrismaActivityRepository implements IActivityRepository {
   async setDone(id: string, done: boolean): Promise<ActivityRecord> {
     return this.prisma.activity.update({ where: { id }, data: { done } });
   }
+
+  async findPendingTodayByOwner(tenantId: string, ownerId: string): Promise<ActivityRecord[]> {
+    const now = new Date();
+    // new Date(year, month, day) usa o fuso LOCAL do processo - mesma
+    // tecnica ja usada em shared/utils/date-only.util.ts para evitar o bug
+    // de fuso horario documentado em CLAUDE.md.
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    const rows = await this.prisma.activity.findMany({
+      where: {
+        tenantId,
+        done: false,
+        scheduledAt: { gte: startOfToday, lt: startOfTomorrow },
+        card: { ownerId },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      include: { card: { select: { title: true } } },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      tenantId: row.tenantId,
+      cardId: row.cardId,
+      type: row.type,
+      subject: row.subject,
+      scheduledAt: row.scheduledAt,
+      done: row.done,
+      createdAt: row.createdAt,
+      cardTitle: row.card.title,
+    }));
+  }
 }

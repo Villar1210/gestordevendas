@@ -17,3 +17,22 @@ export const CARGO_HIERARQUICO_OPTIONS = [
 
 // Roles que participam da hierarquia (cargoHierarquico + superior).
 export const ROLES_COM_HIERARQUIA = ["Corretor", "Imobiliaria Parceira"];
+
+// Cargos que supervisionam equipe (escopo 'equipe'/'plantao' no RBAC, ver
+// cargoEscopo.ts) - usado pelo login/`/` para decidir landing page: quem
+// supervisiona equipe continua indo para o Kanban (visao de time), so quem
+// NAO supervisiona (cargo "corretor" ou sem cargo definido, mesmo fallback
+// ja usado em cargoEscopo.ts) vai para o Dashboard do Corretor
+// (/dashboard/inicio) - ver CLAUDE.md/PROGRESS.md.
+const CARGOS_SUPERVISORES = [
+  "diretor",
+  "diretor_regional",
+  "superintendente",
+  "gerente",
+  "gerente_regional",
+  "coordenador",
+];
+
+export function ehCargoSupervisor(cargo: string | null | undefined): boolean {
+  return !!cargo && CARGOS_SUPERVISORES.includes(cargo);
+}

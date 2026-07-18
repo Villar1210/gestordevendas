@@ -95,6 +95,7 @@ export class AuthenticateUserUseCase {
         name: user.name,
         email: user.email,
         role: user.role.name,
+        cargoHierarquico: user.cargoHierarquico,
       },
       token,
     };

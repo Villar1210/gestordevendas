@@ -11,17 +11,26 @@ import {
   STATUS_DISPONIBILIDADE_STORAGE_KEY,
 } from "@/core/api/client";
 import { DASHBOARD_ROLES } from "@/core/constants/dashboardRoles";
+import { ehCargoSupervisor } from "@/core/constants/cargoHierarquico";
+
+interface LoginUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  cargoHierarquico: string | null;
+}
 
 interface LoginResponse {
   twoFactorRequired?: boolean;
   challengeId?: string;
   token?: string;
-  user?: { id: string; name: string; email: string; role: string };
+  user?: LoginUser;
 }
 
 interface VerifyTwoFactorResponse {
   token: string;
-  user: { id: string; name: string; email: string; role: string };
+  user: LoginUser;
 }
 
 export default function LoginPage() {
@@ -36,13 +45,13 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function goToDashboard(token: string, role: string) {
+  async function goToDashboard(token: string, user: LoginUser) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
 
     // Roles sem acesso ao dashboard (Cliente, Imobiliaria Parceira) nunca
     // chegam a chamar rotas do dashboard - o backend so retornaria 403 -
     // vao direto para a area propria delas.
-    if (!DASHBOARD_ROLES.includes(role)) {
+    if (!DASHBOARD_ROLES.includes(user.role)) {
       router.push("/minha-conta");
       return;
     }
@@ -57,7 +66,14 @@ export default function LoginPage() {
       // Login ja foi bem-sucedido; falha aqui nao deve bloquear o acesso ao
       // dashboard - o corretor so aparecera como "offline" ate ajustar manualmente.
     }
-    router.push("/dashboard/kanban");
+
+    // Administrador e quem supervisiona equipe (Diretor/Gerente/Coordenador,
+    // ver ehCargoSupervisor) continuam indo para o Kanban (visao de time);
+    // demais (cargo "corretor" ou sem cargo definido) vao para o Dashboard
+    // do Corretor - ver CLAUDE.md/PROGRESS.md.
+    const vaiParaDashboardCorretor =
+      user.role !== "Administrador" && !ehCargoSupervisor(user.cargoHierarquico);
+    router.push(vaiParaDashboardCorretor ? "/dashboard/inicio" : "/dashboard/kanban");
   }
 
   async function handleLoginSubmit(event: FormEvent) {
@@ -74,7 +90,7 @@ export default function LoginPage() {
       if (result.twoFactorRequired && result.challengeId) {
         setChallengeId(result.challengeId);
       } else if (result.token && result.user) {
-        goToDashboard(result.token, result.user.role);
+        goToDashboard(result.token, result.user);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Nao foi possivel fazer login.");
@@ -95,7 +111,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ challengeId, code }),
       });
-      goToDashboard(result.token, result.user.role);
+      goToDashboard(result.token, result.user);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Codigo invalido.");
     } finally {

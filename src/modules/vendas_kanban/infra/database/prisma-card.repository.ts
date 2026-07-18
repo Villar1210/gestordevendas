@@ -149,6 +149,50 @@ export class PrismaCardRepository implements ICardRepository {
     }));
   }
 
+  async countByOwnerGroupedByStage(
+    tenantId: string,
+    ownerId: string,
+  ): Promise<Array<{ stageId: string; stageName: string; position: number; count: number }>> {
+    const groups = await this.prisma.card.groupBy({
+      by: ['stageId'],
+      where: { tenantId, ownerId, stageId: { not: null } },
+      _count: { _all: true },
+    });
+    if (groups.length === 0) return [];
+
+    const stageIds = groups.map((g) => g.stageId as string);
+    const stages = await this.prisma.stage.findMany({
+      where: { id: { in: stageIds } },
+      select: { id: true, name: true, position: true },
+    });
+    const stageById = new Map(stages.map((s) => [s.id, s]));
+
+    return groups
+      .map((g) => {
+        const stage = stageById.get(g.stageId as string);
+        return {
+          stageId: g.stageId as string,
+          stageName: stage?.name ?? 'Etapa removida',
+          position: stage?.position ?? 0,
+          count: g._count._all,
+        };
+      })
+      .sort((a, b) => a.position - b.position);
+  }
+
+  async findRecentByOwner(tenantId: string, ownerId: string, limit: number): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: { tenantId, ownerId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { stage: { select: { name: true } } },
+    });
+    return rows.map((row) => ({
+      ...this.toRecord(row),
+      stageName: row.stage?.name ?? null,
+    }));
+  }
+
   async updateSuggestedOwner(id: string, suggestedOwnerId: string | null): Promise<CardRecord> {
     const row = await this.prisma.card.update({ where: { id }, data: { suggestedOwnerId } });
     return this.toRecord(row);

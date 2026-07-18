@@ -10,6 +10,9 @@ export interface ActivityRecord {
   scheduledAt: Date | null;
   done: boolean;
   createdAt: Date;
+  // So preenchido pela consulta do Dashboard do Corretor
+  // (findPendingTodayByOwner), que faz o join com o titulo do card.
+  cardTitle?: string;
 }
 
 export interface IActivityRepository {
@@ -25,4 +28,9 @@ export interface IActivityRepository {
   // Retorna ordenado por scheduledAt (crescente, nulos por ultimo).
   findAllByCard(cardId: string): Promise<ActivityRecord[]>;
   setDone(id: string, done: boolean): Promise<ActivityRecord>;
+  // Usado pelo Dashboard do Corretor: atividades agendadas para HOJE (fuso
+  // local do processo, mesma logica ja usada em date-only.util.ts) ainda
+  // nao concluidas, dos cards de um dono especifico. Ordenado por
+  // scheduledAt crescente.
+  findPendingTodayByOwner(tenantId: string, ownerId: string): Promise<ActivityRecord[]>;
 }

@@ -22,6 +22,7 @@ import { ListNotesByCardUseCase } from './application/use-cases/list-notes-by-ca
 import { CreateQuickCardUseCase } from './application/use-cases/create-quick-card.use-case';
 import { GetInboxUseCase } from './application/use-cases/get-inbox.use-case';
 import { ClaimCardUseCase } from './application/use-cases/claim-card.use-case';
+import { GetMeuDashboardUseCase } from './application/use-cases/get-meu-dashboard.use-case';
 import { PrismaPipelineRepository } from './infra/database/prisma-pipeline.repository';
 import { PrismaStageRepository } from './infra/database/prisma-stage.repository';
 import { PrismaCardRepository } from './infra/database/prisma-card.repository';
@@ -60,6 +61,7 @@ import { PlantaoModule } from '../plantao/plantao.module';
     CreateQuickCardUseCase,
     GetInboxUseCase,
     ClaimCardUseCase,
+    GetMeuDashboardUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IPipelineRepository', useClass: PrismaPipelineRepository },

@@ -70,6 +70,17 @@ export interface ICardRepository {
     id: string,
     input: { ownerId: string; stageId: string; position: number },
   ): Promise<CardRecord>;
+  // Usado pelo Dashboard do Corretor (GetMeuDashboardUseCase): quantos
+  // cards do dono existem em cada stage (cards na Caixa de Entrada, sem
+  // stageId, ficam de fora - nao "pertencem" a nenhuma coluna).
+  countByOwnerGroupedByStage(
+    tenantId: string,
+    ownerId: string,
+  ): Promise<Array<{ stageId: string; stageName: string; position: number; count: number }>>;
+  // Usado pelo Dashboard do Corretor: os N cards mais recentes do dono,
+  // mais novos primeiro. Inclui stageName via join (mesmo padrao ja usado
+  // por findAllByTenantAndEmail).
+  findRecentByOwner(tenantId: string, ownerId: string, limit: number): Promise<CardRecord[]>;
   // Usado pela Roleta Online: define/limpa a sugestao de dono (modo
   // semi_automatico) sem alterar ownerId/stageId.
   updateSuggestedOwner(id: string, suggestedOwnerId: string | null): Promise<CardRecord>;

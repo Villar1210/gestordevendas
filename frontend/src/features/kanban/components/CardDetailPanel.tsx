@@ -2,19 +2,10 @@
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
-import {
-  X,
-  Plus,
-  Trash2,
-  Phone,
-  Users,
-  Home,
-  CheckSquare,
-  DollarSign,
-  FileText,
-} from "lucide-react";
+import { X, Plus, Trash2, CheckSquare, FileText } from "lucide-react";
 import { useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration, Activity, Note } from "../hooks/useKanbanIntegration";
+import { ACTIVITY_TYPE_OPTIONS, getActivityTypeOption } from "@/core/constants/activityTypes";
 
 type Tab = "atividades" | "anotacoes" | "dados" | "documentos";
 
@@ -26,14 +17,6 @@ const TAB_LABELS: Record<Tab, string> = {
   dados: "Dados do Cliente",
   documentos: "Documentos",
 };
-
-const ACTIVITY_TYPES: { value: string; label: string; icon: typeof Phone }[] = [
-  { value: "ligacao", label: "Ligacao", icon: Phone },
-  { value: "reuniao", label: "Reuniao", icon: Users },
-  { value: "visita", label: "Visita", icon: Home },
-  { value: "tarefa", label: "Tarefa", icon: CheckSquare },
-  { value: "proposta", label: "Proposta", icon: DollarSign },
-];
 
 const TEMPERATURE_OPTIONS = [
   { value: "", label: "Nao definida" },
@@ -256,7 +239,7 @@ export function CardDetailPanel() {
             <div>
               <form onSubmit={handleScheduleActivity} className="mb-6 space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {ACTIVITY_TYPES.map((t) => {
+                  {ACTIVITY_TYPE_OPTIONS.map((t) => {
                     const Icon = t.icon;
                     const active = activityType === t.value;
                     return (
@@ -304,7 +287,7 @@ export function CardDetailPanel() {
                   <p className="text-sm text-slate-400">Nenhuma atividade ainda.</p>
                 )}
                 {activities.map((activity) => {
-                  const typeInfo = ACTIVITY_TYPES.find((t) => t.value === activity.type);
+                  const typeInfo = getActivityTypeOption(activity.type);
                   const Icon = typeInfo?.icon ?? CheckSquare;
                   return (
                     <div
