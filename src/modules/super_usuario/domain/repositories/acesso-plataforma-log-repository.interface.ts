@@ -15,4 +15,7 @@ export interface IAcessoPlataformaLogRepository {
     tenantId: string;
     tenantNome: string;
   }): Promise<AcessoPlataformaLogRecord>;
+  // Retorna ordenado por createdAt decrescente (mais recente primeiro) -
+  // usado pela tela de historico de acessos (ver ListAcessosPlataformaUseCase).
+  findAllBySuperUsuario(superUsuarioId: string): Promise<AcessoPlataformaLogRecord[]>;
 }

@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { SuperUsuarioController } from './infra/http/super-usuario.controller';
 import { ListTenantsUseCase } from './application/use-cases/list-tenants.use-case';
 import { ImpersonarTenantUseCase } from './application/use-cases/impersonar-tenant.use-case';
+import { ListAcessosPlataformaUseCase } from './application/use-cases/list-acessos-plataforma.use-case';
 import { PrismaTenantRepository } from './infra/database/prisma-tenant.repository';
 import { PrismaAcessoPlataformaLogRepository } from './infra/database/prisma-acesso-plataforma-log.repository';
 import { PrismaService } from '../../config/prisma.service';
@@ -20,6 +21,7 @@ import { AuthModule } from '../auth/auth.module';
     PrismaService,
     ListTenantsUseCase,
     ImpersonarTenantUseCase,
+    ListAcessosPlataformaUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'ITenantRepository', useClass: PrismaTenantRepository },

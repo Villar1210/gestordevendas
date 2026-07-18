@@ -24,4 +24,11 @@ export class PrismaAcessoPlataformaLogRepository implements IAcessoPlataformaLog
       },
     });
   }
+
+  async findAllBySuperUsuario(superUsuarioId: string): Promise<AcessoPlataformaLogRecord[]> {
+    return this.prisma.acessoPlataformaLog.findMany({
+      where: { superUsuarioId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }
