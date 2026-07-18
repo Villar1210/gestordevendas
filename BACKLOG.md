@@ -141,14 +141,19 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       lista vazia sem fallback) na Fatia 2; badge "Stand: X - N
       corretores hoje" no Kanban/Atendimento na Fatia 3 - ver
       PROGRESS.md.
-- [ ] Super Usuario - hoje nenhuma conta acessa mais de 1 tenant (cada
-      Administrador so ve o proprio, isolamento multitenant correto e
-      desejado para clientes). Precisa de um papel novo, fora da
-      hierarquia normal de Role/cargo de um tenant, para o DONO da
-      plataforma SaaS (nao um cliente) acessar todos os tenants -
-      avaliar com cuidado pra nao abrir brecha de vazamento entre
-      tenants. Sessao dedicada. PRIORIDADE 1 dos proximos passos (ver
-      PROGRESS.md).
+- [x] Super Usuario - Fatia 1 (backend) CONCLUIDA - ver PROGRESS.md,
+      secao "Super Usuario (dono da plataforma SaaS) - Fatia 1". Tenant
+      "Plataforma" + Role "Super Usuario" (so via seed manual), modulo
+      `super_usuario` (listar tenants + impersonar um Administrador
+      real via token de vida curta), auditoria em
+      `AcessoPlataformaLog`. Testado em producao com tenants
+      descartaveis - isolamento normal dos demais tenants confirmado
+      intacto.
+  - [ ] Fatia 2 (frontend: redirecionamento pos-login, tela de lista de
+        tenants, barra de "modo simulacao") - aguardando aprovacao.
+  - [ ] Fatia 3 (auditoria visivel pro proprio Super Usuario,
+        confirmacao extra ao impersonar, testes de seguranca
+        dedicados) - aguardando Fatia 2.
 - [ ] Modulo Agente de Atendimento Online (Cloud API oficial da Meta) -
       multiatendimento/multicanal, distribuicao de leads entre SDRs,
       tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica:

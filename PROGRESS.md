@@ -1,5 +1,81 @@
 # Progresso do Ecossistema gestordevendas
 
+## Sessao 18/07/2026 - Super Usuario (dono da plataforma SaaS) - Fatia 1 (backend) - CONCLUIDO
+Fecha a PRIORIDADE 1 registrada no BACKLOG.md/PROGRESS.md. Diagnostico
+previo (sem alterar codigo) confirmou 3 pontos criticos antes de
+projetar a arquitetura: (1) `JwtStrategy.validate()` confia nos claims
+do JWT sem re-consultar o banco por request; (2) todo o isolamento de
+tenants hoje depende de `tenantId` vindo do JWT e passado explicitamente
+para cada use case/repositorio (`findByIdAndTenant`/`findAllByTenant`);
+(3) nao existia NENHUM conceito de "plataforma" no codigo - seria
+construido do zero.
+
+**Decisao de arquitetura**: em vez de espalhar "se for Super Usuario,
+ignore o filtro de tenant" por dezenas de use cases (arriscado), o
+Super Usuario nunca opera diretamente nos dados de um tenant - ele so
+tem acesso a UMA leitura cross-tenant (lista de tenants) e UMA acao
+(impersonar). Ao "entrar como Administrador" de um tenant, ele recebe
+um JWT normal de Administrador DAQUELE tenant - toda a maquinaria de
+isolamento ja existente continua funcionando sem nenhuma mudanca.
+
+- Tenant reservado "Plataforma" + Role "Super Usuario" (constantes em
+  `shared/domain/constants/super-usuario.ts`), criados SO via
+  `scripts/seed-super-usuario.ts` (`npm run seed:super-usuario`,
+  mesmo padrao do `seed:admin` ja existente) - nunca uma rota HTTP.
+  Confirmado por leitura de codigo (nao e suposicao): nenhum fluxo
+  normal do sistema (cadastro publico, aprovacao, criacao de corretor,
+  `UpdateUserCargoUseCase`) aceita nome de Role como entrada livre, e
+  nao existe hoje nenhuma rota que troque a Role de um usuario ja
+  criado - Role so e definida na criacao, sempre hardcoded no proprio
+  use case.
+- Modulo novo `super_usuario`: `ListTenantsUseCase` (UNICA leitura
+  cross-tenant deliberada do sistema inteiro, com checagem de role em
+  profundidade alem do `RolesGuard` do controller) e
+  `ImpersonarTenantUseCase` (acha o primeiro Administrador do tenant
+  escolhido - `IUserRepository.findAllByTenantAndRole` ganhou
+  `orderBy: createdAt asc` pra isso ser deterministico -, emite um JWT
+  de vida CURTA, 2h - bem menor que o padrao de 1-30 dias -, com o
+  claim extra `impersonadoPor`, e grava a auditoria).
+- Exclusao do tenant "Plataforma" da listagem por uma propriedade
+  ESTRUTURAL (ter uma Role chamada "Super Usuario"), nao pelo nome do
+  tenant - `Tenant.name` e editavel por qualquer Administrador (aba
+  "Dados da Empresa"), entao filtrar por nome seria fragil a uma
+  renomeacao acidental ou deliberada.
+- `AcessoPlataformaLog` (nova tabela): `tenantId` NULLABLE com
+  `onDelete: SetNull` (nao Cascade) + `tenantNome` snapshot - o log de
+  auditoria deve sobreviver mesmo se o tenant acessado for excluido no
+  futuro, diferente de toda outra relacao tenant-scoped do sistema
+  (que sempre usa Cascade).
+- `JwtStrategy`/`GetMeUseCase` passaram a expor `impersonadoPor` (claim
+  do JWT, nao campo do banco) - prepara a barra de "modo simulacao" da
+  Fatia 2 sem precisar de endpoint novo.
+
+Testado de ponta a ponta em PRODUCAO (2 tenants + 1 Super Usuario
+descartaveis, criados/removidos via Prisma direto, migration aplicada
+de verdade): listagem retornou exatamente os 2 tenants de teste com
+`totalUsuarios` correto e SEM o tenant "Plataforma"; impersonacao
+emitiu um token cujo `/auth/me` mostrou o Administrador REAL do tenant
+(nome/e-mail corretos) com `impersonadoPor` preenchido; esse mesmo
+token chamou `GET /pipelines` normalmente (200, lista vazia) - prova
+que a maquinaria de isolamento existente funciona sem nenhuma alteracao
+para um token de impersonacao. `AcessoPlataformaLog` confirmado com 1
+registro correto. Testes negativos: Administrador comum tentando
+listar tenants (403) ou impersonar (403), e impersonar um tenant
+inexistente (404) - todos bloqueados como esperado. Achado a parte
+(dado real de producao, nao tocado): a listagem tambem revelou 2
+tenants reais ja existentes - "Gestor de Vendas - Admin" (o
+`seed:admin` de producao) e "TESTE Debug Sidebar" (resíduo aparente de
+uma investigacao antiga) - registrado aqui so como observacao, decisao
+de limpar fica para o usuario. Antes da aprovacao final, o codigo foi
+testado numa copia temporaria dos arquivos direto na VPS (sem commit),
+revertido via `git checkout` apos o teste (mantendo a migration/coluna
+aplicada, mesmo padrao ja usado no Onboarding do Corretor), e so depois
+da aprovacao o commit real foi feito e re-deployado (so backend -
+frontend nao muda nesta fatia).
+
+**Fatia 2 (frontend) e Fatia 3 (auditoria visivel + reforco) ainda NAO
+implementadas** - aguardando aprovacao para iniciar a Fatia 2.
+
 ## Sessao 18/07/2026 - Notificacao de lead atribuido pela Roleta Online - CONCLUIDO
 Fecha o item registrado no BACKLOG.md ("Futuro modulo Roleta Online" ->
 "Notificacao de lead atribuido"). O sino de notificacoes in-app
@@ -750,22 +826,25 @@ Pendencias reais atuais:
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 
-### Proximos passos sugeridos (atualizado apos a Notificacao de lead atribuido)
+### Proximos passos sugeridos (atualizado apos Super Usuario Fatia 1)
 NOTA: Dashboard do Corretor (2 fatias), Onboarding do Corretor (troca de
 senha obrigatoria) e Notificacao de lead atribuido pela Roleta Online
-ja CONCLUIDOS - ver secoes proprias no topo deste arquivo. Ordem de
-prioridade revisada:
-1. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
-   escopo sensivel (isolamento multitenant), precisa de diagnostico
-   cuidadoso antes de codar
-2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+ja CONCLUIDOS - ver secoes proprias no topo deste arquivo. Super
+Usuario teve sua Fatia 1 (backend) CONCLUIDA nesta sessao - Fatias 2
+(frontend) e 3 (auditoria visivel + reforco) aguardando aprovacao.
+Ordem de prioridade revisada:
+1. Super Usuario - Fatia 2 (frontend: redirecionamento pos-login, tela
+   de lista de tenants, barra de "modo simulacao")
+2. Super Usuario - Fatia 3 (auditoria visivel, confirmacao extra ao
+   impersonar, testes de seguranca dedicados)
+3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
-3. Logs estruturados + monitoramento basico (restante da Fase C) -
+4. Logs estruturados + monitoramento basico (restante da Fase C) -
    barato de implementar
-4. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
+5. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
