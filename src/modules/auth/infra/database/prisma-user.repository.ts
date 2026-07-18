@@ -53,10 +53,15 @@ export class PrismaUserRepository
     });
   }
 
+  // orderBy createdAt asc: irrelevante para o fan-out de notificacoes
+  // (CadastroPendenteCriadoListener, unico consumidor ate aqui), mas
+  // ImpersonarTenantUseCase (modulo super_usuario) depende dessa ordem
+  // para escolher deterministicamente "o primeiro Administrador" do tenant.
   async findAllByTenantAndRole(tenantId: string, roleName: string): Promise<{ id: string }[]> {
     return this.prisma.user.findMany({
       where: { tenantId, role: { name: roleName } },
       select: { id: true },
+      orderBy: { createdAt: 'asc' },
     });
   }
 

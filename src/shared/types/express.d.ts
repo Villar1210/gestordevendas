@@ -13,6 +13,9 @@ export interface AuthenticatedUser {
   // cargos, ou Coordenador ainda sem stand atribuido) - usado pelo escopo
   // 'plantao' do RBAC (ver cargo-escopo.ts).
   standId: string | null;
+  // Modulo Super Usuario: id de quem gerou este token via impersonacao
+  // (ver ImpersonarTenantUseCase) - null em qualquer login normal.
+  impersonadoPor: string | null;
 }
 
 // O @types/passport ja declara `Request.user?: Express.User`.

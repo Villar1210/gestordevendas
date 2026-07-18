@@ -6,7 +6,11 @@ import { IUserRepository } from '../../domain/repositories/user-repository.inter
 export class GetMeUseCase {
   constructor(@Inject('IUserRepository') private readonly userRepository: IUserRepository) {}
 
-  async execute(userId: string) {
+  // impersonadoPor vem do JWT (req.user), nao do banco - GetMeUseCase so
+  // repassa pro frontend saber se a sessao atual e uma impersonacao do
+  // Super Usuario (ver ImpersonarTenantUseCase/modulo super_usuario), pra
+  // decidir se mostra a barra de "modo simulacao".
+  async execute(userId: string, impersonadoPor: string | null = null) {
     const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new UnauthorizedException('Usuario nao encontrado.');
@@ -18,6 +22,7 @@ export class GetMeUseCase {
       email: user.email,
       role: user.role.name,
       tipoCliente: user.tipoCliente,
+      impersonadoPor,
       // Sistema de permissoes por cargo hierarquico (RBAC) - frontend usa
       // isso pra decidir o que esconder (ver core/constants/cargoEscopo.ts,
       // mirror de shared/domain/services/cargo-escopo.ts do backend).

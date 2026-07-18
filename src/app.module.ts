@@ -17,6 +17,7 @@ import { AtendimentoModule } from './modules/atendimento/atendimento.module';
 import { ConfiguracoesModule } from './modules/configuracoes/configuracoes.module';
 import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 import { PlantaoModule } from './modules/plantao/plantao.module';
+import { SuperUsuarioModule } from './modules/super_usuario/super-usuario.module';
 import { PrismaService } from './config/prisma.service';
 
 @Module({
@@ -49,6 +50,7 @@ import { PrismaService } from './config/prisma.service';
     ConfiguracoesModule,
     NotificacoesModule,
     PlantaoModule,
+    SuperUsuarioModule,
   ],
   providers: [PrismaService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
   exports: [PrismaService],

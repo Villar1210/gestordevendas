@@ -69,6 +69,12 @@ model Tenant {
   stands            Stand[]
   escalasPlantao    EscalaPlantao[]
 
+  // Modulo Super Usuario: trilha de auditoria de quem (de fora deste
+  // tenant) acessou os dados dele via impersonacao - ver
+  // AcessoPlataformaLog. onDelete: SetNull no lado de la (nao aqui) para
+  // o log sobreviver mesmo se este tenant for excluido no futuro.
+  acessosPlataforma AcessoPlataformaLog[]
+
   @@map("tenants")
 }
 
@@ -166,6 +172,12 @@ model User {
   atendimentoEventos AtendimentoEvento[]
   notifications      Notification[]
 
+  // Modulo Super Usuario: presente so em usuarios com Role "Super
+  // Usuario" (unico tenant "Plataforma", criado via seed manual - ver
+  // scripts/seed-super-usuario.ts). Registra os acessos que ESTE usuario
+  // fez a outros tenants via impersonacao.
+  acessosPlataformaComoSuperUsuario AcessoPlataformaLog[]
+
   @@map("users")
 }
 
@@ -234,6 +246,26 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+// Modulo Super Usuario: trilha de auditoria de impersonacao (dono da
+// plataforma SaaS "entrando como Administrador" num tenant qualquer -
+// ver src/modules/super_usuario). tenantId e nullable + onDelete:SetNull
+// (nao Cascade) DE PROPOSITO - o log de quem acessou o que deve
+// sobreviver mesmo que o tenant acessado seja excluido depois;
+// tenantNome guarda o nome no momento do acesso, ja que apos SetNull
+// nao ha mais como buscar o nome pela relacao.
+model AcessoPlataformaLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  superUsuarioId String   @map("super_usuario_id") @db.Uuid
+  tenantId       String?  @map("tenant_id") @db.Uuid
+  tenantNome     String   @map("tenant_nome") @db.VarChar(100)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  superUsuario User    @relation(fields: [superUsuarioId], references: [id], onDelete: Cascade)
+  tenant       Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@map("acessos_plataforma_log")
 }
 
 // Modulo Plantao/Stand de vendas. Um stand e um local fisico onde

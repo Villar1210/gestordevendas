@@ -15,6 +15,10 @@ interface JwtPayload {
   // Ausente em tokens emitidos antes do modulo Plantao/Stand - mesmo
   // fallback seguro de `cargo` acima.
   standId?: string | null;
+  // Presente SO em tokens emitidos por ImpersonarTenantUseCase (modulo
+  // super_usuario) - guarda o id do Super Usuario que gerou este acesso.
+  // Ausente em qualquer login normal.
+  impersonadoPor?: string | null;
 }
 
 @Injectable()
@@ -38,6 +42,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: payload.role,
       cargo: payload.cargo ?? null,
       standId: payload.standId ?? null,
+      impersonadoPor: payload.impersonadoPor ?? null,
     };
   }
 }

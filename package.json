@@ -12,7 +12,8 @@
     "db:migrate": "npx prisma migrate dev",
     "db:generate": "npx prisma generate",
     "db:studio": "npx prisma studio",
-    "seed:admin": "ts-node scripts/seed-admin.ts"
+    "seed:admin": "ts-node scripts/seed-admin.ts",
+    "seed:super-usuario": "ts-node scripts/seed-super-usuario.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

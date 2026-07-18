@@ -37,7 +37,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@Req() req: Request) {
-    return this.getMeUseCase.execute(req.user!.id);
+    return this.getMeUseCase.execute(req.user!.id, req.user!.impersonadoPor);
   }
 
   // PATCH /auth/me - aba "Meu Perfil" do Painel Administrativo: o proprio
