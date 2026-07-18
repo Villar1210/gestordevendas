@@ -141,32 +141,32 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       lista vazia sem fallback) na Fatia 2; badge "Stand: X - N
       corretores hoje" no Kanban/Atendimento na Fatia 3 - ver
       PROGRESS.md.
-- [x] Super Usuario - Fatia 1 (backend) CONCLUIDA - ver PROGRESS.md,
-      secao "Super Usuario (dono da plataforma SaaS) - Fatia 1". Tenant
+- [x] Super Usuario - CONCLUIDO, 3 fatias - ver PROGRESS.md, secao
+      "Super Usuario (dono da plataforma SaaS) - 3 fatias". Tenant
       "Plataforma" + Role "Super Usuario" (so via seed manual), modulo
       `super_usuario` (listar tenants + impersonar um Administrador
-      real via token de vida curta), auditoria em
-      `AcessoPlataformaLog`. Testado em producao com tenants
-      descartaveis - isolamento normal dos demais tenants confirmado
-      intacto.
-  - [ ] Fatia 2 (frontend: redirecionamento pos-login, tela de lista de
-        tenants, barra de "modo simulacao") - aguardando aprovacao.
-  - [ ] Fatia 3 (auditoria visivel pro proprio Super Usuario,
-        confirmacao extra ao impersonar, testes de seguranca
-        dedicados) - aguardando Fatia 2.
+      real via token de vida curta, auditoria em
+      `AcessoPlataformaLog`) na Fatia 1; frontend (redirecionamento
+      pos-login, tela de lista de tenants, barra de "modo simulacao")
+      na Fatia 2; tela "Meus Acessos" + confirmacao extra ao impersonar
+      (digitar o nome do tenant) + testes de seguranca dedicados
+      (injecao de campo de role via API real, rejeitada pelo
+      ValidationPipe) na Fatia 3. Testado em producao com tenants
+      descartaveis em cada fatia - isolamento normal dos demais tenants
+      confirmado intacto.
 - [ ] Modulo Agente de Atendimento Online (Cloud API oficial da Meta) -
       multiatendimento/multicanal, distribuicao de leads entre SDRs,
       tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica:
       Integracao WhatsApp"). Maior escopo do roteiro, decisao
-      estrategica de priorizacao, sessao dedicada. PRIORIDADE 2 dos
+      estrategica de priorizacao, sessao dedicada. PRIORIDADE 1 dos
       proximos passos.
 - [ ] Logs estruturados + monitoramento (restante da Fase C - rate
       limiting/helmet/auditoria de login ja CONCLUIDOS, ver PROGRESS.md)
-      - barato de implementar. PRIORIDADE 3 dos proximos passos.
+      - barato de implementar. PRIORIDADE 2 dos proximos passos.
 - [ ] Treinar a VIVI - item novo, escopo ainda nao detalhado (ajuste de
       prompt? novos casos de teste? feedback loop sobre conversas
       reais?) - avaliar com o usuario antes de planejar fatias.
-      PRIORIDADE 4 (por ultimo) dos proximos passos.
+      PRIORIDADE 3 (por ultimo) dos proximos passos.
 
 ## Modulo WhatsApp Marketing / VIVI
 - [ ] Investigar erros "Bad MAC" recorrentes no log do backend em

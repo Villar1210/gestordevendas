@@ -1,6 +1,6 @@
 # Progresso do Ecossistema gestordevendas
 
-## Sessao 18/07/2026 - Super Usuario (dono da plataforma SaaS) - Fatia 1 (backend) - CONCLUIDO
+## Sessao 18/07/2026 - Super Usuario (dono da plataforma SaaS) - 3 fatias - CONCLUIDO
 Fecha a PRIORIDADE 1 registrada no BACKLOG.md/PROGRESS.md. Diagnostico
 previo (sem alterar codigo) confirmou 3 pontos criticos antes de
 projetar a arquitetura: (1) `JwtStrategy.validate()` confia nos claims
@@ -73,8 +73,42 @@ aplicada, mesmo padrao ja usado no Onboarding do Corretor), e so depois
 da aprovacao o commit real foi feito e re-deployado (so backend -
 frontend nao muda nesta fatia).
 
-**Fatia 2 (frontend) e Fatia 3 (auditoria visivel + reforco) ainda NAO
-implementadas** - aguardando aprovacao para iniciar a Fatia 2.
+- **Fatia 2 (frontend)**: Login/`/` passam a redirecionar role "Super
+  Usuario" para `/super-usuario` (antes de qualquer logica de
+  DASHBOARD_ROLES/cargo) - tela fora do layout do dashboard normal,
+  lista de tenants com botao "Entrar como Administrador" por linha.
+  Novo `ImpersonationBanner` (renderizado no layout do dashboard,
+  visivel em qualquer pagina) mostra "Modo simulacao: voce esta
+  atuando como Administrador de \<tenant\>" enquanto `/auth/me`
+  retornar `impersonadoPor` preenchido, com botao "Sair da simulacao"
+  que desloga por completo.
+- **Fatia 3 (auditoria visivel + reforco)**: `ListAcessosPlataformaUseCase`
+  novo (`GET /super-usuario/meus-acessos`) - cada Super Usuario ve so
+  os PROPRIOS acessos, ordenados do mais recente pro mais antigo.
+  `/super-usuario` ganhou abas "Tenants"/"Meus Acessos". **Correcao em
+  relacao ao planejado**: a confirmacao extra ao impersonar (digitar o
+  nome exato do tenant) NAO tinha sido implementada na Fatia 2 como se
+  pensava - implementada agora, como modal bloqueando o botao
+  "Confirmar" ate o nome digitado bater exatamente com o nome do
+  tenant. Testes de seguranca DEDICADOS (via API real, nao so leitura
+  de codigo): `POST /rh/cadastro-publico` e
+  `PATCH /rh/usuarios-hierarquia/:id` com campos `role`/`roleId`
+  injetados no payload - ambos rejeitados com 400 pelo `ValidationPipe`
+  global (`whitelist: true` + `forbidNonWhitelisted: true`), provando
+  em tempo de execucao (nao so por leitura de codigo) que nenhum
+  caminho normal do sistema aceita promover alguem a "Super Usuario".
+
+Testado de ponta a ponta em cada fatia (tenants/Super Usuario
+descartaveis criados/removidos via Prisma direto na VPS, migration da
+Fatia 1 aplicada de verdade e mantida entre as fatias): fluxo completo
+login -> lista de tenants -> impersonar (com confirmacao) -> banner
+persistente entre paginas do dashboard -> sair da simulacao, historico
+de acessos mostrando os registros corretos na ordem certa, e os 2
+testes de injecao de campo de role confirmados bloqueados. Antes de
+cada aprovacao final, o codigo foi testado numa copia temporaria dos
+arquivos direto na VPS (sem commit), revertido via `git checkout` apos
+o teste, e so depois da aprovacao o commit real foi feito e
+re-deployado.
 
 ## Sessao 18/07/2026 - Notificacao de lead atribuido pela Roleta Online - CONCLUIDO
 Fecha o item registrado no BACKLOG.md ("Futuro modulo Roleta Online" ->
@@ -826,25 +860,19 @@ Pendencias reais atuais:
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 
-### Proximos passos sugeridos (atualizado apos Super Usuario Fatia 1)
+### Proximos passos sugeridos (atualizado apos Super Usuario concluido)
 NOTA: Dashboard do Corretor (2 fatias), Onboarding do Corretor (troca de
-senha obrigatoria) e Notificacao de lead atribuido pela Roleta Online
-ja CONCLUIDOS - ver secoes proprias no topo deste arquivo. Super
-Usuario teve sua Fatia 1 (backend) CONCLUIDA nesta sessao - Fatias 2
-(frontend) e 3 (auditoria visivel + reforco) aguardando aprovacao.
-Ordem de prioridade revisada:
-1. Super Usuario - Fatia 2 (frontend: redirecionamento pos-login, tela
-   de lista de tenants, barra de "modo simulacao")
-2. Super Usuario - Fatia 3 (auditoria visivel, confirmacao extra ao
-   impersonar, testes de seguranca dedicados)
-3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+senha obrigatoria), Notificacao de lead atribuido pela Roleta Online e
+Super Usuario (3 fatias completas) ja CONCLUIDOS - ver secoes proprias
+no topo deste arquivo. Ordem de prioridade revisada:
+1. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
-4. Logs estruturados + monitoramento basico (restante da Fase C) -
+2. Logs estruturados + monitoramento basico (restante da Fase C) -
    barato de implementar
-5. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
+3. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 
