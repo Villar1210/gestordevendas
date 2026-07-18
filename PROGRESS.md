@@ -1,5 +1,64 @@
 # Progresso do Ecossistema gestordevendas
 
+## Sessao 18/07/2026 - Onboarding do Corretor (troca de senha obrigatoria) - CONCLUIDO
+Fecha o item registrado no BACKLOG.md ("Modulo RH" -> "Fluxo de
+onboarding do Corretor"). `User.mustChangePassword` (Boolean, default
+`false`, migration `20260718010000_add_must_change_password`) - gravado
+`true` SO por `CreateCorretorUseCase` (Administrador cadastrando um
+corretor), mesmo quando ele digita a senha manualmente em vez de deixar
+gerar automaticamente (decisao confirmada com o usuario: o corretor
+nunca escolheu essa senha nos dois casos). Cadastro publico e demais
+fluxos continuam default `false` sem nenhuma mudanca de codigo.
+
+`PrismaUserRepository.updatePassword` passou a zerar
+`mustChangePassword` automaticamente a cada troca de senha real - como
+tanto `UpdateMyProfileUseCase` ("Meu Perfil") quanto `ResetPasswordUseCase`
+("Esqueci minha senha") ja chamam esse mesmo metodo, nenhum dos dois
+precisou de alteracao propria. `AuthenticateUserUseCase`,
+`VerifyTwoFactorCodeUseCase` e `GetMeUseCase` passaram a devolver o
+flag (mesmo padrao ja usado para `cargoHierarquico`).
+
+Frontend: nova rota `/trocar-senha-obrigatoria` (fora do layout do
+dashboard, mesmo padrao de `/minha-conta`) - formulario de senha
+atual/nova/confirmacao reaproveitando `PATCH /auth/me` ja existente.
+Login e `/` checam `mustChangePassword` ANTES de qualquer logica de
+role/cargo hierarquico e redirecionam pra la; ao trocar com sucesso,
+o proprio formulario decide o destino certo (Kanban ou Dashboard do
+Corretor) reaproveitando a mesma logica de `ehCargoSupervisor()`.
+Texto do e-mail padrao de boas-vindas (`boas_vindas_corretor`) ajustado
+para deixar clara a obrigatoriedade - so afeta tenants novos, os que ja
+tem o proprio `EmailTemplate` materializado nao mudam sozinhos.
+
+**Decisao deliberada de escopo** (confirmada com o usuario antes de
+codar): o reforço fica só no frontend (login/`/` redirecionam) - não
+existe um guard novo no backend bloqueando chamadas de API do
+dashboard enquanto `mustChangePassword=true`. Mesmo tipo de gap já
+aceito em outras partes do projeto (ver CLAUDE.md, controle de acesso
+por role) - se um usuário digitar uma URL do dashboard direto na barra
+sem passar pelo redirecionamento, as chamadas de API continuam
+funcionando. Avaliar no futuro se isso incomoda na prática.
+
+Testado de ponta a ponta com Playwright real contra PRODUCAO (sem
+banco local disponivel nesta sessao): migration aplicada na VPS antes
+do teste (`prisma migrate deploy`), tenant/Administrador de teste
+criados direto via Prisma, corretor de teste criado pela API REAL
+(`POST /rh/corretores`, com o e-mail de teste do Resend
+`delivered@resend.dev` para não disparar e-mail de verdade a ninguem)
+- confirmado que `mustChangePassword=true` foi gravado pelo caminho
+real de codigo, nao so por insercao direta no banco. Login com a senha
+temporaria redirecionou para `/trocar-senha-obrigatoria`; apos trocar,
+redirecionou para `/dashboard/inicio` (corretor novo, sem cargo); um
+segundo login (nova sessao) com a senha JA TROCADA foi direto para o
+dashboard, sem forçar a troca de novo. Antes da aprovacao final, o
+codigo foi testado numa copia temporaria dos arquivos direto na VPS
+(sem commit) - a migration em si foi aplicada de verdade (adicionar
+uma coluna com default seguro nao e uma operacao destrutiva) e mantida
+mesmo durante o revert do codigo (so o codigo foi revertido via `git
+checkout`, a coluna ficou no banco ate a aprovacao final, quando o
+commit real foi feito e `prisma migrate deploy` so confirmou "no
+pending migrations" - idempotente). Tenant de teste removido ao final
+via cascata.
+
 ## Sessao 17-18/07/2026 - Dashboard do Corretor (2 fatias) - CONCLUIDO
 Fecha a lacuna registrada no BACKLOG.md ("Dashboard do Corretor"): nova
 tela `/dashboard/inicio`, landing page padrao para quem NAO supervisiona
@@ -645,28 +704,26 @@ Pendencias reais atuais:
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 
-### Proximos passos sugeridos (atualizado apos o Dashboard do Corretor)
-NOTA: Dashboard do Corretor (2 fatias) ja CONCLUIDO - ver secao propria
-no topo deste arquivo. Ordem de prioridade revisada:
-1. Onboarding do Corretor (troca de senha obrigatoria no primeiro
-   login) - ja registrado em detalhe no BACKLOG.md ("Modulo RH"), campo
-   `mustChangePassword` ainda nao existe no schema
-2. Notificacao de lead atribuido pela Roleta Online - o sino de
+### Proximos passos sugeridos (atualizado apos o Onboarding do Corretor)
+NOTA: Dashboard do Corretor (2 fatias) e Onboarding do Corretor (troca
+de senha obrigatoria) ja CONCLUIDOS - ver secoes proprias no topo deste
+arquivo. Ordem de prioridade revisada:
+1. Notificacao de lead atribuido pela Roleta Online - o sino de
    notificacoes in-app ja existe (modulo `notificacoes`), so falta o
    gatilho quando `DistributeLeadUseCase`/`ConfirmSuggestedOwnerUseCase`
    atribuem um lead - ver detalhe em BACKLOG.md ("Futuro modulo Roleta
    Online")
-3. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
+2. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
    escopo sensivel (isolamento multitenant), precisa de diagnostico
    cuidadoso antes de codar
-4. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
-5. Logs estruturados + monitoramento basico (restante da Fase C) -
+4. Logs estruturados + monitoramento basico (restante da Fase C) -
    barato de implementar
-6. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
+5. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 

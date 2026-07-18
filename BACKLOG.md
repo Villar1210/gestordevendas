@@ -108,22 +108,17 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       /dashboard/rh/aprovacoes para dentro do Painel Administrativo
       (ver secao propria abaixo, ja concluida) - so o backend continua
       no modulo rh, a UI mudou de lugar.
-- [ ] Fluxo de onboarding do Corretor - troca de senha obrigatoria no
-      primeiro login. Hoje `CreateCorretorUseCase` ja gera senha
-      temporaria aleatoria e ja envia por e-mail (via ResendEmailSender,
-      ver CLAUDE.md "Envio de e-mail real") com o texto "Recomendamos
-      troca-la apos o primeiro login" (`email-template-padrao.ts`) - mas
-      isso e so uma RECOMENDACAO no texto do e-mail, nada FORCA a troca:
-      confirmado por busca no codigo que nao existe nenhum campo tipo
-      `mustChangePassword` no schema nem verificacao equivalente em
-      `AuthenticateUserUseCase`. Escopo: novo campo booleano em `User`
-      (default `true` quando a conta e criada com senha temporaria pelo
-      Administrador, `false` em cadastro publico onde o proprio usuario
-      escolhe a senha), checagem em `AuthenticateUserUseCase` retornando
-      um sinalizador pro frontend forcar a tela de troca de senha antes
-      de liberar o dashboard, e `UpdateMyProfileUseCase` (modulo auth, ja
-      atualiza senha via `updatePassword` no fluxo de "Meu Perfil")
-      zerando o campo ao trocar com sucesso.
+- [x] Fluxo de onboarding do Corretor - troca de senha obrigatoria no
+      primeiro login - CONCLUIDO (ver PROGRESS.md, secao "Onboarding do
+      Corretor"). `User.mustChangePassword` gravado `true` por
+      `CreateCorretorUseCase` (mesmo se o Administrador digitar a senha
+      manualmente, nao so no caso auto-gerado - decisao confirmada com o
+      usuario), zerado automaticamente por
+      `PrismaUserRepository.updatePassword` (cobre "Meu Perfil" e
+      "Esqueci minha senha" de graca). Login/`/` redirecionam para a
+      nova rota `/trocar-senha-obrigatoria` antes de qualquer logica de
+      role/cargo. Escopo deliberado: reforco so no frontend, sem guard
+      novo bloqueando API do backend enquanto a troca nao acontece.
 
 ## Painel Administrativo (expansao do modulo Configuracoes) - CONCLUIDO
 - [x] Expandir "Configuracoes" para um Painel Administrativo completo -
