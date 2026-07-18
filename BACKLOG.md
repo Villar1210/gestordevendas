@@ -39,22 +39,18 @@ de codigo, nao so de conceito - registrar aqui se isso se repetir.
 - [ ] Aba "Atividades" incluir mensagens agendadas (e-mail, WhatsApp),
       nao so compromissos presenciais/ligacao
 
-## Dashboard do Corretor
-- [ ] Tela inicial dedicada ao Corretor, diferente da visao do
-      Administrador - hoje NAO existe nenhuma tela de "home"/overview no
-      dashboard: `/` redireciona direto para `/dashboard/kanban` pra
-      qualquer role autenticado (ver commit "feat: redireciona / para
-      /dashboard/kanban ou /login conforme sessao"), entao o Corretor cai
-      direto no Kanban ja filtrado por RBAC (escopo 'proprio', ver
-      cargo-escopo.ts), sem nenhuma visao agregada separada. Escopo
-      pedido: visao dos proprios leads/pipeline (resumo, nao so o board
-      cru), atividades do dia (reaproveitar Activity ja existente no
-      Kanban, ver `create-activity.use-case.ts`), e leads atribuidos pela
-      VIVI/Roleta (destaque visual pros que chegaram por automacao,
-      distinto dos criados manualmente - ja existe `Card.origem` pra
-      diferenciar). Definir com o usuario se vira uma rota nova
-      (`/dashboard/inicio` ou similar) ou uma visao dentro do proprio
-      Kanban antes de planejar fatias.
+## Dashboard do Corretor - CONCLUIDO
+- [x] Tela inicial dedicada ao Corretor, diferente da visao do
+      Administrador - CONCLUIDO em 2 fatias (ver PROGRESS.md, secao
+      "Dashboard do Corretor"). Nova rota `/dashboard/inicio`: resumo
+      dos proprios leads por etapa, atividades do dia pendentes, ultimos
+      5 leads recebidos com badge de origem (VIVI/Roleta/Web/sem badge
+      pra manual), clique em lead/atividade navega direto pro card
+      correspondente no Kanban (destacado), poll silencioso de 60s.
+      `/` e o login agora decidem a landing page por role+cargo
+      hierarquico: Administrador e quem supervisiona equipe (Diretor/
+      Gerente/Coordenador) continuam indo pro Kanban; Corretor (sem
+      cargo de supervisao) vai pro Dashboard novo.
 
 ## Futuro modulo de Atendimento
 - [x] Timeline de atividades por lead - CONCLUIDO (versao simplificada):
