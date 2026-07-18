@@ -12,6 +12,7 @@ import {
 } from "@/core/api/client";
 import { DASHBOARD_ROLES } from "@/core/constants/dashboardRoles";
 import { ehCargoSupervisor } from "@/core/constants/cargoHierarquico";
+import { SUPER_USUARIO_ROLE_NAME } from "@/core/constants/superUsuario";
 
 interface LoginUser {
   id: string;
@@ -54,6 +55,15 @@ export default function LoginPage() {
     // nem marca "online", nem checa role/cargo ainda.
     if (user.mustChangePassword) {
       router.push("/trocar-senha-obrigatoria");
+      return;
+    }
+
+    // Super Usuario (dono da plataforma SaaS) nunca acessa o dashboard
+    // normal - tem a propria tela de gestao de tenants. Checagem antes do
+    // fallback generico de "role sem acesso ao dashboard" abaixo, ja que
+    // Super Usuario tambem nao esta em DASHBOARD_ROLES.
+    if (user.role === SUPER_USUARIO_ROLE_NAME) {
+      router.push("/super-usuario");
       return;
     }
 

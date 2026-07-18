@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { apiRequest, TOKEN_STORAGE_KEY } from "@/core/api/client";
 import { DASHBOARD_ROLES } from "@/core/constants/dashboardRoles";
 import { ehCargoSupervisor } from "@/core/constants/cargoHierarquico";
+import { SUPER_USUARIO_ROLE_NAME } from "@/core/constants/superUsuario";
 
 export default function Home() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function Home() {
       .then((me) => {
         if (me.mustChangePassword) {
           router.replace("/trocar-senha-obrigatoria");
+        } else if (me.role === SUPER_USUARIO_ROLE_NAME) {
+          router.replace("/super-usuario");
         } else if (!DASHBOARD_ROLES.includes(me.role)) {
           router.replace("/minha-conta");
         } else if (me.role !== "Administrador" && !ehCargoSupervisor(me.cargoHierarquico)) {

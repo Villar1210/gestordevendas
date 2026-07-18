@@ -4,6 +4,12 @@ export const TOKEN_STORAGE_KEY = "@gestordevendas:token";
 // (PATCH /rh/me/status), so para a Topbar nao "esquecer" a selecao entre
 // reloads sem precisar de outra chamada a API so para ler o proprio status.
 export const STATUS_DISPONIBILIDADE_STORAGE_KEY = "@gestordevendas:statusDisponibilidade";
+// Modulo Super Usuario: nome do tenant sendo impersonado no momento,
+// guardado so pra exibir na barra de "modo simulacao"
+// (ImpersonationBanner) sem precisar de uma chamada extra a API - o
+// valor real de verdade (se a sessao e uma impersonacao) sempre vem do
+// backend (/auth/me -> impersonadoPor).
+export const IMPERSONANDO_TENANT_NOME_STORAGE_KEY = "@gestordevendas:impersonandoTenantNome";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 
