@@ -1,5 +1,51 @@
 # Progresso do Ecossistema gestordevendas
 
+## Sessao 18/07/2026 - Notificacao de lead atribuido pela Roleta Online - CONCLUIDO
+Fecha o item registrado no BACKLOG.md ("Futuro modulo Roleta Online" ->
+"Notificacao de lead atribuido"). O sino de notificacoes in-app
+(`NotificationBell.tsx`) e o model `Notification` ja existiam (Fatia 5
+do Painel Administrativo) - faltava so o GATILHO, 100% backend, nenhuma
+mudanca de frontend nesta fatia.
+
+`DistributeLeadUseCase` (modo `automatico`) e `ConfirmSuggestedOwnerUseCase`
+(ao confirmar a sugestao, modo `semi_automatico`) passam a emitir o
+evento generico `'lead.atribuido'` `{tenantId, cardId, ownerId}` logo
+apos `ClaimCardUseCase` - decisao confirmada: so quando o lead REALMENTE
+vira dono de alguem, nunca so no momento da sugestao (testado
+explicitamente - nenhuma notificacao e criada so por
+`updateSuggestedOwner`, so depois do `POST /cards/:id/confirmar-sugestao`).
+
+Novo `LeadAtribuidoListener` (modulo `notificacoes`, mesmo padrao de
+evento generico desacoplado ja usado por `CardSemDonoCriadoListener`/
+`CadastroPendenteCriadoListener`) busca o titulo do card + o nome da
+stage atual (`ICardRepository`/`IStageRepository`, ja exportados por
+`VendasKanbanModule` - `NotificacoesModule` passou a importa-lo, mesma
+dependencia de modulo nao-circular ja usada por `roleta_online`) e cria
+a `Notification` com mensagem `"Novo lead atribuido: <titulo>
+(<estagio>)"` e `link` direto pro card no Kanban
+(`/dashboard/kanban?pipelineId=&cardId=`, mesmo formato de deep-link ja
+usado pelo Dashboard do Corretor - Fatia 2) - o sino ja sabia navegar
+por esse link sem nenhuma mudanca.
+
+Testado de ponta a ponta contra PRODUCAO (sem banco local disponivel
+nesta sessao, mesma limitacao das fatias anteriores): tenant/
+Administrador/2 corretores online de teste, pipeline padrao criado via
+API real, card criado via `POST /cards/quick` (simulando webhook) com a
+Roleta em modo `automatico` - notificacao correta confirmada para o
+corretor escolhido pelo round_robin. Roleta trocada para
+`semi_automatico`, novo card criado - confirmado que NENHUMA notificacao
+nova aparece so com a sugestao pendente; so apos
+`POST /cards/:id/confirmar-sugestao` (pelo corretor sugerido certo -
+uma tentativa inicial com o corretor errado corretamente barrada com
+409/403, confirmando que o bloqueio de seguranca pre-existente
+continua intacto) a notificacao foi criada, com mensagem e link
+corretos. Antes da aprovacao final, o codigo foi testado numa copia
+temporaria dos arquivos direto na VPS (sem commit, sem migration
+envolvida desta vez), revertido via `git checkout` apos o teste, e so
+depois da aprovacao o commit real foi feito e re-deployado (so backend
+- frontend nao mudou nesta fatia). Tenant de teste removido ao final
+via cascata.
+
 ## Sessao 18/07/2026 - Onboarding do Corretor (troca de senha obrigatoria) - CONCLUIDO
 Fecha o item registrado no BACKLOG.md ("Modulo RH" -> "Fluxo de
 onboarding do Corretor"). `User.mustChangePassword` (Boolean, default
@@ -704,26 +750,22 @@ Pendencias reais atuais:
 - Central de Atendimento: upload de midia/audio/contato no composer
   (sem endpoint de midia no backend hoje - ver BACKLOG.md)
 
-### Proximos passos sugeridos (atualizado apos o Onboarding do Corretor)
-NOTA: Dashboard do Corretor (2 fatias) e Onboarding do Corretor (troca
-de senha obrigatoria) ja CONCLUIDOS - ver secoes proprias no topo deste
-arquivo. Ordem de prioridade revisada:
-1. Notificacao de lead atribuido pela Roleta Online - o sino de
-   notificacoes in-app ja existe (modulo `notificacoes`), so falta o
-   gatilho quando `DistributeLeadUseCase`/`ConfirmSuggestedOwnerUseCase`
-   atribuem um lead - ver detalhe em BACKLOG.md ("Futuro modulo Roleta
-   Online")
-2. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
+### Proximos passos sugeridos (atualizado apos a Notificacao de lead atribuido)
+NOTA: Dashboard do Corretor (2 fatias), Onboarding do Corretor (troca de
+senha obrigatoria) e Notificacao de lead atribuido pela Roleta Online
+ja CONCLUIDOS - ver secoes proprias no topo deste arquivo. Ordem de
+prioridade revisada:
+1. Super Usuario (dono da plataforma SaaS acessa todos os tenants) -
    escopo sensivel (isolamento multitenant), precisa de diagnostico
    cuidadoso antes de codar
-3. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
+2. Modulo Agente de Atendimento Online (Cloud API oficial Meta) -
    multiatendimento/multicanal, distribuicao de leads entre SDRs,
    tudo registrado no CRM (ver CLAUDE.md "Decisao tecnica: Integracao
    WhatsApp") - maior escopo, decisao estrategica de priorizacao,
    sessao dedicada
-4. Logs estruturados + monitoramento basico (restante da Fase C) -
+3. Logs estruturados + monitoramento basico (restante da Fase C) -
    barato de implementar
-5. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
+4. Treinar a VIVI - por ultimo, escopo ainda nao detalhado
 
 ## Status atual (ultima atualizacao: verificar data do commit/arquivo)
 

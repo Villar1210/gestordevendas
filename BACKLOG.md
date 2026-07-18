@@ -79,22 +79,16 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
       antigo (por peso, status pausado - hoje so existe online/ausente/
       offline -, respeita horario de trabalho) - olhar com calma se
       fizer falta na pratica, sem copiar codigo
-- [ ] Notificacao de lead atribuido pela Roleta - o sino de notificacoes
-      in-app ja existe (modulo `notificacoes`, Fatia 5 do Painel
-      Administrativo, ver PROGRESS.md), mas hoje so tem 1 gatilho
-      (`cadastro.pendente.criado`, ver
-      `CadastroPendenteCriadoListener`). Confirmado por leitura de
-      codigo: nem `DistributeLeadUseCase` nem
-      `ConfirmSuggestedOwnerUseCase` emitem evento nenhum hoje - o
-      corretor so descobre que ganhou um lead abrindo o Kanban/Caixa de
-      Entrada manualmente. Escopo: emitir um evento generico (mesmo
-      padrao ja usado por `card.sem_dono.criado`, desacoplado - roleta_online
-      nao precisa conhecer o modulo notificacoes) quando o modo for
-      `automatico` (atribuicao direta, ver ClaimCardUseCase) e quando o
-      modo for `semi_automatico` E o corretor sugerido confirmar
-      (`ConfirmSuggestedOwnerUseCase`) - decidir se o modo
-      `semi_automatico` tambem notifica no momento da SUGESTAO (antes da
-      confirmacao) ou so depois, com o usuario antes de implementar.
+- [x] Notificacao de lead atribuido pela Roleta - CONCLUIDO (ver
+      PROGRESS.md, secao "Notificacao de lead atribuido pela Roleta
+      Online"). `DistributeLeadUseCase` (modo `automatico`) e
+      `ConfirmSuggestedOwnerUseCase` (ao confirmar, modo
+      `semi_automatico`) emitem `'lead.atribuido'` logo apos
+      `ClaimCardUseCase` - decisao confirmada: NAO notifica so na
+      sugestao, so quando o lead realmente vira dono de alguem. Novo
+      `LeadAtribuidoListener` (modulo `notificacoes`) cria a
+      `Notification` com titulo do lead + estagio atual e link direto
+      pro card no Kanban.
 
 ## Modulo RH
 - [x] Geracao automatica de contrato de prestacao de servico - Fatia 1
