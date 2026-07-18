@@ -20,9 +20,13 @@ export default function Home() {
     // Mesma regra de landing page do login/page.tsx (goToDashboard) -
     // repetida aqui porque `/` e alcancada em sessoes ja existentes (reload,
     // link direto), sem passar pelo formulario de login.
-    apiRequest<{ role: string; cargoHierarquico: string | null }>("/auth/me")
+    apiRequest<{ role: string; cargoHierarquico: string | null; mustChangePassword: boolean }>(
+      "/auth/me",
+    )
       .then((me) => {
-        if (!DASHBOARD_ROLES.includes(me.role)) {
+        if (me.mustChangePassword) {
+          router.replace("/trocar-senha-obrigatoria");
+        } else if (!DASHBOARD_ROLES.includes(me.role)) {
           router.replace("/minha-conta");
         } else if (me.role !== "Administrador" && !ehCargoSupervisor(me.cargoHierarquico)) {
           router.replace("/dashboard/inicio");

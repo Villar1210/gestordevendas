@@ -24,6 +24,10 @@ export interface UserWithRole {
   // para qualquer outro cargo, ou Coordenador ainda sem stand atribuido).
   // Ver shared/domain/services/cargo-escopo.ts, escopo 'plantao'.
   standId: string | null;
+  // Onboarding do Corretor: true forca a tela de troca de senha antes do
+  // dashboard (ver AuthenticateUserUseCase/VerifyTwoFactorCodeUseCase) -
+  // gravado true so por CreateCorretorUseCase, zerado por updatePassword.
+  mustChangePassword: boolean;
   role: { name: string };
 }
 

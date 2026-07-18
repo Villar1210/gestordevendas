@@ -106,6 +106,13 @@ model User {
   // "pendente_aprovacao" explicitamente. Valores: pendente_aprovacao,
   // aprovado, rejeitado.
   statusCadastro String  @default("aprovado") @map("status_cadastro") @db.VarChar(20)
+  // Onboarding do Corretor: forca a troca de senha no proximo login quando
+  // true. Default false preserva contas existentes e o cadastro publico
+  // (onde o proprio usuario ja escolhe a senha) - so CreateCorretorUseCase
+  // (modulo rh) grava true explicitamente. Zerado automaticamente sempre
+  // que a senha muda de verdade (ver PrismaUserRepository.updatePassword,
+  // usado tanto por "Meu Perfil" quanto por "Esqueci minha senha").
+  mustChangePassword Boolean @default(false) @map("must_change_password")
   telefone       String? @db.VarChar(30)
   cpf            String? @db.VarChar(20)
   // Corretor House / Corretor Parceiro.

@@ -29,6 +29,11 @@ export class PrismaCorretorRepository implements ICorretorRepository {
         name: input.name,
         email: input.email,
         password: input.hashedPassword,
+        // Onboarding do Corretor: este metodo so e chamado por
+        // CreateCorretorUseCase (Administrador cadastrando um corretor) -
+        // o proprio corretor nunca escolheu essa senha, mesmo quando o
+        // Administrador digita uma especifica (nao so no caso auto-gerado).
+        mustChangePassword: true,
       },
     });
 

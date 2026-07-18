@@ -19,6 +19,7 @@ interface LoginUser {
   email: string;
   role: string;
   cargoHierarquico: string | null;
+  mustChangePassword: boolean;
 }
 
 interface LoginResponse {
@@ -47,6 +48,14 @@ export default function LoginPage() {
 
   async function goToDashboard(token: string, user: LoginUser) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+
+    // Onboarding do Corretor: senha temporaria (gerada pelo Administrador
+    // via CreateCorretorUseCase) exige troca antes de qualquer outra coisa -
+    // nem marca "online", nem checa role/cargo ainda.
+    if (user.mustChangePassword) {
+      router.push("/trocar-senha-obrigatoria");
+      return;
+    }
 
     // Roles sem acesso ao dashboard (Cliente, Imobiliaria Parceira) nunca
     // chegam a chamar rotas do dashboard - o backend so retornaria 403 -

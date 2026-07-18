@@ -56,6 +56,7 @@ export class VerifyTwoFactorCodeUseCase {
         email: user.email,
         role: user.role.name,
         cargoHierarquico: user.cargoHierarquico,
+        mustChangePassword: user.mustChangePassword,
       },
       token,
     };

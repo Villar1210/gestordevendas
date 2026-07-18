@@ -96,6 +96,7 @@ export class AuthenticateUserUseCase {
         email: user.email,
         role: user.role.name,
         cargoHierarquico: user.cargoHierarquico,
+        mustChangePassword: user.mustChangePassword,
       },
       token,
     };

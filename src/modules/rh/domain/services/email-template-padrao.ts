@@ -14,7 +14,7 @@ interface EmailTemplatePadrao {
 export const EMAIL_TEMPLATE_PADRAO: Record<EmailTemplateTipo, EmailTemplatePadrao> = {
   boas_vindas_corretor: {
     assunto: 'Bem-vindo(a) à {{EMPRESA}}',
-    corpo: `<p>Olá, {{NOME}}.</p><p>Sua conta de corretor foi criada na {{EMPRESA}}.</p><p>Acesse com o e-mail <strong>{{EMAIL}}</strong> e a senha temporária abaixo. Recomendamos trocá-la após o primeiro login.</p><p><strong>Senha temporária:</strong> {{SENHA_TEMPORARIA}}</p>`,
+    corpo: `<p>Olá, {{NOME}}.</p><p>Sua conta de corretor foi criada na {{EMPRESA}}.</p><p>Acesse com o e-mail <strong>{{EMAIL}}</strong> e a senha temporária abaixo. Você precisará escolher uma nova senha logo no primeiro login.</p><p><strong>Senha temporária:</strong> {{SENHA_TEMPORARIA}}</p>`,
   },
   rejeicao_cadastro: {
     assunto: 'Sobre o seu cadastro',

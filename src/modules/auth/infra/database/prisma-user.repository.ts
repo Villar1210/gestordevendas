@@ -29,9 +29,13 @@ export class PrismaUserRepository
   }
 
   async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    // Qualquer troca de senha real (via "Meu Perfil" ou "Esqueci minha
+    // senha") ja cumpre o requisito de onboarding - zera mustChangePassword
+    // aqui, direto na infra, pra nao duplicar essa regra nos dois use cases
+    // que chamam este metodo.
     await this.prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: { password: hashedPassword, mustChangePassword: false },
     });
   }
 

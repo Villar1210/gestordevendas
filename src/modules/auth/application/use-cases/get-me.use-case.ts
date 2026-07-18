@@ -27,6 +27,10 @@ export class GetMeUseCase {
       // (GET /stands/meu-status-hoje), sem precisar de outra consulta so
       // pra saber se o usuario e Coordenador com stand.
       standId: user.standId,
+      // Onboarding do Corretor: frontend usa isso pra continuar exibindo a
+      // tela de troca obrigatoria mesmo apos um reload (nao so no momento
+      // do login) - ver AuthenticateUserUseCase/VerifyTwoFactorCodeUseCase.
+      mustChangePassword: user.mustChangePassword,
     };
   }
 }
