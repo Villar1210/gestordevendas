@@ -1,8 +1,9 @@
 // src/features/configuracoes/constants.ts
 // Espelha domain/services/preencher-contrato-template.ts (backend) - lista
 // dos placeholders aceitos hoje no corpo do ContratoTemplate, exibida no
-// editor (aba "Template de Contrato" do Painel Administrativo) para o
-// Administrador clicar e inserir na posicao do cursor.
+// editor (aba "Template de Contrato" do Painel de Configuracao, hoje uma
+// aba de /dashboard/rh/aprovacoes) para o Administrador clicar e inserir
+// na posicao do cursor.
 export const CONTRATO_TEMPLATE_PLACEHOLDERS: { token: string; label: string }[] = [
   { token: "{{NOME_TENANT}}", label: "Razao social da empresa (CONTRATANTE)" },
   { token: "{{CNPJ_TENANT}}", label: "CNPJ da empresa" },

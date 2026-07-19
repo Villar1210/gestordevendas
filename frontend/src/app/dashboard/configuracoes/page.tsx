@@ -1,70 +1,21 @@
 // src/app/dashboard/configuracoes/page.tsx
+// Reestruturacao de menu: "Painel Administrativo" foi renomeado para
+// "Painel de Configuracao" e movido pra dentro do modulo RH (3a aba de
+// /dashboard/rh/aprovacoes) - ver PainelConfiguracaoTab.tsx. Esta rota
+// continua existindo so como redirecionamento (nao quebra favoritos/
+// links antigos de quem ja tinha essa URL salva) - ninguem mais navega
+// pra ca a partir do Sidebar.
 "use client";
 
-import { useState } from "react";
-import { DadosEmpresaTab } from "@/features/configuracoes/components/DadosEmpresaTab";
-import { MeuPerfilTab } from "@/features/configuracoes/components/MeuPerfilTab";
-import { ContratoTemplateTab } from "@/features/configuracoes/components/ContratoTemplateTab";
-import { PermissoesCargosTab } from "@/features/configuracoes/components/PermissoesCargosTab";
-import { ConfiguracoesViviTab } from "@/features/configuracoes/components/ConfiguracoesViviTab";
-import { EmailTemplatesTab } from "@/features/configuracoes/components/EmailTemplatesTab";
-import { StandsPlantaoTab } from "@/features/configuracoes/components/StandsPlantaoTab";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-// Fatia 1 (Dados da Empresa, Meu Perfil, Template de Contrato) + Fatia 2
-// (Permissoes/Cargos) + Fatia 3 (Configuracoes da VIVI) + Fatia 4
-// (Templates de E-mail) do Painel Administrativo, + Fatia 1 do modulo
-// Plantao/Stand (aba "Stands/Plantao").
-type AbaPainelAdministrativo =
-  | "dados-empresa"
-  | "meu-perfil"
-  | "permissoes-cargos"
-  | "template-contrato"
-  | "config-vivi"
-  | "templates-email"
-  | "stands-plantao";
+export default function ConfiguracoesRedirectPage() {
+  const router = useRouter();
 
-const TABS: { id: AbaPainelAdministrativo; label: string; testId: string }[] = [
-  { id: "dados-empresa", label: "Dados da Empresa", testId: "tab-dados-empresa" },
-  { id: "meu-perfil", label: "Meu Perfil", testId: "tab-meu-perfil" },
-  { id: "permissoes-cargos", label: "Permissões/Cargos", testId: "tab-permissoes-cargos" },
-  { id: "template-contrato", label: "Template de Contrato", testId: "tab-template-contrato" },
-  { id: "config-vivi", label: "Configurações da VIVI", testId: "tab-config-vivi" },
-  { id: "templates-email", label: "Templates de E-mail", testId: "tab-templates-email" },
-  { id: "stands-plantao", label: "Stands/Plantão", testId: "tab-stands-plantao" },
-];
+  useEffect(() => {
+    router.replace("/dashboard/rh/aprovacoes?aba=painel-configuracao");
+  }, [router]);
 
-export default function ConfiguracoesPage() {
-  const [aba, setAba] = useState<AbaPainelAdministrativo>("dados-empresa");
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-slate-800">Painel Administrativo</h1>
-        <div className="mt-3 flex rounded-lg border border-slate-200 p-0.5 w-fit">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setAba(tab.id)}
-              data-testid={tab.testId}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                aba === tab.id ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      <div className="p-6">
-        {aba === "dados-empresa" && <DadosEmpresaTab />}
-        {aba === "meu-perfil" && <MeuPerfilTab />}
-        {aba === "permissoes-cargos" && <PermissoesCargosTab />}
-        {aba === "template-contrato" && <ContratoTemplateTab />}
-        {aba === "config-vivi" && <ConfiguracoesViviTab />}
-        {aba === "templates-email" && <EmailTemplatesTab />}
-        {aba === "stands-plantao" && <StandsPlantaoTab />}
-      </div>
-    </div>
-  );
+  return null;
 }

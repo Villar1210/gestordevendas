@@ -2,18 +2,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, UserCheck, FileSignature, ExternalLink } from "lucide-react";
 import { useAprovacoesStore } from "@/features/aprovacoes/store/useAprovacoesStore";
 import { useAprovacoesIntegration } from "@/features/aprovacoes/hooks/useAprovacoesIntegration";
 import { CadastroDetailPanel } from "@/features/aprovacoes/components/CadastroDetailPanel";
 import { getStatusContratoLabel } from "@/features/aprovacoes/constants";
+import { PainelConfiguracaoTab } from "@/features/configuracoes/components/PainelConfiguracaoTab";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
-type AbaAprovacoes = "pendentes" | "aprovados";
+// "Painel de Configuracao" (3a aba) e o antigo "Painel Administrativo",
+// movido pra dentro do modulo RH - ver PainelConfiguracaoTab.tsx.
+type AbaAprovacoes = "pendentes" | "aprovados" | "painel-configuracao";
 
 export default function AprovacoesPage() {
+  const router = useRouter();
   const pendentes = useAprovacoesStore((state) => state.pendentes);
   const aprovados = useAprovacoesStore((state) => state.aprovados);
   const isLoading = useAprovacoesStore((state) => state.isLoading);
@@ -27,6 +32,17 @@ export default function AprovacoesPage() {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
     loadPendentes();
+
+    // Redirecionamento vindo da antiga URL /dashboard/configuracoes (ver
+    // app/dashboard/configuracoes/page.tsx) - abre direto na aba certa.
+    // Le de window.location em vez de useSearchParams() pra nao exigir
+    // Suspense boundary nesta pagina (mesmo padrao ja usado em
+    // app/dashboard/kanban/page.tsx).
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("aba") === "painel-configuracao") {
+      setAba("painel-configuracao");
+      router.replace("/dashboard/rh/aprovacoes");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -59,11 +75,24 @@ export default function AprovacoesPage() {
           >
             Aprovados
           </button>
+          <button
+            onClick={() => handleTabChange("painel-configuracao")}
+            data-testid="tab-painel-configuracao"
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              aba === "painel-configuracao"
+                ? "bg-blue-700 text-white"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Painel de Configuração
+          </button>
         </div>
       </header>
 
       <div className="p-6">
-        {aba === "pendentes" ? (
+        {aba === "painel-configuracao" ? (
+          <PainelConfiguracaoTab />
+        ) : aba === "pendentes" ? (
           isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
               <Loader2 className="h-6 w-6 animate-spin text-blue-600" />

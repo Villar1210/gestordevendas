@@ -3,7 +3,8 @@
 // aprovar-cadastro.dto.ts). CARGO_HIERARQUICO_OPTIONS/ROLES_COM_HIERARQUIA
 // moraram aqui, mas foram promovidas para core/constants/cargoHierarquico.ts
 // quando passaram a ser usadas tambem pela aba "Permissoes/Cargos" do
-// Painel Administrativo (features/configuracoes) - reaproveitadas daqui.
+// Painel de Configuracao (features/configuracoes, hoje uma aba de
+// /dashboard/rh/aprovacoes) - reaproveitadas daqui.
 
 // Badge de status do contrato de prestacao de servico (aba "Aprovados") -
 // reaproveita os mesmos 4 status do E-doc (rascunho/aguardando_assinaturas/
