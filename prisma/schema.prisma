@@ -873,15 +873,55 @@ model RoletaConfig {
 // classificacao autoritativa - as duas fontes leem os mesmos valores desta
 // tabela, nunca hardcoded. Get-or-create com os defaults abaixo na
 // primeira leitura (mesmo padrao ja usado por ContratoTemplate/RoletaConfig).
+// Faixas de renda MCMV 2026 (substituem a nomenclatura HIS1/HIS2/HMP/R2V
+// antiga - ver classificar-renda.ts). limiteFaixa1..4 sao os TETOS de
+// renda de cada faixa (renda acima de limiteFaixa4 cai no argumento R2V,
+// inalterado); limiteSemPerfil continua um corte MINIMO separado, abaixo
+// do qual o lead vai pro Repique (ClassificarRenda.SEM_PERFIL) - decisao
+// confirmada com o usuario: a Faixa 1 NAO substitui esse corte. Cada
+// faixa ganhou campos de detalhe (subsidio/juros/teto de financiamento/
+// exemplo de parcela) - todos opcionais (nullable) porque nem toda faixa
+// tem subsidio (Faixa 3/4 normalmente nao tem) e exemploParcela e
+// deliberadamente livre para o Administrador preencher ou nao.
 model ViviConfig {
   id              String   @id @default(uuid()) @db.Uuid
   tenantId        String   @unique @map("tenant_id") @db.Uuid
   precoMinimo     Decimal  @default(264000) @map("preco_minimo") @db.Decimal(12, 2)
   limiteSemPerfil Decimal  @default(1500) @map("limite_sem_perfil") @db.Decimal(12, 2)
-  limiteHis1      Decimal  @default(2850) @map("limite_his1") @db.Decimal(12, 2)
-  limiteHis2      Decimal  @default(4700) @map("limite_his2") @db.Decimal(12, 2)
-  limiteHmp       Decimal  @default(8000) @map("limite_hmp") @db.Decimal(12, 2)
-  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  limiteFaixa1 Decimal @default(3200) @map("limite_faixa1") @db.Decimal(12, 2)
+  limiteFaixa2 Decimal @default(5000) @map("limite_faixa2") @db.Decimal(12, 2)
+  limiteFaixa3 Decimal @default(9600) @map("limite_faixa3") @db.Decimal(12, 2)
+  // Faixa 4 (NOVA, 2026): MCMV Premium.
+  limiteFaixa4 Decimal @default(13000) @map("limite_faixa4") @db.Decimal(12, 2)
+
+  faixa1SubsidioMax        Decimal? @default(55000) @map("faixa1_subsidio_max") @db.Decimal(12, 2)
+  faixa1JurosMin           Decimal? @default(4.00) @map("faixa1_juros_min") @db.Decimal(5, 2)
+  faixa1JurosMax           Decimal? @default(4.50) @map("faixa1_juros_max") @db.Decimal(5, 2)
+  faixa1TetoFinanciamento  String?  @map("faixa1_teto_financiamento") @db.VarChar(100)
+  faixa1ExemploParcela     String?  @map("faixa1_exemplo_parcela") @db.VarChar(300)
+
+  faixa2SubsidioMax        Decimal? @default(55000) @map("faixa2_subsidio_max") @db.Decimal(12, 2)
+  faixa2JurosMin           Decimal? @default(4.75) @map("faixa2_juros_min") @db.Decimal(5, 2)
+  faixa2JurosMax           Decimal? @default(6.50) @map("faixa2_juros_max") @db.Decimal(5, 2)
+  faixa2TetoFinanciamento  String?  @default("R$ 275 mil a R$ 400 mil") @map("faixa2_teto_financiamento") @db.VarChar(100)
+  faixa2ExemploParcela     String?  @map("faixa2_exemplo_parcela") @db.VarChar(300)
+
+  // Faixa 3 normalmente sem subsidio - faixa3SubsidioMax fica null.
+  faixa3SubsidioMax        Decimal? @map("faixa3_subsidio_max") @db.Decimal(12, 2)
+  faixa3JurosMin           Decimal? @default(7.66) @map("faixa3_juros_min") @db.Decimal(5, 2)
+  faixa3JurosMax           Decimal? @default(7.66) @map("faixa3_juros_max") @db.Decimal(5, 2)
+  faixa3TetoFinanciamento  String?  @default("R$ 400 mil") @map("faixa3_teto_financiamento") @db.VarChar(100)
+  faixa3ExemploParcela     String?  @map("faixa3_exemplo_parcela") @db.VarChar(300)
+
+  // Faixa 4 (NOVA) - MCMV Premium, tambem sem subsidio.
+  faixa4SubsidioMax        Decimal? @map("faixa4_subsidio_max") @db.Decimal(12, 2)
+  faixa4JurosMin           Decimal? @default(10.50) @map("faixa4_juros_min") @db.Decimal(5, 2)
+  faixa4JurosMax           Decimal? @default(10.50) @map("faixa4_juros_max") @db.Decimal(5, 2)
+  faixa4TetoFinanciamento  String?  @default("R$ 600 mil") @map("faixa4_teto_financiamento") @db.VarChar(100)
+  faixa4ExemploParcela     String?  @map("faixa4_exemplo_parcela") @db.VarChar(300)
+
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

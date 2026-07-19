@@ -8,16 +8,59 @@ import { apiRequest, ApiError } from "@/core/api/client";
 interface ViviConfig {
   precoMinimo: number;
   limiteSemPerfil: number;
-  limiteHis1: number;
-  limiteHis2: number;
-  limiteHmp: number;
+  limiteFaixa1: number;
+  limiteFaixa2: number;
+  limiteFaixa3: number;
+  limiteFaixa4: number;
+  faixa1SubsidioMax: number | null;
+  faixa1JurosMin: number | null;
+  faixa1JurosMax: number | null;
+  faixa1TetoFinanciamento: string | null;
+  faixa1ExemploParcela: string | null;
+  faixa2SubsidioMax: number | null;
+  faixa2JurosMin: number | null;
+  faixa2JurosMax: number | null;
+  faixa2TetoFinanciamento: string | null;
+  faixa2ExemploParcela: string | null;
+  faixa3SubsidioMax: number | null;
+  faixa3JurosMin: number | null;
+  faixa3JurosMax: number | null;
+  faixa3TetoFinanciamento: string | null;
+  faixa3ExemploParcela: string | null;
+  faixa4SubsidioMax: number | null;
+  faixa4JurosMin: number | null;
+  faixa4JurosMax: number | null;
+  faixa4TetoFinanciamento: string | null;
+  faixa4ExemploParcela: string | null;
 }
 
-// Preco minimo (usado so no texto do prompt) + as 4 faixas de renda que
-// classificarRenda() usa de verdade para classificar HIS1/HIS2/HMP/R2V/
-// SEM_PERFIL - as mesmas 4 faixas tambem sao interpoladas no prompt da
-// VIVI (ver buildViviSystemPrompt no backend), entao editar aqui muda os
-// dois ao mesmo tempo, sempre em sincronia.
+// Espelha os 4 grupos de campo por faixa em ViviConfig (backend) - usado
+// pra nao repetir 4x o mesmo bloco de JSX/estado na mao.
+const FAIXAS = [1, 2, 3, 4] as const;
+type FaixaNumero = (typeof FAIXAS)[number];
+
+interface FaixaFormState {
+  limite: string;
+  subsidioMax: string;
+  jurosMin: string;
+  jurosMax: string;
+  tetoFinanciamento: string;
+  exemploParcela: string;
+}
+
+function emptyFaixaState(): FaixaFormState {
+  return { limite: "", subsidioMax: "", jurosMin: "", jurosMax: "", tetoFinanciamento: "", exemploParcela: "" };
+}
+
+// "" -> null (campo opcional deixado em branco), string numerica -> Number.
+function parseOptionalNumber(value: string): number | null {
+  return value.trim() === "" ? null : Number(value);
+}
+
+function parseOptionalString(value: string): string | null {
+  return value.trim() === "" ? null : value.trim();
+}
+
 export function ConfiguracoesViviTab() {
   const [isLoading, setLoading] = useState(true);
   const [isSaving, setSaving] = useState(false);
@@ -25,9 +68,12 @@ export function ConfiguracoesViviTab() {
 
   const [precoMinimo, setPrecoMinimo] = useState("");
   const [limiteSemPerfil, setLimiteSemPerfil] = useState("");
-  const [limiteHis1, setLimiteHis1] = useState("");
-  const [limiteHis2, setLimiteHis2] = useState("");
-  const [limiteHmp, setLimiteHmp] = useState("");
+  const [faixas, setFaixas] = useState<Record<FaixaNumero, FaixaFormState>>({
+    1: emptyFaixaState(),
+    2: emptyFaixaState(),
+    3: emptyFaixaState(),
+    4: emptyFaixaState(),
+  });
 
   const hasInitialized = useRef(false);
 
@@ -39,9 +85,40 @@ export function ConfiguracoesViviTab() {
       .then((config) => {
         setPrecoMinimo(String(config.precoMinimo));
         setLimiteSemPerfil(String(config.limiteSemPerfil));
-        setLimiteHis1(String(config.limiteHis1));
-        setLimiteHis2(String(config.limiteHis2));
-        setLimiteHmp(String(config.limiteHmp));
+        setFaixas({
+          1: {
+            limite: String(config.limiteFaixa1),
+            subsidioMax: config.faixa1SubsidioMax !== null ? String(config.faixa1SubsidioMax) : "",
+            jurosMin: config.faixa1JurosMin !== null ? String(config.faixa1JurosMin) : "",
+            jurosMax: config.faixa1JurosMax !== null ? String(config.faixa1JurosMax) : "",
+            tetoFinanciamento: config.faixa1TetoFinanciamento ?? "",
+            exemploParcela: config.faixa1ExemploParcela ?? "",
+          },
+          2: {
+            limite: String(config.limiteFaixa2),
+            subsidioMax: config.faixa2SubsidioMax !== null ? String(config.faixa2SubsidioMax) : "",
+            jurosMin: config.faixa2JurosMin !== null ? String(config.faixa2JurosMin) : "",
+            jurosMax: config.faixa2JurosMax !== null ? String(config.faixa2JurosMax) : "",
+            tetoFinanciamento: config.faixa2TetoFinanciamento ?? "",
+            exemploParcela: config.faixa2ExemploParcela ?? "",
+          },
+          3: {
+            limite: String(config.limiteFaixa3),
+            subsidioMax: config.faixa3SubsidioMax !== null ? String(config.faixa3SubsidioMax) : "",
+            jurosMin: config.faixa3JurosMin !== null ? String(config.faixa3JurosMin) : "",
+            jurosMax: config.faixa3JurosMax !== null ? String(config.faixa3JurosMax) : "",
+            tetoFinanciamento: config.faixa3TetoFinanciamento ?? "",
+            exemploParcela: config.faixa3ExemploParcela ?? "",
+          },
+          4: {
+            limite: String(config.limiteFaixa4),
+            subsidioMax: config.faixa4SubsidioMax !== null ? String(config.faixa4SubsidioMax) : "",
+            jurosMin: config.faixa4JurosMin !== null ? String(config.faixa4JurosMin) : "",
+            jurosMax: config.faixa4JurosMax !== null ? String(config.faixa4JurosMax) : "",
+            tetoFinanciamento: config.faixa4TetoFinanciamento ?? "",
+            exemploParcela: config.faixa4ExemploParcela ?? "",
+          },
+        });
       })
       .catch((err) => {
         alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar as configuracoes da VIVI.");
@@ -49,29 +126,65 @@ export function ConfiguracoesViviTab() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleSave() {
-    const values = {
-      precoMinimo: Number(precoMinimo),
-      limiteSemPerfil: Number(limiteSemPerfil),
-      limiteHis1: Number(limiteHis1),
-      limiteHis2: Number(limiteHis2),
-      limiteHmp: Number(limiteHmp),
-    };
+  function updateFaixa(numero: FaixaNumero, campo: keyof FaixaFormState, valor: string) {
+    setFaixas((prev) => ({ ...prev, [numero]: { ...prev[numero], [campo]: valor } }));
+  }
 
-    if (Object.values(values).some((v) => Number.isNaN(v) || v <= 0)) {
-      alert("Todos os valores precisam ser numeros maiores que zero.");
+  async function handleSave() {
+    const precoMinimoNum = Number(precoMinimo);
+    const limiteSemPerfilNum = Number(limiteSemPerfil);
+    const limites = FAIXAS.map((n) => Number(faixas[n].limite));
+
+    if (
+      Number.isNaN(precoMinimoNum) ||
+      precoMinimoNum <= 0 ||
+      Number.isNaN(limiteSemPerfilNum) ||
+      limiteSemPerfilNum <= 0 ||
+      limites.some((v) => Number.isNaN(v) || v <= 0)
+    ) {
+      alert("Preço mínimo e as faixas de renda precisam ser números maiores que zero.");
       return;
     }
     if (
       !(
-        values.limiteSemPerfil < values.limiteHis1 &&
-        values.limiteHis1 < values.limiteHis2 &&
-        values.limiteHis2 < values.limiteHmp
+        limiteSemPerfilNum < limites[0] &&
+        limites[0] < limites[1] &&
+        limites[1] < limites[2] &&
+        limites[2] < limites[3]
       )
     ) {
-      alert("As faixas de renda precisam ser crescentes: Sem Perfil < HIS1 < HIS2 < HMP.");
+      alert("As faixas de renda precisam ser crescentes: Sem Perfil < Faixa 1 < Faixa 2 < Faixa 3 < Faixa 4.");
       return;
     }
+
+    const values = {
+      precoMinimo: precoMinimoNum,
+      limiteSemPerfil: limiteSemPerfilNum,
+      limiteFaixa1: limites[0],
+      limiteFaixa2: limites[1],
+      limiteFaixa3: limites[2],
+      limiteFaixa4: limites[3],
+      faixa1SubsidioMax: parseOptionalNumber(faixas[1].subsidioMax),
+      faixa1JurosMin: parseOptionalNumber(faixas[1].jurosMin),
+      faixa1JurosMax: parseOptionalNumber(faixas[1].jurosMax),
+      faixa1TetoFinanciamento: parseOptionalString(faixas[1].tetoFinanciamento),
+      faixa1ExemploParcela: parseOptionalString(faixas[1].exemploParcela),
+      faixa2SubsidioMax: parseOptionalNumber(faixas[2].subsidioMax),
+      faixa2JurosMin: parseOptionalNumber(faixas[2].jurosMin),
+      faixa2JurosMax: parseOptionalNumber(faixas[2].jurosMax),
+      faixa2TetoFinanciamento: parseOptionalString(faixas[2].tetoFinanciamento),
+      faixa2ExemploParcela: parseOptionalString(faixas[2].exemploParcela),
+      faixa3SubsidioMax: parseOptionalNumber(faixas[3].subsidioMax),
+      faixa3JurosMin: parseOptionalNumber(faixas[3].jurosMin),
+      faixa3JurosMax: parseOptionalNumber(faixas[3].jurosMax),
+      faixa3TetoFinanciamento: parseOptionalString(faixas[3].tetoFinanciamento),
+      faixa3ExemploParcela: parseOptionalString(faixas[3].exemploParcela),
+      faixa4SubsidioMax: parseOptionalNumber(faixas[4].subsidioMax),
+      faixa4JurosMin: parseOptionalNumber(faixas[4].jurosMin),
+      faixa4JurosMax: parseOptionalNumber(faixas[4].jurosMax),
+      faixa4TetoFinanciamento: parseOptionalString(faixas[4].tetoFinanciamento),
+      faixa4ExemploParcela: parseOptionalString(faixas[4].exemploParcela),
+    };
 
     setSaving(true);
     try {
@@ -97,12 +210,13 @@ export function ConfiguracoesViviTab() {
   }
 
   return (
-    <div className="max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="mb-1 text-sm font-semibold text-slate-800">Configurações da VIVI</h2>
       <p className="mb-4 text-xs text-slate-500">
-        Preço mínimo (usado no texto que a VIVI envia ao lead) e as faixas de renda que classificam
-        automaticamente cada lead (HIS1/HIS2/HMP/R2V/Sem Perfil) - os mesmos valores alimentam o prompt
-        da IA e a classificação real.
+        Preço mínimo (usado no texto que a VIVI envia ao lead) e as faixas de renda MCMV 2026 que
+        classificam automaticamente cada lead (Faixa 1 a 4, ou Sem Perfil/acima da Faixa 4) - os
+        mesmos valores alimentam o prompt da IA e a classificação real. A VIVI sempre fala desses
+        números como estimativa, nunca como valor garantido.
       </p>
 
       <div className="space-y-4">
@@ -116,49 +230,86 @@ export function ConfiguracoesViviTab() {
           />
         </Field>
 
-        <div className="border-t border-slate-100 pt-4">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
-            Faixas de renda (crescente)
-          </p>
-          <div className="space-y-3">
-            <Field label="Abaixo disto = Sem Perfil (R$)">
-              <input
-                type="number"
-                value={limiteSemPerfil}
-                onChange={(e) => setLimiteSemPerfil(e.target.value)}
-                data-testid="vivi-limite-sem-perfil"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
-              />
-            </Field>
-            <Field label="Até isto = HIS1 (R$)">
-              <input
-                type="number"
-                value={limiteHis1}
-                onChange={(e) => setLimiteHis1(e.target.value)}
-                data-testid="vivi-limite-his1"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
-              />
-            </Field>
-            <Field label="Até isto = HIS2 (R$)">
-              <input
-                type="number"
-                value={limiteHis2}
-                onChange={(e) => setLimiteHis2(e.target.value)}
-                data-testid="vivi-limite-his2"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
-              />
-            </Field>
-            <Field label="Até isto = HMP, acima = R2V (R$)">
-              <input
-                type="number"
-                value={limiteHmp}
-                onChange={(e) => setLimiteHmp(e.target.value)}
-                data-testid="vivi-limite-hmp"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
-              />
-            </Field>
+        <Field label="Abaixo disto = Sem Perfil (R$)">
+          <input
+            type="number"
+            value={limiteSemPerfil}
+            onChange={(e) => setLimiteSemPerfil(e.target.value)}
+            data-testid="vivi-limite-sem-perfil"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+          />
+        </Field>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        {FAIXAS.map((numero) => (
+          <div key={numero} className="rounded-xl border border-slate-200 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Faixa {numero}
+              {numero === 4 && " (MCMV Premium)"}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`Teto de renda da Faixa ${numero} (R$)`}>
+                <input
+                  type="number"
+                  value={faixas[numero].limite}
+                  onChange={(e) => updateFaixa(numero, "limite", e.target.value)}
+                  data-testid={`vivi-limite-faixa${numero}`}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+                />
+              </Field>
+              <Field label="Subsídio máximo (R$, opcional)">
+                <input
+                  type="number"
+                  value={faixas[numero].subsidioMax}
+                  onChange={(e) => updateFaixa(numero, "subsidioMax", e.target.value)}
+                  data-testid={`vivi-faixa${numero}-subsidio-max`}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+                />
+              </Field>
+              <Field label="Juros mínimo (%, opcional)">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={faixas[numero].jurosMin}
+                  onChange={(e) => updateFaixa(numero, "jurosMin", e.target.value)}
+                  data-testid={`vivi-faixa${numero}-juros-min`}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+                />
+              </Field>
+              <Field label="Juros máximo (%, opcional)">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={faixas[numero].jurosMax}
+                  onChange={(e) => updateFaixa(numero, "jurosMax", e.target.value)}
+                  data-testid={`vivi-faixa${numero}-juros-max`}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+                />
+              </Field>
+              <Field label="Teto de financiamento (texto, opcional)">
+                <input
+                  type="text"
+                  value={faixas[numero].tetoFinanciamento}
+                  onChange={(e) => updateFaixa(numero, "tetoFinanciamento", e.target.value)}
+                  placeholder="Ex: R$ 400 mil"
+                  data-testid={`vivi-faixa${numero}-teto-financiamento`}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+                />
+              </Field>
+              <Field label="Exemplo de parcela (texto, opcional)">
+                <input
+                  type="text"
+                  value={faixas[numero].exemploParcela}
+                  onChange={(e) => updateFaixa(numero, "exemploParcela", e.target.value)}
+                  placeholder="Ex: parcelas a partir de R$ 899"
+                  data-testid={`vivi-faixa${numero}-exemplo-parcela`}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+                />
+              </Field>
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       <div className="mt-6 flex items-center gap-3">

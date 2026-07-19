@@ -45,10 +45,10 @@ export function buildResumoAtendimento(input: ResumoAtendimentoInput): string {
   if (input.rendaDeclarada !== null) {
     lines.push(`Renda declarada: R$ ${input.rendaDeclarada.toLocaleString('pt-BR')}`);
   }
-  // Categoria habitacional (HIS1/HIS2/HMP/R2V) e informacao SO PARA USO
-  // INTERNO do corretor - a VIVI nunca menciona essas siglas ao lead (ver
-  // vivi-prompt.ts), mas aqui, na descricao do Card, e exatamente o
-  // publico certo para ve-la.
+  // Categoria habitacional (FAIXA_1/2/3/4/R2V, nomenclatura MCMV 2026 - ver
+  // classificar-renda.ts) e informacao SO PARA USO INTERNO do corretor - a
+  // VIVI nunca menciona esses nomes ao lead (ver vivi-prompt.ts), mas
+  // aqui, na descricao do Card, e exatamente o publico certo para ve-la.
   if (input.categoriaHabitacional) {
     lines.push(`Categoria habitacional (interno): ${input.categoriaHabitacional}`);
   }
