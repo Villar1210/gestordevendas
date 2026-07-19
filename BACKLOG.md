@@ -198,3 +198,35 @@ esquecida.
       acima
 - [ ] Gravacao e envio de audio - endpoint de audio + UI
       MediaRecorder/waveform
+
+## Divida tecnica conhecida - Abstracao de canais (aditiva)
+Decisao consciente ao criar o IMessageDispatcher/CanaisModule (ver
+PROGRESS.md, modulo `src/shared/`): a abordagem foi ADITIVA, sem migrar
+nada do que ja existia, para minimizar risco. Isso deixou os pontos
+abaixo em aberto DE PROPOSITO - nao tentar "corrigir" nenhum deles sem
+entender o motivo primeiro (ver o commit da fatia de canais para o
+contexto completo):
+- Central de Atendimento (model `Atendimento`, `Fila`) continua 100%
+  acoplada ao WhatsApp (`whatsappSessionId`/`remoteJid` obrigatorios no
+  schema). Generalizar isso e uma fatia propria, futura, a ser feita
+  quando o modulo de Redes Sociais precisar rotear DM/comentario para
+  um corretor humano - nao foi tentado nesta fatia.
+- Coexistem dois sistemas de evento de mensagem recebida: o evento
+  original `whatsapp.message.received` (unico realmente consumido
+  hoje, por `WhatsAppMessageReceivedListener` no modulo `vivi_sdr`) e
+  o novo `mensagem.recebida` (agnostico de canal, emitido por
+  `WhatsAppToCanalAdapter` em `src/shared/infra/listeners/`, mas SEM
+  nenhum listener consumindo ainda). Nao remover nem consolidar os
+  dois sem entender por que ambos existem.
+- Existem agora DOIS caminhos possiveis para enviar mensagem: chamada
+  direta a `SendWhatsAppMessageUseCase`/`IEmailSender` (usado hoje por
+  `vivi_sdr`, `atendimento`, `rh`, `edoc`, `auth`) e o novo
+  `MessageDispatcherService` (pensado para o Repique em diante). Nao e
+  um erro - e uma transicao deliberada. Features novas que precisam
+  mandar mensagem por canal configuravel devem usar o dispatcher;
+  modulos existentes NAO precisam ser migrados para ele, a menos que
+  surja um motivo concreto.
+- `Canal.SMS`/`Canal.INSTAGRAM`/`Canal.FACEBOOK` lancam
+  `NotImplementedException` propositalmente ate terem um provedor real
+  conectado - nao e bug, e o comportamento esperado ate uma fatia
+  futura plugar cada um.
