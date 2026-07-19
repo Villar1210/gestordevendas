@@ -163,10 +163,13 @@ ainda nao entraram na versao atual, nao um modulo inteiro em aberto.
 - [ ] Logs estruturados + monitoramento (restante da Fase C - rate
       limiting/helmet/auditoria de login ja CONCLUIDOS, ver PROGRESS.md)
       - barato de implementar. PRIORIDADE 2 dos proximos passos.
-- [ ] Treinar a VIVI - item novo, escopo ainda nao detalhado (ajuste de
-      prompt? novos casos de teste? feedback loop sobre conversas
-      reais?) - avaliar com o usuario antes de planejar fatias.
-      PRIORIDADE 3 (por ultimo) dos proximos passos.
+- [x] Treinar a VIVI - Fatia 1 (faixas de renda 2026 + blindagem
+      juridica + inversao de valor + checklist de documentos
+      pos-visita) - CONCLUIDA, ver PROGRESS.md, secao "VIVI Fatia 1
+      (faixas de renda 2026 + blindagem juridica)".
+- [ ] Treinar a VIVI - Fatia 2 (proxima): timeout da Roleta,
+      geolocalizacao, job de Repique - escopo ainda a detalhar com o
+      usuario antes de planejar as sub-fatias.
 
 ## Modulo WhatsApp Marketing / VIVI
 - [ ] Investigar erros "Bad MAC" recorrentes no log do backend em

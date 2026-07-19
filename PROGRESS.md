@@ -1,5 +1,56 @@
 # Progresso do Ecossistema gestordevendas
 
+## Sessao 19/07/2026 - VIVI Fatia 1 (faixas de renda 2026 + blindagem juridica) - CONCLUIDO
+Primeira fatia do item "Treinar a VIVI" (ver BACKLOG.md) - atualizacao
+de CONTEUDO do prompt e do `ViviConfig`, sem mudanca estrutural no
+fluxo de conversa/tools ja existente.
+
+`CategoriaHabitacional` migrou de `HIS1/HIS2/HMP/R2V/SEM_PERFIL` para
+`FAIXA_1/FAIXA_2/FAIXA_3/FAIXA_4/R2V/SEM_PERFIL` (nomenclatura MCMV
+2026). `ViviConfig` ganhou `limiteFaixa4` (nova, 4a faixa - "MCMV
+Premium") e 20 campos opcionais de detalhe por faixa (5 por faixa:
+`subsidioMax`, `jurosMin`, `jurosMax`, `tetoFinanciamento`,
+`exemploParcela` - todos editaveis na aba "Configuracoes da VIVI" do
+Painel de Configuracao). 3 decisoes de escopo confirmadas com o
+usuario antes de implementar: o corte "Sem Perfil" (que ainda roteia
+pro Repique via `transferir_para_corretor`) continua SEPARADO da Faixa
+1, nao foi absorvido por ela; renda acima da Faixa 4 continua usando o
+argumento R2V ja existente (sem mencionar MCMV/subsidio); "teto de
+financiamento" por faixa entrou como campo editavel mesmo nao listado
+no pedido original.
+
+Prompt (`vivi-prompt.ts`) ganhou 3 blocos novos, verbatim conforme
+pedido: "Blindagem Juridica" (nunca afirmar valores exatos de
+aprovacao/parcela/subsidio - sempre "podera ter direito"/"estimativa"/
+"depende da analise final da Caixa"), "Inversao de valor" (perguntar o
+valor que o cliente da pra seguranca/lazer/bem-estar antes de falar
+preco de tabela) e uma instrucao de checklist de documentos (RG/CPF,
+Certidao, Comprovante de Residencia, Extrato FGTS, ultimos 3
+holerites/extratos) logo apos confirmar data/horario da visita no
+"Loop de captura pos-visita".
+
+Testado com chamada REAL a API da Anthropic (Haiku, sem mock): conversa
+simulada com renda de R$ 3.850 classificada corretamente como
+`FAIXA_2`, e a resposta da VIVI usou linguagem protegida de verdade
+("podera ter direito a um subsidio... estimativa... depende da analise
+final da Caixa") em vez de afirmar valores exatos. UI testada com
+Playwright real (login, aba "Configuracoes da VIVI" mostrando os
+defaults 2026 corretos, edicao + salvamento + confirmacao de
+persistencia de um campo novo).
+
+Nota operacional registrada durante o deploy: a migration desta fatia
+RENOMEIA colunas existentes (nao so adiciona) - diferente da maioria
+das fatias anteriores, o padrao usual de "testar direto na VPS sem
+commit, depois reverter os arquivos mantendo a migration aplicada" nao
+e seguro aqui, porque ja existe 1 tenant real em producao com
+`ViviConfig` configurado: codigo antigo revertido + schema antigo nao
+bateria mais com as colunas ja renomeadas no banco. Por isso, apos o
+teste, os arquivos NAO foram revertidos antes da aprovacao - ficaram
+tal como testados (ja corretos) ate a aprovacao chegar e o commit real
+ser feito. Registrar esse cuidado para qualquer fatia futura que
+envolva RENOMEAR (nao so adicionar) coluna em uma tabela ja usada por
+tenant real.
+
 ## Sessao 18/07/2026 - Super Usuario (dono da plataforma SaaS) - 3 fatias - CONCLUIDO
 Fecha a PRIORIDADE 1 registrada no BACKLOG.md/PROGRESS.md. Diagnostico
 previo (sem alterar codigo) confirmou 3 pontos criticos antes de
