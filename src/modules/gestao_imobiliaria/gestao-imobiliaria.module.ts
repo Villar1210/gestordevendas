@@ -32,6 +32,7 @@ import { ListLancamentosUseCase } from './application/use-cases/list-lancamentos
 import { MarcarComoPagoUseCase } from './application/use-cases/marcar-como-pago.use-case';
 import { GerarCobrancasDoMesUseCase } from './application/use-cases/gerar-cobrancas-do-mes.use-case';
 import { AtualizarStatusVencidosUseCase } from './application/use-cases/atualizar-status-vencidos.use-case';
+import { BuscarEmpreendimentoPorEnderecoUseCase } from './application/use-cases/buscar-empreendimento-por-endereco.use-case';
 import { PrismaEmpreendimentoRepository } from './infra/database/prisma-empreendimento.repository';
 import { PrismaImovelRepository } from './infra/database/prisma-imovel.repository';
 import { PrismaProprietarioRepository } from './infra/database/prisma-proprietario.repository';
@@ -78,6 +79,7 @@ import { LocalFileStorageService } from '../../shared/infra/services/local-file-
     MarcarComoPagoUseCase,
     GerarCobrancasDoMesUseCase,
     AtualizarStatusVencidosUseCase,
+    BuscarEmpreendimentoPorEnderecoUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma / disco local).
     { provide: 'IEmpreendimentoRepository', useClass: PrismaEmpreendimentoRepository },
@@ -90,7 +92,13 @@ import { LocalFileStorageService } from '../../shared/infra/services/local-file-
   ],
   // Exportados para o modulo portal_cliente: GetMeusImoveisUseCase busca
   // o Proprietario pelo e-mail do usuario logado, os Contratos vinculados
-  // e os Imoveis desses contratos.
-  exports: ['IProprietarioRepository', 'IContratoRepository', 'IImovelRepository'],
+  // e os Imoveis desses contratos. BuscarEmpreendimentoPorEnderecoUseCase
+  // exportado para o modulo vivi_sdr (tool "buscar_empreendimento_por_endereco").
+  exports: [
+    'IProprietarioRepository',
+    'IContratoRepository',
+    'IImovelRepository',
+    BuscarEmpreendimentoPorEnderecoUseCase,
+  ],
 })
 export class GestaoImobiliariaModule {}

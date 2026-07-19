@@ -6,12 +6,18 @@ import {
   GenerateReplyInput,
   GenerateReplyOutput,
   AiToolCall,
+  ConfirmarExistenciaEmpreendimentoResult,
 } from '../../domain/services/ai-conversation.interface';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 1024;
 // Protecao contra loop infinito caso o modelo encadeie tool_use indefinidamente.
 const MAX_TOOL_ITERATIONS = 5;
+
+// Modelo/tokens para a busca externa ISOLADA de confirmacao de
+// empreendimento (ver confirmarExistenciaEmpreendimento) - mesmo modelo da
+// conversa principal, resposta bem curta (so um JSON pequeno).
+const WEB_CONFIRM_MAX_TOKENS = 512;
 
 // Tools da VIVI. O schema/descricao aqui e o mesmo em qualquer consumidor
 // futuro desta interface - o SIGNIFICADO de negocio de cada tool (o que
@@ -151,6 +157,31 @@ const TOOLS: Anthropic.Tool[] = [
       },
     },
   },
+  {
+    name: 'buscar_empreendimento_por_endereco',
+    description:
+      'Busca no catalogo proprio (e, se nao encontrar, confirma externamente) um ' +
+      'empreendimento/imovel especifico pelo endereco citado pelo lead (rua ou avenida + ' +
+      'numero, e opcionalmente bairro). Chame IMEDIATAMENTE quando o lead perguntar sobre um ' +
+      'empreendimento citando um endereco - nunca responda de memoria nem invente informacoes.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        endereco: {
+          type: 'string',
+          description: 'Endereco exatamente como o lead escreveu (rua/avenida + numero, e bairro se mencionado)',
+        },
+        pularBuscaExterna: {
+          type: 'boolean',
+          description:
+            'true quando a MESMA mensagem do lead tambem contiver um pedido de urgencia/falar ' +
+            'com humano (ver secao "Atendimento urgente") - nesse caso, busca SO no catalogo ' +
+            'proprio, sem busca externa/web, para nao atrasar a escalacao. Default false.',
+        },
+      },
+      required: ['endereco'],
+    },
+  },
 ];
 
 @Injectable()
@@ -193,25 +224,89 @@ export class AnthropicConversationService implements IAiConversationService {
 
       messages.push({ role: 'assistant', content: response.content });
 
-      // O loop aqui so cumpre o protocolo da API (todo tool_use precisa de
-      // um tool_result de volta para o modelo continuar) - a execucao real
-      // de cada tool (salvar dados, criar Card) fica por conta de quem
-      // chamou generateReply, usando o array toolCalls retornado abaixo.
-      const toolResults: Anthropic.ToolResultBlockParam[] = toolUseBlocks.map((block) => {
-        toolCalls.push({
-          name: block.name,
-          input: block.input as Record<string, unknown>,
-        });
-        return {
-          type: 'tool_result' as const,
-          tool_use_id: block.id,
-          content: 'ok',
-        };
-      });
+      // O loop aqui cumpre o protocolo da API (todo tool_use precisa de um
+      // tool_result de volta para o modelo continuar). Para a maioria das
+      // tools (todas "de escrita" - salvar dados, transferir) um "ok"
+      // generico basta, ja que a execucao real fica por conta de quem
+      // chamou generateReply (usando o array toolCalls retornado abaixo).
+      // Quando resolveTool e informado (ver buscar_empreendimento_por_endereco),
+      // ele pode devolver um resultado REAL para a IA reagir na mesma
+      // resposta (ex: preco de um empreendimento encontrado) - primeira
+      // tool "de leitura" deste projeto.
+      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        toolUseBlocks.map(async (block) => {
+          toolCalls.push({
+            name: block.name,
+            input: block.input as Record<string, unknown>,
+          });
+
+          const toolInput = block.input as Record<string, unknown>;
+          const resolvido = input.resolveTool ? await input.resolveTool(block.name, toolInput) : null;
+
+          return {
+            type: 'tool_result' as const,
+            tool_use_id: block.id,
+            content: resolvido ?? 'ok',
+          };
+        }),
+      );
 
       messages.push({ role: 'user', content: toolResults });
     }
 
     return { replyText, toolCalls };
+  }
+
+  // Busca web ISOLADA (fora do loop de tools da conversa principal) so para
+  // confirmar se existe um empreendimento real no endereco informado -
+  // usa o tool nativo "web_search" da propria API da Anthropic (sem
+  // dependencia/API key de terceiros nova). max_uses limitado para conter
+  // custo, ja que o objetivo e so uma confirmacao rapida de existencia.
+  async confirmarExistenciaEmpreendimento(
+    endereco: string,
+  ): Promise<ConfirmarExistenciaEmpreendimentoResult> {
+    const systemPrompt =
+      'Voce esta verificando SOMENTE se existe um empreendimento imobiliario ' +
+      '(condominio, residencial, edificio) real no endereco informado, usando busca na web ' +
+      '(ex: site de construtoras, portais imobiliarios). Responda EXCLUSIVAMENTE com um JSON ' +
+      'no formato exato {"confirmado": true ou false, "nome": "nome do empreendimento" ou null} ' +
+      '- sem nenhum texto antes ou depois do JSON. NUNCA inclua preco, condicoes comerciais ou ' +
+      'disponibilidade de unidades - o unico objetivo aqui e confirmar existencia.';
+
+    try {
+      const response = await this.client.messages.create({
+        model: MODEL,
+        max_tokens: WEB_CONFIRM_MAX_TOKENS,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Endereco: ${endereco}` }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }],
+      });
+
+      const textBlocks = response.content.filter(
+        (block): block is Anthropic.TextBlock => block.type === 'text',
+      );
+      const textoFinal = textBlocks.map((block) => block.text).join('\n').trim();
+
+      return this.parseConfirmacaoJson(textoFinal);
+    } catch (err) {
+      // Falha na busca externa (rede, API, parsing) nunca deve derrubar o
+      // atendimento da VIVI - trata como "nao confirmado", mesmo padrao de
+      // resiliencia ja usado em listeners deste projeto.
+      return { confirmado: false, nomeEncontrado: null };
+    }
+  }
+
+  private parseConfirmacaoJson(texto: string): ConfirmarExistenciaEmpreendimentoResult {
+    try {
+      const match = texto.match(/\{[\s\S]*\}/);
+      const jsonTexto = match ? match[0] : texto;
+      const parsed = JSON.parse(jsonTexto);
+      return {
+        confirmado: parsed.confirmado === true,
+        nomeEncontrado: typeof parsed.nome === 'string' && parsed.nome.trim() ? parsed.nome.trim() : null,
+      };
+    } catch {
+      return { confirmado: false, nomeEncontrado: null };
+    }
   }
 }

@@ -75,6 +75,9 @@ model Tenant {
   // o log sobreviver mesmo se este tenant for excluido no futuro.
   acessosPlataforma AcessoPlataformaLog[]
 
+  // VIVI - busca de empreendimento por endereco (ver modulo vivi_sdr).
+  enderecoBuscaLogs EnderecoBuscaLog[]
+
   @@map("tenants")
 }
 
@@ -941,6 +944,35 @@ model ViviConfig {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("vivi_configs")
+}
+
+// VIVI Fatia 2 (Desenvolvimento Tecnologico) - busca de empreendimento por
+// endereco. Registra CADA busca (tool "buscar_empreendimento_por_endereco"),
+// mesmo quando nada e encontrado - a analise de quais enderecos os leads
+// pedem e nao existem no catalogo proprio e o proprio objetivo deste log
+// (ajuda a identificar demanda futura), nao so uma trilha de auditoria.
+model EnderecoBuscaLog {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  phoneNumber            String   @map("phone_number") @db.VarChar(30)
+  enderecoBuscado        String   @map("endereco_buscado") @db.VarChar(300)
+  encontradoCatalogo     Boolean  @map("encontrado_catalogo")
+  nomeEncontradoCatalogo String?  @map("nome_encontrado_catalogo") @db.VarChar(200)
+  // Preenchidos so quando o catalogo proprio nao encontrou nada.
+  precisouBuscaExterna   Boolean  @default(false) @map("precisou_busca_externa")
+  confirmadoExternamente Boolean? @map("confirmado_externamente")
+  nomeEncontradoExterno  String?  @map("nome_encontrado_externo") @db.VarChar(200)
+  // Escalonamento (transferir_para_fila/transferir_para_corretor) na MESMA
+  // resposta que fez esta busca - so por urgencia/pedido explicito do lead
+  // (ver vivi-prompt.ts, secao "Busca de empreendimento por endereco"),
+  // nunca automatico so por nao ter encontrado o empreendimento.
+  escalonado           Boolean  @default(false)
+  motivoEscalonamento  String?  @map("motivo_escalonamento") @db.VarChar(50)
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("endereco_busca_logs")
 }
 
 // Modulo E-doc (assinatura eletronica). Um envelope agrupa um documento
