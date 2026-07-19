@@ -9,6 +9,7 @@ import { UpdateRoletaConfigDto } from './dtos/update-roleta-config.dto';
 import { GetRoletaConfigUseCase } from '../../application/use-cases/get-roleta-config.use-case';
 import { UpdateRoletaConfigUseCase } from '../../application/use-cases/update-roleta-config.use-case';
 import { ConfirmSuggestedOwnerUseCase } from '../../application/use-cases/confirm-suggested-owner.use-case';
+import { AceitarLeadUseCase } from '../../application/use-cases/aceitar-lead.use-case';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -18,6 +19,7 @@ export class RoletaController {
     private readonly getRoletaConfigUseCase: GetRoletaConfigUseCase,
     private readonly updateRoletaConfigUseCase: UpdateRoletaConfigUseCase,
     private readonly confirmSuggestedOwnerUseCase: ConfirmSuggestedOwnerUseCase,
+    private readonly aceitarLeadUseCase: AceitarLeadUseCase,
   ) {}
 
   // GET /roleta/config - configuracao atual da Roleta Online do tenant
@@ -35,6 +37,7 @@ export class RoletaController {
       algoritmo: dto.algoritmo,
       modo: dto.modo,
       ativa: dto.ativa,
+      timeoutAceiteMinutos: dto.timeoutAceiteMinutos,
     });
   }
 
@@ -43,6 +46,18 @@ export class RoletaController {
   @Post('cards/:id/confirmar-sugestao')
   async confirmSuggestion(@Param('id') id: string, @Req() req: Request) {
     return this.confirmSuggestedOwnerUseCase.execute({
+      cardId: id,
+      tenantId: req.user!.tenantId,
+      requesterUserId: req.user!.id,
+      requesterRole: req.user!.role,
+    });
+  }
+
+  // POST /cards/:id/aceitar-lead - corretor confirma que vai atender uma
+  // atribuicao automatica da Roleta antes do timeout reatribuir o card.
+  @Post('cards/:id/aceitar-lead')
+  async aceitarLead(@Param('id') id: string, @Req() req: Request) {
+    return this.aceitarLeadUseCase.execute({
       cardId: id,
       tenantId: req.user!.tenantId,
       requesterUserId: req.user!.id,

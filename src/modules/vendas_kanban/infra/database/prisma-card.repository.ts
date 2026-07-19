@@ -15,6 +15,8 @@ type PrismaCardRow = {
   stageId: string | null;
   ownerId: string | null;
   suggestedOwnerId: string | null;
+  atribuidoAutomaticamenteEm: Date | null;
+  aceitoEm: Date | null;
   imovelId: string | null;
   title: string;
   value: { toNumber(): number };
@@ -49,6 +51,8 @@ export class PrismaCardRepository implements ICardRepository {
       // que faz o join com o nome do corretor sugerido.
       suggestedOwnerId: row.suggestedOwnerId,
       suggestedOwnerName: null,
+      atribuidoAutomaticamenteEm: row.atribuidoAutomaticamenteEm,
+      aceitoEm: row.aceitoEm,
       stageName: null,
       ownerName: null,
       imovelId: row.imovelId,
@@ -214,6 +218,37 @@ export class PrismaCardRepository implements ICardRepository {
 
   async updateStageAndPosition(id: string, stageId: string, position: number): Promise<void> {
     await this.prisma.card.update({ where: { id }, data: { stageId, position } });
+  }
+
+  async markAtribuidoAutomaticamente(id: string, when: Date): Promise<void> {
+    await this.prisma.card.update({
+      where: { id },
+      data: { atribuidoAutomaticamenteEm: when, aceitoEm: null },
+    });
+  }
+
+  async aceitarLead(id: string, when: Date): Promise<CardRecord> {
+    const row = await this.prisma.card.update({ where: { id }, data: { aceitoEm: when } });
+    return this.toRecord(row);
+  }
+
+  async reassignOwnerAfterTimeout(id: string, newOwnerId: string, when: Date): Promise<CardRecord> {
+    const row = await this.prisma.card.update({
+      where: { id },
+      data: { ownerId: newOwnerId, atribuidoAutomaticamenteEm: when, aceitoEm: null },
+    });
+    return this.toRecord(row);
+  }
+
+  async clearAtribuidoAutomaticamente(id: string): Promise<void> {
+    await this.prisma.card.update({ where: { id }, data: { atribuidoAutomaticamenteEm: null } });
+  }
+
+  async findPendentesDeAceite(): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: { atribuidoAutomaticamenteEm: { not: null }, aceitoEm: null },
+    });
+    return rows.map((row) => this.toRecord(row));
   }
 
   async assignOwnerAndStage(

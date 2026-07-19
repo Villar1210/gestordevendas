@@ -1,8 +1,9 @@
 // src/features/kanban/components/KanbanCard.tsx
-import { MouseEvent } from "react";
+import { MouseEvent, useState } from "react";
 import { Draggable } from "@hello-pangea/dnd";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Clock } from "lucide-react";
 import { Card, useKanbanStore } from "../store/useKanbanStore";
+import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -42,17 +43,36 @@ interface KanbanCardProps {
 export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
   const openCardDetailPanel = useKanbanStore((state) => state.openCardDetailPanel);
   const isHighlighted = useKanbanStore((state) => state.highlightedCardId === card.id);
+  const meuUserId = useKanbanStore((state) => state.meuUserId);
+  const { handleAceitarLead } = useKanbanIntegration();
+  const [isAceitando, setAceitando] = useState(false);
 
   const origemStyle = ORIGEM_STYLES[card.origem] ?? ORIGEM_STYLES.manual;
   const origemLabel = ORIGEM_LABELS[card.origem] ?? card.origem;
   const temperaturaStyle = card.temperatura ? TEMPERATURA_STYLES[card.temperatura] : null;
   const temperaturaLabel = card.temperatura ? TEMPERATURA_LABELS[card.temperatura] : null;
+  // Timeout de aceite da Roleta Online (modo automatico) - ver
+  // features/roleta. So mostra o botao para quem e o dono atual (o
+  // Administrador tambem pode aceitar via API, mas sem botao dedicado
+  // aqui - ver CLAUDE.md).
+  const aguardandoAceite = Boolean(card.atribuidoAutomaticamenteEm) && !card.aceitoEm;
+  const podeAceitar = aguardandoAceite && card.ownerId === meuUserId;
 
   function handleWhatsAppClick(e: MouseEvent) {
     e.stopPropagation();
     if (!card.phone) return;
     const digitsOnly = card.phone.replace(/\D/g, "");
     window.open(`https://wa.me/${digitsOnly}`, "_blank");
+  }
+
+  async function handleAceitarClick(e: MouseEvent) {
+    e.stopPropagation();
+    setAceitando(true);
+    try {
+      await handleAceitarLead(card.id);
+    } finally {
+      setAceitando(false);
+    }
   }
 
   return (
@@ -79,11 +99,26 @@ export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
                 {temperaturaLabel}
               </span>
             )}
+            {aguardandoAceite && (
+              <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                <Clock className="h-3 w-3" /> Aguardando aceite
+              </span>
+            )}
           </div>
 
           <span className="text-sm font-semibold text-slate-800">
             {currencyFormatter.format(card.value)}
           </span>
+
+          {podeAceitar && (
+            <button
+              onClick={handleAceitarClick}
+              disabled={isAceitando}
+              className="mt-2 w-full rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+            >
+              {isAceitando ? "Aceitando..." : "Aceitar Lead"}
+            </button>
+          )}
 
           {card.phone && (
             <div className="mt-2 border-t border-slate-100 pt-2">

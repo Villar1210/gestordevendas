@@ -14,6 +14,7 @@ interface UpdateRoletaConfigInput {
   algoritmo?: string;
   modo?: string;
   ativa?: boolean;
+  timeoutAceiteMinutos?: number;
 }
 
 @Injectable()
@@ -38,11 +39,21 @@ export class UpdateRoletaConfigUseCase {
       throw new BadRequestException(`Modo invalido. Use um destes: ${VALID_MODOS.join(', ')}.`);
     }
 
+    if (
+      input.timeoutAceiteMinutos !== undefined &&
+      (!Number.isInteger(input.timeoutAceiteMinutos) ||
+        input.timeoutAceiteMinutos < 1 ||
+        input.timeoutAceiteMinutos > 120)
+    ) {
+      throw new BadRequestException('Tempo para aceite precisa ser um numero inteiro entre 1 e 120 minutos.');
+    }
+
     return this.roletaConfigRepository.upsert({
       tenantId: input.tenantId,
       algoritmo: input.algoritmo,
       modo: input.modo,
       ativa: input.ativa,
+      timeoutAceiteMinutos: input.timeoutAceiteMinutos,
     });
   }
 }

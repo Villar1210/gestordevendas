@@ -95,10 +95,36 @@ export function RoletaConfigCard() {
           </select>
           <p className="mt-1 text-xs text-slate-400">
             {config.modo === "automatico"
-              ? "Atribui o lead direto ao corretor escolhido, sem precisar de confirmacao."
+              ? "Atribui o lead direto ao corretor escolhido, com uma janela de tempo para aceitar (ver ao lado)."
               : "So sugere o corretor na Caixa de Entrada - alguem precisa confirmar antes de virar dono."}
           </p>
         </div>
+
+        {config.modo === "automatico" && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-600">
+              Tempo para aceite (minutos)
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={120}
+              value={config.timeoutAceiteMinutos}
+              onChange={(e) => {
+                const parsed = Number(e.target.value);
+                if (!Number.isNaN(parsed)) {
+                  handleUpdateConfig({ timeoutAceiteMinutos: parsed });
+                }
+              }}
+              disabled={isSaving}
+              className={selectClass}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Se o corretor nao clicar em &quot;Aceitar Lead&quot; dentro desse prazo, o lead e
+              reatribuido automaticamente ao proximo corretor online.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

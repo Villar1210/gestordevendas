@@ -7,7 +7,10 @@ import { GetRoletaConfigUseCase } from './application/use-cases/get-roleta-confi
 import { UpdateRoletaConfigUseCase } from './application/use-cases/update-roleta-config.use-case';
 import { DistributeLeadUseCase } from './application/use-cases/distribute-lead.use-case';
 import { ConfirmSuggestedOwnerUseCase } from './application/use-cases/confirm-suggested-owner.use-case';
+import { AceitarLeadUseCase } from './application/use-cases/aceitar-lead.use-case';
+import { ProcessRoletaTimeoutsUseCase } from './application/use-cases/process-roleta-timeouts.use-case';
 import { CardSemDonoCriadoListener } from './infra/listeners/card-sem-dono-criado.listener';
+import { RoletaTimeoutScheduler } from './infra/scheduler/roleta-timeout.scheduler';
 import { PrismaRoletaConfigRepository } from './infra/database/prisma-roleta-config.repository';
 import { PrismaService } from '../../config/prisma.service';
 
@@ -26,7 +29,10 @@ import { PrismaService } from '../../config/prisma.service';
     UpdateRoletaConfigUseCase,
     DistributeLeadUseCase,
     ConfirmSuggestedOwnerUseCase,
+    AceitarLeadUseCase,
+    ProcessRoletaTimeoutsUseCase,
     CardSemDonoCriadoListener,
+    RoletaTimeoutScheduler,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IRoletaConfigRepository', useClass: PrismaRoletaConfigRepository },

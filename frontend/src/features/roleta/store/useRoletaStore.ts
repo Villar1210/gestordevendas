@@ -7,6 +7,7 @@ export interface RoletaConfig {
   modo: string;
   ativa: boolean;
   ultimoCorretorId: string | null;
+  timeoutAceiteMinutos: number;
   updatedAt: string;
 }
 

@@ -21,6 +21,7 @@ interface Pipeline {
 }
 
 interface Me {
+  id: string;
   role: string;
   cargoHierarquico: string | null;
 }
@@ -37,6 +38,7 @@ export default function KanbanDashboardPage() {
   const setPodeExcluirRegistroDeNegocio = useKanbanStore(
     (state) => state.setPodeExcluirRegistroDeNegocio,
   );
+  const setMeuUserId = useKanbanStore((state) => state.setMeuUserId);
   const openCardDetailPanel = useKanbanStore((state) => state.openCardDetailPanel);
   const setHighlightedCardId = useKanbanStore((state) => state.setHighlightedCardId);
   const { loadBoard, handleCreatePipeline } = useKanbanIntegration();
@@ -101,6 +103,7 @@ export default function KanbanDashboardPage() {
     apiRequest<Me>("/auth/me")
       .then((me) => {
         setPodeExcluirRegistroDeNegocio(podeExcluirRegistroDeNegocio(me.role, me.cargoHierarquico));
+        setMeuUserId(me.id);
       })
       .catch(() => {});
 

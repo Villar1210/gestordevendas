@@ -8,6 +8,8 @@ export interface RoletaConfigRecord {
   modo: string;
   ativa: boolean;
   ultimoCorretorId: string | null;
+  // So se aplica ao modo "automatico" - ver ProcessRoletaTimeoutsUseCase.
+  timeoutAceiteMinutos: number;
   updatedAt: Date;
 }
 
@@ -21,6 +23,7 @@ export interface IRoletaConfigRepository {
     algoritmo?: string;
     modo?: string;
     ativa?: boolean;
+    timeoutAceiteMinutos?: number;
   }): Promise<RoletaConfigRecord>;
   updateUltimoCorretor(tenantId: string, corretorId: string): Promise<void>;
 }

@@ -7,6 +7,7 @@ export interface UpdateRoletaConfigInput {
   algoritmo?: string;
   modo?: string;
   ativa?: boolean;
+  timeoutAceiteMinutos?: number;
 }
 
 export function useRoletaIntegration() {

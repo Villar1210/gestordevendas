@@ -350,6 +350,22 @@ export function useKanbanIntegration() {
     [addCard],
   );
 
+  const handleAceitarLead = useCallback(
+    async (cardId: string) => {
+      try {
+        const card = await apiRequest<Card>(`/cards/${cardId}/aceitar-lead`, {
+          method: "POST",
+        });
+        updateCardInPlace(card);
+        return card;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel aceitar o lead.");
+        return null;
+      }
+    },
+    [updateCardInPlace],
+  );
+
   return {
     loadBoard,
     handleMoveCard,
@@ -370,5 +386,6 @@ export function useKanbanIntegration() {
     handleGetInbox,
     handleClaimCard,
     handleConfirmSuggestion,
+    handleAceitarLead,
   };
 }

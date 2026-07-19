@@ -12,6 +12,10 @@ export interface CardRecord {
   // consulta que a Caixa de Entrada usa (findAllByPipelineInbox).
   suggestedOwnerId: string | null;
   suggestedOwnerName: string | null;
+  // Timeout de aceite da Roleta Online (modo automatico) - ver modulo
+  // roleta_online, ProcessRoletaTimeoutsUseCase.
+  atribuidoAutomaticamenteEm: Date | null;
+  aceitoEm: Date | null;
   // So preenchidos pela consulta do Portal do Cliente (findAllByTenantAndEmail).
   stageName: string | null;
   ownerName: string | null;
@@ -91,6 +95,26 @@ export interface ICardRepository {
     ownerId: string;
     stageIds: string[];
   }): Promise<number>;
+  // Timeout de aceite da Roleta Online (modo automatico) - ver modulo
+  // roleta_online. Chamado logo apos o ClaimCardUseCase, no momento da
+  // atribuicao automatica: inicia a janela de aceite (limpa aceitoEm).
+  markAtribuidoAutomaticamente(id: string, when: Date): Promise<void>;
+  // Corretor clica em "Aceitar Lead" - so grava aceitoEm, nao mexe em
+  // ownerId/stageId (ja atribuidos desde a distribuicao automatica).
+  aceitarLead(id: string, when: Date): Promise<CardRecord>;
+  // Reatribui o dono apos o timeout de aceite vencer, reiniciando a janela
+  // de aceite para o novo corretor (mesmo efeito de markAtribuidoAutomaticamente,
+  // + troca de ownerId, numa unica operacao).
+  reassignOwnerAfterTimeout(id: string, newOwnerId: string, when: Date): Promise<CardRecord>;
+  // Nao havia mais ninguem online para reatribuir - para de rastrear o
+  // timeout deste card (fica com o dono atual, sem nova tentativa).
+  clearAtribuidoAutomaticamente(id: string): Promise<void>;
+  // Usado pelo job de timeout (ProcessRoletaTimeoutsUseCase) - consulta
+  // CROSS-TENANT deliberada (job de sistema, nao uma requisicao de um
+  // tenant especifico - mesma excecao documentada em ListTenantsUseCase do
+  // modulo super_usuario): todo card com atribuicao automatica pendente de
+  // aceite, de qualquer tenant.
+  findPendentesDeAceite(): Promise<CardRecord[]>;
   update(
     id: string,
     input: {

@@ -12,6 +12,7 @@ import { IRoleRepository } from '../../../rh/domain/repositories/role-repository
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { ClaimCardUseCase } from '../../../vendas_kanban/application/use-cases/claim-card.use-case';
+import { pickByRoundRobin, pickByMenorFila } from '../../domain/services/pick-corretor';
 
 const CORRETOR_ROLE_NAME = 'Corretor';
 // Stage terminal do pipeline padrao - cards nela nao contam como "fila
@@ -63,9 +64,9 @@ export class DistributeLeadUseCase {
 
     let chosen: CorretorRecord;
     if (config.algoritmo === 'menor_fila') {
-      chosen = await this.pickByMenorFila(onlineCorretores, input.tenantId, input.pipelineId);
+      chosen = await this.escolherPorMenorFila(onlineCorretores, input.tenantId, input.pipelineId);
     } else {
-      chosen = this.pickByRoundRobin(onlineCorretores, config.ultimoCorretorId);
+      chosen = pickByRoundRobin(onlineCorretores, config.ultimoCorretorId);
       await this.roletaConfigRepository.updateUltimoCorretor(input.tenantId, chosen.id);
     }
 
@@ -75,7 +76,13 @@ export class DistributeLeadUseCase {
         tenantId: input.tenantId,
         userId: chosen.id,
       });
-      this.logger.log(`Lead ${input.cardId} atribuido automaticamente a ${chosen.id}.`);
+      // Marca o momento da atribuicao automatica - inicia a janela de
+      // timeout de aceite (ver ProcessRoletaTimeoutsUseCase). Card so
+      // vira dono "definitivo" quando o proprio corretor clicar em
+      // "Aceitar Lead" (AceitarLeadUseCase) ou, se ninguem aceitar a
+      // tempo, e reatribuido ao proximo da fila.
+      await this.cardRepository.markAtribuidoAutomaticamente(input.cardId, new Date());
+      this.logger.log(`Lead ${input.cardId} atribuido automaticamente a ${chosen.id} (aguardando aceite).`);
       // Notifica o corretor que recebeu o lead (modulo notificacoes, ver
       // LeadAtribuidoListener) - emit() nao aguarda o listener, mesmo
       // padrao ja usado por CreateQuickCardUseCase para 'card.sem_dono.criado'.
@@ -90,23 +97,9 @@ export class DistributeLeadUseCase {
     }
   }
 
-  private pickByRoundRobin(
-    onlineCorretores: CorretorRecord[],
-    ultimoCorretorId: string | null,
-  ): CorretorRecord {
-    const sorted = [...onlineCorretores].sort((a, b) => a.id.localeCompare(b.id));
-    if (!ultimoCorretorId) {
-      return sorted[0];
-    }
-    const lastIndex = sorted.findIndex((corretor) => corretor.id === ultimoCorretorId);
-    // ultimoCorretorId nao esta mais online (ou nunca existiu) - recomeca do primeiro.
-    if (lastIndex === -1) {
-      return sorted[0];
-    }
-    return sorted[(lastIndex + 1) % sorted.length];
-  }
-
-  private async pickByMenorFila(
+  // Busca as contagens de fila (depende de repositorio) e delega a escolha
+  // em si para a funcao pura pickByMenorFila (domain/services/pick-corretor.ts).
+  private async escolherPorMenorFila(
     onlineCorretores: CorretorRecord[],
     tenantId: string,
     pipelineId: string,
@@ -127,7 +120,6 @@ export class DistributeLeadUseCase {
       })),
     );
 
-    withCounts.sort((a, b) => a.count - b.count);
-    return withCounts[0].corretor;
+    return pickByMenorFila(withCounts);
   }
 }

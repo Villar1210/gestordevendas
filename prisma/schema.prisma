@@ -570,6 +570,17 @@ model Card {
   // para assumir o lead, ainda sem confirmacao (ownerId continua nulo ate
   // ConfirmSuggestedOwnerUseCase ser chamado). Ver modulo roleta_online.
   suggestedOwnerId String? @map("suggested_owner_id") @db.Uuid
+  // Timeout de aceite da Roleta Online (modo automatico, ver
+  // roleta_online/domain/services/pick-corretor.ts e
+  // ProcessRoletaTimeoutsUseCase): preenchido no momento da atribuicao
+  // automatica, limpo quando aceito ou quando reatribuido para outro
+  // corretor. NULL = card nao passou pelo modo automatico da Roleta (claim
+  // manual, semi_automatico, ou ja aceito/reatribuido sem mais ninguem
+  // online para reatribuir - ver clearAtribuidoAutomaticamente).
+  atribuidoAutomaticamenteEm DateTime? @map("atribuido_automaticamente_em")
+  // Preenchido quando o proprio corretor clica em "Aceitar Lead" - so tem
+  // sentido junto com atribuidoAutomaticamenteEm preenchido.
+  aceitoEm     DateTime? @map("aceito_em")
   imovelId     String?  @map("imovel_id") @db.Uuid
   title        String   @db.VarChar(200)
   value        Decimal  @default(0) @db.Decimal(12, 2)
@@ -859,6 +870,10 @@ model RoletaConfig {
   modo             String   @default("semi_automatico") @db.VarChar(20) // "automatico" ou "semi_automatico"
   ativa            Boolean  @default(false)
   ultimoCorretorId String?  @map("ultimo_corretor_id") @db.Uuid
+  // So se aplica ao modo "automatico" - quantos minutos o corretor tem
+  // para clicar em "Aceitar Lead" antes do card ser reatribuido ao
+  // proximo da fila (ver ProcessRoletaTimeoutsUseCase).
+  timeoutAceiteMinutos Int   @default(5) @map("timeout_aceite_minutos")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

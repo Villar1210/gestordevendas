@@ -10,6 +10,11 @@ export interface Card {
   // pelo GET da Caixa de Entrada. suggestedOwnerName vem junto so ali.
   suggestedOwnerId: string | null;
   suggestedOwnerName: string | null;
+  // Timeout de aceite da Roleta Online (modo automatico) - ver
+  // features/roleta. Null = card nao passou por atribuicao automatica (ou
+  // ja foi aceito/reatribuido).
+  atribuidoAutomaticamenteEm: string | null;
+  aceitoEm: string | null;
   title: string;
   value: number;
   position: number;
@@ -63,6 +68,10 @@ interface KanbanState {
   // /auth/me carregar, pra nao esconder o botao por engano num piscar de
   // olhos antes do fetch resolver.
   podeExcluirRegistroDeNegocio: boolean;
+  // Id do usuario logado - usado so para o botao "Aceitar Lead" (Roleta
+  // Online, timeout de aceite) saber se o card pertence a quem esta vendo
+  // o Kanban agora. Null ate /auth/me resolver.
+  meuUserId: string | null;
 
   searchTerm: string;
   temperatureFilter: TemperatureFilter;
@@ -84,6 +93,7 @@ interface KanbanState {
   setLoading: (isLoading: boolean) => void;
   setActiveView: (view: KanbanView) => void;
   setPodeExcluirRegistroDeNegocio: (podeExcluir: boolean) => void;
+  setMeuUserId: (userId: string | null) => void;
 
   setSearchTerm: (term: string) => void;
   setTemperatureFilter: (filter: TemperatureFilter) => void;
@@ -136,6 +146,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   isLoading: false,
   activeView: "kanban",
   podeExcluirRegistroDeNegocio: true,
+  meuUserId: null,
 
   searchTerm: "",
   temperatureFilter: "all",
@@ -154,6 +165,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   setActiveView: (activeView) => set({ activeView }),
   setPodeExcluirRegistroDeNegocio: (podeExcluirRegistroDeNegocio) =>
     set({ podeExcluirRegistroDeNegocio }),
+  setMeuUserId: (meuUserId) => set({ meuUserId }),
 
   setSearchTerm: (term) => set({ searchTerm: term }),
   setTemperatureFilter: (filter) => set({ temperatureFilter: filter }),

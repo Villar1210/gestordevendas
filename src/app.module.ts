@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './modules/auth/auth.module';
@@ -26,6 +27,9 @@ import { PrismaService } from './config/prisma.service';
     // Desacopla whatsappmarketing e vivi_sdr: o provider so emite o evento
     // 'whatsapp.message.received', sem conhecer quem escuta (ver CLAUDE.md).
     EventEmitterModule.forRoot(),
+    // Unico job agendado do projeto ate hoje (timeout de aceite da Roleta
+    // Online - ver roleta_online/infra/scheduler/roleta-timeout.scheduler.ts).
+    ScheduleModule.forRoot(),
     // Rate limiting global (100 req/min por IP). O login (POST /auth/login)
     // sobrescreve esse limite para 5/15min via @Throttle na propria rota -
     // um so throttler nomeado "default", nao dois, para o override por

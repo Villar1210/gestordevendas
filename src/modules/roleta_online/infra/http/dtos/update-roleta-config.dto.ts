@@ -1,5 +1,5 @@
 // src/modules/roleta_online/infra/http/dtos/update-roleta-config.dto.ts
-import { IsBoolean, IsIn, IsOptional } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class UpdateRoletaConfigDto {
   @IsOptional()
@@ -17,4 +17,10 @@ export class UpdateRoletaConfigDto {
   @IsOptional()
   @IsBoolean()
   ativa?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120)
+  timeoutAceiteMinutos?: number;
 }
