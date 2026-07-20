@@ -78,6 +78,9 @@ model Tenant {
   // VIVI - busca de empreendimento por endereco (ver modulo vivi_sdr).
   enderecoBuscaLogs EnderecoBuscaLog[]
 
+  // Motor de campanha de Repique (ver ProcessarCampanhaRepiqueUseCase).
+  repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
+
   @@map("tenants")
 }
 
@@ -609,6 +612,13 @@ model Card {
   // qualquer edicao do card (nota, atividade, etc.), nao so ao mudar de
   // stage - decisao confirmada antes de implementar o job de Repique.
   movidoParaRepiqueEm DateTime? @map("movido_para_repique_em")
+  // Motor de campanha de Repique (ver ProcessarCampanhaRepiqueUseCase) -
+  // opt-out obrigatorio (LGPD). repiqueOptOutToken e gerado sob demanda,
+  // no primeiro envio de campanha (nao na criacao do card) - fica nulo
+  // ate la. Unico (@unique) porque e usado para localizar o card a partir
+  // do link publico de descadastro, sem precisar de tenantId/autenticacao.
+  repiqueOptOut       Boolean  @default(false) @map("repique_opt_out")
+  repiqueOptOutToken  String?  @unique @map("repique_opt_out_token") @db.VarChar(64)
   // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
   // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
   // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas
@@ -627,8 +637,33 @@ model Card {
   activities        Activity[]
   notes             Note[]
   viviConversations ViviConversation[]
+  repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
 
   @@map("cards")
+}
+
+// Motor de campanha de remarketing escalonada do Repique - 1 registro por
+// TENTATIVA de envio (inclusive falhas, ex: e-mail nao cadastrado, sessao
+// WhatsApp desconectada), usado pelo job (ProcessarCampanhaRepiqueUseCase)
+// para decidir o proximo canal (alterna EMAIL/WHATSAPP a partir do ultimo
+// registro) e o intervalo minimo de 2 dias entre envios.
+model RepiqueCampanhaEnvio {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  cardId               String   @map("card_id") @db.Uuid
+  canal                String   @db.VarChar(20) // "WHATSAPP" ou "EMAIL" (ver shared/domain/enums/canal.enum.ts)
+  enviadoEm            DateTime @default(now()) @map("enviado_em")
+  // Snapshot do Card.motivoRepique NO MOMENTO deste envio - preserva o
+  // motivo mesmo se o card for editado/movido depois, para analise
+  // historica de qual motivo gerou qual campanha.
+  motivoRepiqueNoEnvio String?  @map("motivo_repique_no_envio") @db.VarChar(30)
+  sucesso              Boolean
+  erroMensagem         String?  @map("erro_mensagem") @db.Text
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@map("repique_campanha_envios")
 }
 
 // Um empreendimento imobiliario (ex: um condominio) que agrupa varias

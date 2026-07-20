@@ -29,6 +29,7 @@ import {
   BuscaEmpreendimentoResultado,
 } from '../../../gestao_imobiliaria/application/use-cases/buscar-empreendimento-por-endereco.use-case';
 import { IEnderecoBuscaLogRepository } from '../../domain/repositories/endereco-busca-log-repository.interface';
+import { ehPedidoDeOptOut } from '../../../vendas_kanban/domain/services/repique-optout-detector';
 
 // Nome fixo da coluna de deposito estrategico de leads sem perfil de renda
 // para nenhuma faixa de financiamento hoje - ver
@@ -129,6 +130,34 @@ export class ProcessIncomingMessageUseCase {
     const viviConfig = await this.getOrCreateViviConfigUseCase.execute({ tenantId: input.tenantId });
 
     const { history, remoteJid } = await this.buildHistory(input);
+
+    // Guarda 3: pedido de descadastro (opt-out, LGPD) de uma campanha de
+    // Repique ativa - verificado ANTES de qualquer outro fluxo da VIVI
+    // (nem chama a IA). So se aplica a numeros com card ATIVO na stage
+    // "Repique" e ainda nao descadastrado - mensagens de leads em
+    // qualificacao normal nao passam por aqui. Deteccao por palavra-chave
+    // (nao pela IA) de proposito - decisao de compliance precisa ser
+    // deterministica, ver domain/services/repique-optout-detector.ts.
+    if (input.phoneNumber) {
+      const repiqueCard = await this.cardRepository.findRepiqueCardByTenantAndPhone(
+        input.tenantId,
+        input.phoneNumber,
+      );
+      if (repiqueCard && !repiqueCard.repiqueOptOut && ehPedidoDeOptOut(input.messageBody)) {
+        await this.cardRepository.markRepiqueOptOut(repiqueCard.id);
+        this.logger.log(
+          `[VIVI] Opt-out de campanha de Repique confirmado para ${input.phoneNumber} (card ${repiqueCard.id}).`,
+        );
+        await this.sendWhatsAppMessageUseCase.execute({
+          sessionId: input.sessionId,
+          tenantId: input.tenantId,
+          to: remoteJid ?? input.phoneNumber,
+          body: 'Combinado! Você não vai mais receber nossas mensagens de remarketing. Se mudar de ideia, é só chamar por aqui.',
+        });
+        return;
+      }
+    }
+
     // Sem isso, o modelo nao sabe a data de hoje e pode chutar o ano errado
     // ao interpretar uma data relativa/sem ano dita pelo lead (ex: "dia 17/07"
     // virou 2024 num teste real da Fatia 1 de agendar_visita).

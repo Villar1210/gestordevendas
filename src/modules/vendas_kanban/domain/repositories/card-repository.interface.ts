@@ -20,6 +20,10 @@ export interface CardRecord {
   // domain/services/motivo-repique.ts e MoverLeadsInativosParaRepiqueUseCase.
   motivoRepique: string | null;
   movidoParaRepiqueEm: Date | null;
+  // Motor de campanha de Repique (LGPD) - ver
+  // domain/services/repique-optout-detector.ts e ProcessarCampanhaRepiqueUseCase.
+  repiqueOptOut: boolean;
+  repiqueOptOutToken: string | null;
   // So preenchidos pela consulta do Portal do Cliente (findAllByTenantAndEmail).
   stageName: string | null;
   ownerName: string | null;
@@ -138,6 +142,22 @@ export interface ICardRepository {
   // "antesDe" e que NAO estao em Fechamento nem ja em Repique (Caixa de
   // Entrada, stageId nulo, tambem e elegivel).
   findElegiveisParaRepiqueJob(antesDe: Date): Promise<CardRecord[]>;
+  // Usado pelo job de campanha (ProcessarCampanhaRepiqueUseCase) - consulta
+  // CROSS-TENANT deliberada (mesmo padrao de findPendentesDeAceite/
+  // findElegiveisParaRepiqueJob acima): todo card atualmente na stage
+  // "Repique", de qualquer tenant, que ainda nao pediu descadastro.
+  findElegiveisParaCampanhaRepique(): Promise<CardRecord[]>;
+  // Usado pela VIVI (ProcessIncomingMessageUseCase) para checar, ANTES de
+  // continuar qualquer fluxo normal, se a mensagem recebida e de um
+  // numero com card ativo na stage "Repique" - so assim faz sentido
+  // checar pedido de opt-out.
+  findRepiqueCardByTenantAndPhone(tenantId: string, phone: string): Promise<CardRecord | null>;
+  // Usado pelo endpoint publico de descadastro (GET /public/repique/descadastro/:token).
+  findByRepiqueOptOutToken(token: string): Promise<CardRecord | null>;
+  markRepiqueOptOut(id: string): Promise<void>;
+  // Gerado sob demanda no primeiro envio de campanha (ver
+  // ProcessarCampanhaRepiqueUseCase) - nao na criacao do card.
+  setRepiqueOptOutToken(id: string, token: string): Promise<void>;
   update(
     id: string,
     input: {

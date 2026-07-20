@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { PipelineController } from './infra/http/pipeline.controller';
 import { CardController } from './infra/http/card.controller';
+import { RepiqueDescadastroPublicController } from './infra/http/repique-descadastro-public.controller';
 import { CreatePipelineUseCase } from './application/use-cases/create-pipeline.use-case';
 import { CreateDefaultPipelineUseCase } from './application/use-cases/create-default-pipeline.use-case';
 import { ListPipelinesUseCase } from './application/use-cases/list-pipelines.use-case';
@@ -24,16 +25,21 @@ import { GetInboxUseCase } from './application/use-cases/get-inbox.use-case';
 import { ClaimCardUseCase } from './application/use-cases/claim-card.use-case';
 import { GetMeuDashboardUseCase } from './application/use-cases/get-meu-dashboard.use-case';
 import { MoverLeadsInativosParaRepiqueUseCase } from './application/use-cases/mover-leads-inativos-para-repique.use-case';
+import { ProcessarCampanhaRepiqueUseCase } from './application/use-cases/processar-campanha-repique.use-case';
+import { OptOutRepiqueViaTokenUseCase } from './application/use-cases/optout-repique-via-token.use-case';
 import { PrismaPipelineRepository } from './infra/database/prisma-pipeline.repository';
 import { PrismaStageRepository } from './infra/database/prisma-stage.repository';
 import { PrismaCardRepository } from './infra/database/prisma-card.repository';
 import { PrismaActivityRepository } from './infra/database/prisma-activity.repository';
 import { PrismaNoteRepository } from './infra/database/prisma-note.repository';
+import { PrismaRepiqueCampanhaEnvioRepository } from './infra/database/prisma-repique-campanha-envio.repository';
 import { RepiqueInatividadeScheduler } from './infra/scheduler/repique-inatividade.scheduler';
+import { RepiqueCampanhaScheduler } from './infra/scheduler/repique-campanha.scheduler';
 import { PrismaService } from '../../config/prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { PlantaoModule } from '../plantao/plantao.module';
 import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing.module';
+import { CanaisModule } from '../../shared/canais.module';
 
 @Module({
   // AuthModule: GetSubordinadosRecursivosUseCase, usado por GetBoardUseCase
@@ -42,9 +48,13 @@ import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing
   // GetBoardUseCase para resolver o escopo "plantao" (Coordenador).
   // WhatsAppMarketingModule: IWhatsAppMessageRepository, usado pelo job de
   // inatividade do Repique (MoverLeadsInativosParaRepiqueUseCase) para
-  // verificar mensagens recentes antes de mover um card por inatividade.
-  imports: [AuthModule, PlantaoModule, WhatsAppMarketingModule],
-  controllers: [PipelineController, CardController],
+  // verificar mensagens recentes antes de mover um card por inatividade;
+  // IWhatsAppSessionRepository, usado pelo motor de campanha
+  // (ProcessarCampanhaRepiqueUseCase) para achar uma sessao conectada por
+  // tenant. CanaisModule: IMessageDispatcher, usado pelo mesmo motor de
+  // campanha para o envio efetivo (nunca chama providers diretamente).
+  imports: [AuthModule, PlantaoModule, WhatsAppMarketingModule, CanaisModule],
+  controllers: [PipelineController, CardController, RepiqueDescadastroPublicController],
   providers: [
     PrismaService,
     CreatePipelineUseCase,
@@ -70,6 +80,9 @@ import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing
     GetMeuDashboardUseCase,
     MoverLeadsInativosParaRepiqueUseCase,
     RepiqueInatividadeScheduler,
+    ProcessarCampanhaRepiqueUseCase,
+    OptOutRepiqueViaTokenUseCase,
+    RepiqueCampanhaScheduler,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IPipelineRepository', useClass: PrismaPipelineRepository },
@@ -77,6 +90,7 @@ import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing
     { provide: 'ICardRepository', useClass: PrismaCardRepository },
     { provide: 'IActivityRepository', useClass: PrismaActivityRepository },
     { provide: 'INoteRepository', useClass: PrismaNoteRepository },
+    { provide: 'IRepiqueCampanhaEnvioRepository', useClass: PrismaRepiqueCampanhaEnvioRepository },
   ],
   // Exportados para o modulo vivi_sdr: a VIVI cria o Card e a Note de
   // qualificacao reaproveitando os mesmos casos de uso do "+ Novo Negocio";

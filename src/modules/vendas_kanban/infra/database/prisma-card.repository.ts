@@ -7,7 +7,7 @@ import {
   ICardRepository,
   CardRecord,
 } from '../../domain/repositories/card-repository.interface';
-import { PROTECTED_STAGE_NAMES } from '../../domain/services/protected-stages';
+import { PROTECTED_STAGE_NAMES, REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
 
 type PrismaCardRow = {
   id: string;
@@ -20,6 +20,8 @@ type PrismaCardRow = {
   aceitoEm: Date | null;
   motivoRepique: string | null;
   movidoParaRepiqueEm: Date | null;
+  repiqueOptOut: boolean;
+  repiqueOptOutToken: string | null;
   imovelId: string | null;
   title: string;
   value: { toNumber(): number };
@@ -58,6 +60,8 @@ export class PrismaCardRepository implements ICardRepository {
       aceitoEm: row.aceitoEm,
       motivoRepique: row.motivoRepique,
       movidoParaRepiqueEm: row.movidoParaRepiqueEm,
+      repiqueOptOut: row.repiqueOptOut,
+      repiqueOptOutToken: row.repiqueOptOutToken,
       stageName: null,
       ownerName: null,
       imovelId: row.imovelId,
@@ -283,6 +287,33 @@ export class PrismaCardRepository implements ICardRepository {
       },
     });
     return rows.map((row) => this.toRecord(row));
+  }
+
+  async findElegiveisParaCampanhaRepique(): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: { stage: { name: REPIQUE_STAGE_NAME }, repiqueOptOut: false },
+    });
+    return rows.map((row) => this.toRecord(row));
+  }
+
+  async findRepiqueCardByTenantAndPhone(tenantId: string, phone: string): Promise<CardRecord | null> {
+    const row = await this.prisma.card.findFirst({
+      where: { tenantId, phone, stage: { name: REPIQUE_STAGE_NAME } },
+    });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async findByRepiqueOptOutToken(token: string): Promise<CardRecord | null> {
+    const row = await this.prisma.card.findUnique({ where: { repiqueOptOutToken: token } });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async markRepiqueOptOut(id: string): Promise<void> {
+    await this.prisma.card.update({ where: { id }, data: { repiqueOptOut: true } });
+  }
+
+  async setRepiqueOptOutToken(id: string, token: string): Promise<void> {
+    await this.prisma.card.update({ where: { id }, data: { repiqueOptOutToken: token } });
   }
 
   async assignOwnerAndStage(
