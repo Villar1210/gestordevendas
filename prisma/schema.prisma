@@ -81,6 +81,12 @@ model Tenant {
   // Motor de campanha de Repique (ver ProcessarCampanhaRepiqueUseCase).
   repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
 
+  // Modulo Redes Sociais (fatia 1 - so modelagem, ver comentario acima de
+  // SocialAccount).
+  socialAccounts    SocialAccount[]
+  socialPosts       SocialPost[]
+  socialMediaAssets SocialMediaAsset[]
+
   @@map("tenants")
 }
 
@@ -177,6 +183,10 @@ model User {
   atendimentosDono   Atendimento[]
   atendimentoEventos AtendimentoEvento[]
   notifications      Notification[]
+
+  // Modulo Redes Sociais (fatia 1 - so modelagem).
+  socialPostsAutoria      SocialPost[]       @relation("SocialPostAuthor")
+  socialMediaAssetsUpload SocialMediaAsset[] @relation("SocialMediaAssetUploader")
 
   // Modulo Super Usuario: presente so em usuarios com Role "Super
   // Usuario" (unico tenant "Plataforma", criado via seed manual - ver
@@ -1147,4 +1157,133 @@ model SignatureEvent {
   recipient SignatureRecipient? @relation(fields: [recipientId], references: [id], onDelete: SetNull)
 
   @@map("signature_events")
+}
+
+// ============================================================
+// Modulo Redes Sociais (agendamento e publicacao tipo mLabs/Zoho Social).
+// Fatia 1: so a modelagem Prisma + item de menu (placeholder) - sem
+// controllers, services de negocio ou adapters de plataforma ainda (ver
+// plano completo nas fatias futuras). "canal"/"leadSourceChannel" abaixo
+// reaproveitam o enum Canal (src/shared/domain/enums/canal.enum.ts, mesmo
+// usado pelo MessageDispatcherService e pelo Repique) em vez de duplicar
+// um enum de plataforma proprio - segue o padrao ja estabelecido no
+// projeto de guardar esses valores como String @db.VarChar, nao um enum
+// nativo do Prisma (nenhum model do schema usa "enum" nativo hoje).
+// ============================================================
+
+// Uma conta conectada (via OAuth futuro) em uma rede social especifica.
+// accessToken/refreshToken ficam em texto puro por enquanto - mesmo padrao
+// ja usado em SignatureRecipient.accessToken (sem criptografia em repouso
+// ate hoje neste projeto); reavaliar se for exigido antes da fatia de
+// conexao real via OAuth.
+model SocialAccount {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  canal          String    @db.VarChar(20) // Canal enum - hoje so INSTAGRAM/FACEBOOK/LINKEDIN/TIKTOK/YOUTUBE fazem sentido aqui
+  accountName    String    @map("account_name") @db.VarChar(150)
+  externalId     String?   @map("external_id") @db.VarChar(255) // id da pagina/perfil na plataforma
+  accessToken    String?   @map("access_token") @db.Text
+  refreshToken   String?   @map("refresh_token") @db.Text
+  tokenExpiresAt DateTime? @map("token_expires_at")
+  status         String    @default("DISCONNECTED") @db.VarChar(20) // CONNECTED, EXPIRED, ERROR, DISCONNECTED
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant  Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  targets SocialPostTarget[]
+
+  @@map("social_accounts")
+}
+
+// Um post (conteudo + midia), potencialmente publicado em varias contas/
+// plataformas ao mesmo tempo via SocialPostTarget (relacao N:N com
+// SocialAccount, mediada pelo target). mediaUrls usa array nativo do
+// Postgres (String[]) - primeiro uso desse recurso no projeto (os demais
+// campos "lista" existentes, ex: Imovel.tags, sao texto separado por
+// virgula) porque aqui o valor e sempre uma lista de URLs ja resolvidas,
+// sem necessidade de parsing textual.
+model SocialPost {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  authorId      String    @map("author_id") @db.Uuid
+  content       String    @db.Text
+  mediaUrls     String[]  @default([]) @map("media_urls")
+  scheduledAt   DateTime? @map("scheduled_at")
+  status        String    @default("DRAFT") @db.VarChar(20) // DRAFT, SCHEDULED, PUBLISHING, PUBLISHED, FAILED, PARTIAL
+  // Reservado para uma futura entidade de Campanha (nao criada nesta
+  // fatia) - sem relation() de proposito, so a coluna guardada desde ja
+  // para nao exigir outra migration quando essa entidade existir.
+  campaignId String? @map("campaign_id") @db.Uuid
+  // Reservado para a fatia futura de captacao de leads via comentario/DM
+  // do Instagram/Facebook (ver CLAUDE.md) - valores do enum Canal
+  // reaproveitado, nao um enum novo. Nulo e nao lido/escrito por nenhum
+  // codigo ainda nesta fatia.
+  leadSourceChannel String? @map("lead_source_channel") @db.VarChar(20)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  author  User               @relation("SocialPostAuthor", fields: [authorId], references: [id])
+  targets SocialPostTarget[]
+
+  @@map("social_posts")
+}
+
+// Uma publicacao de um SocialPost numa SocialAccount especifica - 1
+// registro por (post, conta), ja que o mesmo post pode ir para varias
+// contas/plataformas. Sem tenantId proprio - isolamento vem via
+// post.tenantId (mesmo padrao ja usado em SignatureField/SignatureEvent,
+// que tambem alcancam o tenant so pela cadeia de relacionamento).
+model SocialPostTarget {
+  id             String    @id @default(uuid()) @db.Uuid
+  postId         String    @map("post_id") @db.Uuid
+  socialAccountId String   @map("social_account_id") @db.Uuid
+  platformPostId String?   @map("platform_post_id") @db.VarChar(255) // id retornado pela plataforma apos publicar
+  status         String    @default("PENDING") @db.VarChar(20) // PENDING, PUBLISHED, FAILED
+  errorMessage   String?   @map("error_message") @db.Text
+  publishedAt    DateTime? @map("published_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  post          SocialPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount      @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  metrics       SocialPostMetric[]
+
+  @@map("social_post_targets")
+}
+
+// Uma coleta pontual de metricas de um SocialPostTarget - varios registros
+// ao longo do tempo por target (serie historica), nao um snapshot unico
+// sobrescrito. Sem tenantId proprio, mesmo raciocinio de SocialPostTarget.
+model SocialPostMetric {
+  id           String   @id @default(uuid()) @db.Uuid
+  postTargetId String   @map("post_target_id") @db.Uuid
+  likes        Int      @default(0)
+  comments     Int      @default(0)
+  shares       Int      @default(0)
+  reach        Int      @default(0)
+  impressions  Int      @default(0)
+  collectedAt  DateTime @default(now()) @map("collected_at")
+
+  postTarget SocialPostTarget @relation(fields: [postTargetId], references: [id], onDelete: Cascade)
+
+  @@map("social_post_metrics")
+}
+
+// Midia reutilizavel (biblioteca de imagens/videos) para compor posts -
+// independente de um SocialPost especifico (por isso sem postId), pode ser
+// referenciada por varios posts atraves de mediaUrls. uploadedBy segue o
+// mesmo padrao de FK opcional com onDelete: SetNull ja usado em Card.owner
+// (o registro da midia sobrevive a exclusao do usuario que fez upload).
+model SocialMediaAsset {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  url        String   @db.VarChar(500)
+  type       String   @db.VarChar(20) // image, video
+  uploadedBy String?  @map("uploaded_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploader User?  @relation("SocialMediaAssetUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@map("social_media_assets")
 }

@@ -13,6 +13,7 @@ import {
   Briefcase,
   FileSignature,
   Headset,
+  Share2,
   type LucideIcon,
 } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: MessageCircle, label: "WhatsApp", href: "/dashboard/whatsapp" },
   { icon: FileSignature, label: "E-doc", href: "/dashboard/edoc" },
   { icon: Headset, label: "Atendimento", href: "/dashboard/atendimento" },
+  { icon: Share2, label: "Redes Sociais", href: "/dashboard/redes-sociais" },
   { icon: Users, label: "Equipe", href: "/dashboard/equipe", requiredRole: "Administrador" },
   {
     icon: Briefcase,
