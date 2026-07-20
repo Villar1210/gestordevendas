@@ -230,3 +230,12 @@ contexto completo):
   `NotImplementedException` propositalmente ate terem um provedor real
   conectado - nao e bug, e o comportamento esperado ate uma fatia
   futura plugar cada um.
+
+## Divida tecnica conhecida - Drift no default de limite_faixa (VIVI)
+A migration 20260719010000_vivi_config_faixas_2026 atualizou os dados de
+limite_faixa1/2/3 para 3200/5000/9600, mas nao atualizou o DEFAULT da
+coluna correspondente no schema, que ficou com o valor antigo. Detectado
+pelo Prisma como drift ao gerar a migration da Fatia 1 do modulo de
+Redes Sociais (nao corrigido ali, para nao misturar com o escopo daquela
+fatia). Precisa de uma migration propria e isolada para corrigir o
+default, quando houver prioridade para isso.
