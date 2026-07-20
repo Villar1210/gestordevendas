@@ -104,12 +104,13 @@ export function useKanbanIntegration() {
       sourceStageId: string,
       targetStageId: string,
       targetIndex: number,
+      motivoRepique?: string,
     ) => {
       const rollback = moveCardOptimistic(cardId, sourceStageId, targetStageId, targetIndex);
       try {
         await apiRequest(`/cards/${cardId}/move`, {
           method: "PATCH",
-          body: JSON.stringify({ targetStageId, targetIndex }),
+          body: JSON.stringify({ targetStageId, targetIndex, motivoRepique }),
         });
       } catch (err) {
         rollback();

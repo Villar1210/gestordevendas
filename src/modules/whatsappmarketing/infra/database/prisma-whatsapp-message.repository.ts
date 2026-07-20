@@ -57,4 +57,19 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
       remoteJid: message.remoteJid,
     }));
   }
+
+  async findMostRecentByTenantAndPhone(
+    tenantId: string,
+    phoneNumber: string,
+  ): Promise<{ timestamp: Date } | null> {
+    const message = await this.prisma.whatsAppMessage.findFirst({
+      where: {
+        tenantId,
+        OR: [{ fromNumber: phoneNumber }, { toNumber: phoneNumber }],
+      },
+      orderBy: { timestamp: 'desc' },
+      select: { timestamp: true },
+    });
+    return message;
+  }
 }

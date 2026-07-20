@@ -23,21 +23,27 @@ import { CreateQuickCardUseCase } from './application/use-cases/create-quick-car
 import { GetInboxUseCase } from './application/use-cases/get-inbox.use-case';
 import { ClaimCardUseCase } from './application/use-cases/claim-card.use-case';
 import { GetMeuDashboardUseCase } from './application/use-cases/get-meu-dashboard.use-case';
+import { MoverLeadsInativosParaRepiqueUseCase } from './application/use-cases/mover-leads-inativos-para-repique.use-case';
 import { PrismaPipelineRepository } from './infra/database/prisma-pipeline.repository';
 import { PrismaStageRepository } from './infra/database/prisma-stage.repository';
 import { PrismaCardRepository } from './infra/database/prisma-card.repository';
 import { PrismaActivityRepository } from './infra/database/prisma-activity.repository';
 import { PrismaNoteRepository } from './infra/database/prisma-note.repository';
+import { RepiqueInatividadeScheduler } from './infra/scheduler/repique-inatividade.scheduler';
 import { PrismaService } from '../../config/prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { PlantaoModule } from '../plantao/plantao.module';
+import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing.module';
 
 @Module({
   // AuthModule: GetSubordinadosRecursivosUseCase, usado por GetBoardUseCase
   // para resolver o escopo "equipe" do RBAC por cargo hierarquico.
   // PlantaoModule: GetCorretoresEscaladosHojeUseCase, usado por
   // GetBoardUseCase para resolver o escopo "plantao" (Coordenador).
-  imports: [AuthModule, PlantaoModule],
+  // WhatsAppMarketingModule: IWhatsAppMessageRepository, usado pelo job de
+  // inatividade do Repique (MoverLeadsInativosParaRepiqueUseCase) para
+  // verificar mensagens recentes antes de mover um card por inatividade.
+  imports: [AuthModule, PlantaoModule, WhatsAppMarketingModule],
   controllers: [PipelineController, CardController],
   providers: [
     PrismaService,
@@ -62,6 +68,8 @@ import { PlantaoModule } from '../plantao/plantao.module';
     GetInboxUseCase,
     ClaimCardUseCase,
     GetMeuDashboardUseCase,
+    MoverLeadsInativosParaRepiqueUseCase,
+    RepiqueInatividadeScheduler,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IPipelineRepository', useClass: PrismaPipelineRepository },

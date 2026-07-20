@@ -24,6 +24,12 @@ interface CreateQuickCardInput {
   // Resumo automatico legivel pelo corretor sem abrir outra tela (ver
   // vivi_sdr/domain/services/build-resumo-atendimento.ts).
   description?: string;
+  // Preenchido pela VIVI quando motivo="sem_perfil" (ver
+  // ProcessIncomingMessageUseCase) - mesmo motivo ja usado pelo modal
+  // manual e pelo job de inatividade (domain/services/motivo-repique.ts).
+  // movidoParaRepiqueEm e derivado automaticamente (momento da criacao),
+  // nao precisa ser passado pelo chamador.
+  motivoRepique?: string;
 }
 
 @Injectable()
@@ -57,6 +63,8 @@ export class CreateQuickCardUseCase {
       description: input.description,
       customFields: input.customFields,
       position: 0,
+      motivoRepique: input.motivoRepique ?? null,
+      movidoParaRepiqueEm: input.motivoRepique ? new Date() : null,
     });
 
     // Dispara a Roleta Online (se estiver ativa) - emit() nao aguarda o

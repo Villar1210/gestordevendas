@@ -15,6 +15,10 @@ export interface Card {
   // ja foi aceito/reatribuido).
   atribuidoAutomaticamenteEm: string | null;
   aceitoEm: string | null;
+  // Motivo/data de entrada na stage "Repique" - ver
+  // features/kanban/constants.ts (MOTIVO_REPIQUE_OPTIONS).
+  motivoRepique: string | null;
+  movidoParaRepiqueEm: string | null;
   title: string;
   value: number;
   position: number;

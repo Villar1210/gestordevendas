@@ -8,6 +8,15 @@ import { useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
 import { KanbanColumn } from "./KanbanColumn";
 import { CardFormModal } from "./CardFormModal";
+import { MotivoRepiqueModal } from "./MotivoRepiqueModal";
+import { REPIQUE_STAGE_NAME } from "../constants";
+
+interface PendingRepiqueMove {
+  cardId: string;
+  sourceStageId: string;
+  targetStageId: string;
+  targetIndex: number;
+}
 
 export function KanbanBoard() {
   const stages = useKanbanStore((state) => state.stages);
@@ -16,6 +25,12 @@ export function KanbanBoard() {
 
   const [isAddingStage, setIsAddingStage] = useState(false);
   const [newStageName, setNewStageName] = useState("");
+  // Movimento pendente de confirmacao de motivo (drag para a stage
+  // "Repique") - so aplica no store/API depois que o modal confirma um
+  // motivo (ver MotivoRepiqueModal.tsx). Cancelar so limpa este estado
+  // sem tocar no store, entao o card volta visualmente pra posicao
+  // original (a ordem exibida vem sempre do proprio store).
+  const [pendingRepiqueMove, setPendingRepiqueMove] = useState<PendingRepiqueMove | null>(null);
 
   async function commitNewStage() {
     const name = newStageName.trim();
@@ -39,7 +54,32 @@ export function KanbanBoard() {
       return;
     }
 
+    const targetStage = stages.find((stage) => stage.id === destination.droppableId);
+    if (targetStage?.name === REPIQUE_STAGE_NAME) {
+      // Nao move ainda - abre o modal e so aplica a movimentacao real
+      // quando um motivo for confirmado (ver handleConfirmMotivoRepique).
+      setPendingRepiqueMove({
+        cardId: draggableId,
+        sourceStageId: source.droppableId,
+        targetStageId: destination.droppableId,
+        targetIndex: destination.index,
+      });
+      return;
+    }
+
     handleMoveCard(draggableId, source.droppableId, destination.droppableId, destination.index);
+  }
+
+  function handleConfirmMotivoRepique(motivo: string) {
+    if (!pendingRepiqueMove) return;
+    handleMoveCard(
+      pendingRepiqueMove.cardId,
+      pendingRepiqueMove.sourceStageId,
+      pendingRepiqueMove.targetStageId,
+      pendingRepiqueMove.targetIndex,
+      motivo,
+    );
+    setPendingRepiqueMove(null);
   }
 
   return (
@@ -101,6 +141,11 @@ export function KanbanBoard() {
         </Droppable>
       </DragDropContext>
       <CardFormModal />
+      <MotivoRepiqueModal
+        isOpen={pendingRepiqueMove !== null}
+        onConfirm={handleConfirmMotivoRepique}
+        onCancel={() => setPendingRepiqueMove(null)}
+      />
     </>
   );
 }

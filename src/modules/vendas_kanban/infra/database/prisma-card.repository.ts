@@ -7,6 +7,7 @@ import {
   ICardRepository,
   CardRecord,
 } from '../../domain/repositories/card-repository.interface';
+import { PROTECTED_STAGE_NAMES } from '../../domain/services/protected-stages';
 
 type PrismaCardRow = {
   id: string;
@@ -17,6 +18,8 @@ type PrismaCardRow = {
   suggestedOwnerId: string | null;
   atribuidoAutomaticamenteEm: Date | null;
   aceitoEm: Date | null;
+  motivoRepique: string | null;
+  movidoParaRepiqueEm: Date | null;
   imovelId: string | null;
   title: string;
   value: { toNumber(): number };
@@ -53,6 +56,8 @@ export class PrismaCardRepository implements ICardRepository {
       suggestedOwnerName: null,
       atribuidoAutomaticamenteEm: row.atribuidoAutomaticamenteEm,
       aceitoEm: row.aceitoEm,
+      motivoRepique: row.motivoRepique,
+      movidoParaRepiqueEm: row.movidoParaRepiqueEm,
       stageName: null,
       ownerName: null,
       imovelId: row.imovelId,
@@ -89,6 +94,8 @@ export class PrismaCardRepository implements ICardRepository {
     temperatura?: string | null;
     description?: string | null;
     customFields?: Record<string, unknown>;
+    motivoRepique?: string | null;
+    movidoParaRepiqueEm?: Date | null;
   }): Promise<CardRecord> {
     const row = await this.prisma.card.create({
       data: {
@@ -105,6 +112,8 @@ export class PrismaCardRepository implements ICardRepository {
         temperatura: input.temperatura ?? null,
         description: input.description ?? null,
         customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
+        motivoRepique: input.motivoRepique ?? null,
+        movidoParaRepiqueEm: input.movidoParaRepiqueEm ?? null,
       },
     });
     return this.toRecord(row);
@@ -216,8 +225,23 @@ export class PrismaCardRepository implements ICardRepository {
     });
   }
 
-  async updateStageAndPosition(id: string, stageId: string, position: number): Promise<void> {
-    await this.prisma.card.update({ where: { id }, data: { stageId, position } });
+  async updateStageAndPosition(
+    id: string,
+    stageId: string,
+    position: number,
+    extra?: { motivoRepique?: string; movidoParaRepiqueEm?: Date },
+  ): Promise<void> {
+    await this.prisma.card.update({
+      where: { id },
+      data: {
+        stageId,
+        position,
+        ...(extra?.motivoRepique !== undefined ? { motivoRepique: extra.motivoRepique } : {}),
+        ...(extra?.movidoParaRepiqueEm !== undefined
+          ? { movidoParaRepiqueEm: extra.movidoParaRepiqueEm }
+          : {}),
+      },
+    });
   }
 
   async markAtribuidoAutomaticamente(id: string, when: Date): Promise<void> {
@@ -247,6 +271,16 @@ export class PrismaCardRepository implements ICardRepository {
   async findPendentesDeAceite(): Promise<CardRecord[]> {
     const rows = await this.prisma.card.findMany({
       where: { atribuidoAutomaticamenteEm: { not: null }, aceitoEm: null },
+    });
+    return rows.map((row) => this.toRecord(row));
+  }
+
+  async findElegiveisParaRepiqueJob(antesDe: Date): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: {
+        updatedAt: { lt: antesDe },
+        OR: [{ stageId: null }, { stage: { name: { notIn: PROTECTED_STAGE_NAMES } } }],
+      },
     });
     return rows.map((row) => this.toRecord(row));
   }

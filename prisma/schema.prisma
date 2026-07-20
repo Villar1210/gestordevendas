@@ -597,6 +597,18 @@ model Card {
   complemento  String?  @db.VarChar(100)
   bairro       String?  @db.VarChar(100)
   cep          String?  @db.VarChar(10)
+  // Motivo de mover o card para a stage "Repique" (deposito de
+  // remarketing/reengajamento) - preenchido manualmente (modal obrigatorio
+  // no Kanban) ou automaticamente pelo job de inatividade de 90 dias (ver
+  // vendas_kanban/domain/services/motivo-repique.ts para os valores
+  // validos). Nulo para cards que nunca passaram por Repique - nao e
+  // limpo se o card sair de Repique depois, fica como registro historico.
+  motivoRepique String? @map("motivo_repique") @db.VarChar(30)
+  // Quando o card ENTROU na stage Repique (manual ou automatico) - NAO
+  // usar updatedAt como proxy disso, ja que updatedAt e bumpado por
+  // qualquer edicao do card (nota, atividade, etc.), nao so ao mudar de
+  // stage - decisao confirmada antes de implementar o job de Repique.
+  movidoParaRepiqueEm DateTime? @map("movido_para_repique_em")
   // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
   // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
   // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas

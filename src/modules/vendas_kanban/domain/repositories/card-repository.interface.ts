@@ -16,6 +16,10 @@ export interface CardRecord {
   // roleta_online, ProcessRoletaTimeoutsUseCase.
   atribuidoAutomaticamenteEm: Date | null;
   aceitoEm: Date | null;
+  // Motivo/data de entrada na stage "Repique" - ver
+  // domain/services/motivo-repique.ts e MoverLeadsInativosParaRepiqueUseCase.
+  motivoRepique: string | null;
+  movidoParaRepiqueEm: Date | null;
   // So preenchidos pela consulta do Portal do Cliente (findAllByTenantAndEmail).
   stageName: string | null;
   ownerName: string | null;
@@ -55,6 +59,12 @@ export interface ICardRepository {
     temperatura?: string | null;
     description?: string | null;
     customFields?: Record<string, unknown>;
+    // Preenchidos quando o card ja nasce na stage "Repique" (ver
+    // CreateQuickCardUseCase, usado pela VIVI para leads SEM_PERFIL) -
+    // mesmo padrao de motivo+data ja usado por MoveCardUseCase e
+    // MoverLeadsInativosParaRepiqueUseCase.
+    motivoRepique?: string | null;
+    movidoParaRepiqueEm?: Date | null;
   }): Promise<CardRecord>;
   findById(id: string): Promise<CardRecord | null>;
   findByIdAndTenant(id: string, tenantId: string): Promise<CardRecord | null>;
@@ -67,7 +77,14 @@ export interface ICardRepository {
   // CLAUDE.md sobre a limitacao dessa correspondencia (por valor, nao por
   // FK formal). Inclui stageName/ownerName via join.
   findAllByTenantAndEmail(tenantId: string, email: string): Promise<CardRecord[]>;
-  updateStageAndPosition(id: string, stageId: string, position: number): Promise<void>;
+  // extra e preenchido so quando o card entra na stage "Repique" (motivo +
+  // data de entrada) - ver MoveCardUseCase e MoverLeadsInativosParaRepiqueUseCase.
+  updateStageAndPosition(
+    id: string,
+    stageId: string,
+    position: number,
+    extra?: { motivoRepique?: string; movidoParaRepiqueEm?: Date },
+  ): Promise<void>;
   // Usado exclusivamente pelo fluxo de "assumir lead": atribui dono e
   // move da Caixa de Entrada para uma stage, em uma unica operacao.
   assignOwnerAndStage(
@@ -115,6 +132,12 @@ export interface ICardRepository {
   // modulo super_usuario): todo card com atribuicao automatica pendente de
   // aceite, de qualquer tenant.
   findPendentesDeAceite(): Promise<CardRecord[]>;
+  // Usado pelo job diario de inatividade (MoverLeadsInativosParaRepiqueUseCase)
+  // - consulta CROSS-TENANT deliberada (job de sistema, mesmo padrao de
+  // findPendentesDeAceite acima): cards com updatedAt anterior a
+  // "antesDe" e que NAO estao em Fechamento nem ja em Repique (Caixa de
+  // Entrada, stageId nulo, tambem e elegivel).
+  findElegiveisParaRepiqueJob(antesDe: Date): Promise<CardRecord[]>;
   update(
     id: string,
     input: {

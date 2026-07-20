@@ -9,6 +9,13 @@
 // bloquear essas duas, deixando as demais colunas livres.
 export const PROTECTED_STAGE_NAMES = ['Fechamento', 'Repique'];
 
+// Nomes individuais exportados para quem precisa referenciar uma stage
+// especifica (ex: MoveCardUseCase exigindo motivoRepique so ao mover PARA
+// Repique; MoverLeadsInativosParaRepiqueUseCase excluindo Fechamento/Repique
+// da varredura de inatividade) em vez de comparar contra o array inteiro.
+export const FECHAMENTO_STAGE_NAME = 'Fechamento';
+export const REPIQUE_STAGE_NAME = 'Repique';
+
 export function isProtectedStageName(name: string): boolean {
   return PROTECTED_STAGE_NAMES.includes(name);
 }

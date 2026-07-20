@@ -497,6 +497,11 @@ export class ProcessIncomingMessageUseCase {
       origem: motivo === 'sem_perfil' ? 'vivi_repique' : 'roleta_online',
       phone: input.phoneNumber,
       description: resumo,
+      // Mesmo motivo ja usado pelo modal manual e pelo job de inatividade
+      // de 90 dias (ver vendas_kanban/domain/services/motivo-repique.ts) -
+      // so quando o card ja nasce direto na stage "Repique" (stageId
+      // preenchido acima, motivo "sem_perfil").
+      motivoRepique: motivo === 'sem_perfil' ? 'SEM_PERFIL' : undefined,
     });
 
     await this.createNoteUseCase.execute({

@@ -1,7 +1,9 @@
 // src/modules/vendas_kanban/application/use-cases/move-card.use-case.ts
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
+import { REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
+import { MOTIVOS_REPIQUE, isMotivoRepiqueValido } from '../../domain/services/motivo-repique';
 
 const POSITION_STEP = 1000;
 
@@ -10,6 +12,12 @@ interface MoveCardInput {
   tenantId: string;
   targetStageId: string;
   targetIndex: number;
+  // Obrigatorio quando a stage de destino e "Repique" - ver
+  // domain/services/motivo-repique.ts. Defesa em profundidade: o frontend
+  // ja bloqueia isso via modal (ver MotivoRepiqueModal.tsx), mas o backend
+  // valida de novo, mesmo padrao ja usado em outras regras de negocio
+  // deste projeto (ex: AceitarLeadUseCase).
+  motivoRepique?: string;
 }
 
 @Injectable()
@@ -39,7 +47,19 @@ export class MoveCardUseCase {
 
     const newPosition = this.calculatePosition(cardsInTargetStage, input.targetIndex);
 
-    await this.cardRepository.updateStageAndPosition(card.id, input.targetStageId, newPosition);
+    if (targetStage.name === REPIQUE_STAGE_NAME) {
+      if (!input.motivoRepique || !isMotivoRepiqueValido(input.motivoRepique)) {
+        throw new BadRequestException(
+          `Motivo obrigatorio ao mover para Repique. Use um destes: ${MOTIVOS_REPIQUE.join(', ')}.`,
+        );
+      }
+      await this.cardRepository.updateStageAndPosition(card.id, input.targetStageId, newPosition, {
+        motivoRepique: input.motivoRepique,
+        movidoParaRepiqueEm: new Date(),
+      });
+    } else {
+      await this.cardRepository.updateStageAndPosition(card.id, input.targetStageId, newPosition);
+    }
 
     return { newPosition };
   }
