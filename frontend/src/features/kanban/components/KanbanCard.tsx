@@ -1,9 +1,10 @@
 // src/features/kanban/components/KanbanCard.tsx
 import { MouseEvent, useState } from "react";
 import { Draggable } from "@hello-pangea/dnd";
-import { MessageCircle, Clock } from "lucide-react";
+import { MessageCircle, Clock, Send } from "lucide-react";
 import { Card, useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
+import { REPIQUE_STAGE_NAME } from "../constants";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -38,14 +39,16 @@ interface KanbanCardProps {
   card: Card;
   index: number;
   isDragDisabled?: boolean;
+  stageName?: string;
 }
 
-export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
+export function KanbanCard({ card, index, isDragDisabled, stageName }: KanbanCardProps) {
   const openCardDetailPanel = useKanbanStore((state) => state.openCardDetailPanel);
   const isHighlighted = useKanbanStore((state) => state.highlightedCardId === card.id);
   const meuUserId = useKanbanStore((state) => state.meuUserId);
-  const { handleAceitarLead } = useKanbanIntegration();
+  const { handleAceitarLead, handleDispararRepique } = useKanbanIntegration();
   const [isAceitando, setAceitando] = useState(false);
+  const [isDisparando, setDisparando] = useState(false);
 
   const origemStyle = ORIGEM_STYLES[card.origem] ?? ORIGEM_STYLES.manual;
   const origemLabel = ORIGEM_LABELS[card.origem] ?? card.origem;
@@ -57,6 +60,12 @@ export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
   // aqui - ver CLAUDE.md).
   const aguardandoAceite = Boolean(card.atribuidoAutomaticamenteEm) && !card.aceitoEm;
   const podeAceitar = aguardandoAceite && card.ownerId === meuUserId;
+  // Disparo manual de campanha do Repique - so o dono do card (mesma
+  // simplificacao ja usada em "Aceitar Lead": Administrador tambem pode
+  // disparar via API, mas sem botao dedicado aqui - o backend valida o
+  // RBAC completo, isso aqui e so UX).
+  const podeDispararRepique =
+    stageName === REPIQUE_STAGE_NAME && card.ownerId === meuUserId && !card.repiqueOptOut;
 
   function handleWhatsAppClick(e: MouseEvent) {
     e.stopPropagation();
@@ -72,6 +81,26 @@ export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
       await handleAceitarLead(card.id);
     } finally {
       setAceitando(false);
+    }
+  }
+
+  async function handleDispararRepiqueClick(e: MouseEvent) {
+    e.stopPropagation();
+    if (!window.confirm(`Disparar agora uma mensagem de Repique para "${card.title}"?`)) {
+      return;
+    }
+    setDisparando(true);
+    try {
+      const envio = await handleDispararRepique(card.id);
+      if (envio) {
+        alert(
+          envio.sucesso
+            ? `Mensagem enviada com sucesso via ${envio.canal}.`
+            : `Falha ao enviar via ${envio.canal}: ${envio.erroMensagem ?? "erro desconhecido"}.`,
+        );
+      }
+    } finally {
+      setDisparando(false);
     }
   }
 
@@ -117,6 +146,18 @@ export function KanbanCard({ card, index, isDragDisabled }: KanbanCardProps) {
               className="mt-2 w-full rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800 disabled:opacity-60"
             >
               {isAceitando ? "Aceitando..." : "Aceitar Lead"}
+            </button>
+          )}
+
+          {podeDispararRepique && (
+            <button
+              onClick={handleDispararRepiqueClick}
+              disabled={isDisparando}
+              data-testid="disparar-repique-button"
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {isDisparando ? "Disparando..." : "Disparar agora"}
             </button>
           )}
 

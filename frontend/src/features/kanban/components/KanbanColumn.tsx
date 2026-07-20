@@ -150,6 +150,7 @@ export function KanbanColumn({
                 card={card}
                 index={index}
                 isDragDisabled={hasActiveFilters}
+                stageName={stage.name}
               />
             ))}
             {provided.placeholder}

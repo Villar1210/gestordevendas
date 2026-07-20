@@ -23,6 +23,8 @@ import { CreateNoteUseCase } from '../../application/use-cases/create-note.use-c
 import { ListNotesByCardUseCase } from '../../application/use-cases/list-notes-by-card.use-case';
 import { CreateQuickCardUseCase } from '../../application/use-cases/create-quick-card.use-case';
 import { ClaimCardUseCase } from '../../application/use-cases/claim-card.use-case';
+import { DispararRepiqueManualUseCase } from '../../application/use-cases/disparar-repique-manual.use-case';
+import { ListMinhaCarteiraRepiqueUseCase } from '../../application/use-cases/list-minha-carteira-repique.use-case';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,7 +42,37 @@ export class CardController {
     private readonly listNotesByCardUseCase: ListNotesByCardUseCase,
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
     private readonly claimCardUseCase: ClaimCardUseCase,
+    private readonly dispararRepiqueManualUseCase: DispararRepiqueManualUseCase,
+    private readonly listMinhaCarteiraRepiqueUseCase: ListMinhaCarteiraRepiqueUseCase,
   ) {}
+
+  // GET /cards/repique/minha-carteira - cards na stage Repique visiveis
+  // para o requisitante (escopo RBAC por cargo), com motivo/data de
+  // entrada/ultimo envio - para decidir onde disparar manualmente.
+  @Get('cards/repique/minha-carteira')
+  async minhaCarteiraRepique(@Req() req: Request) {
+    return this.listMinhaCarteiraRepiqueUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterUserId: req.user!.id,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
+      requesterStandId: req.user!.standId,
+    });
+  }
+
+  // POST /cards/:id/repique/disparar-agora - dispara manualmente o proximo
+  // envio de campanha do Repique para este card, sem esperar o job
+  // automatico de 2 em 2 dias.
+  @Post('cards/:id/repique/disparar-agora')
+  async dispararRepique(@Param('id') id: string, @Req() req: Request) {
+    return this.dispararRepiqueManualUseCase.execute({
+      cardId: id,
+      tenantId: req.user!.tenantId,
+      requesterUserId: req.user!.id,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
+    });
+  }
 
   // POST /cards - cria um card (no final da stage informada, ou na
   // primeira stage do pipeline informado). O usuario logado sempre vira o dono.

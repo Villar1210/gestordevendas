@@ -10,6 +10,14 @@ interface BoardResponse {
   stages: Stage[];
 }
 
+export interface RepiqueCampanhaEnvio {
+  id: string;
+  canal: string;
+  enviadoEm: string;
+  sucesso: boolean;
+  erroMensagem: string | null;
+}
+
 export interface CreateCardInput {
   // Informe stageId (criacao dentro de uma coluna) OU pipelineId
   // (criacao pelo cabecalho - entra direto na primeira stage do pipeline).
@@ -367,6 +375,17 @@ export function useKanbanIntegration() {
     [updateCardInPlace],
   );
 
+  const handleDispararRepique = useCallback(async (cardId: string) => {
+    try {
+      return await apiRequest<RepiqueCampanhaEnvio>(`/cards/${cardId}/repique/disparar-agora`, {
+        method: "POST",
+      });
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Nao foi possivel disparar a campanha de Repique.");
+      return null;
+    }
+  }, []);
+
   return {
     loadBoard,
     handleMoveCard,
@@ -388,5 +407,6 @@ export function useKanbanIntegration() {
     handleClaimCard,
     handleConfirmSuggestion,
     handleAceitarLead,
+    handleDispararRepique,
   };
 }

@@ -27,6 +27,9 @@ import { GetMeuDashboardUseCase } from './application/use-cases/get-meu-dashboar
 import { MoverLeadsInativosParaRepiqueUseCase } from './application/use-cases/mover-leads-inativos-para-repique.use-case';
 import { ProcessarCampanhaRepiqueUseCase } from './application/use-cases/processar-campanha-repique.use-case';
 import { OptOutRepiqueViaTokenUseCase } from './application/use-cases/optout-repique-via-token.use-case';
+import { DispararRepiqueManualUseCase } from './application/use-cases/disparar-repique-manual.use-case';
+import { ListMinhaCarteiraRepiqueUseCase } from './application/use-cases/list-minha-carteira-repique.use-case';
+import { RepiqueEnvioService } from './application/services/repique-envio.service';
 import { PrismaPipelineRepository } from './infra/database/prisma-pipeline.repository';
 import { PrismaStageRepository } from './infra/database/prisma-stage.repository';
 import { PrismaCardRepository } from './infra/database/prisma-card.repository';
@@ -83,6 +86,9 @@ import { CanaisModule } from '../../shared/canais.module';
     ProcessarCampanhaRepiqueUseCase,
     OptOutRepiqueViaTokenUseCase,
     RepiqueCampanhaScheduler,
+    RepiqueEnvioService,
+    DispararRepiqueManualUseCase,
+    ListMinhaCarteiraRepiqueUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IPipelineRepository', useClass: PrismaPipelineRepository },

@@ -19,6 +19,8 @@ export interface Card {
   // features/kanban/constants.ts (MOTIVO_REPIQUE_OPTIONS).
   motivoRepique: string | null;
   movidoParaRepiqueEm: string | null;
+  // Motor de campanha do Repique - ver features/kanban/hooks/useKanbanIntegration.ts (handleDispararRepique).
+  repiqueOptOut: boolean;
   title: string;
   value: number;
   position: number;
