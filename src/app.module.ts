@@ -19,6 +19,7 @@ import { ConfiguracoesModule } from './modules/configuracoes/configuracoes.modul
 import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 import { PlantaoModule } from './modules/plantao/plantao.module';
 import { SuperUsuarioModule } from './modules/super_usuario/super-usuario.module';
+import { SocialMediaModule } from './modules/social_media/social-media.module';
 import { CanaisModule } from './shared/canais.module';
 import { PrismaService } from './config/prisma.service';
 
@@ -56,6 +57,7 @@ import { PrismaService } from './config/prisma.service';
     NotificacoesModule,
     PlantaoModule,
     SuperUsuarioModule,
+    SocialMediaModule,
     // Abstracao ADITIVA de canais (dispatcher + evento agnostico) - ver
     // shared/canais.module.ts. Nao consumida por nenhum modulo de negocio
     // ainda; existe pronta para features futuras (ex: Repique).
