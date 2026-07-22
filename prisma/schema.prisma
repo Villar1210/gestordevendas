@@ -785,11 +785,14 @@ model Imovel {
   // Tipo de item: unidade habitacional normal ou vaga de garagem avulsa.
   tipoItem             ImovelTipoItem      @default(UNIDADE) @map("tipo_item")
   // Identificador vindo de um sistema externo (ex: planilha/ERP da
-  // construtora) - usado pela futura fatia de cadastro em lote para
-  // detectar duplicatas na reimportacao. Unico por ser a chave natural de
-  // uma origem externa (NULL permite varios imoveis sem origem externa,
-  // Postgres nao considera NULL == NULL numa constraint unique).
-  identificadorExterno String?             @unique @map("identificador_externo") @db.VarChar(100)
+  // construtora, ou gerado pelo cadastro em lote - ver
+  // gerar-identificador-externo.ts) - usado para detectar duplicatas na
+  // reimportacao. Unico POR TENANT (nao globalmente - ver @@unique abaixo),
+  // ja que e a chave natural de uma origem externa e dois tenants diferentes
+  // podem legitimamente usar o mesmo padrao de codigo (ex: "BL02-2301").
+  // NULL permite varios imoveis sem origem externa (Postgres nao considera
+  // NULL == NULL numa constraint unique).
+  identificadorExterno String?             @map("identificador_externo") @db.VarChar(100)
   bloco                String?             @db.VarChar(50)
   andar                Int?
   numeroNoAndar        Int?                @map("numero_no_andar")
@@ -808,6 +811,7 @@ model Imovel {
   cards          Card[]
   contratos      Contrato[]
 
+  @@unique([tenantId, identificadorExterno])
   @@map("imoveis")
 }
 

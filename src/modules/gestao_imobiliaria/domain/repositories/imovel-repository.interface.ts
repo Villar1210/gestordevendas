@@ -31,6 +31,17 @@ export interface ImovelRecord {
   exclusividade: boolean;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
+  // Cadastro em lote (Fatia 2) - ver domain/services/gerar-lote-imoveis.ts.
+  tipoItem: string;
+  identificadorExterno: string | null;
+  bloco: string | null;
+  andar: number | null;
+  numeroNoAndar: number | null;
+  enquadramento: string;
+  pcd: boolean;
+  valorTabela: number | null;
+  valorComDesconto: number | null;
+  vagasIncluidas: number;
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -86,6 +97,17 @@ export interface ImovelWritableFields {
   exclusividade?: boolean;
   proprietarioNome?: string | null;
   proprietarioTelefone?: string | null;
+  // Cadastro em lote (Fatia 2) - ver domain/services/gerar-lote-imoveis.ts.
+  tipoItem?: string;
+  identificadorExterno?: string | null;
+  bloco?: string | null;
+  andar?: number | null;
+  numeroNoAndar?: number | null;
+  enquadramento?: string;
+  pcd?: boolean;
+  valorTabela?: number | null;
+  valorComDesconto?: number | null;
+  vagasIncluidas?: number;
   customFields?: Record<string, unknown>;
 }
 
@@ -98,9 +120,29 @@ export interface IImovelRepository {
       finalidade: string;
     },
   ): Promise<ImovelRecord>;
+  // Cria varias unidades em uma unica transacao Prisma - tudo ou nada (ver
+  // CriarImoveisLoteUseCase). Nao chama create() varias vezes de proposito:
+  // create() nao compartilha transacao entre chamadas separadas.
+  createMany(
+    items: Array<
+      ImovelWritableFields & {
+        tenantId: string;
+        title: string;
+        tipo: string;
+        finalidade: string;
+      }
+    >,
+  ): Promise<ImovelRecord[]>;
   update(id: string, input: ImovelWritableFields): Promise<ImovelRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<ImovelRecord | null>;
   findAllByTenant(tenantId: string, filters?: ImovelFilters): Promise<ImovelRecord[]>;
+  // Dos identificadores informados, devolve so os que ja existem no banco
+  // para esse tenant - usado tanto para o aviso do gerar-lote (nao bloqueia)
+  // quanto para a validacao que ABORTA o criar-lote (ver CriarImoveisLoteUseCase).
+  findExistingIdentificadoresExternos(
+    tenantId: string,
+    identificadores: string[],
+  ): Promise<string[]>;
 
   findPhotosByImovel(imovelId: string): Promise<ImovelPhotoRecord[]>;
   addPhoto(input: {

@@ -10,6 +10,8 @@ import { CreateEmpreendimentoUseCase } from './application/use-cases/create-empr
 import { ListEmpreendimentosUseCase } from './application/use-cases/list-empreendimentos.use-case';
 import { CreateImovelUseCase } from './application/use-cases/create-imovel.use-case';
 import { UpdateImovelUseCase } from './application/use-cases/update-imovel.use-case';
+import { GerarLoteImoveisUseCase } from './application/use-cases/gerar-lote-imoveis.use-case';
+import { CriarImoveisLoteUseCase } from './application/use-cases/criar-imoveis-lote.use-case';
 import { ListImoveisUseCase } from './application/use-cases/list-imoveis.use-case';
 import { GetImovelUseCase } from './application/use-cases/get-imovel.use-case';
 import { UploadImovelPhotoUseCase } from './application/use-cases/upload-imovel-photo.use-case';
@@ -57,6 +59,8 @@ import { LocalFileStorageService } from '../../shared/infra/services/local-file-
     ListEmpreendimentosUseCase,
     CreateImovelUseCase,
     UpdateImovelUseCase,
+    GerarLoteImoveisUseCase,
+    CriarImoveisLoteUseCase,
     ListImoveisUseCase,
     GetImovelUseCase,
     UploadImovelPhotoUseCase,

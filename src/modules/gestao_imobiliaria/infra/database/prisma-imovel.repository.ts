@@ -2,7 +2,12 @@
 // Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
-import { Prisma, ImovelStatus } from '../../../../generated/prisma/client';
+import {
+  Prisma,
+  ImovelStatus,
+  ImovelTipoItem,
+  ImovelEnquadramento,
+} from '../../../../generated/prisma/client';
 import {
   IImovelRepository,
   ImovelFilters,
@@ -54,6 +59,59 @@ function fromPrismaStatus(status: string): string {
   return STATUS_FROM_PRISMA[status as ImovelStatus] ?? status;
 }
 
+// Mesma logica de traducao do status acima, agora para os 2 enums novos da
+// Fatia 1 (tipoItem/enquadramento) - nenhum DTO/frontend existente falava
+// esses campos antes desta fatia, mas seguimos o mesmo padrao (dominio em
+// lowercase snake_case, traduzido so na fronteira com o Prisma) por
+// consistencia com o resto do repository.
+const TIPO_ITEM_TO_PRISMA: Record<string, ImovelTipoItem> = {
+  unidade: ImovelTipoItem.UNIDADE,
+  vaga_avulsa: ImovelTipoItem.VAGA_AVULSA,
+};
+
+const TIPO_ITEM_FROM_PRISMA: Record<ImovelTipoItem, string> = {
+  UNIDADE: 'unidade',
+  VAGA_AVULSA: 'vaga_avulsa',
+};
+
+function toPrismaTipoItem(tipoItem: string): ImovelTipoItem {
+  const mapped = TIPO_ITEM_TO_PRISMA[tipoItem];
+  if (!mapped) {
+    throw new Error(`tipoItem de imovel invalido: ${tipoItem}`);
+  }
+  return mapped;
+}
+
+function fromPrismaTipoItem(tipoItem: string): string {
+  return TIPO_ITEM_FROM_PRISMA[tipoItem as ImovelTipoItem] ?? tipoItem;
+}
+
+const ENQUADRAMENTO_TO_PRISMA: Record<string, ImovelEnquadramento> = {
+  his2: ImovelEnquadramento.HIS2,
+  hmp: ImovelEnquadramento.HMP,
+  r2v: ImovelEnquadramento.R2V,
+  nenhum: ImovelEnquadramento.NENHUM,
+};
+
+const ENQUADRAMENTO_FROM_PRISMA: Record<ImovelEnquadramento, string> = {
+  HIS2: 'his2',
+  HMP: 'hmp',
+  R2V: 'r2v',
+  NENHUM: 'nenhum',
+};
+
+function toPrismaEnquadramento(enquadramento: string): ImovelEnquadramento {
+  const mapped = ENQUADRAMENTO_TO_PRISMA[enquadramento];
+  if (!mapped) {
+    throw new Error(`enquadramento de imovel invalido: ${enquadramento}`);
+  }
+  return mapped;
+}
+
+function fromPrismaEnquadramento(enquadramento: string): string {
+  return ENQUADRAMENTO_FROM_PRISMA[enquadramento as ImovelEnquadramento] ?? enquadramento;
+}
+
 type PrismaImovelRow = {
   id: string;
   tenantId: string;
@@ -84,6 +142,16 @@ type PrismaImovelRow = {
   exclusividade: boolean;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
+  tipoItem: string;
+  identificadorExterno: string | null;
+  bloco: string | null;
+  andar: number | null;
+  numeroNoAndar: number | null;
+  enquadramento: string;
+  pcd: boolean;
+  valorTabela: { toNumber(): number } | null;
+  valorComDesconto: { toNumber(): number } | null;
+  vagasIncluidas: number;
   customFields: unknown;
   createdAt: Date;
   updatedAt: Date;
@@ -126,10 +194,73 @@ export class PrismaImovelRepository implements IImovelRepository {
       exclusividade: row.exclusividade,
       proprietarioNome: row.proprietarioNome,
       proprietarioTelefone: row.proprietarioTelefone,
+      tipoItem: fromPrismaTipoItem(row.tipoItem),
+      identificadorExterno: row.identificadorExterno,
+      bloco: row.bloco,
+      andar: row.andar,
+      numeroNoAndar: row.numeroNoAndar,
+      enquadramento: fromPrismaEnquadramento(row.enquadramento),
+      pcd: row.pcd,
+      valorTabela: row.valorTabela ? row.valorTabela.toNumber() : null,
+      valorComDesconto: row.valorComDesconto ? row.valorComDesconto.toNumber() : null,
+      vagasIncluidas: row.vagasIncluidas,
       customFields: (row.customFields as Record<string, unknown>) ?? {},
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       coverPhotoUrl: row.photos && row.photos.length > 0 ? row.photos[0].url : null,
+    };
+  }
+
+  // Compartilhado entre create() e createMany() - mesmo mapeamento de campos,
+  // usado dentro de $transaction no caso do lote (ver createMany abaixo).
+  private buildCreateData(
+    input: ImovelWritableFields & {
+      tenantId: string;
+      title: string;
+      tipo: string;
+      finalidade: string;
+    },
+  ) {
+    return {
+      tenantId: input.tenantId,
+      empreendimentoId: input.empreendimentoId ?? null,
+      title: input.title,
+      codigoInterno: input.codigoInterno ?? null,
+      tipo: input.tipo,
+      uso: input.uso ?? null,
+      finalidade: input.finalidade,
+      tags: input.tags ?? null,
+      price: input.price ?? null,
+      rentPrice: input.rentPrice ?? null,
+      area: input.area ?? null,
+      bedrooms: input.bedrooms ?? null,
+      bathrooms: input.bathrooms ?? null,
+      parkingSpots: input.parkingSpots ?? null,
+      rua: input.rua ?? null,
+      numero: input.numero ?? null,
+      complemento: input.complemento ?? null,
+      bairro: input.bairro ?? null,
+      cidade: input.cidade ?? null,
+      uf: input.uf ?? null,
+      cep: input.cep ?? null,
+      description: input.description ?? null,
+      status: toPrismaStatus(input.status ?? 'disponivel'),
+      disponivelApartirDe: input.disponivelApartirDe ?? null,
+      localChaves: input.localChaves ?? null,
+      exclusividade: input.exclusividade ?? false,
+      proprietarioNome: input.proprietarioNome ?? null,
+      proprietarioTelefone: input.proprietarioTelefone ?? null,
+      tipoItem: toPrismaTipoItem(input.tipoItem ?? 'unidade'),
+      identificadorExterno: input.identificadorExterno ?? null,
+      bloco: input.bloco ?? null,
+      andar: input.andar ?? null,
+      numeroNoAndar: input.numeroNoAndar ?? null,
+      enquadramento: toPrismaEnquadramento(input.enquadramento ?? 'nenhum'),
+      pcd: input.pcd ?? false,
+      valorTabela: input.valorTabela ?? null,
+      valorComDesconto: input.valorComDesconto ?? null,
+      vagasIncluidas: input.vagasIncluidas ?? 0,
+      customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
     };
   }
 
@@ -141,40 +272,28 @@ export class PrismaImovelRepository implements IImovelRepository {
       finalidade: string;
     },
   ): Promise<ImovelRecord> {
-    const row = await this.prisma.imovel.create({
-      data: {
-        tenantId: input.tenantId,
-        empreendimentoId: input.empreendimentoId ?? null,
-        title: input.title,
-        codigoInterno: input.codigoInterno ?? null,
-        tipo: input.tipo,
-        uso: input.uso ?? null,
-        finalidade: input.finalidade,
-        tags: input.tags ?? null,
-        price: input.price ?? null,
-        rentPrice: input.rentPrice ?? null,
-        area: input.area ?? null,
-        bedrooms: input.bedrooms ?? null,
-        bathrooms: input.bathrooms ?? null,
-        parkingSpots: input.parkingSpots ?? null,
-        rua: input.rua ?? null,
-        numero: input.numero ?? null,
-        complemento: input.complemento ?? null,
-        bairro: input.bairro ?? null,
-        cidade: input.cidade ?? null,
-        uf: input.uf ?? null,
-        cep: input.cep ?? null,
-        description: input.description ?? null,
-        status: toPrismaStatus(input.status ?? 'disponivel'),
-        disponivelApartirDe: input.disponivelApartirDe ?? null,
-        localChaves: input.localChaves ?? null,
-        exclusividade: input.exclusividade ?? false,
-        proprietarioNome: input.proprietarioNome ?? null,
-        proprietarioTelefone: input.proprietarioTelefone ?? null,
-        customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
-      },
-    });
+    const row = await this.prisma.imovel.create({ data: this.buildCreateData(input) });
     return this.toRecord(row);
+  }
+
+  // Tudo ou nada: usa $transaction com um array de promises do Prisma (nao
+  // um loop de create() separados) para que qualquer falha (ex: colisao de
+  // identificadorExterno que escapou da validacao previa do use case) reverta
+  // TODAS as criacoes do lote, nao so a que falhou.
+  async createMany(
+    items: Array<
+      ImovelWritableFields & {
+        tenantId: string;
+        title: string;
+        tipo: string;
+        finalidade: string;
+      }
+    >,
+  ): Promise<ImovelRecord[]> {
+    const rows = await this.prisma.$transaction(
+      items.map((input) => this.prisma.imovel.create({ data: this.buildCreateData(input) })),
+    );
+    return rows.map((row) => this.toRecord(row));
   }
 
   async update(id: string, input: ImovelWritableFields): Promise<ImovelRecord> {
@@ -216,6 +335,22 @@ export class PrismaImovelRepository implements IImovelRepository {
         ...(input.proprietarioTelefone !== undefined
           ? { proprietarioTelefone: input.proprietarioTelefone }
           : {}),
+        ...(input.tipoItem !== undefined ? { tipoItem: toPrismaTipoItem(input.tipoItem) } : {}),
+        ...(input.identificadorExterno !== undefined
+          ? { identificadorExterno: input.identificadorExterno }
+          : {}),
+        ...(input.bloco !== undefined ? { bloco: input.bloco } : {}),
+        ...(input.andar !== undefined ? { andar: input.andar } : {}),
+        ...(input.numeroNoAndar !== undefined ? { numeroNoAndar: input.numeroNoAndar } : {}),
+        ...(input.enquadramento !== undefined
+          ? { enquadramento: toPrismaEnquadramento(input.enquadramento) }
+          : {}),
+        ...(input.pcd !== undefined ? { pcd: input.pcd } : {}),
+        ...(input.valorTabela !== undefined ? { valorTabela: input.valorTabela } : {}),
+        ...(input.valorComDesconto !== undefined
+          ? { valorComDesconto: input.valorComDesconto }
+          : {}),
+        ...(input.vagasIncluidas !== undefined ? { vagasIncluidas: input.vagasIncluidas } : {}),
         ...(input.customFields !== undefined
           ? { customFields: input.customFields as Prisma.InputJsonValue }
           : {}),
@@ -248,6 +383,22 @@ export class PrismaImovelRepository implements IImovelRepository {
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((row) => this.toRecord(row));
+  }
+
+  async findExistingIdentificadoresExternos(
+    tenantId: string,
+    identificadores: string[],
+  ): Promise<string[]> {
+    if (identificadores.length === 0) {
+      return [];
+    }
+    const rows = await this.prisma.imovel.findMany({
+      where: { tenantId, identificadorExterno: { in: identificadores } },
+      select: { identificadorExterno: true },
+    });
+    return rows
+      .map((row) => row.identificadorExterno)
+      .filter((identificador): identificador is string => identificador !== null);
   }
 
   async findPhotosByImovel(imovelId: string): Promise<ImovelPhotoRecord[]> {
