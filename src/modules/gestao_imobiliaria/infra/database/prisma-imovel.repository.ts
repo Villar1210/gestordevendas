@@ -2,7 +2,7 @@
 // Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
-import { Prisma } from '../../../../generated/prisma/client';
+import { Prisma, ImovelStatus } from '../../../../generated/prisma/client';
 import {
   IImovelRepository,
   ImovelFilters,
@@ -10,6 +10,49 @@ import {
   ImovelRecord,
   ImovelWritableFields,
 } from '../../domain/repositories/imovel-repository.interface';
+
+// O dominio (e os DTOs/frontend, que nao mudam nesta fatia - ver STATUS_VALUES
+// em create-imovel.dto.ts) continuam falando "status" como string minuscula
+// snake_case ("disponivel", "em_negociacao"...). O Prisma agora exige o enum
+// ImovelStatus (UPPERCASE) na coluna do banco. Essa traducao fica isolada
+// aqui, na fronteira com o Prisma, para nao vazar o enum para fora da infra.
+const STATUS_TO_PRISMA: Record<string, ImovelStatus> = {
+  disponivel: ImovelStatus.DISPONIVEL,
+  reservado: ImovelStatus.RESERVADO,
+  em_negociacao: ImovelStatus.EM_NEGOCIACAO,
+  vendido: ImovelStatus.VENDIDO,
+  bloqueado: ImovelStatus.BLOQUEADO,
+  em_analise: ImovelStatus.EM_ANALISE,
+  distrato: ImovelStatus.DISTRATO,
+  ocupado: ImovelStatus.OCUPADO,
+  vago: ImovelStatus.VAGO,
+  inativo: ImovelStatus.INATIVO,
+};
+
+const STATUS_FROM_PRISMA: Record<ImovelStatus, string> = {
+  DISPONIVEL: 'disponivel',
+  RESERVADO: 'reservado',
+  EM_NEGOCIACAO: 'em_negociacao',
+  VENDIDO: 'vendido',
+  BLOQUEADO: 'bloqueado',
+  EM_ANALISE: 'em_analise',
+  DISTRATO: 'distrato',
+  OCUPADO: 'ocupado',
+  VAGO: 'vago',
+  INATIVO: 'inativo',
+};
+
+function toPrismaStatus(status: string): ImovelStatus {
+  const mapped = STATUS_TO_PRISMA[status];
+  if (!mapped) {
+    throw new Error(`status de imovel invalido: ${status}`);
+  }
+  return mapped;
+}
+
+function fromPrismaStatus(status: string): string {
+  return STATUS_FROM_PRISMA[status as ImovelStatus] ?? status;
+}
 
 type PrismaImovelRow = {
   id: string;
@@ -77,7 +120,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       uf: row.uf,
       cep: row.cep,
       description: row.description,
-      status: row.status,
+      status: fromPrismaStatus(row.status),
       disponivelApartirDe: row.disponivelApartirDe,
       localChaves: row.localChaves,
       exclusividade: row.exclusividade,
@@ -122,7 +165,7 @@ export class PrismaImovelRepository implements IImovelRepository {
         uf: input.uf ?? null,
         cep: input.cep ?? null,
         description: input.description ?? null,
-        status: input.status ?? 'disponivel',
+        status: toPrismaStatus(input.status ?? 'disponivel'),
         disponivelApartirDe: input.disponivelApartirDe ?? null,
         localChaves: input.localChaves ?? null,
         exclusividade: input.exclusividade ?? false,
@@ -161,7 +204,7 @@ export class PrismaImovelRepository implements IImovelRepository {
         ...(input.uf !== undefined ? { uf: input.uf } : {}),
         ...(input.cep !== undefined ? { cep: input.cep } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.status !== undefined ? { status: toPrismaStatus(input.status) } : {}),
         ...(input.disponivelApartirDe !== undefined
           ? { disponivelApartirDe: input.disponivelApartirDe }
           : {}),
@@ -194,7 +237,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       where: {
         tenantId,
         ...(filters?.finalidade ? { finalidade: filters.finalidade } : {}),
-        ...(filters?.status ? { status: filters.status } : {}),
+        ...(filters?.status ? { status: toPrismaStatus(filters.status) } : {}),
         ...(filters?.empreendimentoId ? { empreendimentoId: filters.empreendimentoId } : {}),
         ...(filters?.busca
           ? { title: { contains: filters.busca, mode: 'insensitive' } }
