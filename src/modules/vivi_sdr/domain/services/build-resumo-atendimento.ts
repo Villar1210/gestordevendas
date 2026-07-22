@@ -12,6 +12,11 @@ export interface ResumoAtendimentoInput {
   motivo: string;
   nome: string | null;
   phoneNumber: string;
+  // Rotulo da linha de contato no resumo - default 'Telefone' preserva o
+  // texto original (WhatsApp). A fatia de DM Instagram/Facebook passa
+  // 'ID Instagram'/'ID Facebook' aqui, ja que phoneNumber carrega o
+  // PSID/IGSID do lead nesse caso, nao um numero de telefone de verdade.
+  contatoLabel?: string;
   tipoImovel: string | null;
   orcamento: string | null;
   rendaDeclarada: number | null;
@@ -37,7 +42,7 @@ export function buildResumoAtendimento(input: ResumoAtendimentoInput): string {
     'Lead via VIVI (assistente de IA).',
     `Motivo: ${input.motivo}.`,
     `Nome: ${input.nome ?? 'nao informado'}`,
-    `Telefone: ${input.phoneNumber}`,
+    `${input.contatoLabel ?? 'Telefone'}: ${input.phoneNumber}`,
     `Tipo de imovel: ${input.tipoImovel ?? 'nao informado'}`,
     `Orcamento: ${input.orcamento ?? 'nao informado'}`,
   ];

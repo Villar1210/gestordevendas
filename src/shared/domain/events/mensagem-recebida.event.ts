@@ -19,4 +19,12 @@ export interface MensagemRecebidaEvent {
   identificadorExterno: string;
   conteudo: string;
   timestamp: Date;
+  // Id da conta/sessao do NOSSO lado que recebeu a mensagem (WhatsAppSession.id,
+  // SocialAccount.id, etc.) - necessario para responder quando um tenant
+  // pode ter mais de uma conta conectada no mesmo canal (ex: 2 Paginas do
+  // Facebook), ja que so identificadorExterno (o remetente) nao basta para
+  // saber por qual conta enviar a resposta. Opcional para nao quebrar
+  // nenhum consumidor hipotetico que ja dependesse do formato anterior -
+  // preencher sempre que o canal tiver mais de uma conta possivel.
+  contaId?: string;
 }

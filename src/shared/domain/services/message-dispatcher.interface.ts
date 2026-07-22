@@ -20,6 +20,11 @@ export interface EnviarMensagemInput {
   whatsappSessionId?: string;
   // Especifico do canal EMAIL - assunto (obrigatorio quando canal === Canal.EMAIL).
   assunto?: string;
+  // Especifico dos canais INSTAGRAM/FACEBOOK - qual SocialAccount (Pagina/
+  // conta Instagram Business) usar para enviar, ja que um tenant pode ter
+  // mais de uma conectada (obrigatorio quando canal === Canal.INSTAGRAM ou
+  // Canal.FACEBOOK - ver MessageDispatcherService).
+  socialAccountId?: string;
 }
 
 export interface IMessageDispatcher {

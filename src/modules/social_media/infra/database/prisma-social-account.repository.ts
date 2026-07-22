@@ -35,6 +35,10 @@ export class PrismaSocialAccountRepository implements ISocialAccountRepository {
     return this.prisma.socialAccount.findFirst({ where: { tenantId, canal, externalId } });
   }
 
+  async findByCanalAndExternalId(canal: string, externalId: string): Promise<SocialAccountRecord | null> {
+    return this.prisma.socialAccount.findFirst({ where: { canal, externalId } });
+  }
+
   async update(id: string, input: UpdateSocialAccountInput): Promise<SocialAccountRecord> {
     return this.prisma.socialAccount.update({ where: { id }, data: input });
   }

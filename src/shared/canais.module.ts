@@ -6,14 +6,18 @@
 // Nenhum modulo de negocio (vivi_sdr, atendimento, rh, edoc, auth,
 // whatsappmarketing) foi alterado - so importado aqui (WhatsAppMarketingModule
 // ja exporta SendWhatsAppMessageUseCase, reaproveitado sem modificacao).
+// SocialMediaModule importado na fatia de DM Instagram/Facebook, pelo mesmo
+// motivo - ISocialMessagingService ja exportado por ele, reaproveitado sem
+// modificacao.
 import { Module } from '@nestjs/common';
 import { WhatsAppMarketingModule } from '../modules/whatsappmarketing/whatsapp-marketing.module';
+import { SocialMediaModule } from '../modules/social_media/social-media.module';
 import { MessageDispatcherService } from './infra/services/message-dispatcher.service';
 import { WhatsAppToCanalAdapter } from './infra/listeners/whatsapp-to-canal.adapter';
 import { ResendEmailSender } from './infra/services/resend-email-sender';
 
 @Module({
-  imports: [WhatsAppMarketingModule],
+  imports: [WhatsAppMarketingModule, SocialMediaModule],
   providers: [
     MessageDispatcherService,
     WhatsAppToCanalAdapter,

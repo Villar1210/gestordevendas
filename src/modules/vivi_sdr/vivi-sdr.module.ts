@@ -4,6 +4,8 @@ import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing
 import { VendasKanbanModule } from '../vendas_kanban/vendas-kanban.module';
 import { AtendimentoModule } from '../atendimento/atendimento.module';
 import { GestaoImobiliariaModule } from '../gestao_imobiliaria/gestao-imobiliaria.module';
+import { SocialMediaModule } from '../social_media/social-media.module';
+import { CanaisModule } from '../../shared/canais.module';
 import { ViviSessionController } from './infra/http/vivi-session.controller';
 import { ViviConversationController } from './infra/http/vivi-conversation.controller';
 import { ViviConfigController } from './infra/http/vivi-config.controller';
@@ -11,11 +13,14 @@ import { EnableViviOnSessionUseCase } from './application/use-cases/enable-vivi-
 import { DisableViviOnSessionUseCase } from './application/use-cases/disable-vivi-on-session.use-case';
 import { ListViviConversationsUseCase } from './application/use-cases/list-vivi-conversations.use-case';
 import { ProcessIncomingMessageUseCase } from './application/use-cases/process-incoming-message.use-case';
+import { ProcessIncomingSocialMessageUseCase } from './application/use-cases/process-incoming-social-message.use-case';
 import { AgendarVisitaUseCase } from './application/use-cases/agendar-visita.use-case';
 import { GetOrCreateViviConfigUseCase } from './application/use-cases/get-or-create-vivi-config.use-case';
 import { UpdateViviConfigUseCase } from './application/use-cases/update-vivi-config.use-case';
 import { WhatsAppMessageReceivedListener } from './infra/listeners/whatsapp-message-received.listener';
+import { SocialMessageReceivedListener } from './infra/listeners/social-message-received.listener';
 import { PrismaViviConversationRepository } from './infra/database/prisma-vivi-conversation.repository';
+import { PrismaSocialConversationRepository } from './infra/database/prisma-social-conversation.repository';
 import { PrismaViviConfigRepository } from './infra/database/prisma-vivi-config.repository';
 import { PrismaEnderecoBuscaLogRepository } from './infra/database/prisma-endereco-busca-log.repository';
 import { AnthropicConversationService } from '../../shared/infra/services/anthropic-conversation.service';
@@ -30,8 +35,20 @@ import { PrismaService } from '../../config/prisma.service';
   // usado pela tool "buscar_empreendimento_por_endereco" - VIVI Fatia 2). O
   // caminho inverso (esses 4 modulos -> vivi_sdr) nao existe - os
   // providers so emitem eventos genericos, ver
-  // infra/listeners/whatsapp-message-received.listener.ts.
-  imports: [WhatsAppMarketingModule, VendasKanbanModule, AtendimentoModule, GestaoImobiliariaModule],
+  // infra/listeners/whatsapp-message-received.listener.ts. SocialMediaModule
+  // (ISocialAccountRepository/ISocialMessageRepository) e CanaisModule
+  // (IMessageDispatcher) adicionados na fatia de DM Instagram/Facebook, pelo
+  // mesmo padrao - consumidos por ProcessIncomingSocialMessageUseCase/
+  // SocialMessageReceivedListener, sem nenhum dos dois modulos conhecer
+  // vivi_sdr de volta.
+  imports: [
+    WhatsAppMarketingModule,
+    VendasKanbanModule,
+    AtendimentoModule,
+    GestaoImobiliariaModule,
+    SocialMediaModule,
+    CanaisModule,
+  ],
   controllers: [ViviSessionController, ViviConversationController, ViviConfigController],
   providers: [
     PrismaService,
@@ -39,13 +56,16 @@ import { PrismaService } from '../../config/prisma.service';
     DisableViviOnSessionUseCase,
     ListViviConversationsUseCase,
     ProcessIncomingMessageUseCase,
+    ProcessIncomingSocialMessageUseCase,
     AgendarVisitaUseCase,
     GetOrCreateViviConfigUseCase,
     UpdateViviConfigUseCase,
     WhatsAppMessageReceivedListener,
+    SocialMessageReceivedListener,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma / Anthropic).
     { provide: 'IViviConversationRepository', useClass: PrismaViviConversationRepository },
+    { provide: 'ISocialConversationRepository', useClass: PrismaSocialConversationRepository },
     { provide: 'IViviConfigRepository', useClass: PrismaViviConfigRepository },
     { provide: 'IEnderecoBuscaLogRepository', useClass: PrismaEnderecoBuscaLogRepository },
     { provide: 'IAiConversationService', useClass: AnthropicConversationService },

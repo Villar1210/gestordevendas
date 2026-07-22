@@ -34,6 +34,7 @@ export class WhatsAppToCanalAdapter {
       identificadorExterno: event.remoteJid,
       conteudo: event.messageBody,
       timestamp: new Date(),
+      contaId: event.sessionId,
     };
 
     this.eventEmitter.emit(MENSAGEM_RECEBIDA_EVENT, mensagemRecebida);

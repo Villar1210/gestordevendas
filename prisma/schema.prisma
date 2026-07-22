@@ -47,9 +47,9 @@ model Tenant {
   imoveis         Imovel[]
   imovelPhotos    ImovelPhoto[]
 
-  proprietarios         Proprietario[]
-  inquilinosCompradores InquilinoComprador[]
-  contratos             Contrato[]
+  proprietarios          Proprietario[]
+  inquilinosCompradores  InquilinoComprador[]
+  contratos              Contrato[]
   lancamentosFinanceiros LancamentoFinanceiro[]
   inquilinoDocumentos    InquilinoDocumento[]
 
@@ -87,6 +87,13 @@ model Tenant {
   socialPosts       SocialPost[]
   socialMediaAssets SocialMediaAsset[]
 
+  // Modulo Redes Sociais (fatia DM) - historico bruto de DMs (SocialMessage)
+  // e conversas da VIVI via Instagram/Facebook (SocialConversation) - ver
+  // comentario acima dos dois models para o motivo de serem paralelos a
+  // WhatsAppMessage/ViviConversation em vez de generaliza-los.
+  socialMessages      SocialMessage[]
+  socialConversations SocialConversation[]
+
   @@map("tenants")
 }
 
@@ -112,18 +119,18 @@ model User {
   roleId    String   @map("role_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  twoFactorEnabled      Boolean @default(false) @map("two_factor_enabled")
   // Presenca do usuario para o modulo RH/Equipe: "online", "ausente" ou
   // "offline". Atualizado pelo proprio usuario (seletor na Topbar) ou
   // automaticamente para "online" no login.
-  statusDisponibilidade String @default("offline") @map("status_disponibilidade") @db.VarChar(10)
+  statusDisponibilidade String  @default("offline") @map("status_disponibilidade") @db.VarChar(10)
 
   // Modulo RH completo: cadastro publico multi-perfil + aprovacao.
   // "aprovado" e o default para nao travar contas ja existentes (criadas
   // por Administrador ou pelo seed) - so o PublicSignupUseCase grava
   // "pendente_aprovacao" explicitamente. Valores: pendente_aprovacao,
   // aprovado, rejeitado.
-  statusCadastro String  @default("aprovado") @map("status_cadastro") @db.VarChar(20)
+  statusCadastro     String  @default("aprovado") @map("status_cadastro") @db.VarChar(20)
   // Onboarding do Corretor: forca a troca de senha no proximo login quando
   // true. Default false preserva contas existentes e o cadastro publico
   // (onde o proprio usuario ja escolhe a senha) - so CreateCorretorUseCase
@@ -131,22 +138,22 @@ model User {
   // que a senha muda de verdade (ver PrismaUserRepository.updatePassword,
   // usado tanto por "Meu Perfil" quanto por "Esqueci minha senha").
   mustChangePassword Boolean @default(false) @map("must_change_password")
-  telefone       String? @db.VarChar(30)
-  cpf            String? @db.VarChar(20)
+  telefone           String? @db.VarChar(30)
+  cpf                String? @db.VarChar(20)
   // Corretor House / Corretor Parceiro.
-  creci          String? @db.VarChar(30)
+  creci              String? @db.VarChar(30)
   // Imobiliaria Parceira.
-  nomeImobiliaria String? @map("nome_imobiliaria") @db.VarChar(150)
-  cnpj            String? @db.VarChar(20)
-  creciJ          String? @map("creci_j") @db.VarChar(30)
-  cargoNaEmpresa  String? @map("cargo_na_empresa") @db.VarChar(100)
+  nomeImobiliaria    String? @map("nome_imobiliaria") @db.VarChar(150)
+  cnpj               String? @db.VarChar(20)
+  creciJ             String? @map("creci_j") @db.VarChar(30)
+  cargoNaEmpresa     String? @map("cargo_na_empresa") @db.VarChar(100)
   // Hierarquia (House / Imobiliaria Parceira), preenchida na aprovacao.
-  cargoHierarquico String? @map("cargo_hierarquico") @db.VarChar(30)
-  superiorId       String? @map("superior_id") @db.Uuid
+  cargoHierarquico   String? @map("cargo_hierarquico") @db.VarChar(30)
+  superiorId         String? @map("superior_id") @db.Uuid
   // So relevante quando o Role for Cliente: comprador, proprietario ou ambos.
-  tipoCliente String? @map("tipo_cliente") @db.VarChar(20)
-  cep         String? @db.VarChar(10)
-  endereco    String? @db.VarChar(200)
+  tipoCliente        String? @map("tipo_cliente") @db.VarChar(20)
+  cep                String? @db.VarChar(10)
+  endereco           String? @db.VarChar(200)
 
   // Contrato de prestacao de servico gerado automaticamente na aprovacao
   // (modulo rh, ver GerarContratoPrestacaoServicoUseCase) - nulo ate a
@@ -162,21 +169,21 @@ model User {
   // DeleteStandUseCase ja bloqueia antes disso, ver modulo plantao).
   standId String? @map("stand_id") @db.Uuid
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  role   Role   @relation(fields: [roleId], references: [id])
-  superior      User?  @relation("UserHierarchy", fields: [superiorId], references: [id], onDelete: SetNull)
-  subordinados  User[] @relation("UserHierarchy")
+  tenant                           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role                             Role               @relation(fields: [roleId], references: [id])
+  superior                         User?              @relation("UserHierarchy", fields: [superiorId], references: [id], onDelete: SetNull)
+  subordinados                     User[]             @relation("UserHierarchy")
   contratoPrestacaoServicoEnvelope SignatureEnvelope? @relation("UserContratoPrestacaoServico", fields: [contratoPrestacaoServicoEnvelopeId], references: [id], onDelete: SetNull)
-  standCoordenado Stand? @relation(fields: [standId], references: [id], onDelete: SetNull)
-  escalasPlantao  EscalaPlantao[]
+  standCoordenado                  Stand?             @relation(fields: [standId], references: [id], onDelete: SetNull)
+  escalasPlantao                   EscalaPlantao[]
 
-  passwordResetTokens PasswordResetToken[]
-  twoFactorCodes      TwoFactorCode[]
-  whatsAppSessions    WhatsAppSession[]
-  ownedCards          Card[]
+  passwordResetTokens       PasswordResetToken[]
+  twoFactorCodes            TwoFactorCode[]
+  whatsAppSessions          WhatsAppSession[]
+  ownedCards                Card[]
   // Cards onde este usuario e a sugestao pendente da Roleta Online
   // (modo semi_automatico) - ver CardSuggestedOwner em Card.
-  suggestedCards      Card[] @relation("CardSuggestedOwner")
+  suggestedCards            Card[]               @relation("CardSuggestedOwner")
   createdSignatureEnvelopes SignatureEnvelope[]
 
   filaVinculos       FilaUsuario[]
@@ -298,8 +305,8 @@ model Stand {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  escalas    EscalaPlantao[]
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  escalas       EscalaPlantao[]
   coordenadores User[]
 
   @@map("stands")
@@ -409,39 +416,39 @@ model WhatsAppMessage {
 // a VIVI decide transferir para um corretor humano, cardId e preenchido
 // com o Card criado na Caixa de Entrada (origem "roleta_online").
 model ViviConversation {
-  id                  String   @id @default(uuid()) @db.Uuid
-  tenantId            String   @map("tenant_id") @db.Uuid
-  whatsappSessionId   String   @map("whatsapp_session_id") @db.Uuid
-  phoneNumber         String   @map("phone_number") @db.VarChar(30)
-  status              String   @default("em_andamento") @db.VarChar(30)
-  nomeColetado        String?  @map("nome_coletado") @db.VarChar(150)
-  tipoImovelColetado  String?  @map("tipo_imovel_coletado") @db.VarChar(50)
-  orcamentoColetado   String?  @map("orcamento_coletado") @db.VarChar(100)
-  regiaoColetado      String?  @map("regiao_coletado") @db.VarChar(150)
-  finalidadeColetado  String?  @map("finalidade_coletado") @db.VarChar(20)
-  cardId              String?  @map("card_id") @db.Uuid
+  id                    String    @id @default(uuid()) @db.Uuid
+  tenantId              String    @map("tenant_id") @db.Uuid
+  whatsappSessionId     String    @map("whatsapp_session_id") @db.Uuid
+  phoneNumber           String    @map("phone_number") @db.VarChar(30)
+  status                String    @default("em_andamento") @db.VarChar(30)
+  nomeColetado          String?   @map("nome_coletado") @db.VarChar(150)
+  tipoImovelColetado    String?   @map("tipo_imovel_coletado") @db.VarChar(50)
+  orcamentoColetado     String?   @map("orcamento_coletado") @db.VarChar(100)
+  regiaoColetado        String?   @map("regiao_coletado") @db.VarChar(150)
+  finalidadeColetado    String?   @map("finalidade_coletado") @db.VarChar(20)
+  cardId                String?   @map("card_id") @db.Uuid
   // Preenchido quando a tool "agendar_visita" e chamada - a meta absoluta
   // da VIVI (ver constants/vivi-prompt.ts). Diferente de qualificado_
   // transferido/encaminhado_fila, agendar uma visita NAO encerra a
   // conversa (status continua "em_andamento") - a VIVI segue coletando
   // dados pos-visita (nascimento/email/tipo de renda/IR) depois disso.
-  visitaAgendadaEm    DateTime? @map("visita_agendada_em")
+  visitaAgendadaEm      DateTime? @map("visita_agendada_em")
   // Renda familiar mensal aproximada declarada pelo lead, e a categoria
   // habitacional resultante (HIS1/HIS2/HMP/R2V/SEM_PERFIL) - sempre
   // calculada em codigo puro (ver domain/services/classificar-renda.ts),
   // nunca decidida pela IA. Usada para o argumento de venda certo na
   // conversa.
-  rendaDeclarada        Float?  @map("renda_declarada")
-  categoriaHabitacional String? @map("categoria_habitacional") @db.VarChar(20)
+  rendaDeclarada        Float?    @map("renda_declarada")
+  categoriaHabitacional String?   @map("categoria_habitacional") @db.VarChar(20)
   // Coletados SOMENTE apos visitaAgendadaEm ser preenchido (ver tool
   // "salvar_dados_pos_visita" - rejeitada em codigo se a visita ainda nao
   // foi confirmada, defesa em profundidade alem da ordem pedida no prompt).
-  dataNascimento  String?  @map("data_nascimento") @db.VarChar(20)
-  email           String?  @db.VarChar(150)
-  tipoRenda       String?  @map("tipo_renda") @db.VarChar(20)
-  fezDeclaracaoIR Boolean? @map("fez_declaracao_ir")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  dataNascimento        String?   @map("data_nascimento") @db.VarChar(20)
+  email                 String?   @db.VarChar(150)
+  tipoRenda             String?   @map("tipo_renda") @db.VarChar(20)
+  fezDeclaracaoIR       Boolean?  @map("fez_declaracao_ir")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session WhatsAppSession @relation(fields: [whatsappSessionId], references: [id], onDelete: Cascade)
@@ -493,29 +500,29 @@ model FilaUsuario {
 // venda (tool "transferir_para_fila" - ver ProcessIncomingMessageUseCase
 // no modulo vivi_sdr).
 model Atendimento {
-  id                String @id @default(uuid()) @db.Uuid
-  tenantId          String @map("tenant_id") @db.Uuid
-  whatsappSessionId String @map("whatsapp_session_id") @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  whatsappSessionId String    @map("whatsapp_session_id") @db.Uuid
   // JID completo (com sufixo @lid ou @s.whatsapp.net) - necessario para
   // responder corretamente (ver CLAUDE.md, bug do JID @lid).
-  remoteJid   String @map("remote_jid") @db.VarChar(50)
-  phoneNumber String @map("phone_number") @db.VarChar(30)
+  remoteJid         String    @map("remote_jid") @db.VarChar(50)
+  phoneNumber       String    @map("phone_number") @db.VarChar(30)
   // Nulo ate ser classificado manualmente (ClassifyAndRouteAtendimentoUseCase)
   // ou pela VIVI.
-  filaId String? @map("fila_id") @db.Uuid
+  filaId            String?   @map("fila_id") @db.Uuid
   // Nulo ate um agente assumir (AssignAtendimentoUseCase).
-  ownerId String? @map("owner_id") @db.Uuid
+  ownerId           String?   @map("owner_id") @db.Uuid
   // aguardando -> em_atendimento -> fechado (ou devolvido para aguardando
   // via RequeueAtendimentoUseCase).
-  status           String    @default("aguardando") @db.VarChar(20)
-  motivoFechamento String?   @map("motivo_fechamento") @db.VarChar(300)
+  status            String    @default("aguardando") @db.VarChar(20)
+  motivoFechamento  String?   @map("motivo_fechamento") @db.VarChar(300)
   // Marcado pela VIVI quando o lead pede explicitamente para falar com um
   // humano AGORA (ver ProcessIncomingMessageUseCase/vivi-prompt.ts) -
   // exibido como badge visual na Central de Atendimento.
-  urgente          Boolean   @default(false)
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  closedAt         DateTime? @map("closed_at")
+  urgente           Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  closedAt          DateTime? @map("closed_at")
 
   tenant  Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session WhatsAppSession     @relation(fields: [whatsappSessionId], references: [id], onDelete: Cascade)
@@ -577,15 +584,15 @@ model Stage {
 // sem coluna e sem dono. "position" e Float pelo mesmo motivo do Stage
 // (algoritmo de posicionamento flutuante).
 model Card {
-  id           String   @id @default(uuid()) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  pipelineId   String   @map("pipeline_id") @db.Uuid
-  stageId      String?  @map("stage_id") @db.Uuid
-  ownerId      String?  @map("owner_id") @db.Uuid
+  id                         String    @id @default(uuid()) @db.Uuid
+  tenantId                   String    @map("tenant_id") @db.Uuid
+  pipelineId                 String    @map("pipeline_id") @db.Uuid
+  stageId                    String?   @map("stage_id") @db.Uuid
+  ownerId                    String?   @map("owner_id") @db.Uuid
   // Sugestao da Roleta Online (modo semi_automatico): corretor sugerido
   // para assumir o lead, ainda sem confirmacao (ownerId continua nulo ate
   // ConfirmSuggestedOwnerUseCase ser chamado). Ver modulo roleta_online.
-  suggestedOwnerId String? @map("suggested_owner_id") @db.Uuid
+  suggestedOwnerId           String?   @map("suggested_owner_id") @db.Uuid
   // Timeout de aceite da Roleta Online (modo automatico, ver
   // roleta_online/domain/services/pick-corretor.ts e
   // ProcessRoletaTimeoutsUseCase): preenchido no momento da atribuicao
@@ -596,58 +603,59 @@ model Card {
   atribuidoAutomaticamenteEm DateTime? @map("atribuido_automaticamente_em")
   // Preenchido quando o proprio corretor clica em "Aceitar Lead" - so tem
   // sentido junto com atribuidoAutomaticamenteEm preenchido.
-  aceitoEm     DateTime? @map("aceito_em")
-  imovelId     String?  @map("imovel_id") @db.Uuid
-  title        String   @db.VarChar(200)
-  value        Decimal  @default(0) @db.Decimal(12, 2)
-  position     Float
-  origem       String   @default("manual") @db.VarChar(20)
-  phone        String?  @db.VarChar(30)
-  temperatura  String?  @db.VarChar(10)
-  email        String?  @db.VarChar(150)
-  endereco     String?  @db.VarChar(200)
-  numero       String?  @db.VarChar(20)
-  complemento  String?  @db.VarChar(100)
-  bairro       String?  @db.VarChar(100)
-  cep          String?  @db.VarChar(10)
+  aceitoEm                   DateTime? @map("aceito_em")
+  imovelId                   String?   @map("imovel_id") @db.Uuid
+  title                      String    @db.VarChar(200)
+  value                      Decimal   @default(0) @db.Decimal(12, 2)
+  position                   Float
+  origem                     String    @default("manual") @db.VarChar(20)
+  phone                      String?   @db.VarChar(30)
+  temperatura                String?   @db.VarChar(10)
+  email                      String?   @db.VarChar(150)
+  endereco                   String?   @db.VarChar(200)
+  numero                     String?   @db.VarChar(20)
+  complemento                String?   @db.VarChar(100)
+  bairro                     String?   @db.VarChar(100)
+  cep                        String?   @db.VarChar(10)
   // Motivo de mover o card para a stage "Repique" (deposito de
   // remarketing/reengajamento) - preenchido manualmente (modal obrigatorio
   // no Kanban) ou automaticamente pelo job de inatividade de 90 dias (ver
   // vendas_kanban/domain/services/motivo-repique.ts para os valores
   // validos). Nulo para cards que nunca passaram por Repique - nao e
   // limpo se o card sair de Repique depois, fica como registro historico.
-  motivoRepique String? @map("motivo_repique") @db.VarChar(30)
+  motivoRepique              String?   @map("motivo_repique") @db.VarChar(30)
   // Quando o card ENTROU na stage Repique (manual ou automatico) - NAO
   // usar updatedAt como proxy disso, ja que updatedAt e bumpado por
   // qualquer edicao do card (nota, atividade, etc.), nao so ao mudar de
   // stage - decisao confirmada antes de implementar o job de Repique.
-  movidoParaRepiqueEm DateTime? @map("movido_para_repique_em")
+  movidoParaRepiqueEm        DateTime? @map("movido_para_repique_em")
   // Motor de campanha de Repique (ver ProcessarCampanhaRepiqueUseCase) -
   // opt-out obrigatorio (LGPD). repiqueOptOutToken e gerado sob demanda,
   // no primeiro envio de campanha (nao na criacao do card) - fica nulo
   // ate la. Unico (@unique) porque e usado para localizar o card a partir
   // do link publico de descadastro, sem precisar de tenantId/autenticacao.
-  repiqueOptOut       Boolean  @default(false) @map("repique_opt_out")
-  repiqueOptOutToken  String?  @unique @map("repique_opt_out_token") @db.VarChar(64)
+  repiqueOptOut              Boolean   @default(false) @map("repique_opt_out")
+  repiqueOptOutToken         String?   @unique @map("repique_opt_out_token") @db.VarChar(64)
   // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
   // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
   // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas
   // disponivel para qualquer outro fluxo futuro que queira usa-lo.
-  description  String?  @db.Text
-  customFields Json     @default("{}") @map("custom_fields")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  description                String?   @db.Text
+  customFields               Json      @default("{}") @map("custom_fields")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
 
-  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pipeline          Pipeline           @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  stage             Stage?             @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  owner             User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  suggestedOwner    User?              @relation("CardSuggestedOwner", fields: [suggestedOwnerId], references: [id], onDelete: SetNull)
-  imovel            Imovel?            @relation(fields: [imovelId], references: [id], onDelete: SetNull)
-  activities        Activity[]
-  notes             Note[]
-  viviConversations ViviConversation[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline              Pipeline               @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stage                 Stage?                 @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  owner                 User?                  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  suggestedOwner        User?                  @relation("CardSuggestedOwner", fields: [suggestedOwnerId], references: [id], onDelete: SetNull)
+  imovel                Imovel?                @relation(fields: [imovelId], references: [id], onDelete: SetNull)
+  activities            Activity[]
+  notes                 Note[]
+  viviConversations     ViviConversation[]
   repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
+  socialConversations   SocialConversation[]
 
   @@map("cards")
 }
@@ -700,38 +708,38 @@ model Empreendimento {
 // Uma unidade/imovel disponivel para venda e/ou aluguel. Pode pertencer a
 // um Empreendimento ou ser avulso (empreendimentoId nulo).
 model Imovel {
-  id                    String    @id @default(uuid()) @db.Uuid
-  tenantId              String    @map("tenant_id") @db.Uuid
-  empreendimentoId      String?   @map("empreendimento_id") @db.Uuid
-  title                 String    @db.VarChar(200)
-  codigoInterno         String?   @map("codigo_interno") @db.VarChar(50)
-  tipo                  String    @db.VarChar(20)
-  uso                   String?   @db.VarChar(20)
-  finalidade            String    @db.VarChar(10)
-  tags                  String?   @db.Text
-  price                 Decimal?  @db.Decimal(12, 2)
-  rentPrice             Decimal?  @map("rent_price") @db.Decimal(12, 2)
-  area                  Float?
-  bedrooms              Int?
-  bathrooms             Int?
-  parkingSpots          Int?      @map("parking_spots")
-  rua                   String?   @db.VarChar(200)
-  numero                String?   @db.VarChar(20)
-  complemento           String?   @db.VarChar(100)
-  bairro                String?   @db.VarChar(100)
-  cidade                String?   @db.VarChar(100)
-  uf                    String?   @db.VarChar(2)
-  cep                   String?   @db.VarChar(10)
-  description           String?   @db.Text
-  status                String    @default("disponivel") @db.VarChar(20)
-  disponivelApartirDe   DateTime? @map("disponivel_a_partir_de")
-  localChaves           String?   @map("local_chaves") @db.VarChar(20)
-  exclusividade         Boolean   @default(false)
-  proprietarioNome      String?   @map("proprietario_nome") @db.VarChar(150)
-  proprietarioTelefone  String?   @map("proprietario_telefone") @db.VarChar(30)
-  customFields          Json      @default("{}") @map("custom_fields")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  empreendimentoId     String?   @map("empreendimento_id") @db.Uuid
+  title                String    @db.VarChar(200)
+  codigoInterno        String?   @map("codigo_interno") @db.VarChar(50)
+  tipo                 String    @db.VarChar(20)
+  uso                  String?   @db.VarChar(20)
+  finalidade           String    @db.VarChar(10)
+  tags                 String?   @db.Text
+  price                Decimal?  @db.Decimal(12, 2)
+  rentPrice            Decimal?  @map("rent_price") @db.Decimal(12, 2)
+  area                 Float?
+  bedrooms             Int?
+  bathrooms            Int?
+  parkingSpots         Int?      @map("parking_spots")
+  rua                  String?   @db.VarChar(200)
+  numero               String?   @db.VarChar(20)
+  complemento          String?   @db.VarChar(100)
+  bairro               String?   @db.VarChar(100)
+  cidade               String?   @db.VarChar(100)
+  uf                   String?   @db.VarChar(2)
+  cep                  String?   @db.VarChar(10)
+  description          String?   @db.Text
+  status               String    @default("disponivel") @db.VarChar(20)
+  disponivelApartirDe  DateTime? @map("disponivel_a_partir_de")
+  localChaves          String?   @map("local_chaves") @db.VarChar(20)
+  exclusividade        Boolean   @default(false)
+  proprietarioNome     String?   @map("proprietario_nome") @db.VarChar(150)
+  proprietarioTelefone String?   @map("proprietario_telefone") @db.VarChar(30)
+  customFields         Json      @default("{}") @map("custom_fields")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   empreendimento Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
@@ -762,25 +770,25 @@ model ImovelPhoto {
 // campos simples, sem FK - ver CLAUDE.md sobre a futura entidade formal do
 // modulo RH/Cadastros).
 model Proprietario {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  nome          String   @db.VarChar(150)
-  cpfCnpj       String?  @map("cpf_cnpj") @db.VarChar(20)
-  telefone      String   @db.VarChar(30)
-  email         String?  @db.VarChar(150)
-  rua           String?  @db.VarChar(200)
-  numero        String?  @db.VarChar(20)
-  complemento   String?  @db.VarChar(100)
-  bairro        String?  @db.VarChar(100)
-  cidade        String?  @db.VarChar(100)
-  uf            String?  @db.VarChar(2)
-  cep           String?  @db.VarChar(10)
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  nome        String   @db.VarChar(150)
+  cpfCnpj     String?  @map("cpf_cnpj") @db.VarChar(20)
+  telefone    String   @db.VarChar(30)
+  email       String?  @db.VarChar(150)
+  rua         String?  @db.VarChar(200)
+  numero      String?  @db.VarChar(20)
+  complemento String?  @db.VarChar(100)
+  bairro      String?  @db.VarChar(100)
+  cidade      String?  @db.VarChar(100)
+  uf          String?  @db.VarChar(2)
+  cep         String?  @db.VarChar(10)
   // Dados bancarios para repasse financeiro futuro (aluguel, venda).
-  banco         String?  @db.VarChar(100)
-  agencia       String?  @db.VarChar(20)
-  conta         String?  @db.VarChar(20)
-  pix           String?  @db.VarChar(150)
-  createdAt     DateTime @default(now()) @map("created_at")
+  banco       String?  @db.VarChar(100)
+  agencia     String?  @db.VarChar(20)
+  conta       String?  @db.VarChar(20)
+  pix         String?  @db.VarChar(150)
+  createdAt   DateTime @default(now()) @map("created_at")
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   contratos Contrato[]
@@ -792,18 +800,18 @@ model Proprietario {
 // analise de credito (profissao/renda/status/observacoes) e documentos
 // anexados (InquilinoDocumento).
 model InquilinoComprador {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  nome      String   @db.VarChar(150)
-  cpfCnpj   String?  @map("cpf_cnpj") @db.VarChar(20)
-  telefone  String   @db.VarChar(30)
-  email     String?  @db.VarChar(150)
-  profissao String?  @db.VarChar(100)
-  rendaDeclarada Decimal? @map("renda_declarada") @db.Decimal(12, 2)
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  nome                 String   @db.VarChar(150)
+  cpfCnpj              String?  @map("cpf_cnpj") @db.VarChar(20)
+  telefone             String   @db.VarChar(30)
+  email                String?  @db.VarChar(150)
+  profissao            String?  @db.VarChar(100)
+  rendaDeclarada       Decimal? @map("renda_declarada") @db.Decimal(12, 2)
   // nao_iniciada, em_analise, aprovado, reprovado.
-  statusAnaliseCredito String  @default("nao_iniciada") @map("status_analise_credito") @db.VarChar(20)
-  observacoesAnalise   String? @map("observacoes_analise") @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
+  statusAnaliseCredito String   @default("nao_iniciada") @map("status_analise_credito") @db.VarChar(20)
+  observacoesAnalise   String?  @map("observacoes_analise") @db.Text
+  createdAt            DateTime @default(now()) @map("created_at")
 
   tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   contratos  Contrato[]
@@ -854,10 +862,10 @@ model Contrato {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  imovel             Imovel             @relation(fields: [imovelId], references: [id], onDelete: Cascade)
-  proprietario       Proprietario       @relation(fields: [proprietarioId], references: [id], onDelete: Cascade)
-  inquilinoComprador InquilinoComprador @relation(fields: [inquilinoCompradorId], references: [id], onDelete: Cascade)
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  imovel                 Imovel                 @relation(fields: [imovelId], references: [id], onDelete: Cascade)
+  proprietario           Proprietario           @relation(fields: [proprietarioId], references: [id], onDelete: Cascade)
+  inquilinoComprador     InquilinoComprador     @relation(fields: [inquilinoCompradorId], references: [id], onDelete: Cascade)
   lancamentosFinanceiros LancamentoFinanceiro[]
 
   @@map("contratos")
@@ -924,17 +932,17 @@ model Note {
 // e um ponteiro simples (sem FK) usado pelo algoritmo round_robin para saber
 // quem foi o ultimo a receber um lead.
 model RoletaConfig {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @unique @map("tenant_id") @db.Uuid
-  algoritmo        String   @default("round_robin") @db.VarChar(20) // "round_robin" ou "menor_fila"
-  modo             String   @default("semi_automatico") @db.VarChar(20) // "automatico" ou "semi_automatico"
-  ativa            Boolean  @default(false)
-  ultimoCorretorId String?  @map("ultimo_corretor_id") @db.Uuid
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @unique @map("tenant_id") @db.Uuid
+  algoritmo            String   @default("round_robin") @db.VarChar(20) // "round_robin" ou "menor_fila"
+  modo                 String   @default("semi_automatico") @db.VarChar(20) // "automatico" ou "semi_automatico"
+  ativa                Boolean  @default(false)
+  ultimoCorretorId     String?  @map("ultimo_corretor_id") @db.Uuid
   // So se aplica ao modo "automatico" - quantos minutos o corretor tem
   // para clicar em "Aceitar Lead" antes do card ser reatribuido ao
   // proximo da fila (ver ProcessRoletaTimeoutsUseCase).
-  timeoutAceiteMinutos Int   @default(5) @map("timeout_aceite_minutos")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  timeoutAceiteMinutos Int      @default(5) @map("timeout_aceite_minutos")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -959,10 +967,10 @@ model RoletaConfig {
 // tem subsidio (Faixa 3/4 normalmente nao tem) e exemploParcela e
 // deliberadamente livre para o Administrador preencher ou nao.
 model ViviConfig {
-  id              String   @id @default(uuid()) @db.Uuid
-  tenantId        String   @unique @map("tenant_id") @db.Uuid
-  precoMinimo     Decimal  @default(264000) @map("preco_minimo") @db.Decimal(12, 2)
-  limiteSemPerfil Decimal  @default(1500) @map("limite_sem_perfil") @db.Decimal(12, 2)
+  id              String  @id @default(uuid()) @db.Uuid
+  tenantId        String  @unique @map("tenant_id") @db.Uuid
+  precoMinimo     Decimal @default(264000) @map("preco_minimo") @db.Decimal(12, 2)
+  limiteSemPerfil Decimal @default(1500) @map("limite_sem_perfil") @db.Decimal(12, 2)
 
   limiteFaixa1 Decimal @default(3200) @map("limite_faixa1") @db.Decimal(12, 2)
   limiteFaixa2 Decimal @default(5000) @map("limite_faixa2") @db.Decimal(12, 2)
@@ -970,31 +978,31 @@ model ViviConfig {
   // Faixa 4 (NOVA, 2026): MCMV Premium.
   limiteFaixa4 Decimal @default(13000) @map("limite_faixa4") @db.Decimal(12, 2)
 
-  faixa1SubsidioMax        Decimal? @default(55000) @map("faixa1_subsidio_max") @db.Decimal(12, 2)
-  faixa1JurosMin           Decimal? @default(4.00) @map("faixa1_juros_min") @db.Decimal(5, 2)
-  faixa1JurosMax           Decimal? @default(4.50) @map("faixa1_juros_max") @db.Decimal(5, 2)
-  faixa1TetoFinanciamento  String?  @map("faixa1_teto_financiamento") @db.VarChar(100)
-  faixa1ExemploParcela     String?  @map("faixa1_exemplo_parcela") @db.VarChar(300)
+  faixa1SubsidioMax       Decimal? @default(55000) @map("faixa1_subsidio_max") @db.Decimal(12, 2)
+  faixa1JurosMin          Decimal? @default(4.00) @map("faixa1_juros_min") @db.Decimal(5, 2)
+  faixa1JurosMax          Decimal? @default(4.50) @map("faixa1_juros_max") @db.Decimal(5, 2)
+  faixa1TetoFinanciamento String?  @map("faixa1_teto_financiamento") @db.VarChar(100)
+  faixa1ExemploParcela    String?  @map("faixa1_exemplo_parcela") @db.VarChar(300)
 
-  faixa2SubsidioMax        Decimal? @default(55000) @map("faixa2_subsidio_max") @db.Decimal(12, 2)
-  faixa2JurosMin           Decimal? @default(4.75) @map("faixa2_juros_min") @db.Decimal(5, 2)
-  faixa2JurosMax           Decimal? @default(6.50) @map("faixa2_juros_max") @db.Decimal(5, 2)
-  faixa2TetoFinanciamento  String?  @default("R$ 275 mil a R$ 400 mil") @map("faixa2_teto_financiamento") @db.VarChar(100)
-  faixa2ExemploParcela     String?  @map("faixa2_exemplo_parcela") @db.VarChar(300)
+  faixa2SubsidioMax       Decimal? @default(55000) @map("faixa2_subsidio_max") @db.Decimal(12, 2)
+  faixa2JurosMin          Decimal? @default(4.75) @map("faixa2_juros_min") @db.Decimal(5, 2)
+  faixa2JurosMax          Decimal? @default(6.50) @map("faixa2_juros_max") @db.Decimal(5, 2)
+  faixa2TetoFinanciamento String?  @default("R$ 275 mil a R$ 400 mil") @map("faixa2_teto_financiamento") @db.VarChar(100)
+  faixa2ExemploParcela    String?  @map("faixa2_exemplo_parcela") @db.VarChar(300)
 
   // Faixa 3 normalmente sem subsidio - faixa3SubsidioMax fica null.
-  faixa3SubsidioMax        Decimal? @map("faixa3_subsidio_max") @db.Decimal(12, 2)
-  faixa3JurosMin           Decimal? @default(7.66) @map("faixa3_juros_min") @db.Decimal(5, 2)
-  faixa3JurosMax           Decimal? @default(7.66) @map("faixa3_juros_max") @db.Decimal(5, 2)
-  faixa3TetoFinanciamento  String?  @default("R$ 400 mil") @map("faixa3_teto_financiamento") @db.VarChar(100)
-  faixa3ExemploParcela     String?  @map("faixa3_exemplo_parcela") @db.VarChar(300)
+  faixa3SubsidioMax       Decimal? @map("faixa3_subsidio_max") @db.Decimal(12, 2)
+  faixa3JurosMin          Decimal? @default(7.66) @map("faixa3_juros_min") @db.Decimal(5, 2)
+  faixa3JurosMax          Decimal? @default(7.66) @map("faixa3_juros_max") @db.Decimal(5, 2)
+  faixa3TetoFinanciamento String?  @default("R$ 400 mil") @map("faixa3_teto_financiamento") @db.VarChar(100)
+  faixa3ExemploParcela    String?  @map("faixa3_exemplo_parcela") @db.VarChar(300)
 
   // Faixa 4 (NOVA) - MCMV Premium, tambem sem subsidio.
-  faixa4SubsidioMax        Decimal? @map("faixa4_subsidio_max") @db.Decimal(12, 2)
-  faixa4JurosMin           Decimal? @default(10.50) @map("faixa4_juros_min") @db.Decimal(5, 2)
-  faixa4JurosMax           Decimal? @default(10.50) @map("faixa4_juros_max") @db.Decimal(5, 2)
-  faixa4TetoFinanciamento  String?  @default("R$ 600 mil") @map("faixa4_teto_financiamento") @db.VarChar(100)
-  faixa4ExemploParcela     String?  @map("faixa4_exemplo_parcela") @db.VarChar(300)
+  faixa4SubsidioMax       Decimal? @map("faixa4_subsidio_max") @db.Decimal(12, 2)
+  faixa4JurosMin          Decimal? @default(10.50) @map("faixa4_juros_min") @db.Decimal(5, 2)
+  faixa4JurosMax          Decimal? @default(10.50) @map("faixa4_juros_max") @db.Decimal(5, 2)
+  faixa4TetoFinanciamento String?  @default("R$ 600 mil") @map("faixa4_teto_financiamento") @db.VarChar(100)
+  faixa4ExemploParcela    String?  @map("faixa4_exemplo_parcela") @db.VarChar(300)
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1023,9 +1031,9 @@ model EnderecoBuscaLog {
   // resposta que fez esta busca - so por urgencia/pedido explicito do lead
   // (ver vivi-prompt.ts, secao "Busca de empreendimento por endereco"),
   // nunca automatico so por nao ter encontrado o empreendimento.
-  escalonado           Boolean  @default(false)
-  motivoEscalonamento  String?  @map("motivo_escalonamento") @db.VarChar(50)
-  createdAt            DateTime @default(now()) @map("created_at")
+  escalonado             Boolean  @default(false)
+  motivoEscalonamento    String?  @map("motivo_escalonamento") @db.VarChar(50)
+  createdAt              DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1038,37 +1046,37 @@ model EnderecoBuscaLog {
 // assinar). Fatia 2 adicionou o editor de posicionamento (SignatureField)
 // e signedDocumentUrl (o PDF final com as assinaturas embutidas).
 model SignatureEnvelope {
-  id              String    @id @default(uuid()) @db.Uuid
-  tenantId        String    @map("tenant_id") @db.Uuid
-  title           String    @db.VarChar(200)
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  title             String    @db.VarChar(200)
   // rascunho -> aguardando_assinaturas -> concluido (ou cancelado a qualquer momento antes de concluido).
-  status          String    @default("rascunho") @db.VarChar(30)
-  documentUrl     String    @map("document_url") @db.VarChar(500)
+  status            String    @default("rascunho") @db.VarChar(30)
+  documentUrl       String    @map("document_url") @db.VarChar(500)
   // SHA-256 do PDF original, calculado na criacao - prova de integridade do documento.
-  documentHash    String    @map("document_hash") @db.VarChar(64)
-  createdByUserId String    @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime  @default(now()) @map("created_at")
-  completedAt     DateTime? @map("completed_at")
+  documentHash      String    @map("document_hash") @db.VarChar(64)
+  createdByUserId   String    @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  completedAt       DateTime? @map("completed_at")
   // PDF final com as assinaturas embutidas (pdf-lib) - preenchido pelo
   // GenerateSignedPdfUseCase logo apos o envelope ficar "concluido".
   // Nulo ate la (e continua nulo se a geracao falhar - ver CLAUDE.md).
-  signedDocumentUrl String? @map("signed_document_url") @db.VarChar(500)
+  signedDocumentUrl String?   @map("signed_document_url") @db.VarChar(500)
   // Assunto/mensagem customizaveis do e-mail de convite (Fatia 4) - nulos
   // se o usuario nao customizar, e o SendEnvelopeUseCase aplica o template
   // padrao definido em domain/services/envelope-validation.ts nesse caso
   // (default aplicado na camada de aplicacao, nao aqui no schema).
-  emailSubject    String?   @map("email_subject") @db.VarChar(200)
-  emailMessage    String?   @map("email_message") @db.Text
+  emailSubject      String?   @map("email_subject") @db.VarChar(200)
+  emailMessage      String?   @map("email_message") @db.Text
 
-  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy  User                 @relation(fields: [createdByUserId], references: [id])
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy         User                 @relation(fields: [createdByUserId], references: [id])
   // Relacao reversa do FK opcional em User.contratoPrestacaoServicoEnvelopeId
   // (modulo rh) - o corretor/parceiro para quem este envelope especifico e
   // o contrato de prestacao de servico (se for esse o caso).
-  usuarioContratado User? @relation("UserContratoPrestacaoServico")
-  recipients SignatureRecipient[]
-  events     SignatureEvent[]
-  fields     SignatureField[]
+  usuarioContratado User?                @relation("UserContratoPrestacaoServico")
+  recipients        SignatureRecipient[]
+  events            SignatureEvent[]
+  fields            SignatureField[]
 
   @@map("signature_envelopes")
 }
@@ -1119,21 +1127,21 @@ model SignatureRecipient {
 // relativos ao tamanho da pagina, nao pixels absolutos - funciona em
 // qualquer resolucao de tela ou tamanho real de pagina do PDF.
 model SignatureField {
-  id             String   @id @default(uuid()) @db.Uuid
-  envelopeId     String   @map("envelope_id") @db.Uuid
-  recipientId    String   @map("recipient_id") @db.Uuid
+  id            String   @id @default(uuid()) @db.Uuid
+  envelopeId    String   @map("envelope_id") @db.Uuid
+  recipientId   String   @map("recipient_id") @db.Uuid
   // assinatura (padrao, tipicamente so na ultima pagina) ou rubrica
   // (Fatia 3, repetida em todas as paginas) - a repeticao em si e
   // responsabilidade do FRONTEND (gera 1 SignatureField por pagina com o
   // mesmo recipientId e tipo="rubrica" quando o usuario posiciona 1 vez);
   // o backend so recebe e salva a lista final de campos.
-  tipo           String   @default("assinatura") @db.VarChar(20)
-  pageNumber     Int      @map("page_number")
-  xPercent       Float    @map("x_percent")
-  yPercent       Float    @map("y_percent")
-  widthPercent   Float    @default(0.2) @map("width_percent")
-  heightPercent  Float    @default(0.08) @map("height_percent")
-  createdAt      DateTime @default(now()) @map("created_at")
+  tipo          String   @default("assinatura") @db.VarChar(20)
+  pageNumber    Int      @map("page_number")
+  xPercent      Float    @map("x_percent")
+  yPercent      Float    @map("y_percent")
+  widthPercent  Float    @default(0.2) @map("width_percent")
+  heightPercent Float    @default(0.08) @map("height_percent")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   envelope  SignatureEnvelope  @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
   recipient SignatureRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
@@ -1189,10 +1197,81 @@ model SocialAccount {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  tenant  Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  targets SocialPostTarget[]
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  targets       SocialPostTarget[]
+  messages      SocialMessage[]
+  conversations SocialConversation[]
 
   @@map("social_accounts")
+}
+
+// Historico bruto de DMs (Instagram/Facebook Messenger) recebidas via
+// webhook da Meta e enviadas de volta via MessageDispatcherService - papel
+// paralelo ao de WhatsAppMessage (modulo whatsappmarketing), mas escopado
+// por SocialAccount (Pagina/conta Instagram Business) em vez de
+// WhatsAppSession. Vive no modulo social_media (o "canal"), lido pelo
+// vivi_sdr (ProcessIncomingSocialMessageUseCase) para montar o historico da
+// conversa - mesmo padrao de dependencia ja usado com WhatsAppMessage.
+//
+// DECISAO (fatia DM Instagram/Facebook): deliberadamente NAO generalizamos
+// WhatsAppMessage/ViviConversation para aceitar qualquer canal - essas
+// tabelas sao FK-obrigatorias para WhatsAppSession e estao em producao,
+// ativamente usadas pelo fluxo WhatsApp. Criar modelos paralelos evita
+// qualquer risco de regressao no WhatsApp, ao custo de alguma duplicacao de
+// estrutura entre os dois pares de tabelas.
+model SocialMessage {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  socialAccountId      String   @map("social_account_id") @db.Uuid
+  direction            String   @db.VarChar(3) // "IN" ou "OUT"
+  // PSID (Messenger) ou IGSID (Instagram) do lead - id do outro lado da
+  // conversa, sempre o MESMO independente da direcao da mensagem.
+  identificadorExterno String   @map("identificador_externo") @db.VarChar(255)
+  body                 String   @db.Text
+  timestamp            DateTime
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([socialAccountId, identificadorExterno])
+  @@map("social_messages")
+}
+
+// Uma conversa da VIVI com um lead via DM (Instagram/Facebook) - papel
+// paralelo ao de ViviConversation (modulo vivi_sdr), mas chaveada por
+// SocialAccount + identificadorExterno (PSID/IGSID) em vez de
+// whatsappSessionId + phoneNumber, ja que esses canais nao tem "numero de
+// telefone". Ver decisao registrada no comentario de SocialMessage acima -
+// mesmo raciocinio se aplica aqui.
+model SocialConversation {
+  id                    String    @id @default(uuid()) @db.Uuid
+  tenantId              String    @map("tenant_id") @db.Uuid
+  socialAccountId       String    @map("social_account_id") @db.Uuid
+  identificadorExterno  String    @map("identificador_externo") @db.VarChar(255)
+  status                String    @default("em_andamento") @db.VarChar(30)
+  nomeColetado          String?   @map("nome_coletado") @db.VarChar(150)
+  tipoImovelColetado    String?   @map("tipo_imovel_coletado") @db.VarChar(50)
+  orcamentoColetado     String?   @map("orcamento_coletado") @db.VarChar(100)
+  regiaoColetado        String?   @map("regiao_coletado") @db.VarChar(150)
+  finalidadeColetado    String?   @map("finalidade_coletado") @db.VarChar(20)
+  cardId                String?   @map("card_id") @db.Uuid
+  visitaAgendadaEm      DateTime? @map("visita_agendada_em")
+  rendaDeclarada        Float?    @map("renda_declarada")
+  categoriaHabitacional String?   @map("categoria_habitacional") @db.VarChar(20)
+  dataNascimento        String?   @map("data_nascimento") @db.VarChar(20)
+  email                 String?   @db.VarChar(150)
+  tipoRenda             String?   @map("tipo_renda") @db.VarChar(20)
+  fezDeclaracaoIR       Boolean?  @map("fez_declaracao_ir")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  card          Card?         @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([socialAccountId, identificadorExterno])
+  @@map("social_conversations")
 }
 
 // Um post (conteudo + midia), potencialmente publicado em varias contas/
@@ -1203,24 +1282,24 @@ model SocialAccount {
 // virgula) porque aqui o valor e sempre uma lista de URLs ja resolvidas,
 // sem necessidade de parsing textual.
 model SocialPost {
-  id            String    @id @default(uuid()) @db.Uuid
-  tenantId      String    @map("tenant_id") @db.Uuid
-  authorId      String    @map("author_id") @db.Uuid
-  content       String    @db.Text
-  mediaUrls     String[]  @default([]) @map("media_urls")
-  scheduledAt   DateTime? @map("scheduled_at")
-  status        String    @default("DRAFT") @db.VarChar(20) // DRAFT, SCHEDULED, PUBLISHING, PUBLISHED, FAILED, PARTIAL
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  authorId          String    @map("author_id") @db.Uuid
+  content           String    @db.Text
+  mediaUrls         String[]  @default([]) @map("media_urls")
+  scheduledAt       DateTime? @map("scheduled_at")
+  status            String    @default("DRAFT") @db.VarChar(20) // DRAFT, SCHEDULED, PUBLISHING, PUBLISHED, FAILED, PARTIAL
   // Reservado para uma futura entidade de Campanha (nao criada nesta
   // fatia) - sem relation() de proposito, so a coluna guardada desde ja
   // para nao exigir outra migration quando essa entidade existir.
-  campaignId String? @map("campaign_id") @db.Uuid
+  campaignId        String?   @map("campaign_id") @db.Uuid
   // Reservado para a fatia futura de captacao de leads via comentario/DM
   // do Instagram/Facebook (ver CLAUDE.md) - valores do enum Canal
   // reaproveitado, nao um enum novo. Nulo e nao lido/escrito por nenhum
   // codigo ainda nesta fatia.
-  leadSourceChannel String? @map("lead_source_channel") @db.VarChar(20)
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  leadSourceChannel String?   @map("lead_source_channel") @db.VarChar(20)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   author  User               @relation("SocialPostAuthor", fields: [authorId], references: [id])
@@ -1235,14 +1314,14 @@ model SocialPost {
 // post.tenantId (mesmo padrao ja usado em SignatureField/SignatureEvent,
 // que tambem alcancam o tenant so pela cadeia de relacionamento).
 model SocialPostTarget {
-  id             String    @id @default(uuid()) @db.Uuid
-  postId         String    @map("post_id") @db.Uuid
-  socialAccountId String   @map("social_account_id") @db.Uuid
-  platformPostId String?   @map("platform_post_id") @db.VarChar(255) // id retornado pela plataforma apos publicar
-  status         String    @default("PENDING") @db.VarChar(20) // PENDING, PUBLISHED, FAILED
-  errorMessage   String?   @map("error_message") @db.Text
-  publishedAt    DateTime? @map("published_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  id              String    @id @default(uuid()) @db.Uuid
+  postId          String    @map("post_id") @db.Uuid
+  socialAccountId String    @map("social_account_id") @db.Uuid
+  platformPostId  String?   @map("platform_post_id") @db.VarChar(255) // id retornado pela plataforma apos publicar
+  status          String    @default("PENDING") @db.VarChar(20) // PENDING, PUBLISHED, FAILED
+  errorMessage    String?   @map("error_message") @db.Text
+  publishedAt     DateTime? @map("published_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   post          SocialPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
   socialAccount SocialAccount      @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)

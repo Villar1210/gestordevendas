@@ -10,7 +10,16 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody:true mantem o Buffer bruto do corpo (req.rawBody) disponivel
+  // AO LADO do parsing normal de JSON - necessario para o webhook do
+  // modulo social_media validar a assinatura X-Hub-Signature-256 da Meta
+  // (HMAC precisa ser calculado sobre os bytes exatos recebidos, nao sobre
+  // um JSON.stringify do body ja parseado, que pode nao bater byte a byte).
+  // Nao afeta nenhuma outra rota - so adiciona o Buffer bruto, nao muda o
+  // parsing/comportamento existente.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   // Em producao, o nginx e o unico processo que fala com o backend
   // (proxy_pass para 127.0.0.1:3003, ja envia X-Forwarded-For/X-Real-IP -

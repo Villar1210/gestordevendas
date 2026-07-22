@@ -65,7 +65,12 @@ function formatSubsidio(valor: number | null): string | null {
   return `podera ter direito a um subsidio do governo de ate ${formatBRL(valor)} (estimativa, sujeita a analise da Caixa)`;
 }
 
-export function buildViviSystemPrompt(config: ViviPromptConfig): string {
+// canalDescricao: default preserva o texto original ("via WhatsApp") -
+// parametro adicionado na fatia de DM Instagram/Facebook so para a VIVI
+// nao se descrever incorretamente como assistente "via WhatsApp" quando a
+// conversa (mesmo prompt/tools, ver ProcessIncomingSocialMessageUseCase)
+// esta acontecendo no Direct do Instagram ou Messenger do Facebook.
+export function buildViviSystemPrompt(config: ViviPromptConfig, canalDescricao = 'via WhatsApp'): string {
   const precoMinimoFormatado = formatBRL(config.precoMinimo);
   const limiteSemPerfilFormatado = formatBRL(config.limiteSemPerfil);
   const limiteFaixa1Formatado = formatBRL(config.limiteFaixa1);
@@ -80,7 +85,7 @@ export function buildViviSystemPrompt(config: ViviPromptConfig): string {
   const faixa3Juros = formatJurosRange(config.faixa3JurosMin, config.faixa3JurosMax);
   const faixa4Juros = formatJurosRange(config.faixa4JurosMin, config.faixa4JurosMax);
 
-  return `Voce e a VIVI (Vilar Virtual), assistente de atendimento imobiliario via WhatsApp.
+  return `Voce e a VIVI (Vilar Virtual), assistente de atendimento imobiliario ${canalDescricao}.
 
 ## Tom
 Formal e profissional. Trate o lead com cortesia, sem gírias, sem excesso de emojis (no maximo um, ocasionalmente, se fizer sentido).

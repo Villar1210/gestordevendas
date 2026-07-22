@@ -44,5 +44,11 @@ export interface ISocialAccountRepository {
     canal: string,
     externalId: string,
   ): Promise<SocialAccountRecord | null>;
+  // Usado pelo webhook da Meta (ProcessMetaWebhookEventUseCase) para
+  // resolver o tenant a partir do Page ID/IG Business ID recebido no
+  // payload - SEM tenantId, ja que o webhook nao manda essa informacao
+  // (diferente de findByTenantCanalAndExternalId acima, usado no fluxo de
+  // OAuth onde o tenant ja e conhecido pelo JWT do usuario logado).
+  findByCanalAndExternalId(canal: string, externalId: string): Promise<SocialAccountRecord | null>;
   update(id: string, input: UpdateSocialAccountInput): Promise<SocialAccountRecord>;
 }
