@@ -17,6 +17,11 @@ interface CriarImoveisLoteInput {
   tenantId: string;
   empreendimentoId: string;
   imoveis: ImovelLoteItemInput[];
+  // Presente so quando esse lote veio de uma importacao de planilha (Fatia
+  // 3a) - marca o Empreendimento como publicado=false + origemImportacao.
+  // Ausente no cadastro em lote manual (Fatia 2b), que nao mexe nesses
+  // campos do Empreendimento.
+  origemImportacao?: string;
 }
 
 @Injectable()
@@ -65,7 +70,7 @@ export class CriarImoveisLoteUseCase {
       });
     }
 
-    return this.imovelRepository.createMany(
+    const criados = await this.imovelRepository.createMany(
       input.imoveis.map((imovel) => ({
         ...imovel,
         tenantId: input.tenantId,
@@ -73,5 +78,14 @@ export class CriarImoveisLoteUseCase {
         empreendimentoId: input.empreendimentoId,
       })),
     );
+
+    if (input.origemImportacao) {
+      await this.empreendimentoRepository.update(input.empreendimentoId, {
+        publicado: false,
+        origemImportacao: input.origemImportacao,
+      });
+    }
+
+    return criados;
   }
 }

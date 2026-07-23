@@ -70,4 +70,12 @@ export class CriarImoveisLoteDto {
   @ValidateNested({ each: true })
   @Type(() => CreateImovelLoteItemDto)
   imoveis!: CreateImovelLoteItemDto[];
+
+  // Preenchido pelo fluxo de importacao de planilha (Fatia 3a) apos o
+  // usuario revisar/confirmar o preview - marca o Empreendimento como
+  // publicado=false + origemImportacao=<este valor>. Ausente no cadastro em
+  // lote manual (Fatia 2b), que nunca mexe nesses campos do Empreendimento.
+  @IsOptional()
+  @IsString()
+  origemImportacao?: string;
 }

@@ -47,4 +47,19 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async update(
+    id: string,
+    patch: { publicado?: boolean; origemImportacao?: string | null },
+  ): Promise<EmpreendimentoRecord> {
+    return this.prisma.empreendimento.update({
+      where: { id },
+      data: {
+        ...(patch.publicado !== undefined ? { publicado: patch.publicado } : {}),
+        ...(patch.origemImportacao !== undefined
+          ? { origemImportacao: patch.origemImportacao }
+          : {}),
+      },
+    });
+  }
 }

@@ -20,9 +20,13 @@ export interface PadraoLoteImoveis {
 
 export interface UnidadeGerada {
   identificadorExterno: string;
-  bloco: string;
-  andar: number;
-  numeroNoAndar: number;
+  // Nulos para VAGA_AVULSA (Fatia 3a, importacao de planilha - uma vaga
+  // avulsa nao pertence a um bloco/andar/posicao da mesma forma que uma
+  // unidade). O cadastro em lote manual (Fatia 2, so gera UNIDADE) nunca
+  // produz nulo aqui - widening aditivo, sem mudanca de comportamento.
+  bloco: string | null;
+  andar: number | null;
+  numeroNoAndar: number | null;
   title: string;
   tipo: string;
   finalidade: string;
@@ -33,7 +37,16 @@ export interface UnidadeGerada {
   area: number | null;
   bedrooms: number | null;
   vagasIncluidas: number;
-  customFields: { tipologia: string };
+  // Preenchidos so pela importacao de planilha (Fatia 3a) - o cadastro em
+  // lote manual (Fatia 2) deixa esses valores para o usuario preencher
+  // depois no grid, entao nunca os popula aqui.
+  valorTabela?: number | null;
+  valorComDesconto?: number | null;
+  // "tipologia" nao tem campo proprio no Imovel - guardada aqui para nao
+  // sobrecarregar nenhum campo existente. Record<string, unknown> (nao
+  // { tipologia: string } fixo) porque a importacao de planilha pode gerar
+  // uma unidade sem coluna TIPOLOGIA no arquivo de origem.
+  customFields: Record<string, unknown>;
 }
 
 // Zero a esquerda so no valor absoluto - andares em subsolo (negativos, ex:

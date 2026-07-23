@@ -12,6 +12,7 @@ import { CreateImovelUseCase } from './application/use-cases/create-imovel.use-c
 import { UpdateImovelUseCase } from './application/use-cases/update-imovel.use-case';
 import { GerarLoteImoveisUseCase } from './application/use-cases/gerar-lote-imoveis.use-case';
 import { CriarImoveisLoteUseCase } from './application/use-cases/criar-imoveis-lote.use-case';
+import { ImportarPlanilhaImoveisUseCase } from './application/use-cases/importar-planilha-imoveis.use-case';
 import { ListImoveisUseCase } from './application/use-cases/list-imoveis.use-case';
 import { GetImovelUseCase } from './application/use-cases/get-imovel.use-case';
 import { UploadImovelPhotoUseCase } from './application/use-cases/upload-imovel-photo.use-case';
@@ -43,6 +44,7 @@ import { PrismaContratoRepository } from './infra/database/prisma-contrato.repos
 import { PrismaLancamentoFinanceiroRepository } from './infra/database/prisma-lancamento-financeiro.repository';
 import { PrismaService } from '../../config/prisma.service';
 import { LocalFileStorageService } from '../../shared/infra/services/local-file-storage.service';
+import { ExceljsCsvSpreadsheetReaderService } from './infra/services/exceljs-csv-spreadsheet-reader.service';
 
 @Module({
   controllers: [
@@ -61,6 +63,7 @@ import { LocalFileStorageService } from '../../shared/infra/services/local-file-
     UpdateImovelUseCase,
     GerarLoteImoveisUseCase,
     CriarImoveisLoteUseCase,
+    ImportarPlanilhaImoveisUseCase,
     ListImoveisUseCase,
     GetImovelUseCase,
     UploadImovelPhotoUseCase,
@@ -93,6 +96,7 @@ import { LocalFileStorageService } from '../../shared/infra/services/local-file-
     { provide: 'IContratoRepository', useClass: PrismaContratoRepository },
     { provide: 'ILancamentoFinanceiroRepository', useClass: PrismaLancamentoFinanceiroRepository },
     { provide: 'IFileStorageService', useClass: LocalFileStorageService },
+    { provide: 'ISpreadsheetReaderService', useClass: ExceljsCsvSpreadsheetReaderService },
   ],
   // Exportados para o modulo portal_cliente: GetMeusImoveisUseCase busca
   // o Proprietario pelo e-mail do usuario logado, os Contratos vinculados

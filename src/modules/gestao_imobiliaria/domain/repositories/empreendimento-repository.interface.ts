@@ -13,6 +13,12 @@ export interface EmpreendimentoRecord {
   cep: string;
   description: string | null;
   createdAt: Date;
+  // Fatia 1 (schema) + Fatia 3a (importacao de planilha, primeiro consumidor
+  // real): publicado controla se o empreendimento aparece no site publico
+  // (fora do escopo ainda); origemImportacao registra como os dados
+  // chegaram (ex: "planilha") - nulo para empreendimentos cadastrados a mao.
+  publicado: boolean;
+  origemImportacao: string | null;
 }
 
 export interface IEmpreendimentoRepository {
@@ -29,4 +35,8 @@ export interface IEmpreendimentoRepository {
   }): Promise<EmpreendimentoRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<EmpreendimentoRecord | null>;
   findAllByTenant(tenantId: string): Promise<EmpreendimentoRecord[]>;
+  update(
+    id: string,
+    patch: { publicado?: boolean; origemImportacao?: string | null },
+  ): Promise<EmpreendimentoRecord>;
 }
