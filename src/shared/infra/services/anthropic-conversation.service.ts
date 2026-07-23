@@ -7,6 +7,8 @@ import {
   GenerateReplyOutput,
   AiToolCall,
   ConfirmarExistenciaEmpreendimentoResult,
+  FichaTecnicaExtraidaIA,
+  TipologiaExtraidaIA,
 } from '../../domain/services/ai-conversation.interface';
 
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -18,6 +20,16 @@ const MAX_TOOL_ITERATIONS = 5;
 // empreendimento (ver confirmarExistenciaEmpreendimento) - mesmo modelo da
 // conversa principal, resposta bem curta (so um JSON pequeno).
 const WEB_CONFIRM_MAX_TOKENS = 512;
+
+// Extracao da ficha tecnica (Fatia 3c, gestao_imobiliaria): resposta pode
+// ter uma lista de tipologias + itens de lazer, por isso um limite maior
+// que a confirmacao de existencia acima.
+const FICHA_TECNICA_MAX_TOKENS = 2048;
+// Protecao de custo/contexto: uma ficha tecnica comercial (PDF de
+// apresentacao do produto) nao precisa de mais que isso para conter nome,
+// endereco, memorial e a tabela de tipologias/lazer - corta o excedente
+// (ex: anexos juridicos longos) em vez de mandar o PDF inteiro.
+const FICHA_TECNICA_MAX_TEXTO_CHARS = 60000;
 
 // Tools da VIVI. O schema/descricao aqui e o mesmo em qualquer consumidor
 // futuro desta interface - o SIGNIFICADO de negocio de cada tool (o que
@@ -308,5 +320,98 @@ export class AnthropicConversationService implements IAiConversationService {
     } catch {
       return { confirmado: false, nomeEncontrado: null };
     }
+  }
+
+  // Extrai a ficha tecnica de um empreendimento do texto de um PDF de
+  // apresentacao do produto (Fatia 3c). AO CONTRARIO de
+  // confirmarExistenciaEmpreendimento, esta funcao NAO engole erros - se a
+  // IA nao devolver um JSON valido, a excecao sobe para quem chamou tratar
+  // (ImportarFichaTecnicaPdfUseCase), que deve reportar um erro claro ao
+  // usuario em vez de preencher a ficha tecnica com dados inventados.
+  async extrairFichaTecnicaEmpreendimento(textoPdf: string): Promise<FichaTecnicaExtraidaIA> {
+    const textoTruncado = textoPdf.slice(0, FICHA_TECNICA_MAX_TEXTO_CHARS);
+
+    const systemPrompt =
+      'Voce esta extraindo a FICHA TECNICA de um empreendimento imobiliario a partir do texto ' +
+      'de um PDF de apresentacao/folder comercial (memorial, diferenciais, ficha tecnica, ' +
+      'plantas). Extraia SOMENTE o que estiver EXPLICITAMENTE escrito no texto - NUNCA estime, ' +
+      'calcule ou invente um valor que nao esteja literalmente presente. Se um campo nao for ' +
+      'encontrado, use null (ou lista vazia []) para ele - jamais um palpite. IGNORE ' +
+      'completamente qualquer tabela de precos, valores de unidades especificas ou condicoes ' +
+      'comerciais - esses dados NAO fazem parte desta ficha tecnica.\n\n' +
+      'Responda EXCLUSIVAMENTE com um JSON no formato exato abaixo - sem nenhum texto antes ou ' +
+      'depois do JSON, sem markdown, sem comentarios:\n' +
+      '{\n' +
+      '  "nome": string ou null (nome do empreendimento),\n' +
+      '  "endereco": string ou null (endereco completo como aparece no texto),\n' +
+      '  "descricao": string ou null (memorial/descricao/diferenciais, texto livre),\n' +
+      '  "areaTerreno": numero ou null (area do terreno em m2, so o numero),\n' +
+      '  "totalUnidades": numero ou null (total de unidades do empreendimento),\n' +
+      '  "numeroTorres": numero ou null (quantidade de torres/blocos),\n' +
+      '  "unidadesPorAndar": numero ou null,\n' +
+      '  "gabarito": numero ou null (numero de pavimentos/andares),\n' +
+      '  "vagas": numero ou null (total de vagas de garagem do empreendimento),\n' +
+      '  "tipologias": [ { "nome": string, "areaPrivativa": numero ou null (m2), ' +
+      '"dormitorios": numero ou null } ] (lista de plantas/tipos disponiveis, ex: ' +
+      '"Garden Ponta 46,76m2" -> nome "Garden Ponta", areaPrivativa 46.76),\n' +
+      '  "itensLazer": [string] (lista de itens de lazer/areas comuns, texto simples, ex: ' +
+      '"Piscina adulto e infantil")\n' +
+      '}';
+
+    const response = await this.client.messages.create({
+      model: MODEL,
+      max_tokens: FICHA_TECNICA_MAX_TOKENS,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Texto extraido do PDF:\n\n${textoTruncado}` }],
+    });
+
+    const textBlocks = response.content.filter(
+      (block): block is Anthropic.TextBlock => block.type === 'text',
+    );
+    const textoFinal = textBlocks.map((block) => block.text).join('\n').trim();
+
+    // Propositalmente SEM try/catch aqui - JSON invalido deve propagar para
+    // o use case reportar o erro ao usuario (ver comentario no metodo acima).
+    return this.parseFichaTecnicaJson(textoFinal);
+  }
+
+  private parseFichaTecnicaJson(texto: string): FichaTecnicaExtraidaIA {
+    const match = texto.match(/\{[\s\S]*\}/);
+    const jsonTexto = match ? match[0] : texto;
+    const parsed = JSON.parse(jsonTexto);
+
+    const numeroOuNull = (valor: unknown): number | null =>
+      typeof valor === 'number' && Number.isFinite(valor) ? valor : null;
+    const textoOuNull = (valor: unknown): string | null =>
+      typeof valor === 'string' && valor.trim() ? valor.trim() : null;
+
+    const tipologias: TipologiaExtraidaIA[] = Array.isArray(parsed.tipologias)
+      ? parsed.tipologias
+          .filter((item: unknown): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+          .map((item: Record<string, unknown>) => ({
+            nome: textoOuNull(item.nome) ?? '',
+            areaPrivativa: numeroOuNull(item.areaPrivativa),
+            dormitorios: numeroOuNull(item.dormitorios),
+          }))
+          .filter((tipologia: TipologiaExtraidaIA) => tipologia.nome !== '')
+      : [];
+
+    const itensLazer: string[] = Array.isArray(parsed.itensLazer)
+      ? parsed.itensLazer.filter((item: unknown): item is string => typeof item === 'string' && item.trim() !== '')
+      : [];
+
+    return {
+      nome: textoOuNull(parsed.nome),
+      endereco: textoOuNull(parsed.endereco),
+      descricao: textoOuNull(parsed.descricao),
+      areaTerreno: numeroOuNull(parsed.areaTerreno),
+      totalUnidades: numeroOuNull(parsed.totalUnidades),
+      numeroTorres: numeroOuNull(parsed.numeroTorres),
+      unidadesPorAndar: numeroOuNull(parsed.unidadesPorAndar),
+      gabarito: numeroOuNull(parsed.gabarito),
+      vagas: numeroOuNull(parsed.vagas),
+      tipologias,
+      itensLazer,
+    };
   }
 }

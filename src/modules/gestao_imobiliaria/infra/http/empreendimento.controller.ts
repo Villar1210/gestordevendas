@@ -20,12 +20,15 @@ import { CreateEmpreendimentoDto } from './dtos/create-empreendimento.dto';
 import { GerarLoteImoveisDto } from './dtos/gerar-lote-imoveis.dto';
 import { CriarImoveisLoteDto } from './dtos/criar-imoveis-lote.dto';
 import { ImportarPlanilhaImoveisDto } from './dtos/importar-planilha-imoveis.dto';
+import { ConfirmarFichaTecnicaDto } from './dtos/confirmar-ficha-tecnica.dto';
 import { CreateEmpreendimentoUseCase } from '../../application/use-cases/create-empreendimento.use-case';
 import { ListEmpreendimentosUseCase } from '../../application/use-cases/list-empreendimentos.use-case';
 import { GerarLoteImoveisUseCase } from '../../application/use-cases/gerar-lote-imoveis.use-case';
 import { CriarImoveisLoteUseCase } from '../../application/use-cases/criar-imoveis-lote.use-case';
 import { ImportarPlanilhaImoveisUseCase } from '../../application/use-cases/importar-planilha-imoveis.use-case';
 import { ListarProdutosPlanilhaUseCase } from '../../application/use-cases/listar-produtos-planilha.use-case';
+import { ImportarFichaTecnicaPdfUseCase } from '../../application/use-cases/importar-ficha-tecnica-pdf.use-case';
+import { ConfirmarFichaTecnicaUseCase } from '../../application/use-cases/confirmar-ficha-tecnica.use-case';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 @Controller('empreendimentos')
@@ -39,6 +42,8 @@ export class EmpreendimentoController {
     private readonly criarImoveisLoteUseCase: CriarImoveisLoteUseCase,
     private readonly importarPlanilhaImoveisUseCase: ImportarPlanilhaImoveisUseCase,
     private readonly listarProdutosPlanilhaUseCase: ListarProdutosPlanilhaUseCase,
+    private readonly importarFichaTecnicaPdfUseCase: ImportarFichaTecnicaPdfUseCase,
+    private readonly confirmarFichaTecnicaUseCase: ConfirmarFichaTecnicaUseCase,
   ) {}
 
   @Post()
@@ -142,6 +147,52 @@ export class EmpreendimentoController {
       empreendimentoId,
       produto: dto.produto,
       file,
+    });
+  }
+
+  // POST /empreendimentos/:empreendimentoId/importar-pdf - Fatia 3c: le o
+  // PDF de apresentacao do produto, extrai a ficha tecnica via IA (Haiku) e
+  // devolve um PREVIEW (nao persiste nada) para o usuario revisar/editar
+  // antes de confirmar (ver confirmarFichaTecnica abaixo).
+  @Post(':empreendimentoId/importar-pdf')
+  @UseInterceptors(FileInterceptor('file'))
+  async importarFichaTecnicaPdf(
+    @Param('empreendimentoId') empreendimentoId: string,
+    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string },
+    @Req() req: Request,
+  ) {
+    return this.importarFichaTecnicaPdfUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId,
+      file,
+    });
+  }
+
+  // POST /empreendimentos/:empreendimentoId/confirmar-ficha-tecnica -
+  // persiste a ficha tecnica ja revisada/editada pelo usuario no preview
+  // acima. Marca origemImportacao="ia_pdf" (publicado continua false).
+  @Post(':empreendimentoId/confirmar-ficha-tecnica')
+  async confirmarFichaTecnica(
+    @Param('empreendimentoId') empreendimentoId: string,
+    @Body() dto: ConfirmarFichaTecnicaDto,
+    @Req() req: Request,
+  ) {
+    return this.confirmarFichaTecnicaUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId,
+      descricao: dto.descricao,
+      areaTerreno: dto.areaTerreno,
+      totalUnidades: dto.totalUnidades,
+      numeroTorres: dto.numeroTorres,
+      unidadesPorAndar: dto.unidadesPorAndar,
+      gabarito: dto.gabarito,
+      vagas: dto.vagas,
+      itensLazer: dto.itensLazer,
+      tipologias: dto.tipologias.map((tipologia) => ({
+        nome: tipologia.nome,
+        areaPrivativa: tipologia.areaPrivativa ?? null,
+        dormitorios: tipologia.dormitorios ?? null,
+      })),
     });
   }
 }

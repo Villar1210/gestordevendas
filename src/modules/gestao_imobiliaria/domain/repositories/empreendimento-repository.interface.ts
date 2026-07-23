@@ -19,6 +19,27 @@ export interface EmpreendimentoRecord {
   // chegaram (ex: "planilha") - nulo para empreendimentos cadastrados a mao.
   publicado: boolean;
   origemImportacao: string | null;
+  // Ficha tecnica (Fatia 3c) - preenchidos so pelo fluxo de importacao de
+  // PDF (ConfirmarFichaTecnicaUseCase), nulos/vazio ate la.
+  areaTerreno: number | null;
+  totalUnidades: number | null;
+  numeroTorres: number | null;
+  unidadesPorAndar: number | null;
+  gabarito: number | null;
+  vagas: number | null;
+  itensLazer: string[];
+}
+
+export interface FichaTecnicaPatch {
+  description?: string | null;
+  areaTerreno?: number | null;
+  totalUnidades?: number | null;
+  numeroTorres?: number | null;
+  unidadesPorAndar?: number | null;
+  gabarito?: number | null;
+  vagas?: number | null;
+  itensLazer?: string[];
+  origemImportacao?: string | null;
 }
 
 export interface IEmpreendimentoRepository {
@@ -39,4 +60,9 @@ export interface IEmpreendimentoRepository {
     id: string,
     patch: { publicado?: boolean; origemImportacao?: string | null },
   ): Promise<EmpreendimentoRecord>;
+  // Fatia 3c: grava os campos da ficha tecnica extraida/revisada. Separado
+  // de update() acima (que so mexe em publicado/origemImportacao) para nao
+  // misturar o contrato ja usado pelo fluxo de planilha (Fatia 3a) com o
+  // novo conjunto de campos desta fatia.
+  updateFichaTecnica(id: string, patch: FichaTecnicaPatch): Promise<EmpreendimentoRecord>;
 }

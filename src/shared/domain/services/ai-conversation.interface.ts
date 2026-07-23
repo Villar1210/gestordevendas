@@ -41,6 +41,30 @@ export interface ConfirmarExistenciaEmpreendimentoResult {
   nomeEncontrado: string | null;
 }
 
+export interface TipologiaExtraidaIA {
+  nome: string;
+  areaPrivativa: number | null;
+  dormitorios: number | null;
+}
+
+// Resultado da extracao da ficha tecnica de um PDF de apresentacao do
+// produto (Fatia 3c, gestao_imobiliaria). Todo campo nao encontrado
+// explicitamente no texto do PDF vem null/vazio - a IA e instruida a NUNCA
+// estimar/inventar um numero (ver CLAUDE.md).
+export interface FichaTecnicaExtraidaIA {
+  nome: string | null;
+  endereco: string | null;
+  descricao: string | null;
+  areaTerreno: number | null;
+  totalUnidades: number | null;
+  numeroTorres: number | null;
+  unidadesPorAndar: number | null;
+  gabarito: number | null;
+  vagas: number | null;
+  tipologias: TipologiaExtraidaIA[];
+  itensLazer: string[];
+}
+
 export interface IAiConversationService {
   generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput>;
   // Busca web ISOLADA (fora do loop principal de tools/conversa) so para
@@ -49,4 +73,11 @@ export interface IAiConversationService {
   // quando o catalogo proprio nao encontra nada. NUNCA retorna preco ou
   // condicoes comerciais, so existencia + nome (ver CLAUDE.md).
   confirmarExistenciaEmpreendimento(endereco: string): Promise<ConfirmarExistenciaEmpreendimentoResult>;
+  // Extrai a ficha tecnica de um empreendimento a partir do texto de um PDF
+  // de apresentacao do produto (Fatia 3c). Diferente de
+  // confirmarExistenciaEmpreendimento (que engole erros e devolve um
+  // fallback seguro), este metodo PROPAGA qualquer falha de parsing/JSON
+  // invalido - quem chama precisa saber que a extracao falhou, nunca
+  // silenciosamente preencher campos com dados inventados (ver CLAUDE.md).
+  extrairFichaTecnicaEmpreendimento(textoPdf: string): Promise<FichaTecnicaExtraidaIA>;
 }

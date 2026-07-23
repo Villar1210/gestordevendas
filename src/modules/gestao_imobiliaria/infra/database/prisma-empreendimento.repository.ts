@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
 import {
   EmpreendimentoRecord,
+  FichaTecnicaPatch,
   IEmpreendimentoRepository,
 } from '../../domain/repositories/empreendimento-repository.interface';
 
@@ -56,6 +57,27 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
       where: { id },
       data: {
         ...(patch.publicado !== undefined ? { publicado: patch.publicado } : {}),
+        ...(patch.origemImportacao !== undefined
+          ? { origemImportacao: patch.origemImportacao }
+          : {}),
+      },
+    });
+  }
+
+  async updateFichaTecnica(id: string, patch: FichaTecnicaPatch): Promise<EmpreendimentoRecord> {
+    return this.prisma.empreendimento.update({
+      where: { id },
+      data: {
+        ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.areaTerreno !== undefined ? { areaTerreno: patch.areaTerreno } : {}),
+        ...(patch.totalUnidades !== undefined ? { totalUnidades: patch.totalUnidades } : {}),
+        ...(patch.numeroTorres !== undefined ? { numeroTorres: patch.numeroTorres } : {}),
+        ...(patch.unidadesPorAndar !== undefined
+          ? { unidadesPorAndar: patch.unidadesPorAndar }
+          : {}),
+        ...(patch.gabarito !== undefined ? { gabarito: patch.gabarito } : {}),
+        ...(patch.vagas !== undefined ? { vagas: patch.vagas } : {}),
+        ...(patch.itensLazer !== undefined ? { itensLazer: patch.itensLazer } : {}),
         ...(patch.origemImportacao !== undefined
           ? { origemImportacao: patch.origemImportacao }
           : {}),

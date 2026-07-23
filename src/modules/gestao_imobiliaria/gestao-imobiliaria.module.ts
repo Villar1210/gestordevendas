@@ -37,15 +37,20 @@ import { MarcarComoPagoUseCase } from './application/use-cases/marcar-como-pago.
 import { GerarCobrancasDoMesUseCase } from './application/use-cases/gerar-cobrancas-do-mes.use-case';
 import { AtualizarStatusVencidosUseCase } from './application/use-cases/atualizar-status-vencidos.use-case';
 import { BuscarEmpreendimentoPorEnderecoUseCase } from './application/use-cases/buscar-empreendimento-por-endereco.use-case';
+import { ImportarFichaTecnicaPdfUseCase } from './application/use-cases/importar-ficha-tecnica-pdf.use-case';
+import { ConfirmarFichaTecnicaUseCase } from './application/use-cases/confirmar-ficha-tecnica.use-case';
 import { PrismaEmpreendimentoRepository } from './infra/database/prisma-empreendimento.repository';
 import { PrismaImovelRepository } from './infra/database/prisma-imovel.repository';
 import { PrismaProprietarioRepository } from './infra/database/prisma-proprietario.repository';
 import { PrismaInquilinoCompradorRepository } from './infra/database/prisma-inquilino-comprador.repository';
 import { PrismaContratoRepository } from './infra/database/prisma-contrato.repository';
 import { PrismaLancamentoFinanceiroRepository } from './infra/database/prisma-lancamento-financeiro.repository';
+import { PrismaTipologiaRepository } from './infra/database/prisma-tipologia.repository';
 import { PrismaService } from '../../config/prisma.service';
 import { LocalFileStorageService } from '../../shared/infra/services/local-file-storage.service';
 import { ExceljsCsvSpreadsheetReaderService } from './infra/services/exceljs-csv-spreadsheet-reader.service';
+import { PdfParsePdfReaderService } from './infra/services/pdf-parse-pdf-reader.service';
+import { AnthropicConversationService } from '../../shared/infra/services/anthropic-conversation.service';
 
 @Module({
   controllers: [
@@ -89,6 +94,8 @@ import { ExceljsCsvSpreadsheetReaderService } from './infra/services/exceljs-csv
     GerarCobrancasDoMesUseCase,
     AtualizarStatusVencidosUseCase,
     BuscarEmpreendimentoPorEnderecoUseCase,
+    ImportarFichaTecnicaPdfUseCase,
+    ConfirmarFichaTecnicaUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma / disco local).
     { provide: 'IEmpreendimentoRepository', useClass: PrismaEmpreendimentoRepository },
@@ -97,8 +104,15 @@ import { ExceljsCsvSpreadsheetReaderService } from './infra/services/exceljs-csv
     { provide: 'IInquilinoCompradorRepository', useClass: PrismaInquilinoCompradorRepository },
     { provide: 'IContratoRepository', useClass: PrismaContratoRepository },
     { provide: 'ILancamentoFinanceiroRepository', useClass: PrismaLancamentoFinanceiroRepository },
+    { provide: 'ITipologiaRepository', useClass: PrismaTipologiaRepository },
     { provide: 'IFileStorageService', useClass: LocalFileStorageService },
     { provide: 'ISpreadsheetReaderService', useClass: ExceljsCsvSpreadsheetReaderService },
+    { provide: 'IPdfReaderService', useClass: PdfParsePdfReaderService },
+    // Mesmo padrao ja usado para PrismaService: cada modulo consumidor
+    // re-registra a mesma classe concreta como provider proprio, em vez de
+    // importar o modulo vivi_sdr (que hoje e o unico a registrar isso) -
+    // evita dependencia cruzada entre modulos de negocio.
+    { provide: 'IAiConversationService', useClass: AnthropicConversationService },
   ],
   // Exportados para o modulo portal_cliente: GetMeusImoveisUseCase busca
   // o Proprietario pelo e-mail do usuario logado, os Contratos vinculados
