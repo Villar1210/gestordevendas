@@ -11,6 +11,11 @@ import { ENQUADRAMENTO_OPTIONS, STATUS_OPTIONS } from "../../constants";
 export interface UnidadeLoteRow {
   key: string;
   identificadorExterno: string;
+  // "unidade" ou "vaga_avulsa" (Fatia 3a/3b, importacao de planilha - o
+  // cadastro manual so gera "unidade") - nao e uma coluna editavel do grid
+  // (o identificador ja deixa claro visualmente qual e qual), so precisa
+  // ser preservado para o payload de salvamento ficar correto.
+  tipoItem: string;
   bloco: string;
   andar: string;
   numeroNoAndar: string;

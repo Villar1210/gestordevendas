@@ -150,9 +150,11 @@ export interface PadraoLoteInput {
 
 export interface UnidadeGeradaLote {
   identificadorExterno: string;
-  bloco: string;
-  andar: number;
-  numeroNoAndar: number;
+  // Nulos para VAGA_AVULSA (Fatia 3a, importacao de planilha). O gerar-lote
+  // manual (Fatia 2b, so gera UNIDADE) nunca produz nulo aqui.
+  bloco: string | null;
+  andar: number | null;
+  numeroNoAndar: number | null;
   title: string;
   tipo: string;
   finalidade: string;
@@ -163,13 +165,31 @@ export interface UnidadeGeradaLote {
   area: number | null;
   bedrooms: number | null;
   vagasIncluidas: number;
-  customFields: { tipologia: string };
+  // Preenchidos so pela importacao de planilha (Fatia 3a/3b) - o gerar-lote
+  // manual nunca os popula (o usuario preenche depois no grid).
+  valorTabela?: number | null;
+  valorComDesconto?: number | null;
+  // Record<string, unknown> (nao { tipologia: string } fixo) porque a
+  // importacao de planilha pode gerar uma unidade sem coluna TIPOLOGIA.
+  customFields: Record<string, unknown>;
   identificadorJaExiste: boolean;
 }
 
 export interface GerarLoteResult {
   unidades: UnidadeGeradaLote[];
   identificadoresDuplicados: string[];
+}
+
+// Importacao de planilha (Fatia 3a/3b) - mesmo formato do GerarLoteResult +
+// as linhas que falharam no parsing.
+export interface LinhaPlanilhaErro {
+  linha: number;
+  identificador: string;
+  motivo: string;
+}
+
+export interface ImportarPlanilhaResult extends GerarLoteResult {
+  erros: LinhaPlanilhaErro[];
 }
 
 export interface CriarImovelLoteItemInput {
@@ -352,12 +372,58 @@ export function useImoveisIntegration() {
   // outro erro, e manter o grid preenchido em vez de resetar - o caller e
   // quem decide como exibir cada caso.
   const handleCriarImoveisLote = useCallback(
-    async (empreendimentoId: string, imoveis: CriarImovelLoteItemInput[]) => {
+    async (
+      empreendimentoId: string,
+      imoveis: CriarImovelLoteItemInput[],
+      origemImportacao?: string,
+    ) => {
       const result = await apiRequest<{ imoveis: Imovel[] }>(
         `/empreendimentos/${empreendimentoId}/imoveis/lote`,
-        { method: "POST", body: JSON.stringify({ imoveis }) },
+        { method: "POST", body: JSON.stringify({ imoveis, origemImportacao }) },
       );
       return result.imoveis;
+    },
+    [],
+  );
+
+  // Importacao de planilha (Fatia 3b) - passo 1: le o arquivo e devolve os
+  // valores distintos da coluna PRODUTO, para o usuario escolher qual
+  // corresponde ao empreendimento atual antes de pedir o preview filtrado.
+  const handleListarProdutosPlanilha = useCallback(
+    async (empreendimentoId: string, file: File) => {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const result = await apiRequest<{ produtos: string[] }>(
+          `/empreendimentos/${empreendimentoId}/imoveis/listar-produtos-planilha`,
+          { method: "POST", body: formData },
+        );
+        return result.produtos;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel ler a planilha.");
+        return null;
+      }
+    },
+    [],
+  );
+
+  // Importacao de planilha (Fatia 3b) - passo 2: preview filtrado pelo
+  // produto escolhido, no mesmo formato do gerar-lote manual + erros de
+  // parsing.
+  const handleImportarPlanilhaImoveis = useCallback(
+    async (empreendimentoId: string, file: File, produto: string) => {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("produto", produto);
+        return await apiRequest<ImportarPlanilhaResult>(
+          `/empreendimentos/${empreendimentoId}/imoveis/importar-planilha`,
+          { method: "POST", body: formData },
+        );
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel importar a planilha.");
+        return null;
+      }
     },
     [],
   );
@@ -671,6 +737,8 @@ export function useImoveisIntegration() {
     handleCreateEmpreendimento,
     handleGerarLoteImoveis,
     handleCriarImoveisLote,
+    handleListarProdutosPlanilha,
+    handleImportarPlanilhaImoveis,
     handleUploadPhoto,
     handleDeletePhoto,
     loadProprietarios,

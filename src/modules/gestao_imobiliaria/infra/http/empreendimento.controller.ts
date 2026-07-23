@@ -25,6 +25,7 @@ import { ListEmpreendimentosUseCase } from '../../application/use-cases/list-emp
 import { GerarLoteImoveisUseCase } from '../../application/use-cases/gerar-lote-imoveis.use-case';
 import { CriarImoveisLoteUseCase } from '../../application/use-cases/criar-imoveis-lote.use-case';
 import { ImportarPlanilhaImoveisUseCase } from '../../application/use-cases/importar-planilha-imoveis.use-case';
+import { ListarProdutosPlanilhaUseCase } from '../../application/use-cases/listar-produtos-planilha.use-case';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 @Controller('empreendimentos')
@@ -37,6 +38,7 @@ export class EmpreendimentoController {
     private readonly gerarLoteImoveisUseCase: GerarLoteImoveisUseCase,
     private readonly criarImoveisLoteUseCase: CriarImoveisLoteUseCase,
     private readonly importarPlanilhaImoveisUseCase: ImportarPlanilhaImoveisUseCase,
+    private readonly listarProdutosPlanilhaUseCase: ListarProdutosPlanilhaUseCase,
   ) {}
 
   @Post()
@@ -100,6 +102,26 @@ export class EmpreendimentoController {
       origemImportacao: dto.origemImportacao,
     });
     return { imoveis };
+  }
+
+  // POST /empreendimentos/:empreendimentoId/imoveis/listar-produtos-planilha
+  // - Fatia 3b, passo 1 do fluxo no frontend: o usuario ainda nao sabe qual
+  // valor de PRODUTO filtrar quando acabou de escolher o arquivo - esse
+  // endpoint so le o arquivo e devolve os valores distintos encontrados,
+  // sem rodar o parser linha a linha (isso so acontece no passo 2, depois
+  // que o usuario escolhe o produto - ver importarPlanilhaImoveis abaixo).
+  @Post(':empreendimentoId/imoveis/listar-produtos-planilha')
+  @UseInterceptors(FileInterceptor('file'))
+  async listarProdutosPlanilha(
+    @Param('empreendimentoId') empreendimentoId: string,
+    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string },
+    @Req() req: Request,
+  ) {
+    return this.listarProdutosPlanilhaUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId,
+      file,
+    });
   }
 
   // POST /empreendimentos/:empreendimentoId/imoveis/importar-planilha - le

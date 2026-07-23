@@ -13,6 +13,7 @@ import { UpdateImovelUseCase } from './application/use-cases/update-imovel.use-c
 import { GerarLoteImoveisUseCase } from './application/use-cases/gerar-lote-imoveis.use-case';
 import { CriarImoveisLoteUseCase } from './application/use-cases/criar-imoveis-lote.use-case';
 import { ImportarPlanilhaImoveisUseCase } from './application/use-cases/importar-planilha-imoveis.use-case';
+import { ListarProdutosPlanilhaUseCase } from './application/use-cases/listar-produtos-planilha.use-case';
 import { ListImoveisUseCase } from './application/use-cases/list-imoveis.use-case';
 import { GetImovelUseCase } from './application/use-cases/get-imovel.use-case';
 import { UploadImovelPhotoUseCase } from './application/use-cases/upload-imovel-photo.use-case';
@@ -64,6 +65,7 @@ import { ExceljsCsvSpreadsheetReaderService } from './infra/services/exceljs-csv
     GerarLoteImoveisUseCase,
     CriarImoveisLoteUseCase,
     ImportarPlanilhaImoveisUseCase,
+    ListarProdutosPlanilhaUseCase,
     ListImoveisUseCase,
     GetImovelUseCase,
     UploadImovelPhotoUseCase,

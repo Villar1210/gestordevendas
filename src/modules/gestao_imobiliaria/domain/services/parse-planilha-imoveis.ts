@@ -172,6 +172,29 @@ export function mapearCabecalho(headers: string[]): Partial<Record<string, strin
   return mapeamento;
 }
 
+// Fatia 3b: valores distintos da coluna PRODUTO, na ordem de 1a aparicao no
+// arquivo - usado pelo frontend para o usuario escolher qual produto
+// corresponde ao empreendimento de destino ANTES de pedir o preview
+// filtrado (ver ListarProdutosPlanilhaUseCase).
+export function extrairProdutosDistintos(
+  rows: Record<string, string>[],
+  mapeamento: Partial<Record<string, string>>,
+): string[] {
+  const header = mapeamento.produto;
+  if (!header) return [];
+
+  const vistos = new Set<string>();
+  const produtos: string[] = [];
+  for (const row of rows) {
+    const valor = (row[header] ?? '').trim();
+    if (valor && !vistos.has(valor)) {
+      vistos.add(valor);
+      produtos.push(valor);
+    }
+  }
+  return produtos;
+}
+
 // Uma linha da planilha ja com os campos relevantes extraidos pelo leitor de
 // infra (ISpreadsheetReaderService) - ainda sem nenhuma normalizacao de
 // dominio aplicada.

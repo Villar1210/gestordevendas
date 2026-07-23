@@ -7,21 +7,25 @@
 import { useEffect, useRef, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, AlertTriangle, Building2 } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle, Building2, Wand2, FileSpreadsheet } from "lucide-react";
 import { ApiError } from "@/core/api/client";
 import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
 import {
   useImoveisIntegration,
   CriarImovelLoteItemInput,
   PadraoLoteInput,
+  UnidadeGeradaLote,
+  LinhaPlanilhaErro,
 } from "@/features/imoveis/hooks/useImoveisIntegration";
 import { PadraoLoteForm } from "@/features/imoveis/components/lote/PadraoLoteForm";
+import { ImportarPlanilhaForm } from "@/features/imoveis/components/lote/ImportarPlanilhaForm";
 import { UnidadesLoteGrid, UnidadeLoteRow } from "@/features/imoveis/components/lote/UnidadesLoteGrid";
 
 function novaLinhaEmBranco(): UnidadeLoteRow {
   return {
     key: crypto.randomUUID(),
     identificadorExterno: "",
+    tipoItem: "unidade",
     bloco: "",
     andar: "",
     numeroNoAndar: "",
@@ -34,6 +38,30 @@ function novaLinhaEmBranco(): UnidadeLoteRow {
     valorComDesconto: "",
     status: "disponivel",
     identificadorJaExiste: false,
+  };
+}
+
+// Compartilhada pelo gerar-lote manual (padrao estrutural) e pela
+// importacao de planilha - os dois endpoints devolvem o mesmo formato de
+// unidade (ver UnidadeGeradaLote), so a origem dos dados muda.
+function unidadeParaRow(unidade: UnidadeGeradaLote): UnidadeLoteRow {
+  const tipologia = (unidade.customFields as { tipologia?: string }).tipologia ?? "";
+  return {
+    key: crypto.randomUUID(),
+    identificadorExterno: unidade.identificadorExterno,
+    tipoItem: unidade.tipoItem,
+    bloco: unidade.bloco ?? "",
+    andar: unidade.andar !== null ? String(unidade.andar) : "",
+    numeroNoAndar: unidade.numeroNoAndar !== null ? String(unidade.numeroNoAndar) : "",
+    tipologia,
+    area: unidade.area !== null ? String(unidade.area) : "",
+    dormitorios: unidade.bedrooms !== null ? String(unidade.bedrooms) : "",
+    enquadramento: unidade.enquadramento,
+    pcd: unidade.pcd,
+    valorTabela: unidade.valorTabela != null ? String(unidade.valorTabela) : "",
+    valorComDesconto: unidade.valorComDesconto != null ? String(unidade.valorComDesconto) : "",
+    status: unidade.status,
+    identificadorJaExiste: unidade.identificadorJaExiste,
   };
 }
 
@@ -56,7 +84,7 @@ function rowParaPayload(row: UnidadeLoteRow): CriarImovelLoteItemInput {
     tipo: "apartamento",
     finalidade: "venda",
     status: row.status,
-    tipoItem: "unidade",
+    tipoItem: row.tipoItem,
     identificadorExterno: row.identificadorExterno.trim() || undefined,
     bloco: row.bloco.trim() || undefined,
     andar: numeroOuUndefined(row.andar),
@@ -85,12 +113,25 @@ export default function CadastroEmLotePage({
   const router = useRouter();
 
   const empreendimentos = useImoveisStore((state) => state.empreendimentos);
-  const { loadEmpreendimentos, handleGerarLoteImoveis, handleCriarImoveisLote } =
-    useImoveisIntegration();
+  const {
+    loadEmpreendimentos,
+    handleGerarLoteImoveis,
+    handleCriarImoveisLote,
+    handleListarProdutosPlanilha,
+    handleImportarPlanilhaImoveis,
+  } = useImoveisIntegration();
 
   const [isLoadingEmpreendimento, setIsLoadingEmpreendimento] = useState(true);
+  const [origemForm, setOrigemForm] = useState<"padrao" | "planilha">("padrao");
   const [rows, setRows] = useState<UnidadeLoteRow[]>([]);
+  // De onde vieram as unidades ATUALMENTE no grid - usado so na hora de
+  // salvar, para decidir se envia origemImportacao ao backend (marca o
+  // Empreendimento como publicado=false + origemImportacao="planilha").
+  // null ate a 1a geracao/importacao.
+  const [origemAtual, setOrigemAtual] = useState<"padrao" | "planilha" | null>(null);
+  const [errosParsing, setErrosParsing] = useState<LinhaPlanilhaErro[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<SaveError | null>(null);
   const hasInitialized = useRef(false);
@@ -126,29 +167,35 @@ export default function CadastroEmLotePage({
 
     setIsGenerating(true);
     setSaveError(null);
+    setErrosParsing([]);
     try {
       const result = await handleGerarLoteImoveis(empreendimentoId, padrao);
       if (!result) return;
-      setRows(
-        result.unidades.map((unidade) => ({
-          key: crypto.randomUUID(),
-          identificadorExterno: unidade.identificadorExterno,
-          bloco: unidade.bloco,
-          andar: String(unidade.andar),
-          numeroNoAndar: String(unidade.numeroNoAndar),
-          tipologia: unidade.customFields.tipologia,
-          area: unidade.area !== null ? String(unidade.area) : "",
-          dormitorios: unidade.bedrooms !== null ? String(unidade.bedrooms) : "",
-          enquadramento: unidade.enquadramento,
-          pcd: unidade.pcd,
-          valorTabela: "",
-          valorComDesconto: "",
-          status: unidade.status,
-          identificadorJaExiste: unidade.identificadorJaExiste,
-        })),
-      );
+      setRows(result.unidades.map(unidadeParaRow));
+      setOrigemAtual("padrao");
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleImportar(file: File, produto: string) {
+    if (rows.length > 0) {
+      const confirmado = window.confirm(
+        "Isso vai substituir as unidades ja geradas no grid abaixo. Continuar?",
+      );
+      if (!confirmado) return;
+    }
+
+    setIsImporting(true);
+    setSaveError(null);
+    try {
+      const result = await handleImportarPlanilhaImoveis(empreendimentoId, file, produto);
+      if (!result) return;
+      setRows(result.unidades.map(unidadeParaRow));
+      setErrosParsing(result.erros);
+      setOrigemAtual("planilha");
+    } finally {
+      setIsImporting(false);
     }
   }
 
@@ -188,7 +235,11 @@ export default function CadastroEmLotePage({
 
     setIsSaving(true);
     try {
-      const criados = await handleCriarImoveisLote(empreendimentoId, rows.map(rowParaPayload));
+      const criados = await handleCriarImoveisLote(
+        empreendimentoId,
+        rows.map(rowParaPayload),
+        origemAtual === "planilha" ? "planilha" : undefined,
+      );
       alert(`${criados.length} unidade(s) criada(s) com sucesso!`);
       router.push(`/dashboard/imoveis?empreendimentoId=${empreendimentoId}`);
     } catch (err) {
@@ -249,7 +300,40 @@ export default function CadastroEmLotePage({
       </header>
 
       <div className="space-y-6 p-6">
-        <PadraoLoteForm onGerar={handleGerar} isGenerating={isGenerating} />
+        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 sm:w-fit">
+          <button
+            type="button"
+            onClick={() => setOrigemForm("padrao")}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              origemForm === "padrao"
+                ? "bg-blue-700 text-white"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Wand2 className="h-4 w-4" /> Gerar por padrao
+          </button>
+          <button
+            type="button"
+            onClick={() => setOrigemForm("planilha")}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              origemForm === "planilha"
+                ? "bg-blue-700 text-white"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <FileSpreadsheet className="h-4 w-4" /> Importar de planilha
+          </button>
+        </div>
+
+        {origemForm === "padrao" ? (
+          <PadraoLoteForm onGerar={handleGerar} isGenerating={isGenerating} />
+        ) : (
+          <ImportarPlanilhaForm
+            onListarProdutos={(file) => handleListarProdutosPlanilha(empreendimentoId, file)}
+            onImportar={handleImportar}
+            isImporting={isImporting}
+          />
+        )}
 
         {saveError && (
           <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -262,6 +346,22 @@ export default function CadastroEmLotePage({
                 </p>
               )}
             </div>
+          </div>
+        )}
+
+        {errosParsing.length > 0 && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="flex items-center gap-2 font-medium">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {errosParsing.length} linha(s) nao puderam ser importadas
+            </p>
+            <ul className="mt-2 space-y-1 pl-6">
+              {errosParsing.map((erro) => (
+                <li key={erro.linha} className="list-disc">
+                  Linha {erro.linha} ({erro.identificador || "sem identificador"}): {erro.motivo}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
