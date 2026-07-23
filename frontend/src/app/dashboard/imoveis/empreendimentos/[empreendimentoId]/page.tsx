@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, use as usePromise } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRight,
   Building2,
   CheckCircle2,
   Clock,
@@ -18,14 +19,21 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { ApiError } from "@/core/api/client";
+import { ApiError, API_BASE_URL } from "@/core/api/client";
 import {
   useImoveisIntegration,
   ConfirmarFichaTecnicaInput,
   TipologiaInput,
 } from "@/features/imoveis/hooks/useImoveisIntegration";
-import { Empreendimento, Tipologia } from "@/features/imoveis/store/useImoveisStore";
-import { getOrigemImportacaoLabel } from "@/features/imoveis/constants";
+import {
+  Empreendimento,
+  Tipologia,
+  EmpreendimentoPhoto,
+} from "@/features/imoveis/store/useImoveisStore";
+import {
+  getOrigemImportacaoLabel,
+  EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS,
+} from "@/features/imoveis/constants";
 
 // Estado local de edicao da ficha tecnica (strings no form, convertidos so
 // na hora de enviar - mesmo padrao ja usado no grid de Cadastro em Lote).
@@ -98,6 +106,9 @@ export default function EmpreendimentoDetailPage({
     handlePublicarEmpreendimento,
     handleDespublicarEmpreendimento,
     handleConfirmarFichaTecnica,
+    handleUploadEmpreendimentoPhoto,
+    handleDeleteEmpreendimentoPhoto,
+    handleReorderEmpreendimentoPhotos,
   } = useImoveisIntegration();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -105,6 +116,7 @@ export default function EmpreendimentoDetailPage({
   const [empreendimento, setEmpreendimento] = useState<Empreendimento | null>(null);
   const [tipologias, setTipologias] = useState<Tipologia[]>([]);
   const [unidadesCadastradas, setUnidadesCadastradas] = useState(0);
+  const [photos, setPhotos] = useState<EmpreendimentoPhoto[]>([]);
 
   const [isTogglingPublicacao, setIsTogglingPublicacao] = useState(false);
 
@@ -122,6 +134,7 @@ export default function EmpreendimentoDetailPage({
       setEmpreendimento(detail.empreendimento);
       setTipologias(detail.tipologias);
       setUnidadesCadastradas(detail.unidadesCadastradas);
+      setPhotos(detail.photos);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setNotFound(true);
@@ -252,6 +265,45 @@ export default function EmpreendimentoDetailPage({
       }
     } finally {
       setIsSavingFicha(false);
+    }
+  }
+
+  async function handleUploadPhotoCategoria(categoria: string, file: File) {
+    if (!empreendimento) return;
+    const photo = await handleUploadEmpreendimentoPhoto(empreendimento.id, categoria, file);
+    if (photo) setPhotos((prev) => [...prev, photo]);
+  }
+
+  async function handleRemovePhoto(photoId: string) {
+    if (!empreendimento) return;
+    const ok = await handleDeleteEmpreendimentoPhoto(empreendimento.id, photoId);
+    if (ok) setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+  }
+
+  // Troca de posicao DENTRO DA MESMA CATEGORIA - as fotos das outras
+  // categorias nao entram no calculo (ver ReorderEmpreendimentoPhotosUseCase).
+  async function handleMovePhoto(categoria: string, index: number, direction: -1 | 1) {
+    if (!empreendimento) return;
+    const daCategoria = photos.filter((p) => p.categoria === categoria);
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= daCategoria.length) return;
+
+    const reordered = [...daCategoria];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+
+    const outrasCategorias = photos.filter((p) => p.categoria !== categoria);
+    setPhotos([...outrasCategorias, ...reordered]);
+
+    const updated = await handleReorderEmpreendimentoPhotos(
+      empreendimento.id,
+      categoria,
+      reordered.map((p) => p.id),
+    );
+    if (updated) {
+      setPhotos([...outrasCategorias, ...updated]);
+    } else {
+      // Reorder falhou no backend - desfaz a troca otimista.
+      setPhotos(photos);
     }
   }
 
@@ -582,6 +634,122 @@ export default function EmpreendimentoDetailPage({
             </div>
           )}
         </div>
+
+        {/* Fotos do Empreendimento (Fatia 5) - planta/area comum, separado
+            das fotos de UNIDADE (essas continuam em ImovelDetailPanel.tsx,
+            no nivel do Imovel). */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="mb-4 text-sm font-semibold text-slate-800">Fotos do Empreendimento</h2>
+          <div className="space-y-6">
+            {EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS.map((categoriaOption) => (
+              <EmpreendimentoPhotoCategorySection
+                key={categoriaOption.value}
+                label={categoriaOption.label}
+                photos={photos.filter((p) => p.categoria === categoriaOption.value)}
+                onUpload={(file) => handleUploadPhotoCategoria(categoriaOption.value, file)}
+                onRemove={handleRemovePhoto}
+                onMove={(index, direction) =>
+                  handleMovePhoto(categoriaOption.value, index, direction)
+                }
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmpreendimentoPhotoCategorySection({
+  label,
+  photos,
+  onUpload,
+  onRemove,
+  onMove,
+}: {
+  label: string;
+  photos: EmpreendimentoPhoto[];
+  onUpload: (file: File) => void;
+  onRemove: (photoId: string) => void;
+  onMove: (index: number, direction: -1 | 1) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      await onUpload(file);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div>
+      <h3 className="mb-2 text-xs font-medium uppercase text-slate-500">{label}</h3>
+      <div className="flex flex-wrap gap-3">
+        {photos.map((photo, index) => (
+          <div
+            key={photo.id}
+            className="group relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`${API_BASE_URL}${photo.url}`}
+              alt={label}
+              className="h-full w-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => onRemove(photo.id)}
+              className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-1 text-white group-hover:block"
+              aria-label="Remover foto"
+            >
+              <X className="h-3 w-3" />
+            </button>
+            <div className="absolute inset-x-1 bottom-1 hidden items-center justify-between group-hover:flex">
+              <button
+                type="button"
+                onClick={() => onMove(index, -1)}
+                disabled={index === 0}
+                className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                aria-label="Mover para a esquerda"
+              >
+                <ArrowLeft className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onMove(index, 1)}
+                disabled={index === photos.length - 1}
+                className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                aria-label="Mover para a direita"
+              >
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 disabled:opacity-60"
+        >
+          <Plus className="h-5 w-5" />
+          <span className="text-xs">{uploading ? "Enviando..." : "Adicionar"}</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileSelected}
+        />
       </div>
     </div>
   );

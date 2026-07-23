@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
 import {
+  EmpreendimentoPhotoRecord,
   EmpreendimentoRecord,
   FichaTecnicaPatch,
   IEmpreendimentoRepository,
@@ -89,5 +90,64 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
           : {}),
       },
     });
+  }
+
+  async findPhotosByEmpreendimento(empreendimentoId: string): Promise<EmpreendimentoPhotoRecord[]> {
+    return this.prisma.empreendimentoPhoto.findMany({
+      where: { empreendimentoId },
+      orderBy: { order: 'asc' },
+    });
+  }
+
+  async findPhotosByEmpreendimentoAndCategoria(
+    empreendimentoId: string,
+    categoria: string,
+  ): Promise<EmpreendimentoPhotoRecord[]> {
+    return this.prisma.empreendimentoPhoto.findMany({
+      where: { empreendimentoId, categoria },
+      orderBy: { order: 'asc' },
+    });
+  }
+
+  async addPhoto(input: {
+    tenantId: string;
+    empreendimentoId: string;
+    categoria: string;
+    url: string;
+    order: number;
+  }): Promise<EmpreendimentoPhotoRecord> {
+    return this.prisma.empreendimentoPhoto.create({
+      data: {
+        tenantId: input.tenantId,
+        empreendimentoId: input.empreendimentoId,
+        categoria: input.categoria,
+        url: input.url,
+        order: input.order,
+      },
+    });
+  }
+
+  async findPhotoByIdAndTenant(
+    photoId: string,
+    tenantId: string,
+  ): Promise<EmpreendimentoPhotoRecord | null> {
+    return this.prisma.empreendimentoPhoto.findFirst({ where: { id: photoId, tenantId } });
+  }
+
+  async deletePhoto(photoId: string): Promise<void> {
+    await this.prisma.empreendimentoPhoto.delete({ where: { id: photoId } });
+  }
+
+  async reorderPhotos(
+    empreendimentoId: string,
+    categoria: string,
+    orders: { id: string; order: number }[],
+  ): Promise<EmpreendimentoPhotoRecord[]> {
+    await this.prisma.$transaction(
+      orders.map(({ id, order }) =>
+        this.prisma.empreendimentoPhoto.update({ where: { id }, data: { order } }),
+      ),
+    );
+    return this.findPhotosByEmpreendimentoAndCategoria(empreendimentoId, categoria);
   }
 }

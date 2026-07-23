@@ -212,3 +212,17 @@ export function getOrigemImportacaoLabel(origemImportacao: string | null): strin
   if (!origemImportacao) return "Cadastro manual";
   return ORIGEM_IMPORTACAO_LABELS[origemImportacao] ?? origemImportacao;
 }
+
+// EmpreendimentoPhoto.categoria (Fatia 5) - espelha
+// EMPREENDIMENTO_PHOTO_CATEGORIAS do backend (empreendimento-repository.interface.ts).
+export const EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS = [
+  { value: "planta", label: "Planta do Empreendimento" },
+  { value: "area_comum", label: "Area Comum" },
+];
+
+export function getEmpreendimentoPhotoCategoriaLabel(categoria: string): string {
+  return (
+    EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS.find((option) => option.value === categoria)?.label ??
+    categoria
+  );
+}

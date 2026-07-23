@@ -2,9 +2,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useImoveisStore, Imovel } from "../store/useImoveisStore";
+import { API_BASE_URL } from "@/core/api/client";
+import { useImoveisStore, Imovel, EmpreendimentoPhoto } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
-import { STATUS_OPTIONS, getStatusOption } from "../constants";
+import {
+  STATUS_OPTIONS,
+  getStatusOption,
+  EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS,
+  getEmpreendimentoPhotoCategoriaLabel,
+} from "../constants";
 import { StatusPopover } from "./StatusPopover";
 
 export function EspelhoDeVendas() {
@@ -18,12 +24,20 @@ export function EspelhoDeVendas() {
   const empreendimentosPublicados = useImoveisStore((state) => state.empreendimentosPublicados);
   const espelhoEmpreendimentoId = useImoveisStore((state) => state.espelhoEmpreendimentoId);
   const setEspelhoEmpreendimentoId = useImoveisStore((state) => state.setEspelhoEmpreendimentoId);
-  const { loadEmpreendimentosPublicados, handleListImoveisByEmpreendimento, handleUpdateImovel } =
-    useImoveisIntegration();
+  const {
+    loadEmpreendimentosPublicados,
+    handleListImoveisByEmpreendimento,
+    handleUpdateImovel,
+    handleGetEmpreendimentoDetail,
+  } = useImoveisIntegration();
 
   const [unidades, setUnidades] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(false);
   const [openPopoverFor, setOpenPopoverFor] = useState<string | null>(null);
+  // Fatia 5 - fotos de planta/area comum do empreendimento selecionado,
+  // mostradas numa secao SEPARADA do grid de status das unidades abaixo
+  // (decisao alinhada: nao misturar no mesmo carrossel/grid).
+  const [empreendimentoPhotos, setEmpreendimentoPhotos] = useState<EmpreendimentoPhoto[]>([]);
 
   useEffect(() => {
     loadEmpreendimentosPublicados();
@@ -54,6 +68,17 @@ export function EspelhoDeVendas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [espelhoEmpreendimentoId]);
 
+  useEffect(() => {
+    if (!espelhoEmpreendimentoId) {
+      setEmpreendimentoPhotos([]);
+      return;
+    }
+    handleGetEmpreendimentoDetail(espelhoEmpreendimentoId)
+      .then((detail) => setEmpreendimentoPhotos(detail.photos))
+      .catch(() => setEmpreendimentoPhotos([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [espelhoEmpreendimentoId]);
+
   async function handleChangeStatus(imovelId: string, status: string) {
     setOpenPopoverFor(null);
     const updated = await handleUpdateImovel(imovelId, { status });
@@ -81,6 +106,42 @@ export function EspelhoDeVendas() {
           ))}
         </select>
       </div>
+
+      {/* Fotos de planta/area comum do empreendimento (Fatia 5) - secao
+          SEPARADA do grid de status das unidades abaixo, de proposito (nao
+          misturar fotos de area comum com o carrossel/grid de unidades). */}
+      {empreendimentoPhotos.length > 0 && (
+        <div className="mb-6 space-y-4">
+          {EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS.map((categoriaOption) => {
+            const fotosDaCategoria = empreendimentoPhotos.filter(
+              (photo) => photo.categoria === categoriaOption.value,
+            );
+            if (fotosDaCategoria.length === 0) return null;
+            return (
+              <div key={categoriaOption.value}>
+                <h3 className="mb-2 text-xs font-medium uppercase text-slate-500">
+                  {getEmpreendimentoPhotoCategoriaLabel(categoriaOption.value)}
+                </h3>
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {fotosDaCategoria.map((photo) => (
+                    <div
+                      key={photo.id}
+                      className="h-28 w-28 flex-shrink-0 overflow-hidden rounded-lg border border-slate-200"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`${API_BASE_URL}${photo.url}`}
+                        alt={categoriaOption.label}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap gap-3">
         {STATUS_OPTIONS.map((opt) => (

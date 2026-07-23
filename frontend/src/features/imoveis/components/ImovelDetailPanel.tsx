@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, X } from "lucide-react";
 import { API_BASE_URL } from "@/core/api/client";
 import { ImovelPhoto, useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
@@ -35,8 +35,13 @@ export function ImovelDetailPanel() {
   const imovelDetailPanel = useImoveisStore((state) => state.imovelDetailPanel);
   const closeImovelDetailPanel = useImoveisStore((state) => state.closeImovelDetailPanel);
   const updateImovelInPlace = useImoveisStore((state) => state.updateImovelInPlace);
-  const { handleGetImovel, handleUpdateImovel, handleUploadPhoto, handleDeletePhoto } =
-    useImoveisIntegration();
+  const {
+    handleGetImovel,
+    handleUpdateImovel,
+    handleUploadPhoto,
+    handleDeletePhoto,
+    handleReorderImovelPhotos,
+  } = useImoveisIntegration();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<ImovelPhoto[]>([]);
@@ -155,6 +160,30 @@ export function ImovelDetailPanel() {
     }
   }
 
+  // Fatia 5 - troca a foto de posicao com a vizinha (esquerda/direita, ja
+  // que a galeria e um grid horizontal) e persiste a nova ordem inteira.
+  async function handleMovePhoto(index: number, direction: -1 | 1) {
+    if (!imovel) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= photos.length) return;
+
+    const reordered = [...photos];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    setPhotos(reordered);
+
+    const updated = await handleReorderImovelPhotos(
+      imovel.id,
+      reordered.map((photo) => photo.id),
+    );
+    if (updated) {
+      setPhotos(updated);
+      updateImovelInPlace({ ...imovel, coverPhotoUrl: updated[0]?.url ?? null });
+    } else {
+      // Reorder falhou no backend - desfaz a troca otimista.
+      setPhotos(photos);
+    }
+  }
+
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!imovel) return;
@@ -222,7 +251,7 @@ export function ImovelDetailPanel() {
             <section>
               <h3 className="mb-3 text-sm font-semibold text-slate-700">Fotos</h3>
               <div className="flex flex-wrap gap-3">
-                {photos.map((photo) => (
+                {photos.map((photo, index) => (
                   <div
                     key={photo.id}
                     className="group relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200"
@@ -241,6 +270,26 @@ export function ImovelDetailPanel() {
                     >
                       <X className="h-3 w-3" />
                     </button>
+                    <div className="absolute inset-x-1 bottom-1 hidden items-center justify-between group-hover:flex">
+                      <button
+                        type="button"
+                        onClick={() => handleMovePhoto(index, -1)}
+                        disabled={index === 0}
+                        className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                        aria-label="Mover para a esquerda"
+                      >
+                        <ArrowLeft className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMovePhoto(index, 1)}
+                        disabled={index === photos.length - 1}
+                        className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                        aria-label="Mover para a direita"
+                      >
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
 

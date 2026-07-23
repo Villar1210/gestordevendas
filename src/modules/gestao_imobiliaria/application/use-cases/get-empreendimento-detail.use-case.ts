@@ -1,6 +1,7 @@
 // src/modules/gestao_imobiliaria/application/use-cases/get-empreendimento-detail.use-case.ts
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import {
+  EmpreendimentoPhotoRecord,
   EmpreendimentoRecord,
   IEmpreendimentoRepository,
 } from '../../domain/repositories/empreendimento-repository.interface';
@@ -15,6 +16,9 @@ export interface EmpreendimentoDetailOutput {
   // que e so o numero DECLARADO na ficha tecnica do PDF (pode nao bater com
   // o que ja foi de fato cadastrado via lote/planilha).
   unidadesCadastradas: number;
+  // Fatia 5 - fotos de planta/area comum, ja ordenadas (order asc). O
+  // frontend agrupa por categoria (ver EMPREENDIMENTO_PHOTO_CATEGORIAS).
+  photos: EmpreendimentoPhotoRecord[];
 }
 
 @Injectable()
@@ -39,13 +43,14 @@ export class GetEmpreendimentoDetailUseCase {
       throw new NotFoundException('Empreendimento nao encontrado.');
     }
 
-    const [tipologias, unidades] = await Promise.all([
+    const [tipologias, unidades, photos] = await Promise.all([
       this.tipologiaRepository.findAllByEmpreendimento(input.tenantId, input.empreendimentoId),
       this.imovelRepository.findAllByTenant(input.tenantId, {
         empreendimentoId: input.empreendimentoId,
       }),
+      this.empreendimentoRepository.findPhotosByEmpreendimento(input.empreendimentoId),
     ]);
 
-    return { empreendimento, tipologias, unidadesCadastradas: unidades.length };
+    return { empreendimento, tipologias, unidadesCadastradas: unidades.length, photos };
   }
 }

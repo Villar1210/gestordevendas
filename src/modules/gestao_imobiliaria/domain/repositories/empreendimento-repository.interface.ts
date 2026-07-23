@@ -30,6 +30,24 @@ export interface EmpreendimentoRecord {
   itensLazer: string[];
 }
 
+// Foto do EMPREENDIMENTO como um todo (Fatia 5) - model separado de
+// ImovelPhoto de proposito (ver comentario em EmpreendimentoPhoto no
+// schema.prisma). Os metodos vivem dentro de IEmpreendimentoRepository, nao
+// um repositorio proprio - mesmo padrao ja usado para ImovelPhoto dentro de
+// IImovelRepository.
+export const EMPREENDIMENTO_PHOTO_CATEGORIAS = ['planta', 'area_comum'] as const;
+export type EmpreendimentoPhotoCategoria = (typeof EMPREENDIMENTO_PHOTO_CATEGORIAS)[number];
+
+export interface EmpreendimentoPhotoRecord {
+  id: string;
+  tenantId: string;
+  empreendimentoId: string;
+  categoria: string;
+  url: string;
+  order: number;
+  createdAt: Date;
+}
+
 export interface FichaTecnicaPatch {
   description?: string | null;
   areaTerreno?: number | null;
@@ -68,4 +86,35 @@ export interface IEmpreendimentoRepository {
   // misturar o contrato ja usado pelo fluxo de planilha (Fatia 3a) com o
   // novo conjunto de campos desta fatia.
   updateFichaTecnica(id: string, patch: FichaTecnicaPatch): Promise<EmpreendimentoRecord>;
+
+  // Fatia 5 - fotos do empreendimento (planta/area comum).
+  findPhotosByEmpreendimento(empreendimentoId: string): Promise<EmpreendimentoPhotoRecord[]>;
+  // filters.categoria opcional: presente ao contar quantas fotos ja existem
+  // NAQUELA categoria (para calcular o "order" do upload seguinte, ver
+  // UploadEmpreendimentoPhotoUseCase) e ao reordenar (so aceita reordenar
+  // fotos de uma categoria por vez).
+  findPhotosByEmpreendimentoAndCategoria(
+    empreendimentoId: string,
+    categoria: string,
+  ): Promise<EmpreendimentoPhotoRecord[]>;
+  addPhoto(input: {
+    tenantId: string;
+    empreendimentoId: string;
+    categoria: string;
+    url: string;
+    order: number;
+  }): Promise<EmpreendimentoPhotoRecord>;
+  findPhotoByIdAndTenant(photoId: string, tenantId: string): Promise<EmpreendimentoPhotoRecord | null>;
+  deletePhoto(photoId: string): Promise<void>;
+  // categoria aqui NAO e so para validacao - e o que garante que o re-fetch
+  // apos a transacao devolva so as fotos DAQUELA categoria, ordenadas certo.
+  // Sem isso, o "order" (sequencial POR categoria, ver EmpreendimentoPhoto no
+  // schema.prisma) colide entre categorias diferentes (ambas podem ter uma
+  // foto com order=0) e misturar tudo numa lista so por "order asc" devolve
+  // uma ordem sem sentido.
+  reorderPhotos(
+    empreendimentoId: string,
+    categoria: string,
+    orders: { id: string; order: number }[],
+  ): Promise<EmpreendimentoPhotoRecord[]>;
 }

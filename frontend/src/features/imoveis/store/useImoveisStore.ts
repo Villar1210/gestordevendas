@@ -78,6 +78,16 @@ export interface Tipologia {
   dormitorios: number | null;
 }
 
+// Fatia 5 - foto do EMPREENDIMENTO como um todo (planta/area comum),
+// diferente de ImovelPhoto (foto de uma unidade especifica).
+export interface EmpreendimentoPhoto {
+  id: string;
+  empreendimentoId: string;
+  categoria: string;
+  url: string;
+  order: number;
+}
+
 export interface Proprietario {
   id: string;
   nome: string;

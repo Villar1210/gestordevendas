@@ -2,7 +2,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -24,6 +27,8 @@ import { CriarImoveisLoteDto } from './dtos/criar-imoveis-lote.dto';
 import { ImportarPlanilhaImoveisDto } from './dtos/importar-planilha-imoveis.dto';
 import { ConfirmarFichaTecnicaDto } from './dtos/confirmar-ficha-tecnica.dto';
 import { ListEmpreendimentosQueryDto } from './dtos/list-empreendimentos-query.dto';
+import { UploadEmpreendimentoPhotoDto } from './dtos/upload-empreendimento-photo.dto';
+import { ReorderEmpreendimentoPhotosDto } from './dtos/reorder-empreendimento-photos.dto';
 import { CreateEmpreendimentoUseCase } from '../../application/use-cases/create-empreendimento.use-case';
 import { ListEmpreendimentosUseCase } from '../../application/use-cases/list-empreendimentos.use-case';
 import { GerarLoteImoveisUseCase } from '../../application/use-cases/gerar-lote-imoveis.use-case';
@@ -35,6 +40,9 @@ import { ConfirmarFichaTecnicaUseCase } from '../../application/use-cases/confir
 import { GetEmpreendimentoDetailUseCase } from '../../application/use-cases/get-empreendimento-detail.use-case';
 import { PublicarEmpreendimentoUseCase } from '../../application/use-cases/publicar-empreendimento.use-case';
 import { DespublicarEmpreendimentoUseCase } from '../../application/use-cases/despublicar-empreendimento.use-case';
+import { UploadEmpreendimentoPhotoUseCase } from '../../application/use-cases/upload-empreendimento-photo.use-case';
+import { DeleteEmpreendimentoPhotoUseCase } from '../../application/use-cases/delete-empreendimento-photo.use-case';
+import { ReorderEmpreendimentoPhotosUseCase } from '../../application/use-cases/reorder-empreendimento-photos.use-case';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 @Controller('empreendimentos')
@@ -53,6 +61,9 @@ export class EmpreendimentoController {
     private readonly getEmpreendimentoDetailUseCase: GetEmpreendimentoDetailUseCase,
     private readonly publicarEmpreendimentoUseCase: PublicarEmpreendimentoUseCase,
     private readonly despublicarEmpreendimentoUseCase: DespublicarEmpreendimentoUseCase,
+    private readonly uploadEmpreendimentoPhotoUseCase: UploadEmpreendimentoPhotoUseCase,
+    private readonly deleteEmpreendimentoPhotoUseCase: DeleteEmpreendimentoPhotoUseCase,
+    private readonly reorderEmpreendimentoPhotosUseCase: ReorderEmpreendimentoPhotosUseCase,
   ) {}
 
   @Post()
@@ -239,6 +250,52 @@ export class EmpreendimentoController {
         areaPrivativa: tipologia.areaPrivativa ?? null,
         dormitorios: tipologia.dormitorios ?? null,
       })),
+    });
+  }
+
+  // POST /empreendimentos/:id/photos - Fatia 5: foto do EMPREENDIMENTO como
+  // um todo (planta/area comum), diferente de POST /imoveis/:id/photos
+  // (foto de uma unidade especifica). Exige "categoria" no multipart.
+  @Post(':id/photos')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPhoto(
+    @Param('id') id: string,
+    @Body() dto: UploadEmpreendimentoPhotoDto,
+    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string },
+    @Req() req: Request,
+  ) {
+    return this.uploadEmpreendimentoPhotoUseCase.execute({
+      empreendimentoId: id,
+      tenantId: req.user!.tenantId,
+      categoria: dto.categoria,
+      file,
+    });
+  }
+
+  @Delete(':id/photos/:photoId')
+  @HttpCode(HttpStatus.OK)
+  async deletePhoto(
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+    @Req() req: Request,
+  ) {
+    await this.deleteEmpreendimentoPhotoUseCase.execute({ photoId, tenantId: req.user!.tenantId });
+    return { message: 'Foto removida com sucesso.' };
+  }
+
+  // PATCH /empreendimentos/:id/photos/reorder - reordena so DENTRO da
+  // categoria informada (ver ReorderEmpreendimentoPhotosUseCase).
+  @Patch(':id/photos/reorder')
+  async reorderPhotos(
+    @Param('id') id: string,
+    @Body() dto: ReorderEmpreendimentoPhotosDto,
+    @Req() req: Request,
+  ) {
+    return this.reorderEmpreendimentoPhotosUseCase.execute({
+      empreendimentoId: id,
+      tenantId: req.user!.tenantId,
+      categoria: dto.categoria,
+      photoIds: dto.photoIds,
     });
   }
 }

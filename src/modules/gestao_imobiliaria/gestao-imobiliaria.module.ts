@@ -42,6 +42,10 @@ import { ConfirmarFichaTecnicaUseCase } from './application/use-cases/confirmar-
 import { GetEmpreendimentoDetailUseCase } from './application/use-cases/get-empreendimento-detail.use-case';
 import { PublicarEmpreendimentoUseCase } from './application/use-cases/publicar-empreendimento.use-case';
 import { DespublicarEmpreendimentoUseCase } from './application/use-cases/despublicar-empreendimento.use-case';
+import { UploadEmpreendimentoPhotoUseCase } from './application/use-cases/upload-empreendimento-photo.use-case';
+import { DeleteEmpreendimentoPhotoUseCase } from './application/use-cases/delete-empreendimento-photo.use-case';
+import { ReorderEmpreendimentoPhotosUseCase } from './application/use-cases/reorder-empreendimento-photos.use-case';
+import { ReorderImovelPhotosUseCase } from './application/use-cases/reorder-imovel-photos.use-case';
 import { PrismaEmpreendimentoRepository } from './infra/database/prisma-empreendimento.repository';
 import { PrismaImovelRepository } from './infra/database/prisma-imovel.repository';
 import { PrismaProprietarioRepository } from './infra/database/prisma-proprietario.repository';
@@ -78,6 +82,7 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     GetImovelUseCase,
     UploadImovelPhotoUseCase,
     DeleteImovelPhotoUseCase,
+    ReorderImovelPhotosUseCase,
     CreateProprietarioUseCase,
     ListProprietariosUseCase,
     UpdateProprietarioUseCase,
@@ -102,6 +107,9 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     GetEmpreendimentoDetailUseCase,
     PublicarEmpreendimentoUseCase,
     DespublicarEmpreendimentoUseCase,
+    UploadEmpreendimentoPhotoUseCase,
+    DeleteEmpreendimentoPhotoUseCase,
+    ReorderEmpreendimentoPhotosUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma / disco local).
     { provide: 'IEmpreendimentoRepository', useClass: PrismaEmpreendimentoRepository },

@@ -434,4 +434,14 @@ export class PrismaImovelRepository implements IImovelRepository {
   async deletePhoto(photoId: string): Promise<void> {
     await this.prisma.imovelPhoto.delete({ where: { id: photoId } });
   }
+
+  async reorderPhotos(
+    imovelId: string,
+    orders: { id: string; order: number }[],
+  ): Promise<ImovelPhotoRecord[]> {
+    await this.prisma.$transaction(
+      orders.map(({ id, order }) => this.prisma.imovelPhoto.update({ where: { id }, data: { order } })),
+    );
+    return this.findPhotosByImovel(imovelId);
+  }
 }

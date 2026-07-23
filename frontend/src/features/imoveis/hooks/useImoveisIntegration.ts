@@ -7,6 +7,7 @@ import {
   ImovelPhoto,
   Empreendimento,
   Tipologia,
+  EmpreendimentoPhoto,
   Proprietario,
   InquilinoComprador,
   InquilinoDocumento,
@@ -214,10 +215,12 @@ export interface CriarImovelLoteItemInput {
 }
 
 // Fatia 4 (Revisao e Publicacao) - resposta de GET /empreendimentos/:id.
+// Fatia 5 acrescentou "photos" (fotos de planta/area comum do empreendimento).
 export interface EmpreendimentoDetail {
   empreendimento: Empreendimento;
   tipologias: Tipologia[];
   unidadesCadastradas: number;
+  photos: EmpreendimentoPhoto[];
 }
 
 export interface TipologiaInput {
@@ -576,6 +579,72 @@ export function useImoveisIntegration() {
     }
   }, []);
 
+  // Fatia 5 - reordena as fotos de um Imovel (photoIds na ordem final
+  // desejada, precisa ser exatamente o mesmo conjunto ja existente).
+  const handleReorderImovelPhotos = useCallback(async (imovelId: string, photoIds: string[]) => {
+    try {
+      return await apiRequest<ImovelPhoto[]>(`/imoveis/${imovelId}/photos/reorder`, {
+        method: "PATCH",
+        body: JSON.stringify({ photoIds }),
+      });
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Nao foi possivel reordenar as fotos.");
+      return null;
+    }
+  }, []);
+
+  // Fatia 5 - fotos do EMPREENDIMENTO como um todo (planta/area comum),
+  // diferente das 3 acima (foto de uma unidade especifica).
+  const handleUploadEmpreendimentoPhoto = useCallback(
+    async (empreendimentoId: string, categoria: string, file: File) => {
+      try {
+        const formData = new FormData();
+        formData.append("categoria", categoria);
+        formData.append("file", file);
+        return await apiRequest<EmpreendimentoPhoto>(`/empreendimentos/${empreendimentoId}/photos`, {
+          method: "POST",
+          body: formData,
+        });
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel enviar a foto.");
+        return null;
+      }
+    },
+    [],
+  );
+
+  const handleDeleteEmpreendimentoPhoto = useCallback(
+    async (empreendimentoId: string, photoId: string) => {
+      try {
+        await apiRequest(`/empreendimentos/${empreendimentoId}/photos/${photoId}`, {
+          method: "DELETE",
+        });
+        return true;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel remover a foto.");
+        return false;
+      }
+    },
+    [],
+  );
+
+  // Reordena so DENTRO da categoria informada (ver
+  // ReorderEmpreendimentoPhotosUseCase no backend).
+  const handleReorderEmpreendimentoPhotos = useCallback(
+    async (empreendimentoId: string, categoria: string, photoIds: string[]) => {
+      try {
+        return await apiRequest<EmpreendimentoPhoto[]>(
+          `/empreendimentos/${empreendimentoId}/photos/reorder`,
+          { method: "PATCH", body: JSON.stringify({ categoria, photoIds }) },
+        );
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel reordenar as fotos.");
+        return null;
+      }
+    },
+    [],
+  );
+
   const loadProprietarios = useCallback(async () => {
     const proprietarios = await apiRequest<Proprietario[]>("/proprietarios");
     setProprietarios(proprietarios);
@@ -852,6 +921,10 @@ export function useImoveisIntegration() {
     handleImportarPlanilhaImoveis,
     handleUploadPhoto,
     handleDeletePhoto,
+    handleReorderImovelPhotos,
+    handleUploadEmpreendimentoPhoto,
+    handleDeleteEmpreendimentoPhoto,
+    handleReorderEmpreendimentoPhotos,
     loadProprietarios,
     loadInquilinosCompradores,
     loadContratos,

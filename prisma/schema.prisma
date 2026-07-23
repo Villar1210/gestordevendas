@@ -43,10 +43,11 @@ model Tenant {
   activities Activity[]
   notes      Note[]
 
-  empreendimentos Empreendimento[]
-  imoveis         Imovel[]
-  imovelPhotos    ImovelPhoto[]
-  tipologias      Tipologia[]
+  empreendimentos      Empreendimento[]
+  imoveis              Imovel[]
+  imovelPhotos         ImovelPhoto[]
+  tipologias           Tipologia[]
+  empreendimentoPhotos EmpreendimentoPhoto[]
 
   proprietarios          Proprietario[]
   inquilinosCompradores  InquilinoComprador[]
@@ -749,19 +750,48 @@ model Empreendimento {
   // produto). Todos opcionais: cadastro manual/planilha nao os preenche,
   // so o fluxo de importacao de PDF (ConfirmarFichaTecnicaUseCase) grava
   // aqui, e so com o que o proprio PDF confirmou (nunca valor inventado).
-  areaTerreno       Float?   @map("area_terreno")
-  totalUnidades     Int?     @map("total_unidades")
-  numeroTorres      Int?     @map("numero_torres")
-  unidadesPorAndar  Int?     @map("unidades_por_andar")
-  gabarito          Int?
-  vagas             Int?
-  itensLazer        String[] @map("itens_lazer") @default([])
+  areaTerreno      Float?   @map("area_terreno")
+  totalUnidades    Int?     @map("total_unidades")
+  numeroTorres     Int?     @map("numero_torres")
+  unidadesPorAndar Int?     @map("unidades_por_andar")
+  gabarito         Int?
+  vagas            Int?
+  itensLazer       String[] @default([]) @map("itens_lazer")
 
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   imoveis    Imovel[]
   tipologias Tipologia[]
+  photos     EmpreendimentoPhoto[]
 
   @@map("empreendimentos")
+}
+
+// Foto do EMPREENDIMENTO como um todo (planta do empreendimento, fachada,
+// areas comuns) - Fatia 5, model separado de ImovelPhoto de proposito
+// (decisao alinhada com o usuario: FK dupla opcional em um so model exigiria
+// uma constraint "exatamente um dos dois preenchido" fragil de manter; dois
+// models simples, cada um com 1 dono inequivoco, evita essa ambiguidade).
+// Diferente de ImovelPhoto, tem "categoria" porque o nivel (Empreendimento)
+// nao deixa isso implicito como acontece com uma foto de unidade - ver
+// EMPREENDIMENTO_PHOTO_CATEGORIA_VALUES no DTO de upload.
+model EmpreendimentoPhoto {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  empreendimentoId String   @map("empreendimento_id") @db.Uuid
+  // "planta" (planta do empreendimento) ou "area_comum" - mesmo padrao ja
+  // usado em InquilinoDocumento.tipo (String livre, validado via @IsIn no
+  // DTO, nao enum nativo do Postgres - consistente com o resto do projeto).
+  categoria        String   @db.VarChar(20)
+  url              String   @db.VarChar(500)
+  // Sequencial DENTRO DA MESMA categoria (nao global no empreendimento) -
+  // reordenar "planta" nao afeta a ordem de "area_comum" e vice-versa.
+  order            Int      @default(0)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empreendimento Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+
+  @@map("empreendimento_photos")
 }
 
 // Um "tipo de planta" do empreendimento (ex: "Garden Ponta 46,76m2"),
@@ -769,11 +799,11 @@ model Empreendimento {
 // (isso continua sendo Imovel/cadastro em lote), so a lista de plantas
 // disponiveis divulgada no material de apresentacao do produto.
 model Tipologia {
-  id               String  @id @default(uuid()) @db.Uuid
-  tenantId         String  @map("tenant_id") @db.Uuid
-  empreendimentoId String  @map("empreendimento_id") @db.Uuid
-  nome             String  @db.VarChar(150)
-  areaPrivativa    Float?  @map("area_privativa")
+  id               String @id @default(uuid()) @db.Uuid
+  tenantId         String @map("tenant_id") @db.Uuid
+  empreendimentoId String @map("empreendimento_id") @db.Uuid
+  nome             String @db.VarChar(150)
+  areaPrivativa    Float? @map("area_privativa")
   dormitorios      Int?
 
   tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)

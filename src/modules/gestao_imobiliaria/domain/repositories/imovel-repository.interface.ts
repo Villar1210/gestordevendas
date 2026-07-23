@@ -153,4 +153,8 @@ export interface IImovelRepository {
   }): Promise<ImovelPhotoRecord>;
   findPhotoByIdAndTenant(photoId: string, tenantId: string): Promise<ImovelPhotoRecord | null>;
   deletePhoto(photoId: string): Promise<void>;
+  // Fatia 5: aplica o novo "order" de cada foto (ja calculado por
+  // computePhotoOrders, ver domain/services/reorder-photos.ts) numa unica
+  // transacao, e devolve a lista ja reordenada.
+  reorderPhotos(imovelId: string, orders: { id: string; order: number }[]): Promise<ImovelPhotoRecord[]>;
 }

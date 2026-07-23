@@ -24,12 +24,14 @@ import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-r
 import { CreateImovelDto } from './dtos/create-imovel.dto';
 import { UpdateImovelDto } from './dtos/update-imovel.dto';
 import { ListImoveisQueryDto } from './dtos/list-imoveis-query.dto';
+import { ReorderPhotosDto } from './dtos/reorder-photos.dto';
 import { CreateImovelUseCase } from '../../application/use-cases/create-imovel.use-case';
 import { UpdateImovelUseCase } from '../../application/use-cases/update-imovel.use-case';
 import { ListImoveisUseCase } from '../../application/use-cases/list-imoveis.use-case';
 import { GetImovelUseCase } from '../../application/use-cases/get-imovel.use-case';
 import { UploadImovelPhotoUseCase } from '../../application/use-cases/upload-imovel-photo.use-case';
 import { DeleteImovelPhotoUseCase } from '../../application/use-cases/delete-imovel-photo.use-case';
+import { ReorderImovelPhotosUseCase } from '../../application/use-cases/reorder-imovel-photos.use-case';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 @Controller('imoveis')
@@ -43,6 +45,7 @@ export class ImovelController {
     private readonly getImovelUseCase: GetImovelUseCase,
     private readonly uploadImovelPhotoUseCase: UploadImovelPhotoUseCase,
     private readonly deleteImovelPhotoUseCase: DeleteImovelPhotoUseCase,
+    private readonly reorderImovelPhotosUseCase: ReorderImovelPhotosUseCase,
   ) {}
 
   @Post()
@@ -110,5 +113,21 @@ export class ImovelController {
   ) {
     await this.deleteImovelPhotoUseCase.execute({ photoId, tenantId: req.user!.tenantId });
     return { message: 'Foto removida com sucesso.' };
+  }
+
+  // PATCH /imoveis/:id/photos/reorder - Fatia 5: photoIds na ordem final
+  // desejada (precisa corresponder exatamente as fotos ja existentes, ver
+  // ReorderImovelPhotosUseCase).
+  @Patch(':id/photos/reorder')
+  async reorderPhotos(
+    @Param('id') id: string,
+    @Body() dto: ReorderPhotosDto,
+    @Req() req: Request,
+  ) {
+    return this.reorderImovelPhotosUseCase.execute({
+      imovelId: id,
+      tenantId: req.user!.tenantId,
+      photoIds: dto.photoIds,
+    });
   }
 }
