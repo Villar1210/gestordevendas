@@ -106,6 +106,21 @@ export function getStatusOption(status: string): StatusOption {
   return STATUS_OPTIONS.find((option) => option.value === status) ?? STATUS_OPTIONS[0];
 }
 
+// Cadastro em Lote de Unidades (Fatia 2b) - espelha ENQUADRAMENTO_VALUES em
+// criar-imoveis-lote.dto.ts do backend.
+export const ENQUADRAMENTO_OPTIONS = [
+  { value: "nenhum", label: "Nenhum" },
+  { value: "his2", label: "HIS2" },
+  { value: "hmp", label: "HMP" },
+  { value: "r2v", label: "R2V" },
+];
+
+export function getEnquadramentoLabel(enquadramento: string): string {
+  return (
+    ENQUADRAMENTO_OPTIONS.find((option) => option.value === enquadramento)?.label ?? enquadramento
+  );
+}
+
 export function getTipoLabel(tipo: string): string {
   return TIPO_OPTIONS.find((option) => option.value === tipo)?.label ?? tipo;
 }

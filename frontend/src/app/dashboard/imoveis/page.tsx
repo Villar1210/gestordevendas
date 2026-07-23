@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Plus, LayoutGrid } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
 import { useImoveisIntegration } from "@/features/imoveis/hooks/useImoveisIntegration";
@@ -29,6 +30,7 @@ export default function ImoveisDashboardPage() {
   const finalidadeFilter = useImoveisStore((state) => state.finalidadeFilter);
   const statusFilter = useImoveisStore((state) => state.statusFilter);
   const empreendimentoFilter = useImoveisStore((state) => state.empreendimentoFilter);
+  const setEmpreendimentoFilter = useImoveisStore((state) => state.setEmpreendimentoFilter);
   const openImovelFormModal = useImoveisStore((state) => state.openImovelFormModal);
   const openEmpreendimentoFormModal = useImoveisStore(
     (state) => state.openEmpreendimentoFormModal,
@@ -45,6 +47,15 @@ export default function ImoveisDashboardPage() {
       apiRequest<{ role: string }>("/auth/me")
         .then((me) => setRole(me.role))
         .catch(() => setRole(null));
+    }
+    // Deep-link de volta apos o Cadastro em Lote de Unidades (fatia 2b) -
+    // le direto de window.location (nao useSearchParams, que exigiria
+    // envolver a pagina numa Suspense boundary so por causa disso, mesmo
+    // padrao ja usado em /dashboard/kanban).
+    const params = new URLSearchParams(window.location.search);
+    const empreendimentoIdParam = params.get("empreendimentoId");
+    if (empreendimentoIdParam) {
+      setEmpreendimentoFilter(empreendimentoIdParam);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -152,7 +163,17 @@ export default function ImoveisDashboardPage() {
       {activeView === "catalogo" ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-3">
-            <ImoveisFilters />
+            <div className="flex flex-wrap items-center gap-3">
+              <ImoveisFilters />
+              {empreendimentoFilter !== "all" && (
+                <Link
+                  href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}/lote`}
+                  className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
+                </Link>
+              )}
+            </div>
             <div className="flex rounded-lg border border-slate-200 p-0.5">
               <button
                 onClick={() => setCatalogLayout("cards")}

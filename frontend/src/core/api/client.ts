@@ -17,6 +17,11 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    // Corpo bruto (ja parseado) da resposta de erro - a maioria dos callers
+    // so usa "message", mas alguns fluxos precisam de dados estruturados
+    // extras (ex: a lista de identificadores colidindo no Cadastro em Lote
+    // de Imoveis, ver CriarImoveisLoteUseCase no backend).
+    public readonly body?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -59,7 +64,7 @@ export async function apiRequest<T = unknown>(
   if (!response.ok) {
     const rawMessage = body?.message ?? body?.error ?? "Erro inesperado. Tente novamente.";
     const message = Array.isArray(rawMessage) ? rawMessage.join(", ") : rawMessage;
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, body);
   }
 
   return body as T;

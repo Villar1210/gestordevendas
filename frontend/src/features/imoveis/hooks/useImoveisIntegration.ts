@@ -131,6 +131,67 @@ export interface CreateLancamentoInput {
   descricao?: string;
 }
 
+// Cadastro em Lote de Unidades (Fatia 2b) - espelha o contrato dos 2
+// endpoints da Fatia 2a (ver gerar-lote-imoveis.dto.ts / criar-imoveis-lote.dto.ts
+// no backend).
+export interface UnidadePadraoInput {
+  posicao: number;
+  tipologia: string;
+  area?: number;
+  dormitorios?: number;
+}
+
+export interface PadraoLoteInput {
+  bloco: string;
+  andarInicial: number;
+  andarFinal: number;
+  unidadesPorAndar: UnidadePadraoInput[];
+}
+
+export interface UnidadeGeradaLote {
+  identificadorExterno: string;
+  bloco: string;
+  andar: number;
+  numeroNoAndar: number;
+  title: string;
+  tipo: string;
+  finalidade: string;
+  status: string;
+  tipoItem: string;
+  enquadramento: string;
+  pcd: boolean;
+  area: number | null;
+  bedrooms: number | null;
+  vagasIncluidas: number;
+  customFields: { tipologia: string };
+  identificadorJaExiste: boolean;
+}
+
+export interface GerarLoteResult {
+  unidades: UnidadeGeradaLote[];
+  identificadoresDuplicados: string[];
+}
+
+export interface CriarImovelLoteItemInput {
+  title: string;
+  tipo: string;
+  finalidade: string;
+  status?: string;
+  tipoItem?: string;
+  identificadorExterno?: string;
+  bloco?: string;
+  andar?: number;
+  numeroNoAndar?: number;
+  enquadramento?: string;
+  pcd?: boolean;
+  valorTabela?: number;
+  valorComDesconto?: number;
+  vagasIncluidas?: number;
+  area?: number;
+  bedrooms?: number;
+  customFields?: Record<string, unknown>;
+}
+
 export interface ListLancamentosFilters {
   tipo?: string;
   status?: string;
@@ -266,6 +327,39 @@ export function useImoveisIntegration() {
       }
     },
     [updateImovelInPlace],
+  );
+
+  // Cadastro em Lote de Unidades (Fatia 2b).
+  const handleGerarLoteImoveis = useCallback(
+    async (empreendimentoId: string, padrao: PadraoLoteInput) => {
+      try {
+        return await apiRequest<GerarLoteResult>(
+          `/empreendimentos/${empreendimentoId}/imoveis/gerar-lote`,
+          { method: "POST", body: JSON.stringify(padrao) },
+        );
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel gerar as unidades.");
+        return null;
+      }
+    },
+    [],
+  );
+
+  // Diferente dos demais handlers deste hook: NAO engole o erro com alert()
+  // e nao retorna null - deixa o ApiError propagar. A tela de Cadastro em
+  // Lote (fatia 2b) precisa diferenciar uma colisao de identificador (409,
+  // com a lista exata em err.body.identificadoresColidindo) de qualquer
+  // outro erro, e manter o grid preenchido em vez de resetar - o caller e
+  // quem decide como exibir cada caso.
+  const handleCriarImoveisLote = useCallback(
+    async (empreendimentoId: string, imoveis: CriarImovelLoteItemInput[]) => {
+      const result = await apiRequest<{ imoveis: Imovel[] }>(
+        `/empreendimentos/${empreendimentoId}/imoveis/lote`,
+        { method: "POST", body: JSON.stringify({ imoveis }) },
+      );
+      return result.imoveis;
+    },
+    [],
   );
 
   const handleCreateEmpreendimento = useCallback(
@@ -575,6 +669,8 @@ export function useImoveisIntegration() {
     handleCreateImovel,
     handleUpdateImovel,
     handleCreateEmpreendimento,
+    handleGerarLoteImoveis,
+    handleCriarImoveisLote,
     handleUploadPhoto,
     handleDeletePhoto,
     loadProprietarios,
