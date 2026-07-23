@@ -56,6 +56,26 @@ export interface Empreendimento {
   cep: string;
   description: string | null;
   createdAt: string;
+  // Fatia 4 (Revisao e Publicacao) - ja vinham do backend desde a Fatia
+  // 3a/3c, so nao estavam declarados aqui ainda.
+  publicado: boolean;
+  origemImportacao: string | null;
+  // Ficha tecnica (Fatia 3c) - preenchidos so apos confirmar-ficha-tecnica.
+  areaTerreno: number | null;
+  totalUnidades: number | null;
+  numeroTorres: number | null;
+  unidadesPorAndar: number | null;
+  gabarito: number | null;
+  vagas: number | null;
+  itensLazer: string[];
+}
+
+export interface Tipologia {
+  id: string;
+  empreendimentoId: string;
+  nome: string;
+  areaPrivativa: number | null;
+  dormitorios: number | null;
 }
 
 export interface Proprietario {
@@ -153,6 +173,11 @@ interface InquilinoDetailPanelState {
 interface ImoveisState {
   imoveis: Imovel[];
   empreendimentos: Empreendimento[];
+  // Fatia 4: lista separada, so com publicado=true - usada exclusivamente
+  // pelo Espelho de Vendas (ver EspelhoDeVendas.tsx). "empreendimentos"
+  // acima continua sem filtro, pois Catalogo/Cadastro em Lote precisam
+  // gerenciar tambem os pendentes de revisao.
+  empreendimentosPublicados: Empreendimento[];
   proprietarios: Proprietario[];
   inquilinosCompradores: InquilinoComprador[];
   contratos: Contrato[];
@@ -179,6 +204,7 @@ interface ImoveisState {
 
   setImoveis: (imoveis: Imovel[]) => void;
   setEmpreendimentos: (empreendimentos: Empreendimento[]) => void;
+  setEmpreendimentosPublicados: (empreendimentos: Empreendimento[]) => void;
   setProprietarios: (proprietarios: Proprietario[]) => void;
   setInquilinosCompradores: (inquilinosCompradores: InquilinoComprador[]) => void;
   setContratos: (contratos: Contrato[]) => void;
@@ -221,6 +247,7 @@ interface ImoveisState {
   updateImovelInPlace: (imovel: Imovel) => void;
 
   addEmpreendimento: (empreendimento: Empreendimento) => void;
+  updateEmpreendimentoInPlace: (empreendimento: Empreendimento) => void;
 
   addProprietario: (proprietario: Proprietario) => void;
   updateProprietarioInPlace: (proprietario: Proprietario) => void;
@@ -238,6 +265,7 @@ interface ImoveisState {
 export const useImoveisStore = create<ImoveisState>((set, get) => ({
   imoveis: [],
   empreendimentos: [],
+  empreendimentosPublicados: [],
   proprietarios: [],
   inquilinosCompradores: [],
   contratos: [],
@@ -264,6 +292,7 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
 
   setImoveis: (imoveis) => set({ imoveis }),
   setEmpreendimentos: (empreendimentos) => set({ empreendimentos }),
+  setEmpreendimentosPublicados: (empreendimentosPublicados) => set({ empreendimentosPublicados }),
   setProprietarios: (proprietarios) => set({ proprietarios }),
   setInquilinosCompradores: (inquilinosCompradores) => set({ inquilinosCompradores }),
   setContratos: (contratos) => set({ contratos }),
@@ -326,6 +355,13 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
 
   addEmpreendimento: (empreendimento) =>
     set({ empreendimentos: [empreendimento, ...get().empreendimentos] }),
+
+  updateEmpreendimentoInPlace: (empreendimento) =>
+    set({
+      empreendimentos: get().empreendimentos.map((e) =>
+        e.id === empreendimento.id ? { ...e, ...empreendimento } : e,
+      ),
+    }),
 
   addProprietario: (proprietario) =>
     set({ proprietarios: [proprietario, ...get().proprietarios] }),

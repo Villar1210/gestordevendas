@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Plus, LayoutGrid } from "lucide-react";
+import { Loader2, Plus, LayoutGrid, ClipboardCheck } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
 import { useImoveisIntegration } from "@/features/imoveis/hooks/useImoveisIntegration";
@@ -166,12 +166,20 @@ export default function ImoveisDashboardPage() {
             <div className="flex flex-wrap items-center gap-3">
               <ImoveisFilters />
               {empreendimentoFilter !== "all" && (
-                <Link
-                  href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}/lote`}
-                  className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
-                </Link>
+                <>
+                  <Link
+                    href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}/lote`}
+                    className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
+                  </Link>
+                  <Link
+                    href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}`}
+                    className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <ClipboardCheck className="h-4 w-4" /> Revisao e Publicacao
+                  </Link>
+                </>
               )}
             </div>
             <div className="flex rounded-lg border border-slate-200 p-0.5">

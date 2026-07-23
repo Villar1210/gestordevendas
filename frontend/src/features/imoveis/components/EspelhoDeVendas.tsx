@@ -8,20 +8,39 @@ import { STATUS_OPTIONS, getStatusOption } from "../constants";
 import { StatusPopover } from "./StatusPopover";
 
 export function EspelhoDeVendas() {
-  const empreendimentos = useImoveisStore((state) => state.empreendimentos);
+  // Fatia 4: o Espelho de Vendas so lista empreendimentos ja publicados -
+  // usa "empreendimentosPublicados" (GET /empreendimentos?publicado=true,
+  // filtrado no backend), NUNCA "empreendimentos" (lista completa, usada
+  // pelo Catalogo/Cadastro em Lote, que precisam ver tambem os pendentes
+  // de revisao). Refeito a cada vez que este componente monta (troca de
+  // aba), o que tambem resolve o caso de um empreendimento ser publicado/
+  // despublicado em outra tela e o usuario voltar para o Espelho depois.
+  const empreendimentosPublicados = useImoveisStore((state) => state.empreendimentosPublicados);
   const espelhoEmpreendimentoId = useImoveisStore((state) => state.espelhoEmpreendimentoId);
   const setEspelhoEmpreendimentoId = useImoveisStore((state) => state.setEspelhoEmpreendimentoId);
-  const { handleListImoveisByEmpreendimento, handleUpdateImovel } = useImoveisIntegration();
+  const { loadEmpreendimentosPublicados, handleListImoveisByEmpreendimento, handleUpdateImovel } =
+    useImoveisIntegration();
 
   const [unidades, setUnidades] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(false);
   const [openPopoverFor, setOpenPopoverFor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (empreendimentos.length > 0 && !espelhoEmpreendimentoId) {
-      setEspelhoEmpreendimentoId(empreendimentos[0].id);
-    }
-  }, [empreendimentos, espelhoEmpreendimentoId, setEspelhoEmpreendimentoId]);
+    loadEmpreendimentosPublicados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const aindaValido =
+      espelhoEmpreendimentoId &&
+      empreendimentosPublicados.some((emp) => emp.id === espelhoEmpreendimentoId);
+
+    if (aindaValido) return;
+
+    setEspelhoEmpreendimentoId(
+      empreendimentosPublicados.length > 0 ? empreendimentosPublicados[0].id : null,
+    );
+  }, [empreendimentosPublicados, espelhoEmpreendimentoId, setEspelhoEmpreendimentoId]);
 
   useEffect(() => {
     if (!espelhoEmpreendimentoId) {
@@ -52,10 +71,10 @@ export function EspelhoDeVendas() {
           onChange={(e) => setEspelhoEmpreendimentoId(e.target.value || null)}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
         >
-          {empreendimentos.length === 0 && (
-            <option value="">Nenhum empreendimento cadastrado</option>
+          {empreendimentosPublicados.length === 0 && (
+            <option value="">Nenhum empreendimento publicado ainda</option>
           )}
-          {empreendimentos.map((emp) => (
+          {empreendimentosPublicados.map((emp) => (
             <option key={emp.id} value={emp.id}>
               {emp.name}
             </option>

@@ -6,6 +6,7 @@ import {
   Imovel,
   ImovelPhoto,
   Empreendimento,
+  Tipologia,
   Proprietario,
   InquilinoComprador,
   InquilinoDocumento,
@@ -212,6 +213,36 @@ export interface CriarImovelLoteItemInput {
   customFields?: Record<string, unknown>;
 }
 
+// Fatia 4 (Revisao e Publicacao) - resposta de GET /empreendimentos/:id.
+export interface EmpreendimentoDetail {
+  empreendimento: Empreendimento;
+  tipologias: Tipologia[];
+  unidadesCadastradas: number;
+}
+
+export interface TipologiaInput {
+  nome: string;
+  areaPrivativa?: number | null;
+  dormitorios?: number | null;
+}
+
+// Fatia 4 - edicao inline da ficha tecnica JA confirmada ao menos uma vez
+// via PDF (origemImportacao="ia_pdf"). Reaproveita o mesmo endpoint da
+// Fatia 3c (POST .../confirmar-ficha-tecnica) - nome/endereco do
+// Empreendimento nao entram aqui de proposito (esse endpoint nunca mexe
+// neles, ver ConfirmarFichaTecnicaUseCase no backend).
+export interface ConfirmarFichaTecnicaInput {
+  descricao?: string | null;
+  areaTerreno?: number | null;
+  totalUnidades?: number | null;
+  numeroTorres?: number | null;
+  unidadesPorAndar?: number | null;
+  gabarito?: number | null;
+  vagas?: number | null;
+  itensLazer: string[];
+  tipologias: TipologiaInput[];
+}
+
 export interface ListLancamentosFilters {
   tipo?: string;
   status?: string;
@@ -250,6 +281,9 @@ function buildQueryString(filters?: ListImoveisFilters): string {
 export function useImoveisIntegration() {
   const setImoveis = useImoveisStore((state) => state.setImoveis);
   const setEmpreendimentos = useImoveisStore((state) => state.setEmpreendimentos);
+  const setEmpreendimentosPublicados = useImoveisStore(
+    (state) => state.setEmpreendimentosPublicados,
+  );
   const setProprietarios = useImoveisStore((state) => state.setProprietarios);
   const setInquilinosCompradores = useImoveisStore((state) => state.setInquilinosCompradores);
   const setContratos = useImoveisStore((state) => state.setContratos);
@@ -257,6 +291,7 @@ export function useImoveisIntegration() {
   const addImovel = useImoveisStore((state) => state.addImovel);
   const updateImovelInPlace = useImoveisStore((state) => state.updateImovelInPlace);
   const addEmpreendimento = useImoveisStore((state) => state.addEmpreendimento);
+  const updateEmpreendimentoInPlace = useImoveisStore((state) => state.updateEmpreendimentoInPlace);
   const addProprietario = useImoveisStore((state) => state.addProprietario);
   const updateProprietarioInPlace = useImoveisStore((state) => state.updateProprietarioInPlace);
   const addInquilinoComprador = useImoveisStore((state) => state.addInquilinoComprador);
@@ -293,6 +328,15 @@ export function useImoveisIntegration() {
     const empreendimentos = await apiRequest<Empreendimento[]>("/empreendimentos");
     setEmpreendimentos(empreendimentos);
   }, [setEmpreendimentos]);
+
+  // Fatia 4: usado exclusivamente pelo Espelho de Vendas - filtro
+  // publicado=true aplicado no BACKEND (nao so no frontend), para que uma
+  // chamada direta a API com esse mesmo parametro tambem nunca devolva
+  // empreendimentos pendentes de revisao.
+  const loadEmpreendimentosPublicados = useCallback(async () => {
+    const empreendimentos = await apiRequest<Empreendimento[]>("/empreendimentos?publicado=true");
+    setEmpreendimentosPublicados(empreendimentos);
+  }, [setEmpreendimentosPublicados]);
 
   // Usado pelo Espelho de Vendas: busca as unidades de um empreendimento sem
   // afetar a lista filtrada do Catalogo (estado local do componente, nao a store).
@@ -444,6 +488,68 @@ export function useImoveisIntegration() {
       }
     },
     [addEmpreendimento, closeEmpreendimentoFormModal],
+  );
+
+  // Fatia 4 (tela de Revisao e Publicacao) - detalhe de 1 empreendimento.
+  // Diferente da maioria dos handlers deste hook, NAO engole o erro com
+  // alert(): a pagina de detalhe precisa distinguir "nao encontrado" (404,
+  // ex: id invalido na URL) de qualquer outro erro para mostrar um estado
+  // vazio claro, em vez de um alert generico.
+  const handleGetEmpreendimentoDetail = useCallback(async (empreendimentoId: string) => {
+    return apiRequest<EmpreendimentoDetail>(`/empreendimentos/${empreendimentoId}`);
+  }, []);
+
+  const handlePublicarEmpreendimento = useCallback(
+    async (empreendimentoId: string) => {
+      try {
+        const empreendimento = await apiRequest<Empreendimento>(
+          `/empreendimentos/${empreendimentoId}/publicar`,
+          { method: "PATCH" },
+        );
+        updateEmpreendimentoInPlace(empreendimento);
+        return empreendimento;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel publicar o empreendimento.");
+        return null;
+      }
+    },
+    [updateEmpreendimentoInPlace],
+  );
+
+  const handleDespublicarEmpreendimento = useCallback(
+    async (empreendimentoId: string) => {
+      try {
+        const empreendimento = await apiRequest<Empreendimento>(
+          `/empreendimentos/${empreendimentoId}/despublicar`,
+          { method: "PATCH" },
+        );
+        updateEmpreendimentoInPlace(empreendimento);
+        return empreendimento;
+      } catch (err) {
+        alert(
+          err instanceof ApiError ? err.message : "Nao foi possivel despublicar o empreendimento.",
+        );
+        return null;
+      }
+    },
+    [updateEmpreendimentoInPlace],
+  );
+
+  const handleConfirmarFichaTecnica = useCallback(
+    async (empreendimentoId: string, input: ConfirmarFichaTecnicaInput) => {
+      try {
+        const result = await apiRequest<{ empreendimento: Empreendimento; tipologias: Tipologia[] }>(
+          `/empreendimentos/${empreendimentoId}/confirmar-ficha-tecnica`,
+          { method: "POST", body: JSON.stringify(input) },
+        );
+        updateEmpreendimentoInPlace(result.empreendimento);
+        return result;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar a ficha tecnica.");
+        return null;
+      }
+    },
+    [updateEmpreendimentoInPlace],
   );
 
   const handleUploadPhoto = useCallback(async (imovelId: string, file: File) => {
@@ -730,11 +836,16 @@ export function useImoveisIntegration() {
   return {
     loadImoveis,
     loadEmpreendimentos,
+    loadEmpreendimentosPublicados,
     handleListImoveisByEmpreendimento,
     handleGetImovel,
     handleCreateImovel,
     handleUpdateImovel,
     handleCreateEmpreendimento,
+    handleGetEmpreendimentoDetail,
+    handlePublicarEmpreendimento,
+    handleDespublicarEmpreendimento,
+    handleConfirmarFichaTecnica,
     handleGerarLoteImoveis,
     handleCriarImoveisLote,
     handleListarProdutosPlanilha,

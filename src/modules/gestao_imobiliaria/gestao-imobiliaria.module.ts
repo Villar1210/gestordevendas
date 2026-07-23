@@ -39,6 +39,9 @@ import { AtualizarStatusVencidosUseCase } from './application/use-cases/atualiza
 import { BuscarEmpreendimentoPorEnderecoUseCase } from './application/use-cases/buscar-empreendimento-por-endereco.use-case';
 import { ImportarFichaTecnicaPdfUseCase } from './application/use-cases/importar-ficha-tecnica-pdf.use-case';
 import { ConfirmarFichaTecnicaUseCase } from './application/use-cases/confirmar-ficha-tecnica.use-case';
+import { GetEmpreendimentoDetailUseCase } from './application/use-cases/get-empreendimento-detail.use-case';
+import { PublicarEmpreendimentoUseCase } from './application/use-cases/publicar-empreendimento.use-case';
+import { DespublicarEmpreendimentoUseCase } from './application/use-cases/despublicar-empreendimento.use-case';
 import { PrismaEmpreendimentoRepository } from './infra/database/prisma-empreendimento.repository';
 import { PrismaImovelRepository } from './infra/database/prisma-imovel.repository';
 import { PrismaProprietarioRepository } from './infra/database/prisma-proprietario.repository';
@@ -96,6 +99,9 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     BuscarEmpreendimentoPorEnderecoUseCase,
     ImportarFichaTecnicaPdfUseCase,
     ConfirmarFichaTecnicaUseCase,
+    GetEmpreendimentoDetailUseCase,
+    PublicarEmpreendimentoUseCase,
+    DespublicarEmpreendimentoUseCase,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma / disco local).
     { provide: 'IEmpreendimentoRepository', useClass: PrismaEmpreendimentoRepository },

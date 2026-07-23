@@ -55,7 +55,10 @@ export interface IEmpreendimentoRepository {
     description?: string | null;
   }): Promise<EmpreendimentoRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<EmpreendimentoRecord | null>;
-  findAllByTenant(tenantId: string): Promise<EmpreendimentoRecord[]>;
+  // filters.publicado opcional (Fatia 4): ausente = todos (Catalogo/Cadastro
+  // em Lote, que precisam ver tambem os pendentes); true = so publicados
+  // (Espelho de Vendas, ver EspelhoDeVendas.tsx no frontend).
+  findAllByTenant(tenantId: string, filters?: { publicado?: boolean }): Promise<EmpreendimentoRecord[]>;
   update(
     id: string,
     patch: { publicado?: boolean; origemImportacao?: string | null },

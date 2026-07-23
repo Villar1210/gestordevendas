@@ -4,7 +4,9 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -21,6 +23,7 @@ import { GerarLoteImoveisDto } from './dtos/gerar-lote-imoveis.dto';
 import { CriarImoveisLoteDto } from './dtos/criar-imoveis-lote.dto';
 import { ImportarPlanilhaImoveisDto } from './dtos/importar-planilha-imoveis.dto';
 import { ConfirmarFichaTecnicaDto } from './dtos/confirmar-ficha-tecnica.dto';
+import { ListEmpreendimentosQueryDto } from './dtos/list-empreendimentos-query.dto';
 import { CreateEmpreendimentoUseCase } from '../../application/use-cases/create-empreendimento.use-case';
 import { ListEmpreendimentosUseCase } from '../../application/use-cases/list-empreendimentos.use-case';
 import { GerarLoteImoveisUseCase } from '../../application/use-cases/gerar-lote-imoveis.use-case';
@@ -29,6 +32,9 @@ import { ImportarPlanilhaImoveisUseCase } from '../../application/use-cases/impo
 import { ListarProdutosPlanilhaUseCase } from '../../application/use-cases/listar-produtos-planilha.use-case';
 import { ImportarFichaTecnicaPdfUseCase } from '../../application/use-cases/importar-ficha-tecnica-pdf.use-case';
 import { ConfirmarFichaTecnicaUseCase } from '../../application/use-cases/confirmar-ficha-tecnica.use-case';
+import { GetEmpreendimentoDetailUseCase } from '../../application/use-cases/get-empreendimento-detail.use-case';
+import { PublicarEmpreendimentoUseCase } from '../../application/use-cases/publicar-empreendimento.use-case';
+import { DespublicarEmpreendimentoUseCase } from '../../application/use-cases/despublicar-empreendimento.use-case';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 @Controller('empreendimentos')
@@ -44,6 +50,9 @@ export class EmpreendimentoController {
     private readonly listarProdutosPlanilhaUseCase: ListarProdutosPlanilhaUseCase,
     private readonly importarFichaTecnicaPdfUseCase: ImportarFichaTecnicaPdfUseCase,
     private readonly confirmarFichaTecnicaUseCase: ConfirmarFichaTecnicaUseCase,
+    private readonly getEmpreendimentoDetailUseCase: GetEmpreendimentoDetailUseCase,
+    private readonly publicarEmpreendimentoUseCase: PublicarEmpreendimentoUseCase,
+    private readonly despublicarEmpreendimentoUseCase: DespublicarEmpreendimentoUseCase,
   ) {}
 
   @Post()
@@ -61,9 +70,46 @@ export class EmpreendimentoController {
     });
   }
 
+  // GET /empreendimentos?publicado=true - Fatia 4: o Espelho de Vendas
+  // (frontend) sempre passa publicado=true para so listar empreendimentos
+  // ja revisados; sem o parametro, devolve todos do tenant (Catalogo,
+  // Cadastro em Lote), como sempre foi.
   @Get()
-  async list(@Req() req: Request) {
-    return this.listEmpreendimentosUseCase.execute({ tenantId: req.user!.tenantId });
+  async list(@Query() query: ListEmpreendimentosQueryDto, @Req() req: Request) {
+    return this.listEmpreendimentosUseCase.execute({
+      tenantId: req.user!.tenantId,
+      publicado: query.publicado !== undefined ? query.publicado === 'true' : undefined,
+    });
+  }
+
+  // GET /empreendimentos/:id - Fatia 4 (tela de Revisao e Publicacao):
+  // detalhe de um unico empreendimento + tipologias extraidas (Fatia 3c) +
+  // contagem real de unidades ja cadastradas (Imovel, distinto do
+  // totalUnidades DECLARADO na ficha tecnica do PDF).
+  @Get(':id')
+  async getOne(@Param('id') id: string, @Req() req: Request) {
+    return this.getEmpreendimentoDetailUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId: id,
+    });
+  }
+
+  // PATCH /empreendimentos/:id/publicar e .../despublicar - Fatia 4: alterna
+  // Empreendimento.publicado a partir da tela de Revisao e Publicacao.
+  @Patch(':id/publicar')
+  async publicar(@Param('id') id: string, @Req() req: Request) {
+    return this.publicarEmpreendimentoUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId: id,
+    });
+  }
+
+  @Patch(':id/despublicar')
+  async despublicar(@Param('id') id: string, @Req() req: Request) {
+    return this.despublicarEmpreendimentoUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId: id,
+    });
   }
 
   // POST /empreendimentos/:empreendimentoId/imoveis/gerar-lote - gera a

@@ -198,3 +198,17 @@ export const TIPO_DOCUMENTO_OPTIONS = [
 export function getTipoDocumentoLabel(tipo: string): string {
   return TIPO_DOCUMENTO_OPTIONS.find((option) => option.value === tipo)?.label ?? tipo;
 }
+
+// Empreendimento.origemImportacao (Fatia 4, tela de Revisao e Publicacao) -
+// espelha os valores gravados pelo backend: "planilha" (CriarImoveisLoteUseCase,
+// Fatia 3a), "ia_pdf" (ConfirmarFichaTecnicaUseCase, Fatia 3c) ou null
+// (cadastro manual - nunca escreve nesse campo).
+export const ORIGEM_IMPORTACAO_LABELS: Record<string, string> = {
+  planilha: "Importado via planilha",
+  ia_pdf: "Importado via IA (PDF)",
+};
+
+export function getOrigemImportacaoLabel(origemImportacao: string | null): string {
+  if (!origemImportacao) return "Cadastro manual";
+  return ORIGEM_IMPORTACAO_LABELS[origemImportacao] ?? origemImportacao;
+}

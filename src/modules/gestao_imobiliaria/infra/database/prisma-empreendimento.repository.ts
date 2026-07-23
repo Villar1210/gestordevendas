@@ -42,9 +42,15 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
     return this.prisma.empreendimento.findFirst({ where: { id, tenantId } });
   }
 
-  async findAllByTenant(tenantId: string): Promise<EmpreendimentoRecord[]> {
+  async findAllByTenant(
+    tenantId: string,
+    filters?: { publicado?: boolean },
+  ): Promise<EmpreendimentoRecord[]> {
     return this.prisma.empreendimento.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        ...(filters?.publicado !== undefined ? { publicado: filters.publicado } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

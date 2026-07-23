@@ -12,7 +12,9 @@ export class ListEmpreendimentosUseCase {
     private readonly empreendimentoRepository: IEmpreendimentoRepository,
   ) {}
 
-  async execute(input: { tenantId: string }): Promise<EmpreendimentoRecord[]> {
-    return this.empreendimentoRepository.findAllByTenant(input.tenantId);
+  async execute(input: { tenantId: string; publicado?: boolean }): Promise<EmpreendimentoRecord[]> {
+    return this.empreendimentoRepository.findAllByTenant(input.tenantId, {
+      publicado: input.publicado,
+    });
   }
 }
