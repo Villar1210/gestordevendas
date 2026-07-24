@@ -61,7 +61,10 @@ import { PrismaService } from '../../config/prisma.service';
   ],
   // Exportado para o modulo vivi_sdr: o listener de mensagens (sessao sem
   // VIVI) e o processamento da tool "transferir_para_fila" (sessao com
-  // VIVI) precisam criar/classificar Atendimentos.
-  exports: [GetOrCreateAtendimentoUseCase, ClassifyAndRouteAtendimentoUseCase],
+  // VIVI) precisam criar/classificar Atendimentos. IFilaRepository
+  // exportado para o modulo notificacoes: AtendimentoClassificadoListener
+  // precisa saber quais usuarios pertencem a fila para notifica-los (ver
+  // handoff VIVI -> Corretor).
+  exports: [GetOrCreateAtendimentoUseCase, ClassifyAndRouteAtendimentoUseCase, 'IFilaRepository'],
 })
 export class AtendimentoModule {}

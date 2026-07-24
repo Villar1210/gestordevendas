@@ -1,5 +1,6 @@
 // src/modules/atendimento/application/use-cases/classify-and-route-atendimento.use-case.ts
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   IAtendimentoRepository,
   AtendimentoRecord,
@@ -28,6 +29,7 @@ export class ClassifyAndRouteAtendimentoUseCase {
     @Inject('IFilaRepository') private readonly filaRepository: IFilaRepository,
     @Inject('IAtendimentoEventoRepository')
     private readonly eventoRepository: IAtendimentoEventoRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: ClassifyAndRouteAtendimentoInput): Promise<AtendimentoRecord> {
@@ -59,6 +61,22 @@ export class ClassifyAndRouteAtendimentoUseCase {
       tipo: 'criado',
       userId: input.userId ?? null,
       detalhe: `Classificado na fila "${fila.nome}"${input.urgente ? ' [URGENTE]' : ''}${resumo ? `: ${resumo}` : ''}`,
+    });
+
+    // Hoje o UNICO chamador deste use case e ProcessIncomingMessageUseCase
+    // (VIVI, tool "transferir_para_fila") - uma classificacao/transferencia
+    // manual feita por um Administrador passa por TransferAtendimentoUseCase,
+    // um caminho de codigo separado que nunca chega aqui (ver investigacao
+    // do handoff VIVI -> Corretor). Por isso o evento nao precisa checar
+    // input.userId para saber se "foi a VIVI" - sempre e. emit() nao aguarda
+    // o listener, mesmo padrao ja usado por CreateQuickCardUseCase para
+    // 'card.sem_dono.criado'.
+    this.eventEmitter.emit('atendimento.classificado', {
+      tenantId: input.tenantId,
+      atendimentoId: atendimento.id,
+      filaId: fila.id,
+      filaNome: fila.nome,
+      urgente: !!input.urgente,
     });
 
     return updated;
