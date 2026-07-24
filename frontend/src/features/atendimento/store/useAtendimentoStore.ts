@@ -75,9 +75,17 @@ export const useAtendimentoStore = create<AtendimentoState>((set, get) => ({
 
   setAtendimentos: (atendimentos) => set({ atendimentos }),
   setFilas: (filas) => set({ filas }),
+  // Merge, NUNCA replace: o payload de GET /atendimentos/:id (usado por
+  // loadAtendimentoDetail) e o Atendimento "cru" do banco, sem
+  // lastMessageBody/lastMessageAt (esses 2 campos so existem no formato
+  // computado por ListAtendimentosUseCase para a lista). Um replace
+  // completo aqui apagava o preview da ultima mensagem sempre que uma
+  // conversa era selecionada ou repolled - bug corrigido nesta fatia.
   updateAtendimentoInPlace: (atendimento) =>
     set({
-      atendimentos: get().atendimentos.map((a) => (a.id === atendimento.id ? atendimento : a)),
+      atendimentos: get().atendimentos.map((a) =>
+        a.id === atendimento.id ? { ...a, ...atendimento } : a,
+      ),
     }),
   setSelectedAtendimentoId: (id) => set({ selectedAtendimentoId: id }),
   setDetail: (eventos, mensagens) => set({ eventos, mensagens }),

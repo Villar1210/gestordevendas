@@ -251,7 +251,7 @@ export function AtendimentoChatPanel({
 
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           {!isFechado && isAguardando && (
-            <HeaderAction tone="success" label="Aceitar" disabled={actionBusy} onClick={() => runAction(onAssign)}>
+            <HeaderAction tone="primary" label="Assumir" disabled={actionBusy} onClick={() => runAction(onAssign)}>
               <UserCheck className="h-3.5 w-3.5" />
             </HeaderAction>
           )}
@@ -674,9 +674,11 @@ export function AtendimentoChatPanel({
 // HeaderAction: botao de acao do header com icone+label, cor semantica por
 // "tone" - mesma familia de cores do RowAction (Fatia 2), adaptada ao
 // formato maior (com texto) ja usado neste painel.
-type HeaderTone = "success" | "indigo" | "rose" | "muted";
+type HeaderTone = "primary" | "indigo" | "rose" | "muted";
 const HEADER_TONE_CLASSES: Record<HeaderTone, string> = {
-  success: "bg-emerald-500 text-white border-transparent hover:bg-emerald-600",
+  // "primary" = acao de destaque (Assumir um atendimento sem dono) - mesma
+  // cor de acao primaria ja usada em todo o projeto (bg-blue-700/800).
+  primary: "bg-blue-700 text-white border-transparent hover:bg-blue-800",
   indigo: "bg-indigo-500/15 text-indigo-600 border-indigo-500/30 hover:bg-indigo-500/25",
   rose: "bg-rose-500 text-white border-transparent hover:bg-rose-600",
   muted: "border-slate-200 text-slate-600 hover:bg-slate-50",

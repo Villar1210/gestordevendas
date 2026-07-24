@@ -33,6 +33,10 @@ interface MeuDashboardState {
   leadsPorEstagio: LeadPorEstagio[];
   atividadesHoje: AtividadeHoje[];
   ultimosLeads: UltimoLead[];
+  // Carga de trabalho na Central de Atendimento (modulo atendimento,
+  // separado do Kanban) - null ate a 1a busca completar, para nao mostrar
+  // "0" por uma fracao de segundo antes do dado real chegar.
+  atendimentosAtivos: number | null;
 
   setLoading: (isLoading: boolean) => void;
   setDashboard: (data: {
@@ -41,6 +45,7 @@ interface MeuDashboardState {
     ultimosLeads: UltimoLead[];
   }) => void;
   setAtividadeDone: (activityId: string, done: boolean) => void;
+  setAtendimentosAtivos: (count: number) => void;
 }
 
 export const useMeuDashboardStore = create<MeuDashboardState>((set, get) => ({
@@ -48,9 +53,11 @@ export const useMeuDashboardStore = create<MeuDashboardState>((set, get) => ({
   leadsPorEstagio: [],
   atividadesHoje: [],
   ultimosLeads: [],
+  atendimentosAtivos: null,
 
   setLoading: (isLoading) => set({ isLoading }),
   setDashboard: (data) => set({ ...data }),
+  setAtendimentosAtivos: (atendimentosAtivos) => set({ atendimentosAtivos }),
   // Marcar como feita so some da lista de "hoje pendente" - reflete o mesmo
   // filtro (done=false) que o backend ja aplica em findPendingTodayByOwner.
   setAtividadeDone: (activityId, done) =>

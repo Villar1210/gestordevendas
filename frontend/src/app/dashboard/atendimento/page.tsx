@@ -15,6 +15,7 @@ const POLL_INTERVAL_MS = 5000;
 interface Agente {
   id: string;
   name: string;
+  statusDisponibilidade: string;
 }
 
 export default function AtendimentoPage() {
@@ -40,10 +41,17 @@ export default function AtendimentoPage() {
 
   const [activeTab, setActiveTab] = useState<AtendimentoTab>("todos");
   const [filaFilter, setFilaFilter] = useState("todas");
+  const [corretorFilter, setCorretorFilter] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [agentes, setAgentes] = useState<Agente[]>([]);
   const hasInitialized = useRef(false);
+
+  function loadAgentes() {
+    return apiRequest<Agente[]>("/rh/corretores")
+      .then(setAgentes)
+      .catch(() => {});
+  }
 
   useEffect(() => {
     if (hasInitialized.current) return;
@@ -55,19 +63,20 @@ export default function AtendimentoPage() {
         setCurrentUserRole(me.role);
       })
       .catch(() => {});
-    apiRequest<Agente[]>("/rh/corretores")
-      .then(setAgentes)
-      .catch(() => {});
+    loadAgentes();
     loadFilas();
     loadAtendimentos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Poll simples (mesmo padrao ja usado em /dashboard/whatsapp) - sem
-  // websocket neste modulo ainda.
+  // websocket neste modulo ainda. /rh/corretores entrou no mesmo intervalo
+  // (antes so era buscado 1x no mount) para o painel de "quem esta online"
+  // refletir mudancas de status quase em tempo real.
   useEffect(() => {
     const interval = setInterval(() => {
       loadAtendimentos();
+      loadAgentes();
       if (selectedAtendimentoId) {
         // silent=true: atualizacao em segundo plano, nao aciona o spinner
         // de carregamento (ver comentario em useAtendimentoIntegration).
@@ -112,6 +121,8 @@ export default function AtendimentoPage() {
           onTabChange={setActiveTab}
           filaFilter={filaFilter}
           onFilaFilterChange={setFilaFilter}
+          corretorFilter={corretorFilter}
+          onCorretorFilterChange={setCorretorFilter}
           onQuickAssign={handleAssign}
           onQuickTransfer={handleTransfer}
           onQuickRequeue={handleRequeue}

@@ -4,7 +4,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, CheckSquare, Kanban, MessageCircle, Inbox, CalendarClock } from "lucide-react";
+import { Loader2, CheckSquare, Kanban, MessageCircle, Inbox, CalendarClock, Headset } from "lucide-react";
 import { useMeuDashboardStore } from "@/features/dashboard-corretor/store/useMeuDashboardStore";
 import { useMeuDashboardIntegration } from "@/features/dashboard-corretor/hooks/useMeuDashboardIntegration";
 import { getActivityTypeOption } from "@/core/constants/activityTypes";
@@ -22,7 +22,9 @@ export default function DashboardInicioPage() {
   const leadsPorEstagio = useMeuDashboardStore((state) => state.leadsPorEstagio);
   const atividadesHoje = useMeuDashboardStore((state) => state.atividadesHoje);
   const ultimosLeads = useMeuDashboardStore((state) => state.ultimosLeads);
-  const { loadDashboard, handleToggleActivityDone } = useMeuDashboardIntegration();
+  const atendimentosAtivos = useMeuDashboardStore((state) => state.atendimentosAtivos);
+  const { loadDashboard, handleToggleActivityDone, loadAtendimentosAtivos } =
+    useMeuDashboardIntegration();
   const hasInitialized = useRef(false);
   const router = useRouter();
 
@@ -30,6 +32,7 @@ export default function DashboardInicioPage() {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
     loadDashboard();
+    loadAtendimentosAtivos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -38,8 +41,10 @@ export default function DashboardInicioPage() {
       // silent=true: atualizacao em segundo plano, nao aciona o spinner de
       // carregamento (ver comentario em useMeuDashboardIntegration).
       loadDashboard(true);
+      loadAtendimentosAtivos();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadDashboard]);
 
   function goToCardNoKanban(pipelineId: string, cardId: string) {
@@ -180,6 +185,30 @@ export default function DashboardInicioPage() {
                 })}
               </div>
             )}
+          </section>
+
+          {/* Carga de trabalho na Central de Atendimento - modulo separado
+              do Kanban (ver investigacao do handoff VIVI -> Corretor);
+              sempre escopado ao proprio usuario logado, mesmo padrao das
+              secoes acima. */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <Headset className="h-4 w-4 text-slate-400" /> Central de Atendimento
+            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-[140px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-2xl font-semibold text-blue-700">
+                  {atendimentosAtivos ?? "-"}
+                </p>
+                <p className="text-xs text-slate-500">Atendimentos ativos</p>
+              </div>
+              <Link
+                href="/dashboard/atendimento"
+                className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Ir para Central de Atendimento
+              </Link>
+            </div>
           </section>
         </div>
       )}

@@ -18,6 +18,7 @@ export function useMeuDashboardIntegration() {
   const setLoading = useMeuDashboardStore((state) => state.setLoading);
   const setDashboard = useMeuDashboardStore((state) => state.setDashboard);
   const setAtividadeDone = useMeuDashboardStore((state) => state.setAtividadeDone);
+  const setAtendimentosAtivos = useMeuDashboardStore((state) => state.setAtendimentosAtivos);
 
   const loadDashboard = useCallback(
     // silent=true (usado pelo poll em segundo plano, ver page.tsx) NAO
@@ -36,6 +37,26 @@ export function useMeuDashboardIntegration() {
     [setLoading, setDashboard],
   );
 
+  // Carga de trabalho na Central de Atendimento - modulo separado do
+  // Kanban (ver investigacao: GetMeuDashboardUseCase e do modulo
+  // vendas_kanban e nao conhece Atendimento). Em vez de acoplar os dois
+  // modulos no backend, reaproveita o endpoint GET /atendimentos que ja
+  // aceita ownerId+status como filtro - so busca o proprio id via /auth/me
+  // primeiro (mesmo padrao ja usado em /dashboard/atendimento). Falha
+  // silenciosa: este card e um extra, nunca deve quebrar o resto do
+  // dashboard se o modulo de atendimento tiver algum problema.
+  const loadAtendimentosAtivos = useCallback(async () => {
+    try {
+      const me = await apiRequest<{ id: string }>("/auth/me");
+      const atendimentos = await apiRequest<{ id: string }[]>(
+        `/atendimentos?ownerId=${me.id}&status=em_atendimento`,
+      );
+      setAtendimentosAtivos(atendimentos.length);
+    } catch {
+      // silencioso - ver comentario acima.
+    }
+  }, [setAtendimentosAtivos]);
+
   const handleToggleActivityDone = useCallback(
     async (activityId: string) => {
       try {
@@ -48,5 +69,5 @@ export function useMeuDashboardIntegration() {
     [setAtividadeDone],
   );
 
-  return { loadDashboard, handleToggleActivityDone };
+  return { loadDashboard, handleToggleActivityDone, loadAtendimentosAtivos };
 }

@@ -10,9 +10,22 @@ import { formatRelativeTime, formatPhoneDisplay, initialsFromPhone } from "../fo
 const FILA_FILTER_TODAS = "todas";
 const FILA_FILTER_NAO_CLASSIFICADO = "nao_classificado";
 
+// Iniciais a partir do NOME do corretor (1a letra do 1o + do ultimo nome) -
+// initialsFromPhone (format.ts) e para numero de telefone, nao serve aqui.
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 interface Agente {
   id: string;
   name: string;
+  // Fatia "handoff VIVI -> Corretor": mesmo campo que ja alimenta a Roleta
+  // Online (User.statusDisponibilidade) - GET /rh/corretores ja devolvia
+  // isso, so nao estava declarado aqui ainda.
+  statusDisponibilidade: string;
 }
 
 interface AtendimentoListProps {
@@ -25,6 +38,8 @@ interface AtendimentoListProps {
   onTabChange: (tab: AtendimentoTab) => void;
   filaFilter: string;
   onFilaFilterChange: (filaFilter: string) => void;
+  corretorFilter: string | null;
+  onCorretorFilterChange: (corretorId: string | null) => void;
   onQuickAssign: (id: string) => Promise<unknown>;
   onQuickTransfer: (id: string, input: { filaId?: string; ownerId?: string }) => Promise<unknown>;
   onQuickRequeue: (id: string) => Promise<unknown>;
@@ -41,6 +56,8 @@ export function AtendimentoList({
   onTabChange,
   filaFilter,
   onFilaFilterChange,
+  corretorFilter,
+  onCorretorFilterChange,
   onQuickAssign,
   onQuickTransfer,
   onQuickRequeue,
@@ -72,12 +89,13 @@ export function AtendimentoList({
     let list = filaFiltered;
     if (activeTab === "atendendo") list = list.filter((a) => a.status === "em_atendimento");
     else if (activeTab === "aguardando") list = list.filter((a) => a.status === "aguardando");
+    if (corretorFilter) list = list.filter((a) => a.ownerId === corretorFilter);
     if (search.trim()) {
       const term = search.trim().toLowerCase();
       list = list.filter((a) => a.phoneNumber.toLowerCase().includes(term));
     }
     return list;
-  }, [filaFiltered, activeTab, search]);
+  }, [filaFiltered, activeTab, corretorFilter, search]);
 
   return (
     <div className="flex w-96 shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -130,6 +148,40 @@ export function AtendimentoList({
           ))}
         </select>
       </div>
+
+      {agentes.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-100 px-3 py-2">
+          {agentes.map((agente) => {
+            const online = agente.statusDisponibilidade === "online";
+            const active = corretorFilter === agente.id;
+            return (
+              <button
+                key={agente.id}
+                type="button"
+                title={`${agente.name} - ${online ? "Online" : "Offline"}${active ? " (filtro ativo, clique para limpar)" : ""}`}
+                onClick={() => onCorretorFilterChange(active ? null : agente.id)}
+                className={`relative flex shrink-0 items-center justify-center rounded-full transition ${
+                  active ? "ring-2 ring-blue-600 ring-offset-1" : ""
+                }`}
+              >
+                <span
+                  className={`grid h-8 w-8 place-items-center rounded-full text-xs font-semibold ${
+                    online ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  {initialsFromName(agente.name)}
+                </span>
+                <span
+                  aria-hidden
+                  className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                    online ? "bg-green-500" : "bg-slate-300"
+                  }`}
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
@@ -296,7 +348,7 @@ function AtendimentoRow({
       <div className="flex items-center justify-end gap-1 px-3 pb-2 pt-1.5">
         {tab === "aguardando" && (
           <>
-            <RowAction tone="success" label="Aceitar" busy={busy === "assign"} disabled={!!busy} onClick={handleAssign}>
+            <RowAction tone="primary" label="Assumir" busy={busy === "assign"} disabled={!!busy} onClick={handleAssign}>
               <Check className="h-3 w-3" strokeWidth={3} />
             </RowAction>
             <RowAction tone="indigo" label="Transferir" disabled={!!busy} onClick={handleTransferToggle}>
@@ -392,9 +444,11 @@ function AtendimentoRow({
 // mesma ideia do RowAction do wacalls-chat estudado como referencia,
 // simplificado para sempre usar o formato quadrado (nao alterna
 // pill/quadrado por aba).
-type Tone = "success" | "indigo" | "rose" | "muted";
+type Tone = "primary" | "indigo" | "rose" | "muted";
 const TONE_CLASSES: Record<Tone, string> = {
-  success: "bg-emerald-500 text-white border-transparent hover:bg-emerald-600 active:bg-emerald-700",
+  // "primary" = acao de destaque (Assumir um atendimento sem dono) - mesma
+  // cor de acao primaria ja usada em todo o projeto (bg-blue-700/800).
+  primary: "bg-blue-700 text-white border-transparent hover:bg-blue-800 active:bg-blue-900",
   indigo: "bg-indigo-500/15 text-indigo-600 border-indigo-500/30 hover:bg-indigo-500/25",
   rose: "bg-rose-500 text-white border-transparent hover:bg-rose-600 active:bg-rose-700",
   muted: "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200",
