@@ -63,4 +63,15 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`🚀 Ecossistema gestaodevendas rodando na porta ${port}`);
 }
-bootstrap();
+
+// ConfigModule.forRoot({ validate: ... }) (ver app.module.ts) e resolvido
+// dentro da criacao do modulo, que e async - sem este catch, uma falha de
+// validacao de ambiente vira uma unhandled promise rejection (mensagem
+// confusa, e em versoes antigas do Node nem derruba o processo). Aqui a
+// mensagem de erro e impressa de forma limpa e o processo encerra com
+// codigo de saida != 0, deixando claro que o boot falhou.
+bootstrap().catch((error) => {
+  console.error('❌ Falha ao iniciar a aplicacao:');
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

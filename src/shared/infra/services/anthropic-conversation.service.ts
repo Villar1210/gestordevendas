@@ -221,9 +221,20 @@ export class AnthropicConversationService implements IAiConversationService {
   }
 
   async generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput> {
+    // Mitigacao de prompt injection (nao solucao perfeita - ver comentario no
+    // system prompt em vivi-prompt.ts): delimita o texto cru do lead entre
+    // tags XML, para reduzir a ambiguidade entre "instrucao do sistema" e
+    // "dado enviado por um usuario externo". O system prompt instrui o
+    // modelo a tratar tudo dentro dessas tags como dado, nunca como comando.
+    // Isso NAO impede 100% dos casos (um modelo pode, em tese, ainda ser
+    // manipulado por um texto suficientemente elaborado) - e so uma camada a
+    // mais de defesa, nao um substituto para nao confiar cegamente na saida
+    // do modelo em acoes sensiveis.
+    const mensagemDelimitada = `<mensagem_do_lead>\n${input.userMessage}\n</mensagem_do_lead>`;
+
     const messages: Anthropic.MessageParam[] = [
       ...input.history.map((turn) => ({ role: turn.role, content: turn.content })),
-      { role: 'user' as const, content: input.userMessage },
+      { role: 'user' as const, content: mensagemDelimitada },
     ];
 
     const toolCalls: AiToolCall[] = [];

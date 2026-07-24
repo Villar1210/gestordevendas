@@ -22,10 +22,16 @@ import { SuperUsuarioModule } from './modules/super_usuario/super-usuario.module
 import { SocialMediaModule } from './modules/social_media/social-media.module';
 import { CanaisModule } from './shared/canais.module';
 import { PrismaService } from './config/prisma.service';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), // Le o .env uma unica vez para todo o app
+    // Le o .env uma unica vez para todo o app. validate roda no boot, antes
+    // de qualquer modulo subir - se uma variavel essencial (DATABASE_URL,
+    // ANTHROPIC_API_KEY, JWT_SECRET) estiver ausente ou em formato invalido,
+    // lanca erro aqui e derruba o processo, em vez de deixar o problema
+    // aparecer so na primeira chamada real (ver src/config/env.validation.ts).
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     // Desacopla whatsappmarketing e vivi_sdr: o provider so emite o evento
     // 'whatsapp.message.received', sem conhecer quem escuta (ver CLAUDE.md).
     EventEmitterModule.forRoot(),
