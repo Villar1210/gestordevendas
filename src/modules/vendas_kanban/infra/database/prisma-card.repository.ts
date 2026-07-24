@@ -39,6 +39,7 @@ type PrismaCardRow = {
   customFields: unknown;
   createdAt: Date;
   updatedAt: Date;
+  escalonamentoNotificadoEm: Date | null;
 };
 
 @Injectable()
@@ -81,6 +82,7 @@ export class PrismaCardRepository implements ICardRepository {
       customFields: (row.customFields as Record<string, unknown>) ?? {},
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      escalonamentoNotificadoEm: row.escalonamentoNotificadoEm,
     };
   }
 
@@ -151,6 +153,14 @@ export class PrismaCardRepository implements ICardRepository {
       ...this.toRecord(row),
       suggestedOwnerName: row.suggestedOwner?.name ?? null,
     }));
+  }
+
+  async findAllInboxByTenant(tenantId: string): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: { tenantId, stageId: null, ownerId: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => this.toRecord(row));
   }
 
   async findAllByTenantAndEmail(tenantId: string, email: string): Promise<CardRecord[]> {
@@ -294,6 +304,25 @@ export class PrismaCardRepository implements ICardRepository {
       where: { stage: { name: REPIQUE_STAGE_NAME }, repiqueOptOut: false },
     });
     return rows.map((row) => this.toRecord(row));
+  }
+
+  async findInboxUnnotifiedOlderThan(antesDe: Date): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: {
+        stageId: null,
+        ownerId: null,
+        createdAt: { lt: antesDe },
+        escalonamentoNotificadoEm: null,
+      },
+    });
+    return rows.map((row) => this.toRecord(row));
+  }
+
+  async markEscalonamentoNotificado(id: string): Promise<void> {
+    await this.prisma.card.update({
+      where: { id },
+      data: { escalonamentoNotificadoEm: new Date() },
+    });
   }
 
   async findRepiqueCardByTenantAndPhone(tenantId: string, phone: string): Promise<CardRecord | null> {

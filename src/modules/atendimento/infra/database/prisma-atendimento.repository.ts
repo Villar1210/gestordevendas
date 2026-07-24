@@ -76,4 +76,29 @@ export class PrismaAtendimentoRepository implements IAtendimentoRepository {
       ownerName: owner?.name ?? null,
     }));
   }
+
+  async findAguardandoSemDonoNaoEscalonados(antesDe: Date): Promise<AtendimentoWithNames[]> {
+    const rows = await this.prisma.atendimento.findMany({
+      where: {
+        status: 'aguardando',
+        ownerId: null,
+        createdAt: { lt: antesDe },
+        escalonamentoNotificadoEm: null,
+      },
+      include: { fila: { select: { nome: true } }, owner: { select: { name: true } } },
+    });
+
+    return rows.map(({ fila, owner, ...row }) => ({
+      ...row,
+      filaNome: fila?.nome ?? null,
+      ownerName: owner?.name ?? null,
+    }));
+  }
+
+  async markEscalonamentoNotificado(id: string): Promise<void> {
+    await this.prisma.atendimento.update({
+      where: { id },
+      data: { escalonamentoNotificadoEm: new Date() },
+    });
+  }
 }

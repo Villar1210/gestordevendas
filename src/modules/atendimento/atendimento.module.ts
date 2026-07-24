@@ -20,6 +20,8 @@ import { AddNotaAtendimentoUseCase } from './application/use-cases/add-nota-aten
 import { ListAtendimentosUseCase } from './application/use-cases/list-atendimentos.use-case';
 import { GetAtendimentoDetailUseCase } from './application/use-cases/get-atendimento-detail.use-case';
 import { EnviarMensagemAtendimentoUseCase } from './application/use-cases/enviar-mensagem-atendimento.use-case';
+import { EscalonarAtendimentosSemDonoUseCase } from './application/use-cases/escalonar-atendimentos-sem-dono.use-case';
+import { AtendimentoSemDonoEscalonamentoScheduler } from './infra/scheduler/atendimento-sem-dono-escalonamento.scheduler';
 import { PrismaFilaRepository } from './infra/database/prisma-fila.repository';
 import { PrismaAtendimentoRepository } from './infra/database/prisma-atendimento.repository';
 import { PrismaAtendimentoEventoRepository } from './infra/database/prisma-atendimento-evento.repository';
@@ -53,6 +55,8 @@ import { PrismaService } from '../../config/prisma.service';
     ListAtendimentosUseCase,
     GetAtendimentoDetailUseCase,
     EnviarMensagemAtendimentoUseCase,
+    EscalonarAtendimentosSemDonoUseCase,
+    AtendimentoSemDonoEscalonamentoScheduler,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IFilaRepository', useClass: PrismaFilaRepository },
@@ -64,7 +68,15 @@ import { PrismaService } from '../../config/prisma.service';
   // VIVI) precisam criar/classificar Atendimentos. IFilaRepository
   // exportado para o modulo notificacoes: AtendimentoClassificadoListener
   // precisa saber quais usuarios pertencem a fila para notifica-los (ver
-  // handoff VIVI -> Corretor).
-  exports: [GetOrCreateAtendimentoUseCase, ClassifyAndRouteAtendimentoUseCase, 'IFilaRepository'],
+  // handoff VIVI -> Corretor). IAtendimentoRepository exportado tambem
+  // para o modulo notificacoes: rede de seguranca "sem corretor online"
+  // (Camada 1 - listener de corretor.ficou_online precisa consultar
+  // atendimentos aguardando sem dono da fila do corretor).
+  exports: [
+    GetOrCreateAtendimentoUseCase,
+    ClassifyAndRouteAtendimentoUseCase,
+    'IFilaRepository',
+    'IAtendimentoRepository',
+  ],
 })
 export class AtendimentoModule {}

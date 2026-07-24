@@ -46,6 +46,9 @@ export interface CardRecord {
   customFields: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
+  // Rede de seguranca "sem corretor online" (Camada 2 - escalonamento) -
+  // ver EscalonarCardsSemDonoUseCase (modulo roleta_online).
+  escalonamentoNotificadoEm: Date | null;
 }
 
 export interface ICardRepository {
@@ -76,6 +79,11 @@ export interface ICardRepository {
   findAllByStage(stageId: string): Promise<CardRecord[]>;
   // Cards de um pipeline ainda sem stageId (Caixa de Entrada), mais antigos primeiro.
   findAllByPipelineInbox(pipelineId: string): Promise<CardRecord[]>;
+  // Cards SEM STAGE E SEM DONO de QUALQUER pipeline do tenant (nao so um) -
+  // usado pela rede de seguranca "sem corretor online" (Camada 1 - retry ao
+  // ficar online, ver RetryDistribuicaoAoFicarOnlineUseCase no modulo
+  // roleta_online). Diferente de findAllByPipelineInbox, que e por pipeline.
+  findAllInboxByTenant(tenantId: string): Promise<CardRecord[]>;
   // Usado pelo Portal do Cliente (GetMeuAtendimentoUseCase) para vincular o
   // usuario logado (por e-mail) aos cards onde ele e o lead/cliente - ver
   // CLAUDE.md sobre a limitacao dessa correspondencia (por valor, nao por
@@ -147,6 +155,14 @@ export interface ICardRepository {
   // findElegiveisParaRepiqueJob acima): todo card atualmente na stage
   // "Repique", de qualquer tenant, que ainda nao pediu descadastro.
   findElegiveisParaCampanhaRepique(): Promise<CardRecord[]>;
+  // Usado pelo job de escalonamento (EscalonarCardsSemDonoUseCase, modulo
+  // roleta_online) - consulta CROSS-TENANT deliberada (mesmo padrao de
+  // findPendentesDeAceite/findElegiveisParaRepiqueJob acima): cards SEM
+  // STAGE E SEM DONO, criados ha mais de "antesDe", ainda nao escalonados
+  // (escalonamentoNotificadoEm nulo) - rede de seguranca "sem corretor
+  // online" (Camada 2).
+  findInboxUnnotifiedOlderThan(antesDe: Date): Promise<CardRecord[]>;
+  markEscalonamentoNotificado(id: string): Promise<void>;
   // Usado pela VIVI (ProcessIncomingMessageUseCase) para checar, ANTES de
   // continuar qualquer fluxo normal, se a mensagem recebida e de um
   // numero com card ativo na stage "Repique" - so assim faz sentido

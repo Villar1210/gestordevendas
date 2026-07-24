@@ -15,6 +15,9 @@ export interface AtendimentoRecord {
   createdAt: Date;
   updatedAt: Date;
   closedAt: Date | null;
+  // Rede de seguranca "sem corretor online" (Camada 2 - escalonamento) -
+  // ver EscalonarAtendimentosSemDonoUseCase (modulo atendimento).
+  escalonamentoNotificadoEm: Date | null;
 }
 
 export interface AtendimentoWithNames extends AtendimentoRecord {
@@ -63,4 +66,13 @@ export interface IAtendimentoRepository {
     }>,
   ): Promise<AtendimentoRecord>;
   findAllByTenant(tenantId: string, filter: ListAtendimentosFilter): Promise<AtendimentoWithNames[]>;
+  // Usado pelo job de escalonamento (EscalonarAtendimentosSemDonoUseCase) -
+  // consulta CROSS-TENANT deliberada (job de sistema, mesmo padrao de
+  // ICardRepository.findInboxUnnotifiedOlderThan): atendimentos
+  // status="aguardando", SEM DONO, criados ha mais de "antesDe", ainda nao
+  // escalonados (escalonamentoNotificadoEm nulo) - rede de seguranca "sem
+  // corretor online" (Camada 2). Inclui filaNome via join, ja usado na
+  // notificacao ao Administrador.
+  findAguardandoSemDonoNaoEscalonados(antesDe: Date): Promise<AtendimentoWithNames[]>;
+  markEscalonamentoNotificado(id: string): Promise<void>;
 }

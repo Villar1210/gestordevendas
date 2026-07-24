@@ -9,8 +9,12 @@ import { DistributeLeadUseCase } from './application/use-cases/distribute-lead.u
 import { ConfirmSuggestedOwnerUseCase } from './application/use-cases/confirm-suggested-owner.use-case';
 import { AceitarLeadUseCase } from './application/use-cases/aceitar-lead.use-case';
 import { ProcessRoletaTimeoutsUseCase } from './application/use-cases/process-roleta-timeouts.use-case';
+import { RetryDistribuicaoAoFicarOnlineUseCase } from './application/use-cases/retry-distribuicao-ao-ficar-online.use-case';
+import { EscalonarCardsSemDonoUseCase } from './application/use-cases/escalonar-cards-sem-dono.use-case';
 import { CardSemDonoCriadoListener } from './infra/listeners/card-sem-dono-criado.listener';
+import { CorretorFicouOnlineListener } from './infra/listeners/corretor-ficou-online.listener';
 import { RoletaTimeoutScheduler } from './infra/scheduler/roleta-timeout.scheduler';
+import { CardSemDonoEscalonamentoScheduler } from './infra/scheduler/card-sem-dono-escalonamento.scheduler';
 import { PrismaRoletaConfigRepository } from './infra/database/prisma-roleta-config.repository';
 import { PrismaService } from '../../config/prisma.service';
 
@@ -31,8 +35,12 @@ import { PrismaService } from '../../config/prisma.service';
     ConfirmSuggestedOwnerUseCase,
     AceitarLeadUseCase,
     ProcessRoletaTimeoutsUseCase,
+    RetryDistribuicaoAoFicarOnlineUseCase,
+    EscalonarCardsSemDonoUseCase,
     CardSemDonoCriadoListener,
+    CorretorFicouOnlineListener,
     RoletaTimeoutScheduler,
+    CardSemDonoEscalonamentoScheduler,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IRoletaConfigRepository', useClass: PrismaRoletaConfigRepository },

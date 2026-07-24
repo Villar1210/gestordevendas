@@ -502,29 +502,34 @@ model FilaUsuario {
 // venda (tool "transferir_para_fila" - ver ProcessIncomingMessageUseCase
 // no modulo vivi_sdr).
 model Atendimento {
-  id                String    @id @default(uuid()) @db.Uuid
-  tenantId          String    @map("tenant_id") @db.Uuid
-  whatsappSessionId String    @map("whatsapp_session_id") @db.Uuid
+  id                        String    @id @default(uuid()) @db.Uuid
+  tenantId                  String    @map("tenant_id") @db.Uuid
+  whatsappSessionId         String    @map("whatsapp_session_id") @db.Uuid
   // JID completo (com sufixo @lid ou @s.whatsapp.net) - necessario para
   // responder corretamente (ver CLAUDE.md, bug do JID @lid).
-  remoteJid         String    @map("remote_jid") @db.VarChar(50)
-  phoneNumber       String    @map("phone_number") @db.VarChar(30)
+  remoteJid                 String    @map("remote_jid") @db.VarChar(50)
+  phoneNumber               String    @map("phone_number") @db.VarChar(30)
   // Nulo ate ser classificado manualmente (ClassifyAndRouteAtendimentoUseCase)
   // ou pela VIVI.
-  filaId            String?   @map("fila_id") @db.Uuid
+  filaId                    String?   @map("fila_id") @db.Uuid
   // Nulo ate um agente assumir (AssignAtendimentoUseCase).
-  ownerId           String?   @map("owner_id") @db.Uuid
+  ownerId                   String?   @map("owner_id") @db.Uuid
   // aguardando -> em_atendimento -> fechado (ou devolvido para aguardando
   // via RequeueAtendimentoUseCase).
-  status            String    @default("aguardando") @db.VarChar(20)
-  motivoFechamento  String?   @map("motivo_fechamento") @db.VarChar(300)
+  status                    String    @default("aguardando") @db.VarChar(20)
+  motivoFechamento          String?   @map("motivo_fechamento") @db.VarChar(300)
   // Marcado pela VIVI quando o lead pede explicitamente para falar com um
   // humano AGORA (ver ProcessIncomingMessageUseCase/vivi-prompt.ts) -
   // exibido como badge visual na Central de Atendimento.
-  urgente           Boolean   @default(false)
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  closedAt          DateTime? @map("closed_at")
+  urgente                   Boolean   @default(false)
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+  closedAt                  DateTime? @map("closed_at")
+  // Rede de seguranca "sem corretor online" (Camada 2 - escalonamento):
+  // preenchido pelo job de escalonamento quando aguardando+sem dono ha mais
+  // de 15min, para NUNCA notificar o Administrador duas vezes pelo mesmo
+  // atendimento. Nulo ate isso acontecer.
+  escalonamentoNotificadoEm DateTime? @map("escalonamento_notificado_em")
 
   tenant  Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session WhatsAppSession     @relation(fields: [whatsappSessionId], references: [id], onDelete: Cascade)
@@ -638,6 +643,11 @@ model Card {
   // do link publico de descadastro, sem precisar de tenantId/autenticacao.
   repiqueOptOut              Boolean   @default(false) @map("repique_opt_out")
   repiqueOptOutToken         String?   @unique @map("repique_opt_out_token") @db.VarChar(64)
+  // Rede de seguranca "sem corretor online" (Camada 2 - escalonamento):
+  // preenchido pelo job de escalonamento quando um card fica na Caixa de
+  // Entrada (sem stage, sem dono) ha mais de 15min, para NUNCA notificar o
+  // Administrador duas vezes pelo mesmo card. Nulo ate isso acontecer.
+  escalonamentoNotificadoEm  DateTime? @map("escalonamento_notificado_em")
   // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
   // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
   // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas
