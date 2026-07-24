@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Inbox, Sparkles } from "lucide-react";
 import { useKanbanStore, Card } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
+import { ProximaAtividadeBadge } from "./ProximaAtividadeBadge";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -104,6 +105,10 @@ export function InboxView() {
             >
               {TEMPERATURA_LABELS[card.temperatura] ?? card.temperatura}
             </span>
+          )}
+
+          {card.proximaAtividade && (
+            <ProximaAtividadeBadge proximaAtividade={card.proximaAtividade} />
           )}
 
           {card.phone && <p className="text-xs text-slate-500">{card.phone}</p>}

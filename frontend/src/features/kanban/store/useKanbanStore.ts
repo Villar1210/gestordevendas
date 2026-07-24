@@ -34,6 +34,11 @@ export interface Card {
   bairro: string | null;
   cep: string | null;
   customFields: Record<string, unknown>;
+  // Proxima atividade pendente (scheduledAt preenchido, done=false) mais
+  // urgente deste card - a mais atrasada, se houver alguma vencida, senao a
+  // mais proxima no futuro. So vem preenchida pelo Board e pela Caixa de
+  // Entrada (ver ProximaAtividadeBadge.tsx).
+  proximaAtividade: { type: string; subject: string | null; scheduledAt: string } | null;
 }
 
 export interface Stage {

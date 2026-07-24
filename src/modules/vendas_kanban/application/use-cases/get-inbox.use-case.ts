@@ -2,6 +2,7 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
+import { IActivityRepository } from '../../domain/repositories/activity-repository.interface';
 
 interface GetInboxInput {
   tenantId: string;
@@ -19,6 +20,7 @@ export class GetInboxUseCase {
   constructor(
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
+    @Inject('IActivityRepository') private readonly activityRepository: IActivityRepository,
   ) {}
 
   async execute(input: GetInboxInput): Promise<CardRecord[]> {
@@ -30,6 +32,18 @@ export class GetInboxUseCase {
       throw new NotFoundException('Pipeline nao encontrado.');
     }
 
-    return this.cardRepository.findAllByPipelineInbox(pipeline.id);
+    const cards = await this.cardRepository.findAllByPipelineInbox(pipeline.id);
+
+    // Indicador visual de "proxima atividade agendada" (InboxView) - uma
+    // unica consulta em lote, mesmo padrao ja usado em GetBoardUseCase.
+    const proximas = await this.activityRepository.findProximasByCardIds(
+      cards.map((card) => card.id),
+    );
+    const proximaPorCard = new Map(proximas.map((p) => [p.cardId, p]));
+
+    return cards.map((card) => ({
+      ...card,
+      proximaAtividade: proximaPorCard.get(card.id) ?? null,
+    }));
   }
 }

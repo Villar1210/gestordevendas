@@ -5,6 +5,7 @@ import { MessageCircle, Clock, Send } from "lucide-react";
 import { Card, useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
 import { REPIQUE_STAGE_NAME } from "../constants";
+import { ProximaAtividadeBadge } from "./ProximaAtividadeBadge";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -134,6 +135,12 @@ export function KanbanCard({ card, index, isDragDisabled, stageName }: KanbanCar
               </span>
             )}
           </div>
+
+          {card.proximaAtividade && (
+            <div className="mb-2">
+              <ProximaAtividadeBadge proximaAtividade={card.proximaAtividade} />
+            </div>
+          )}
 
           <span className="text-sm font-semibold text-slate-800">
             {currencyFormatter.format(card.value)}

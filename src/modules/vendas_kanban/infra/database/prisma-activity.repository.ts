@@ -79,4 +79,34 @@ export class PrismaActivityRepository implements IActivityRepository {
       cardPipelineId: row.card.pipelineId,
     }));
   }
+
+  async findProximasByCardIds(
+    cardIds: string[],
+  ): Promise<Array<{ cardId: string; type: string; subject: string | null; scheduledAt: Date }>> {
+    if (cardIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.activity.findMany({
+      where: { cardId: { in: cardIds }, done: false, scheduledAt: { not: null } },
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    // scheduledAt no passado ordena antes de scheduledAt no futuro - o
+    // primeiro registro encontrado por cardId ja e o mais urgente (a mais
+    // atrasada, se houver alguma vencida; senao a mais proxima).
+    const porCard = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      if (!porCard.has(row.cardId)) {
+        porCard.set(row.cardId, row);
+      }
+    }
+
+    return Array.from(porCard.values()).map((row) => ({
+      cardId: row.cardId,
+      type: row.type,
+      subject: row.subject,
+      scheduledAt: row.scheduledAt as Date,
+    }));
+  }
 }

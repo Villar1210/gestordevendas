@@ -83,6 +83,9 @@ export class PrismaCardRepository implements ICardRepository {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       escalonamentoNotificadoEm: row.escalonamentoNotificadoEm,
+      // Preenchida so pelo use case (GetBoardUseCase/GetInboxUseCase), apos
+      // uma consulta em lote a IActivityRepository - ver CardRecord.
+      proximaAtividade: null,
     };
   }
 

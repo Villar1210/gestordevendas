@@ -3,6 +3,7 @@ import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
+import { IActivityRepository } from '../../domain/repositories/activity-repository.interface';
 import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
 import { GetCorretoresEscaladosHojeUseCase } from '../../../plantao/application/use-cases/get-corretores-escalados-hoje.use-case';
 import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
@@ -41,6 +42,7 @@ export class GetBoardUseCase {
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
+    @Inject('IActivityRepository') private readonly activityRepository: IActivityRepository,
     private readonly getSubordinadosRecursivosUseCase: GetSubordinadosRecursivosUseCase,
     private readonly getCorretoresEscaladosHojeUseCase: GetCorretoresEscaladosHojeUseCase,
   ) {}
@@ -96,11 +98,26 @@ export class GetBoardUseCase {
       }),
     );
 
+    // Indicador visual de "proxima atividade agendada" (KanbanCard) - uma
+    // unica consulta em lote com todos os cards realmente retornados (ja
+    // filtrados pelo escopo RBAC acima), em vez de uma query por card.
+    const allCardIds = stagesWithCards.flatMap((stage) => stage.cards.map((card) => card.id));
+    const proximas = await this.activityRepository.findProximasByCardIds(allCardIds);
+    const proximaPorCard = new Map(proximas.map((p) => [p.cardId, p]));
+
+    const stagesComProximaAtividade: BoardStage[] = stagesWithCards.map((stage) => ({
+      ...stage,
+      cards: stage.cards.map((card) => ({
+        ...card,
+        proximaAtividade: proximaPorCard.get(card.id) ?? null,
+      })),
+    }));
+
     return {
       id: pipeline.id,
       name: pipeline.name,
       createdAt: pipeline.createdAt,
-      stages: stagesWithCards,
+      stages: stagesComProximaAtividade,
     };
   }
 }

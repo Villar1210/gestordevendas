@@ -36,4 +36,15 @@ export interface IActivityRepository {
   // nao concluidas, dos cards de um dono especifico. Ordenado por
   // scheduledAt crescente.
   findPendingTodayByOwner(tenantId: string, ownerId: string): Promise<ActivityRecord[]>;
+  // Usado pelo Board/Caixa de Entrada (GetBoardUseCase/GetInboxUseCase) para
+  // o indicador visual de "proxima atividade agendada" no KanbanCard/
+  // InboxView, numa unica consulta em lote (evita N+1 - uma query por
+  // card). Para cada card, retorna a atividade NAO CONCLUIDA com o
+  // scheduledAt mais proximo - a mais atrasada, se houver alguma vencida
+  // (scheduledAt no passado ordena antes de scheduledAt no futuro), senao
+  // a mais proxima no futuro. Cards sem nenhuma atividade pendente
+  // agendada simplesmente nao aparecem no array de retorno.
+  findProximasByCardIds(cardIds: string[]): Promise<
+    Array<{ cardId: string; type: string; subject: string | null; scheduledAt: Date }>
+  >;
 }

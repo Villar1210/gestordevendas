@@ -49,6 +49,14 @@ export interface CardRecord {
   // Rede de seguranca "sem corretor online" (Camada 2 - escalonamento) -
   // ver EscalonarCardsSemDonoUseCase (modulo roleta_online).
   escalonamentoNotificadoEm: Date | null;
+  // Proxima atividade pendente (scheduledAt preenchido, done=false) mais
+  // urgente deste card - a mais atrasada, se houver alguma vencida, senao a
+  // mais proxima no futuro (ver IActivityRepository.findProximasByCardIds).
+  // So preenchida pelo Board/Caixa de Entrada (GetBoardUseCase/
+  // GetInboxUseCase) - usada pelo indicador visual "tem atividade agendada"
+  // no KanbanCard/InboxView. Null nas demais consultas (nenhuma atividade
+  // pendente, ou a consulta nao populou esse campo).
+  proximaAtividade: { type: string; subject: string | null; scheduledAt: Date } | null;
 }
 
 export interface ICardRepository {
