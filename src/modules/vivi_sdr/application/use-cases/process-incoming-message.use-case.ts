@@ -8,6 +8,7 @@ import {
 import {
   IAiConversationService,
   AiConversationTurn,
+  AiToolCall,
 } from '../../../../shared/domain/services/ai-conversation.interface';
 import { IWhatsAppMessageRepository } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
@@ -18,7 +19,10 @@ import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
 import { ClassifyAndRouteAtendimentoUseCase } from '../../../atendimento/application/use-cases/classify-and-route-atendimento.use-case';
-import { CATEGORIA_TO_FILA_NOME } from '../../../atendimento/domain/services/fila-categorias';
+import {
+  CATEGORIA_TO_FILA_NOME,
+  FILA_ATENDIMENTO_PRIORITARIO_NOME,
+} from '../../../atendimento/domain/services/fila-categorias';
 import { AgendarVisitaUseCase } from './agendar-visita.use-case';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
 import { classificarRenda, FaixasRenda } from '../../domain/services/classificar-renda';
@@ -57,6 +61,15 @@ interface EnderecoBuscaResultado {
 }
 
 const HISTORY_LIMIT = 21; // 20 mensagens de historico + a mensagem atual
+
+// Rede de seguranca para falha tecnica da IA (auditoria de producao,
+// Critico #1) - enviada ao lead quando generateReply falha mesmo apos o
+// SDK esgotar as tentativas de retry automatico (ver
+// AnthropicConversationService, comentario no construtor). Texto
+// confirmado com o usuario antes de implementar (nao technical-sounding,
+// define expectativa sem prometer prazo especifico).
+const AI_FALLBACK_MESSAGE =
+  'Estou com uma instabilidade no momento. Um de nossos atendentes vai te responder em breve.';
 
 @Injectable()
 export class ProcessIncomingMessageUseCase {
@@ -176,13 +189,26 @@ export class ProcessIncomingMessageUseCase {
     // tool mais de uma vez na mesma resposta.
     const enderecoBuscaResultados: EnderecoBuscaResultado[] = [];
 
-    const { replyText, toolCalls } = await this.aiConversationService.generateReply({
-      systemPrompt,
-      history,
-      userMessage: input.messageBody,
-      resolveTool: async (toolName, toolInput) =>
-        this.resolveTool(toolName, toolInput, input.tenantId, enderecoBuscaResultados),
-    });
+    let generateReplyResult: { replyText: string; toolCalls: AiToolCall[] };
+    try {
+      generateReplyResult = await this.aiConversationService.generateReply({
+        systemPrompt,
+        history,
+        userMessage: input.messageBody,
+        resolveTool: async (toolName, toolInput) =>
+          this.resolveTool(toolName, toolInput, input.tenantId, enderecoBuscaResultados),
+      });
+    } catch (error) {
+      // A API da Anthropic ja esgotou as proprias tentativas de retry (ver
+      // AnthropicConversationService) - essa excecao e definitiva. Nunca
+      // deixa o lead sem resposta nenhuma: manda uma mensagem de fallback
+      // e encaminha para atendimento humano prioritario (ver
+      // handleAiFailure). Reaproveita o mesmo caminho de codigo de
+      // transferToFila, so com uma fila e um resumo diferentes.
+      await this.handleAiFailure(input, conversation, remoteJid, error);
+      return;
+    }
+    const { replyText, toolCalls } = generateReplyResult;
 
     const collected = this.mergeCollectedData(conversation, toolCalls, viviConfig);
     const agendarVisitaCall = toolCalls.find((call) => call.name === 'agendar_visita');
@@ -570,6 +596,77 @@ export class ProcessIncomingMessageUseCase {
       filaNome,
       resumo,
       urgente,
+    });
+  }
+
+  // Rede de seguranca para falha tecnica da IA (auditoria de producao,
+  // Critico #1) - chamada quando generateReply lanca uma excecao definitiva
+  // (API da Anthropic ja esgotou as proprias tentativas de retry, ver
+  // AnthropicConversationService). Mesmo caminho de transferToFila
+  // (getOrCreateAtendimentoUseCase + classifyAndRouteAtendimentoUseCase),
+  // so com a fila dedicada FILA_ATENDIMENTO_PRIORITARIO_NOME e sempre
+  // urgente=true - o lead precisa de resposta humana o quanto antes, ja que
+  // a VIVI nao respondeu nada nesse turno.
+  private async handleAiFailure(
+    input: ProcessIncomingMessageInput,
+    conversation: ViviConversationRecord,
+    remoteJid: string | null,
+    error: unknown,
+  ): Promise<void> {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    this.logger.error(
+      `[VIVI] Falha definitiva na chamada a IA para ${input.phoneNumber} (conversa ${conversation.id}), apos esgotar os retries do SDK: ${errorMessage}`,
+    );
+
+    const jid = remoteJid ?? `${input.phoneNumber}@s.whatsapp.net`;
+
+    // Nunca deixa o lead sem NENHUMA resposta - mesmo mecanismo ja usado
+    // pelo opt-out de Repique acima (sendWhatsAppMessageUseCase direto,
+    // sem passar por generateReply).
+    try {
+      await this.sendWhatsAppMessageUseCase.execute({
+        sessionId: input.sessionId,
+        tenantId: input.tenantId,
+        to: jid,
+        body: AI_FALLBACK_MESSAGE,
+      });
+    } catch (sendError) {
+      // Se ate o envio do fallback falhar (ex: sessao do WhatsApp caiu
+      // junto), so registra - o roteamento para a fila prioritaria abaixo
+      // ainda e o mais importante e nao pode ser bloqueado por isso.
+      this.logger.error(
+        `[VIVI] Falha ao enviar mensagem de fallback para ${input.phoneNumber}: ${
+          sendError instanceof Error ? sendError.message : sendError
+        }`,
+      );
+    }
+
+    const atendimento = await this.getOrCreateAtendimentoUseCase.execute({
+      tenantId: input.tenantId,
+      sessionId: input.sessionId,
+      remoteJid: jid,
+      phoneNumber: input.phoneNumber,
+    });
+
+    // resumo vira o detalhe do AtendimentoEvento (ver ClassifyAndRouteAtendimentoUseCase)
+    // - unico rastro persistente (alem do log acima, que so sobrevive no
+    // stdout) do motivo tecnico real por tras deste atendimento, visivel
+    // para quem for atende-lo na Central de Atendimento.
+    await this.classifyAndRouteAtendimentoUseCase.execute({
+      tenantId: input.tenantId,
+      atendimentoId: atendimento.id,
+      filaNome: FILA_ATENDIMENTO_PRIORITARIO_NOME,
+      resumo: `Falha tecnica da IA (nao decisao da VIVI): ${errorMessage}. Ultima mensagem do lead: "${input.messageBody}"`,
+      urgente: true,
+    });
+
+    // Mesmo status usado por um handoff normal para fila (transferToFila) -
+    // impede a VIVI de reabrir o dialogo neste numero enquanto o
+    // atendimento humano nao for concluido (ver Guarda 1, inicio de
+    // execute()), mesmo que a proxima mensagem chegue antes de alguem
+    // assumir o atendimento prioritario.
+    await this.viviConversationRepository.update(conversation.id, {
+      status: 'encaminhado_fila',
     });
   }
 

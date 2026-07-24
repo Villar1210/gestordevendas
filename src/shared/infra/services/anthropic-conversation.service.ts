@@ -201,7 +201,23 @@ export class AnthropicConversationService implements IAiConversationService {
   private readonly client: Anthropic;
 
   constructor() {
-    this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    // maxRetries: 2 (padrao do proprio SDK, deixado explicito de proposito -
+    // ver auditoria de producao, Critico #1). O SDK ja distingue sozinho
+    // erro transitorio de erro permanente: reprocessa automaticamente com
+    // backoff exponencial em timeout de conexao, 408 (timeout de request),
+    // 409 (lock), 429 (rate limit) e >=500 (erro interno da Anthropic); joga
+    // a excecao pra cima IMEDIATAMENTE (sem gastar tentativa) em 400/401/403/
+    // 404/422 - um prompt invalido vai falhar do mesmo jeito de novo, nao
+    // adianta retry (ver node_modules/@anthropic-ai/sdk/client.js,
+    // shouldRetry()). Depois de esgotar as tentativas, a excecao final
+    // propaga normalmente daqui pra cima - generateReply() e as demais
+    // chamadas deste service de proposito NAO tem try/catch ao redor de
+    // messages.create() (excecao de confirmarExistenciaEmpreendimento, que
+    // ja tratava falha como "nao confirmado" antes desta fatia) - quem
+    // decide o que fazer com uma falha definitiva e o CHAMADOR
+    // (ProcessIncomingMessageUseCase, modulo vivi_sdr, ver fallback ao lead
+    // + roteamento para fila humana).
+    this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 2 });
   }
 
   async generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput> {

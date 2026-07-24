@@ -18,8 +18,8 @@ export interface IFilaRepository {
   findAllByTenant(tenantId: string): Promise<FilaWithUsuarioIds[]>;
   findByIdAndTenant(id: string, tenantId: string): Promise<FilaRecord | null>;
   findByTenantAndNome(tenantId: string, nome: string): Promise<FilaRecord | null>;
-  // Usado por GetOrCreateAtendimentoUseCase para decidir se cria as 3 filas
-  // padrao (tenant ainda sem nenhuma fila).
+  // Usado por GetOrCreateAtendimentoUseCase para decidir se cria as filas
+  // padrao (ver DEFAULT_FILA_NAMES) - tenant ainda sem nenhuma fila.
   countByTenant(tenantId: string): Promise<number>;
   // Atendimentos vinculados ficam com filaId=null (onDelete: SetNull no
   // schema) - excluir uma fila nunca apaga atendimentos, so os devolve

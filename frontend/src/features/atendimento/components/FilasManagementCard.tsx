@@ -116,8 +116,8 @@ export function FilasManagementCard() {
 
       {filas.length === 0 ? (
         <p className="py-6 text-center text-sm text-slate-400">
-          Nenhuma fila ainda - sera criada automaticamente (Suporte, Financeiro, Duvidas Gerais)
-          assim que o primeiro atendimento chegar.
+          Nenhuma fila ainda - sera criada automaticamente (Suporte, Financeiro, Duvidas Gerais,
+          Atendimento Prioritario) assim que o primeiro atendimento chegar.
         </p>
       ) : (
         <>
