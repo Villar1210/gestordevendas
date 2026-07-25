@@ -50,6 +50,7 @@ import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { AgendarVisitaUseCase } from './agendar-visita.use-case';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
+import { RegistrarUsoViviUseCase } from './registrar-uso-vivi.use-case';
 import { classificarRenda, FaixasRenda } from '../../domain/services/classificar-renda';
 import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
 import { buildViviSystemPrompt } from '../../constants/vivi-prompt';
@@ -114,6 +115,7 @@ export class ProcessIncomingSocialMessageUseCase {
     private readonly createNoteUseCase: CreateNoteUseCase,
     private readonly agendarVisitaUseCase: AgendarVisitaUseCase,
     private readonly getOrCreateViviConfigUseCase: GetOrCreateViviConfigUseCase,
+    private readonly registrarUsoViviUseCase: RegistrarUsoViviUseCase,
     private readonly buscarEmpreendimentoPorEnderecoUseCase: BuscarEmpreendimentoPorEnderecoUseCase,
     @Inject('IEnderecoBuscaLogRepository')
     private readonly enderecoBuscaLogRepository: IEnderecoBuscaLogRepository,
@@ -167,6 +169,15 @@ export class ProcessIncomingSocialMessageUseCase {
     const systemPrompt = `Hoje é ${today}.\n\n${buildViviSystemPrompt(viviConfig, canalDescricao(input.canal))}`;
 
     const enderecoBuscaResultados: EnderecoBuscaResultado[] = [];
+
+    // Contador de custo/volume (Fatia B) - mesmo total diario do tenant
+    // somado pelo canal WhatsApp (ver ProcessIncomingMessageUseCase), ja que
+    // o custo na Anthropic nao distingue canal. Nunca lanca excecao nem
+    // atrasa a resposta (ver RegistrarUsoViviUseCase).
+    await this.registrarUsoViviUseCase.execute({
+      tenantId: input.tenantId,
+      numero: input.identificadorExterno,
+    });
 
     const { replyText, toolCalls } = await this.aiConversationService.generateReply({
       systemPrompt,

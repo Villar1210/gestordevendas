@@ -1,5 +1,6 @@
 // src/modules/configuracoes/infra/http/dtos/update-tenant-config.dto.ts
-import { IsString, IsOptional, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsIn, Min, MinLength } from 'class-validator';
+import { AcaoLimiteVivi } from '../../../domain/repositories/tenant-config-repository.interface';
 
 export class UpdateTenantConfigDto {
   @IsOptional()
@@ -30,4 +31,16 @@ export class UpdateTenantConfigDto {
   @IsOptional()
   @IsString()
   cep?: string;
+
+  // Controle de volume/custo da VIVI (Fatia B) - ver
+  // UpdateTenantConfigUseCase para a validacao de negocio (limite > 0,
+  // PAUSAR ainda rejeitado por nao ter logica associada).
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limiteMensagensViviDia?: number;
+
+  @IsOptional()
+  @IsIn(['ALERTAR', 'PAUSAR'])
+  acaoLimiteVivi?: AcaoLimiteVivi;
 }

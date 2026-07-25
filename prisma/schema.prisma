@@ -80,6 +80,19 @@ model Tenant {
   // VIVI - busca de empreendimento por endereco (ver modulo vivi_sdr).
   enderecoBuscaLogs EnderecoBuscaLog[]
 
+  // Controle de volume/custo da VIVI (Fatia B) - limite diario de
+  // mensagens processadas pela IA (soma WhatsApp + Instagram/Facebook, ver
+  // RegistrarUsoViviUseCase) e o que fazer ao ultrapassar. 500/dia e um
+  // chute inicial (unico tenant real em producao ate hoje - Villar),
+  // ajustavel por tenant via /configuracoes/empresa (mesmo padrao ja usado
+  // para CNPJ/endereco). acaoLimiteVivi aceita PAUSAR no enum so para nao
+  // exigir migration nova quando o bloqueio automatico for implementado no
+  // futuro (multiplos tenants) - hoje so ALERTAR tem logica associada,
+  // PAUSAR e rejeitado na escrita (ver UpdateTenantConfigUseCase).
+  limiteMensagensViviDia Int             @default(500) @map("limite_mensagens_vivi_dia")
+  acaoLimiteVivi         AcaoLimiteVivi  @default(ALERTAR) @map("acao_limite_vivi")
+  viviUsoDiario          ViviUsoDiario[]
+
   // Motor de campanha de Repique (ver ProcessarCampanhaRepiqueUseCase).
   repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
 
@@ -1175,6 +1188,67 @@ model EnderecoBuscaLog {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("endereco_busca_logs")
+}
+
+// Controle de volume/custo da VIVI (Fatia B) - PAUSAR aceito no enum sem
+// nenhuma logica associada ainda (ver Tenant.acaoLimiteVivi acima e
+// UpdateTenantConfigUseCase, que rejeita a escrita desse valor por
+// enquanto) - so para nao exigir uma migration nova quando o bloqueio
+// automatico for implementado no futuro.
+enum AcaoLimiteVivi {
+  ALERTAR
+  PAUSAR
+}
+
+// Uma linha por (tenantId, data) - o contador comeca em zero
+// automaticamente a cada dia novo (nao existe UPDATE de "reset", so uma
+// linha nova quando a data muda), ver RegistrarUsoViviUseCase. Soma
+// mensagens processadas pela VIVI em QUALQUER canal (WhatsApp via
+// ProcessIncomingMessageUseCase + Instagram/Facebook via
+// ProcessIncomingSocialMessageUseCase) no mesmo total - o custo na
+// Anthropic nao distingue canal. alertaEnviado garante no maximo 1
+// notificacao por tenant por dia mesmo sob mensagens concorrentes
+// cruzando o limite ao mesmo tempo (ver
+// PrismaViviUsoDiarioRepository.marcarAlertaEnviadoSeNecessario, um
+// updateMany condicional que so "vence a corrida" uma vez).
+// 3 niveis de alerta (Normal implicito/Atencao/Critico, ver
+// LIMITE_CRITICO_MULTIPLICADOR) + suspeita de concentracao (ver
+// ViviUsoDiarioNumero) - cada um com seu proprio flag de dedupe, no maximo
+// 1 notificacao por tenant por dia por nivel.
+model ViviUsoDiario {
+  id                        String   @id @default(uuid()) @db.Uuid
+  tenantId                  String   @map("tenant_id") @db.Uuid
+  data                      DateTime @db.Date
+  totalMensagens            Int      @default(0) @map("total_mensagens")
+  alertaAtencaoEnviado      Boolean  @default(false) @map("alerta_atencao_enviado")
+  alertaCriticoEnviado      Boolean  @default(false) @map("alerta_critico_enviado")
+  alertaConcentracaoEnviado Boolean  @default(false) @map("alerta_concentracao_enviado")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  numeros ViviUsoDiarioNumero[]
+
+  @@unique([tenantId, data])
+  @@map("vivi_uso_diario")
+}
+
+// Numeros/identificadores de remetente distintos atendidos pela VIVI num
+// dia (WhatsApp: phoneNumber; Instagram/Facebook: identificadorExterno,
+// mesmo "encaixe" de texto livre ja usado em Card.phone - ver comentario em
+// ProcessIncomingSocialMessageUseCase). Usado so para calcular a razao
+// mensagens/numero-distinto (RegistrarUsoViviUseCase) - suspeita de uso
+// concentrado (poucas origens gerando muitas mensagens, possivel spam/loop)
+// versus uso legitimo distribuido entre varios contatos.
+model ViviUsoDiarioNumero {
+  id              String @id @default(uuid()) @db.Uuid
+  viviUsoDiarioId String @map("vivi_uso_diario_id") @db.Uuid
+  numero          String @db.VarChar(100)
+
+  viviUsoDiario ViviUsoDiario @relation(fields: [viviUsoDiarioId], references: [id], onDelete: Cascade)
+
+  @@unique([viviUsoDiarioId, numero])
+  @@map("vivi_uso_diario_numero")
 }
 
 // Modulo E-doc (assinatura eletronica). Um envelope agrupa um documento

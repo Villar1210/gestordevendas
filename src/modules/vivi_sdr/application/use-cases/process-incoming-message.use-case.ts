@@ -25,6 +25,7 @@ import {
 } from '../../../atendimento/domain/services/fila-categorias';
 import { AgendarVisitaUseCase } from './agendar-visita.use-case';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
+import { RegistrarUsoViviUseCase } from './registrar-uso-vivi.use-case';
 import { classificarRenda, FaixasRenda } from '../../domain/services/classificar-renda';
 import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
 import { buildViviSystemPrompt } from '../../constants/vivi-prompt';
@@ -95,6 +96,7 @@ export class ProcessIncomingMessageUseCase {
     private readonly classifyAndRouteAtendimentoUseCase: ClassifyAndRouteAtendimentoUseCase,
     private readonly agendarVisitaUseCase: AgendarVisitaUseCase,
     private readonly getOrCreateViviConfigUseCase: GetOrCreateViviConfigUseCase,
+    private readonly registrarUsoViviUseCase: RegistrarUsoViviUseCase,
     private readonly buscarEmpreendimentoPorEnderecoUseCase: BuscarEmpreendimentoPorEnderecoUseCase,
     @Inject('IEnderecoBuscaLogRepository')
     private readonly enderecoBuscaLogRepository: IEnderecoBuscaLogRepository,
@@ -188,6 +190,13 @@ export class ProcessIncomingMessageUseCase {
     // Array (nao um unico valor) para cobrir o caso raro do modelo chamar a
     // tool mais de uma vez na mesma resposta.
     const enderecoBuscaResultados: EnderecoBuscaResultado[] = [];
+
+    // Contador de custo/volume (Fatia B) - conta a TENTATIVA de chamada a
+    // IA, nao so as bem-sucedidas, ja que uma chamada que falha so depois de
+    // esgotar os retries do SDK (ver handleAiFailure abaixo) tambem consome
+    // tokens. Nunca lanca excecao nem atrasa a resposta (ver
+    // RegistrarUsoViviUseCase).
+    await this.registrarUsoViviUseCase.execute({ tenantId: input.tenantId, numero: input.phoneNumber });
 
     let generateReplyResult: { replyText: string; toolCalls: AiToolCall[] };
     try {

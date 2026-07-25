@@ -17,6 +17,8 @@ const SELECT_FIELDS = {
   complemento: true,
   bairro: true,
   cep: true,
+  limiteMensagensViviDia: true,
+  acaoLimiteVivi: true,
 } as const;
 
 @Injectable()

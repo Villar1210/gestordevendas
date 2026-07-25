@@ -10,6 +10,7 @@ import { AtendimentoClassificadoListener } from './infra/listeners/atendimento-c
 import { CardSemDonoEscalonadoListener } from './infra/listeners/card-sem-dono-escalonado.listener';
 import { AtendimentoSemDonoEscalonadoListener } from './infra/listeners/atendimento-sem-dono-escalonado.listener';
 import { CorretorOnlineNotificaFilaListener } from './infra/listeners/corretor-online-notifica-fila.listener';
+import { ViviUsoAnomaloListener } from './infra/listeners/vivi-uso-anomalo.listener';
 import { PrismaNotificationRepository } from './infra/database/prisma-notification.repository';
 import { PrismaService } from '../../config/prisma.service';
 import { AuthModule } from '../auth/auth.module';
@@ -28,11 +29,13 @@ import { AtendimentoModule } from '../atendimento/atendimento.module';
   // fila (ver AtendimentoClassificadoListener - handoff VIVI -> Corretor -
   // e CorretorOnlineNotificaFilaListener - rede de seguranca "sem corretor
   // online", Camada 1 do caminho da Fila). O caminho inverso
-  // (rh/roleta_online/atendimento -> notificacoes) nao existe - todos so
-  // emitem eventos genericos ('cadastro.pendente.criado'/'lead.atribuido'/
-  // 'atendimento.classificado'/'corretor.ficou_online'/
-  // 'card.sem_dono.escalonado'/'atendimento.sem_dono.escalonado'), sem
-  // conhecer quem escuta (mesmo padrao ja usado por roleta_online/vivi_sdr).
+  // (rh/roleta_online/atendimento/vivi_sdr -> notificacoes) nao existe -
+  // todos so emitem eventos genericos ('cadastro.pendente.criado'/
+  // 'lead.atribuido'/'atendimento.classificado'/'corretor.ficou_online'/
+  // 'card.sem_dono.escalonado'/'atendimento.sem_dono.escalonado'/
+  // 'vivi.limite_atencao.atingido'/'vivi.limite_critico.atingido'/
+  // 'vivi.uso_concentrado.suspeito'), sem conhecer quem escuta (mesmo
+  // padrao ja usado por roleta_online/vivi_sdr).
   imports: [AuthModule, VendasKanbanModule, AtendimentoModule],
   controllers: [NotificationController],
   providers: [
@@ -46,6 +49,7 @@ import { AtendimentoModule } from '../atendimento/atendimento.module';
     CardSemDonoEscalonadoListener,
     AtendimentoSemDonoEscalonadoListener,
     CorretorOnlineNotificaFilaListener,
+    ViviUsoAnomaloListener,
     { provide: 'INotificationRepository', useClass: PrismaNotificationRepository },
   ],
 })
