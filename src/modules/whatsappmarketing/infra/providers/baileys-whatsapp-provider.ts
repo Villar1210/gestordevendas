@@ -17,6 +17,7 @@ import { Boom } from '@hapi/boom';
 import { pino } from 'pino';
 import * as QRCode from 'qrcode';
 import { IWhatsAppProvider } from '../../domain/services/whatsapp-provider.interface';
+import { extractPhoneNumber } from '../../domain/services/extract-phone-number';
 import { IWhatsAppSessionRepository } from '../../domain/repositories/whatsapp-session-repository.interface';
 import { IWhatsAppMessageRepository } from '../../domain/repositories/whatsapp-message-repository.interface';
 
@@ -170,7 +171,11 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
               ? msg.messageTimestamp
               : Number(msg.messageTimestamp || 0);
 
-          const fromNumber = remoteJid.split('@')[0];
+          // Bug do @lid (ver CLAUDE.md + extract-phone-number.ts): prefere
+          // o numero real (msg.key.senderPn/participantPn), quando o
+          // Baileys o disponibiliza, ao inves dos digitos crus do
+          // remoteJid - que podem ser um identificador @lid, nao um MSISDN.
+          const fromNumber = extractPhoneNumber(remoteJid, msg.key.senderPn ?? msg.key.participantPn ?? null);
 
           await this.messageRepository.create({
             tenantId: session.tenantId,
@@ -259,7 +264,15 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
       // completo nao e necessario aqui porque a resposta e sempre enviada
       // via remoteJid da MENSAGEM RECEBIDA, nunca reconstruida a partir de
       // uma mensagem OUT salva.
-      toNumber: jid.split('@')[0],
+      // extractPhoneNumber() sem 2o argumento aqui: ao contrario do
+      // recebimento (messages.upsert, que decodifica um stanza do WhatsApp
+      // com senderPn disponivel), aqui so temos o JID de destino que NOS
+      // mesmos montamos (remoteJid ja salvo, ou digitos do formulario) -
+      // nao existe um "numero real" adicional a preferir, entao o
+      // comportamento e identico ao de antes desta correcao (so
+      // centralizado na mesma funcao, para nao duplicar a logica de
+      // parsing em dois lugares).
+      toNumber: extractPhoneNumber(jid),
       body,
       timestamp: new Date(),
     });
