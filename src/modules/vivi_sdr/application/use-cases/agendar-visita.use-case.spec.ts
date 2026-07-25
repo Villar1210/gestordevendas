@@ -1,0 +1,149 @@
+// Idempotencia (upsert) de agendar_visita - confirmado em producao
+// (card "Visita agendada via VIVI", 14/07/2026): a VIVI pode chamar a tool
+// mais de uma vez na mesma conversa (o modelo nem sempre segue a instrucao
+// do system prompt que ja proibia isso), e antes disso cada chamada criava
+// uma Activity "visita" identica. Unitario: mocka IPipelineRepository/
+// IActivityRepository/CreateQuickCardUseCase/CreateActivityUseCase - o que
+// importa aqui e a DECISAO (atualizar vs criar), nao o banco em si.
+import { AgendarVisitaUseCase } from './agendar-visita.use-case';
+import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
+import { IActivityRepository, ActivityRecord } from '../../../vendas_kanban/domain/repositories/activity-repository.interface';
+import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
+import { CreateActivityUseCase } from '../../../vendas_kanban/application/use-cases/create-activity.use-case';
+
+function buildActivityRecord(overrides: Partial<ActivityRecord> = {}): ActivityRecord {
+  return {
+    id: 'activity-1',
+    tenantId: 'tenant-1',
+    cardId: 'card-1',
+    type: 'visita',
+    subject: 'Visita agendada via VIVI - horario informado pelo lead: "10:00"',
+    scheduledAt: new Date('2026-07-18T10:00:00.000Z'),
+    done: false,
+    createdAt: new Date(),
+    ...overrides,
+  };
+}
+
+function setup() {
+  const pipelineRepository = { findAllByTenant: jest.fn() };
+  const activityRepository = {
+    findPendingByCardAndType: jest.fn(),
+    update: jest.fn(),
+  };
+  const createQuickCardUseCase = { execute: jest.fn() };
+  const createActivityUseCase = { execute: jest.fn() };
+
+  const useCase = new AgendarVisitaUseCase(
+    pipelineRepository as unknown as IPipelineRepository,
+    activityRepository as unknown as IActivityRepository,
+    createQuickCardUseCase as unknown as CreateQuickCardUseCase,
+    createActivityUseCase as unknown as CreateActivityUseCase,
+  );
+
+  pipelineRepository.findAllByTenant.mockResolvedValue([{ id: 'pipeline-1', tenantId: 'tenant-1', name: 'Padrao', createdAt: new Date() }]);
+
+  return { useCase, pipelineRepository, activityRepository, createQuickCardUseCase, createActivityUseCase };
+}
+
+describe('AgendarVisitaUseCase - idempotencia (upsert) da Activity de visita', () => {
+  it('1a chamada (sem Activity pendente ainda): CRIA a Activity normalmente', async () => {
+    const { useCase, activityRepository, createQuickCardUseCase, createActivityUseCase } = setup();
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-1' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord());
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+    });
+
+    expect(activityRepository.findPendingByCardAndType).toHaveBeenCalledWith('tenant-1', 'card-1', 'visita');
+    expect(createActivityUseCase.execute).toHaveBeenCalledTimes(1);
+    expect(activityRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('2a chamada com o MESMO horario (reconfirmacao): ATUALIZA a Activity existente, nao cria outra', async () => {
+    const { useCase, activityRepository, createActivityUseCase } = setup();
+    const existente = buildActivityRecord({
+      id: 'activity-existente',
+      subject: 'Visita agendada via VIVI - horario informado pelo lead: "10:00"',
+      scheduledAt: new Date('2026-07-18T10:00:00.000Z'),
+    });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(existente);
+    activityRepository.update.mockResolvedValue(existente);
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+      existingCardId: 'card-1',
+    });
+
+    expect(createActivityUseCase.execute).not.toHaveBeenCalled();
+    expect(activityRepository.update).toHaveBeenCalledTimes(1);
+    expect(activityRepository.update).toHaveBeenCalledWith(
+      'activity-existente',
+      expect.objectContaining({
+        subject: expect.stringContaining('"10:00"'),
+        // Fuso LOCAL do processo (mesma convencao de parseDateOnly, ver
+        // date-only.util.ts/CLAUDE.md) - nunca hardcodar um ISO com "Z" aqui,
+        // isso assumiria UTC e quebraria em qualquer fuso diferente de UTC+0.
+        scheduledAt: new Date(2026, 6, 18, 10, 0, 0, 0),
+      }),
+    );
+  });
+
+  it('2a chamada com horario DIFERENTE (mudanca real): ATUALIZA a Activity existente com o novo horario', async () => {
+    const { useCase, activityRepository, createActivityUseCase } = setup();
+    const existente = buildActivityRecord({
+      id: 'activity-existente',
+      subject: 'Visita agendada via VIVI - horario informado pelo lead: "10:00"',
+      scheduledAt: new Date('2026-07-18T10:00:00.000Z'),
+    });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(existente);
+    activityRepository.update.mockResolvedValue(existente);
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-19',
+      horario: '15:30',
+      existingCardId: 'card-1',
+    });
+
+    expect(createActivityUseCase.execute).not.toHaveBeenCalled();
+    expect(activityRepository.update).toHaveBeenCalledTimes(1);
+    expect(activityRepository.update).toHaveBeenCalledWith(
+      'activity-existente',
+      expect.objectContaining({
+        subject: expect.stringContaining('"15:30"'),
+        scheduledAt: new Date(2026, 6, 19, 15, 30, 0, 0),
+      }),
+    );
+  });
+
+  it('3a chamada (Activity ja concluida/done=true): NAO encontra pendente, cria uma nova (visita seguinte)', async () => {
+    // findPendingByCardAndType so busca done=false (ver repositorio) - se a
+    // visita anterior ja foi marcada concluida, uma nova chamada de
+    // agendar_visita deve criar uma Activity nova (proxima visita), nao
+    // reabrir/atualizar a antiga.
+    const { useCase, activityRepository, createQuickCardUseCase, createActivityUseCase } = setup();
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord({ id: 'activity-nova' }));
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-08-01',
+      horario: '09:00',
+      existingCardId: 'card-1',
+    });
+
+    expect(activityRepository.update).not.toHaveBeenCalled();
+    expect(createActivityUseCase.execute).toHaveBeenCalledTimes(1);
+  });
+});

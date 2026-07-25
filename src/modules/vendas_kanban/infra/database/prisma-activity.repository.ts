@@ -48,6 +48,27 @@ export class PrismaActivityRepository implements IActivityRepository {
     return this.prisma.activity.update({ where: { id }, data: { done } });
   }
 
+  async findPendingByCardAndType(
+    tenantId: string,
+    cardId: string,
+    type: string,
+  ): Promise<ActivityRecord | null> {
+    return this.prisma.activity.findFirst({
+      where: { tenantId, cardId, type, done: false },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async update(
+    id: string,
+    input: { subject: string | null; scheduledAt: Date | null },
+  ): Promise<ActivityRecord> {
+    return this.prisma.activity.update({
+      where: { id },
+      data: { subject: input.subject, scheduledAt: input.scheduledAt },
+    });
+  }
+
   async findPendingTodayByOwner(tenantId: string, ownerId: string): Promise<ActivityRecord[]> {
     const now = new Date();
     // new Date(year, month, day) usa o fuso LOCAL do processo - mesma

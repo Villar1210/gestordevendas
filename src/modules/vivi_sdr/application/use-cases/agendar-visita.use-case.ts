@@ -7,7 +7,10 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
 import { CreateActivityUseCase } from '../../../vendas_kanban/application/use-cases/create-activity.use-case';
+import { IActivityRepository } from '../../../vendas_kanban/domain/repositories/activity-repository.interface';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
+
+const ACTIVITY_TYPE_VISITA = 'visita';
 
 interface AgendarVisitaInput {
   tenantId: string;
@@ -41,6 +44,7 @@ export class AgendarVisitaUseCase {
 
   constructor(
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
+    @Inject('IActivityRepository') private readonly activityRepository: IActivityRepository,
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
     private readonly createActivityUseCase: CreateActivityUseCase,
   ) {}
@@ -75,14 +79,32 @@ export class AgendarVisitaUseCase {
         ).id;
 
     const visitaAgendadaEm = this.buildScheduledAt(input.dataVisita, input.horario);
+    const subject = this.buildSubject(input);
 
-    await this.createActivityUseCase.execute({
-      tenantId: input.tenantId,
+    // Idempotencia (upsert): a VIVI pode chamar "agendar_visita" mais de uma
+    // vez para a mesma conversa mesmo com a instrucao contraria no system
+    // prompt (defesa em profundidade - ver vivi-prompt.ts) - confirmado em
+    // producao (card "Visita agendada via VIVI", 14/07/2026): 3 chamadas em
+    // turnos diferentes geraram 3 Activities identicas. Se ja existe uma
+    // Activity tipo "visita" pendente (done=false) neste card, ATUALIZA em
+    // vez de criar outra - reconfirmar o mesmo horario vira um no-op
+    // pratico, uma mudanca real de horario atualiza de fato.
+    const activityExistente = await this.activityRepository.findPendingByCardAndType(
+      input.tenantId,
       cardId,
-      type: 'visita',
-      subject: this.buildSubject(input),
-      scheduledAt: visitaAgendadaEm,
-    });
+      ACTIVITY_TYPE_VISITA,
+    );
+    if (activityExistente) {
+      await this.activityRepository.update(activityExistente.id, { subject, scheduledAt: visitaAgendadaEm });
+    } else {
+      await this.createActivityUseCase.execute({
+        tenantId: input.tenantId,
+        cardId,
+        type: ACTIVITY_TYPE_VISITA,
+        subject,
+        scheduledAt: visitaAgendadaEm,
+      });
+    }
 
     return { cardId, visitaAgendadaEm };
   }
