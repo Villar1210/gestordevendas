@@ -20,6 +20,7 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
     remoteJid?: string | null;
     body: string;
     timestamp: Date;
+    baileysMessageId?: string | null;
   }): Promise<void> {
     await this.prisma.whatsAppMessage.create({
       data: {
@@ -31,6 +32,7 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
         remoteJid: input.remoteJid ?? null,
         body: input.body,
         timestamp: input.timestamp,
+        baileysMessageId: input.baileysMessageId ?? null,
       },
     });
   }
@@ -71,5 +73,24 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
       select: { timestamp: true },
     });
     return message;
+  }
+
+  async findExistingBaileysMessageIds(
+    sessionId: string,
+    baileysMessageIds: string[],
+  ): Promise<string[]> {
+    if (baileysMessageIds.length === 0) return [];
+
+    const messages = await this.prisma.whatsAppMessage.findMany({
+      where: {
+        sessionId,
+        baileysMessageId: { in: baileysMessageIds },
+      },
+      select: { baileysMessageId: true },
+    });
+
+    return messages
+      .map((message) => message.baileysMessageId)
+      .filter((id): id is string => id !== null);
   }
 }

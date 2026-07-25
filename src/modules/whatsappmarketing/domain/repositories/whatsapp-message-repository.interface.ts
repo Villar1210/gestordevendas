@@ -23,6 +23,10 @@ export interface IWhatsAppMessageRepository {
     remoteJid?: string | null;
     body: string;
     timestamp: Date;
+    // ID da mensagem no Baileys (msg.key.id) - ver comentario no schema.
+    // So preenchido para mensagens IN (a distincao IN/OUT ja existe via
+    // "direction"); usado para dedupe da recuperacao de historico.
+    baileysMessageId?: string | null;
   }): Promise<void>;
   // Ultimas mensagens trocadas com um numero especifico dentro de uma sessao,
   // em ordem cronologica (mais antiga primeiro) - usado pela VIVI para montar
@@ -41,4 +45,12 @@ export interface IWhatsAppMessageRepository {
     tenantId: string,
     phoneNumber: string,
   ): Promise<{ timestamp: Date } | null>;
+  // Dedupe da recuperacao de mensagens perdidas durante desconexao (evento
+  // messaging-history.set, ver BaileysWhatsAppProvider): dado um lote de
+  // IDs candidatos, devolve so os que JA existem gravados nesta sessao -
+  // 1 consulta para o lote inteiro, em vez de 1 por mensagem.
+  findExistingBaileysMessageIds(
+    sessionId: string,
+    baileysMessageIds: string[],
+  ): Promise<string[]>;
 }

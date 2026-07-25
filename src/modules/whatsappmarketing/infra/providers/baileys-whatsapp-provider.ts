@@ -12,16 +12,34 @@ import makeWASocket, {
   getContentType,
   DisconnectReason,
   WASocket,
+  WAMessage,
 } from 'baileys';
 import { Boom } from '@hapi/boom';
 import { pino } from 'pino';
 import * as QRCode from 'qrcode';
 import { IWhatsAppProvider } from '../../domain/services/whatsapp-provider.interface';
 import { extractPhoneNumber } from '../../domain/services/extract-phone-number';
+import {
+  HISTORY_RECOVERY_WINDOW_MS,
+  RECENT_HISTORY_SYNC_TYPE,
+  RecoverableHistoryCandidate,
+  selectRecoverableHistoryMessages,
+} from '../../domain/services/select-recoverable-history-messages';
 import { IWhatsAppSessionRepository } from '../../domain/repositories/whatsapp-session-repository.interface';
 import { IWhatsAppMessageRepository } from '../../domain/repositories/whatsapp-message-repository.interface';
 
 const SESSIONS_FOLDER = '.whatsapp-sessions';
+
+// Payload do evento 'whatsapp.message.received' (contrato compartilhado por
+// convencao com vivi_sdr/atendimento - ver WhatsAppMessageReceivedListener).
+interface WhatsAppMessageReceivedPayload {
+  tenantId: string;
+  sessionId: string;
+  phoneNumber: string;
+  remoteJid: string;
+  messageBody: string;
+  pushName: string | null;
+}
 
 @Injectable()
 export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit {
@@ -90,6 +108,18 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
       auth: state,
       logger: this.logger,
       version,
+      // Habilita APENAS o sync de historico tipo RECENT (mensagens
+      // perdidas durante uma desconexao curta, ver
+      // select-recoverable-history-messages.ts) - sem isso, o Baileys por
+      // padrao nunca aguarda/processa 'messaging-history.set'
+      // (shouldSyncHistoryMessage default e `() => false` quando
+      // syncFullHistory nao e definido, ver Socket/index.js do proprio
+      // Baileys). INITIAL_BOOTSTRAP/FULL (historico completo, so no
+      // primeiro pareamento por QR) e ON_DEMAND (scroll manual do usuario)
+      // sao rejeitados de proposito - processa-los como "mensagem nova"
+      // inundaria a VIVI/Central de Atendimento com conversas antigas.
+      shouldSyncHistoryMessage: (historyMsg) =>
+        historyMsg.syncType === RECENT_HISTORY_SYNC_TYPE,
     });
 
     this.sockets.set(sessionId, sock);
@@ -138,84 +168,17 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
         // abaixo) nao deve derrubar o processamento das demais mensagens
         // do mesmo lote.
         try {
-          // So registra mensagens recebidas (IN). Envios (OUT) sao gravados em sendMessage.
-          if (!msg.message || msg.key.fromMe) continue;
-
-          const remoteJid = msg.key.remoteJid;
-          if (!remoteJid) continue;
-
-          // So salva conversas 1:1 reais. Ignora grupos (@g.us) e
-          // atualizacoes de status/stories (@broadcast). Qualquer outro
-          // formato (@s.whatsapp.net ou @lid, o identificador mais novo
-          // usado pelo WhatsApp por privacidade) e tratado como 1:1 valido.
-          if (remoteJid.endsWith('@g.us') || remoteJid.endsWith('@broadcast')) continue;
-
-          // Filtra por TIPO de conteudo, nao so pelo JID: mensagens de
-          // protocolo/sistema (ex: senderKeyDistributionMessage, usadas na
-          // troca de chaves de criptografia entre dispositivos) chegam via
-          // messages.upsert com msg.message preenchido mas sem texto real,
-          // e podem vir com um remoteJid que nao bate com nenhum sufixo
-          // conhecido de grupo/status. So aceitamos tipos de texto de fato.
-          const contentType = getContentType(msg.message);
-          if (contentType !== 'conversation' && contentType !== 'extendedTextMessage') {
-            continue;
-          }
-
-          const session = await this.sessionRepository.findById(sessionId);
-          if (!session) continue;
-
-          const body =
-            msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-          const timestampSeconds =
-            typeof msg.messageTimestamp === 'number'
-              ? msg.messageTimestamp
-              : Number(msg.messageTimestamp || 0);
-
-          // Bug do @lid (ver CLAUDE.md + extract-phone-number.ts): prefere
-          // o numero real (msg.key.senderPn/participantPn), quando o
-          // Baileys o disponibiliza, ao inves dos digitos crus do
-          // remoteJid - que podem ser um identificador @lid, nao um MSISDN.
-          const fromNumber = extractPhoneNumber(remoteJid, msg.key.senderPn ?? msg.key.participantPn ?? null);
-
-          await this.messageRepository.create({
-            tenantId: session.tenantId,
-            sessionId,
-            direction: 'IN',
-            fromNumber,
-            toNumber: session.phoneNumber || '',
-            // JID completo (com sufixo @lid ou @s.whatsapp.net) - guardado
-            // para poder responder corretamente depois. Numeros @lid nao sao
-            // um MSISDN valido sob @s.whatsapp.net, entao reconstruir o JID
-            // so a partir de fromNumber quebra o envio de resposta.
-            remoteJid,
-            body,
-            timestamp: new Date(timestampSeconds * 1000),
-          });
+          const payload = await this.ingestIncomingMessage(sessionId, msg);
+          if (!payload) continue;
 
           // Evento generico, sem conhecer quem escuta (ex: modulos vivi_sdr e
           // atendimento). emit() nao aguarda os listeners - nao bloqueia o
           // recebimento das proximas mensagens do messages.upsert.
-          // remoteJid incluido (alem de phoneNumber) desde o modulo
-          // atendimento: GetOrCreateAtendimentoUseCase precisa do JID
-          // completo para responder corretamente (numeros @lid, ver
-          // CLAUDE.md).
-          this.eventEmitter.emit('whatsapp.message.received', {
-            tenantId: session.tenantId,
-            sessionId,
-            phoneNumber: fromNumber,
-            remoteJid,
-            messageBody: body,
-            // Nome de exibicao do proprio WhatsApp do contato (pode ser
-            // apelido, nome de empresa, ou nao vir preenchido) - usado pela
-            // captura automatica de lead minimo (funil de remarketing, ver
-            // CapturarLeadMinimoUseCase) e pelo Nivel 2 do prompt da VIVI
-            // (confirmar o nome em vez de perguntar do zero).
-            pushName: msg.pushName ?? null,
-          });
+          this.eventEmitter.emit('whatsapp.message.received', payload);
         } catch (err) {
           // Suprime silenciosamente erros de mensagens individuais (ex: "Bad
           // MAC" de descriptografia Signal Protocol em mensagens de protocolo
-          // que escaparam dos filtros acima). A sessao continua rodando.
+          // que escaparam dos filtros abaixo). A sessao continua rodando.
           const message = err instanceof Error ? err.message : String(err);
           // So loga se nao for um erro "Bad MAC" conhecido (para nao poluir
           // o log de producao com noise que o Baileys ja gerencia internamente).
@@ -225,6 +188,148 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
         }
       }
     });
+
+    // Recuperacao de mensagens perdidas durante desconexao (ver CLAUDE.md
+    // "Bug confirmado: lacuna de captura de mensagem durante desconexao").
+    // So dispara quando shouldSyncHistoryMessage (acima) aceita o sync -
+    // hoje, so syncType RECENT. Mesmo assim e "melhor esforco": quem decide
+    // se envia esse sync e o servidor do WhatsApp, nao ha garantia de que
+    // toda desconexao gera um.
+    sock.ev.on('messaging-history.set', async ({ messages, syncType }) => {
+      const candidates: RecoverableHistoryCandidate[] = messages.map((msg, index) => ({
+        index,
+        baileysMessageId: msg.key.id ?? null,
+        remoteJid: msg.key.remoteJid ?? '',
+        fromMe: !!msg.key.fromMe,
+        contentType: msg.message ? getContentType(msg.message) : undefined,
+        timestampSeconds:
+          typeof msg.messageTimestamp === 'number'
+            ? msg.messageTimestamp
+            : Number(msg.messageTimestamp || 0),
+      }));
+
+      const candidateIds = candidates
+        .map((candidate) => candidate.baileysMessageId)
+        .filter((id): id is string => !!id);
+
+      // Dedupe: uma mensagem ja capturada normalmente via messages.upsert
+      // (ex: chegou ao vivo, so o messaging-history.set demorou a chegar
+      // depois) nao deve ser reprocessada.
+      const existingIds = await this.messageRepository.findExistingBaileysMessageIds(
+        sessionId,
+        candidateIds,
+      );
+
+      const eligible = selectRecoverableHistoryMessages({
+        syncType,
+        candidates,
+        nowMs: Date.now(),
+        windowMs: HISTORY_RECOVERY_WINDOW_MS,
+        existingBaileysMessageIds: new Set(existingIds),
+      });
+
+      // Processado em SEQUENCIA (nao Promise.all/paralelo): a ordem
+      // cronologica (ja garantida por selectRecoverableHistoryMessages)
+      // precisa ser preservada ate a pipeline da VIVI/Central de
+      // Atendimento, para o historico de conversa fazer sentido. emitAsync
+      // (nao emit) para aguardar o listener terminar antes da proxima
+      // mensagem do lote - diferente do messages.upsert ao vivo acima, que
+      // continua fire-and-forget de proposito.
+      for (const candidate of eligible) {
+        const msg = messages[candidate.index];
+        try {
+          const payload = await this.ingestIncomingMessage(sessionId, msg);
+          if (!payload) continue;
+
+          await this.eventEmitter.emitAsync('whatsapp.message.received', payload);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (!message.includes('Bad MAC') && !message.includes('bad mac')) {
+            console.error(
+              `[WhatsApp] Erro ao processar mensagem recuperada de historico (sessao ${sessionId}):`,
+              message,
+            );
+          }
+        }
+      }
+    });
+  }
+
+  // Filtros + persistencia compartilhados entre o recebimento ao vivo
+  // (messages.upsert) e a recuperacao de historico (messaging-history.set) -
+  // ver CLAUDE.md. Retorna null quando a mensagem deve ser ignorada (envio
+  // proprio, grupo/status, conteudo de protocolo, ou sessao desconhecida).
+  private async ingestIncomingMessage(
+    sessionId: string,
+    msg: WAMessage,
+  ): Promise<WhatsAppMessageReceivedPayload | null> {
+    // So registra mensagens recebidas (IN). Envios (OUT) sao gravados em sendMessage.
+    if (!msg.message || msg.key.fromMe) return null;
+
+    const remoteJid = msg.key.remoteJid;
+    if (!remoteJid) return null;
+
+    // So salva conversas 1:1 reais. Ignora grupos (@g.us) e atualizacoes de
+    // status/stories (@broadcast). Qualquer outro formato (@s.whatsapp.net
+    // ou @lid, o identificador mais novo usado pelo WhatsApp por
+    // privacidade) e tratado como 1:1 valido.
+    if (remoteJid.endsWith('@g.us') || remoteJid.endsWith('@broadcast')) return null;
+
+    // Filtra por TIPO de conteudo, nao so pelo JID: mensagens de
+    // protocolo/sistema (ex: senderKeyDistributionMessage, usadas na troca
+    // de chaves de criptografia entre dispositivos) chegam com msg.message
+    // preenchido mas sem texto real, e podem vir com um remoteJid que nao
+    // bate com nenhum sufixo conhecido de grupo/status. So aceitamos tipos
+    // de texto de fato.
+    const contentType = getContentType(msg.message);
+    if (contentType !== 'conversation' && contentType !== 'extendedTextMessage') {
+      return null;
+    }
+
+    const session = await this.sessionRepository.findById(sessionId);
+    if (!session) return null;
+
+    const body = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+    const timestampSeconds =
+      typeof msg.messageTimestamp === 'number'
+        ? msg.messageTimestamp
+        : Number(msg.messageTimestamp || 0);
+
+    // Bug do @lid (ver CLAUDE.md + extract-phone-number.ts): prefere o
+    // numero real (msg.key.senderPn/participantPn), quando o Baileys o
+    // disponibiliza, ao inves dos digitos crus do remoteJid - que podem ser
+    // um identificador @lid, nao um MSISDN.
+    const fromNumber = extractPhoneNumber(remoteJid, msg.key.senderPn ?? msg.key.participantPn ?? null);
+
+    await this.messageRepository.create({
+      tenantId: session.tenantId,
+      sessionId,
+      direction: 'IN',
+      fromNumber,
+      toNumber: session.phoneNumber || '',
+      // JID completo (com sufixo @lid ou @s.whatsapp.net) - guardado para
+      // poder responder corretamente depois. Numeros @lid nao sao um MSISDN
+      // valido sob @s.whatsapp.net, entao reconstruir o JID so a partir de
+      // fromNumber quebra o envio de resposta.
+      remoteJid,
+      body,
+      timestamp: new Date(timestampSeconds * 1000),
+      baileysMessageId: msg.key.id ?? null,
+    });
+
+    return {
+      tenantId: session.tenantId,
+      sessionId,
+      phoneNumber: fromNumber,
+      remoteJid,
+      messageBody: body,
+      // Nome de exibicao do proprio WhatsApp do contato (pode ser apelido,
+      // nome de empresa, ou nao vir preenchido) - usado pela captura
+      // automatica de lead minimo (funil de remarketing, ver
+      // CapturarLeadMinimoUseCase) e pelo Nivel 2 do prompt da VIVI
+      // (confirmar o nome em vez de perguntar do zero).
+      pushName: msg.pushName ?? null,
+    };
   }
 
   async getQrCode(sessionId: string): Promise<string | null> {

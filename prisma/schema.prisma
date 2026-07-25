@@ -419,10 +419,19 @@ model WhatsAppMessage {
   body       String   @db.Text
   timestamp  DateTime
   createdAt  DateTime @default(now()) @map("created_at")
+  // ID da mensagem no proprio Baileys (msg.key.id) - usado so para dedupe da
+  // recuperacao de mensagens perdidas durante desconexao (evento
+  // messaging-history.set, ver BaileysWhatsAppProvider): evita reprocessar
+  // uma mensagem que ja chegou normalmente via messages.upsert. Nulo em
+  // mensagens gravadas antes dessa correcao e nas raras mensagens sem
+  // key.id. Sem constraint de unicidade no banco (dedupe e feito por
+  // consulta explicita antes de gravar, nao por conflito de insercao).
+  baileysMessageId String? @map("baileys_message_id") @db.VarChar(255)
 
   tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session WhatsAppSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  @@index([sessionId, baileysMessageId])
   @@map("whatsapp_messages")
 }
 
