@@ -167,6 +167,7 @@ export class ProcessIncomingMessageUseCase {
           sessionId: input.sessionId,
           tenantId: input.tenantId,
           to: remoteJid ?? input.phoneNumber,
+          phoneNumber: input.phoneNumber,
           body: 'Combinado! Você não vai mais receber nossas mensagens de remarketing. Se mudar de ideia, é só chamar por aqui.',
         });
         return;
@@ -378,6 +379,7 @@ export class ProcessIncomingMessageUseCase {
         // para os digitos so cobre mensagens antigas, salvas antes desse
         // campo existir.
         to: remoteJid ?? input.phoneNumber,
+        phoneNumber: input.phoneNumber,
         body: replyText,
       });
     }
@@ -637,6 +639,7 @@ export class ProcessIncomingMessageUseCase {
         sessionId: input.sessionId,
         tenantId: input.tenantId,
         to: jid,
+        phoneNumber: input.phoneNumber,
         body: AI_FALLBACK_MESSAGE,
       });
     } catch (sendError) {

@@ -38,6 +38,7 @@ export class EnviarMensagemAtendimentoUseCase {
       sessionId: atendimento.whatsappSessionId,
       tenantId: input.tenantId,
       to: atendimento.remoteJid,
+      phoneNumber: atendimento.phoneNumber,
       body,
     });
   }

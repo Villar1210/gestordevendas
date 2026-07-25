@@ -235,7 +235,7 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
     return this.connectedSessions.has(sessionId);
   }
 
-  async sendMessage(sessionId: string, to: string, body: string): Promise<void> {
+  async sendMessage(sessionId: string, to: string, body: string, phoneNumber?: string): Promise<void> {
     const sock = this.sockets.get(sessionId);
     if (!sock) {
       throw new Error('Sessao WhatsApp nao esta conectada.');
@@ -244,7 +244,9 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
     // "to" ja com "@" (JID completo, ex: remoteJid salvo no recebimento) e
     // usado como esta - preserva o sufixo correto (@lid ou @s.whatsapp.net).
     // Sem "@" (envio manual via formulario, so digitos), cai no fallback -
-    // so funciona para numeros @s.whatsapp.net reais, nao para @lid.
+    // so funciona para numeros @s.whatsapp.net reais, nao para @lid. O
+    // ENVIO em si (sock.sendMessage) SEMPRE usa este "jid" - nunca o
+    // "phoneNumber" abaixo, que so afeta o que fica gravado no banco.
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
     await sock.sendMessage(jid, { text: body });
 
@@ -264,15 +266,20 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
       // completo nao e necessario aqui porque a resposta e sempre enviada
       // via remoteJid da MENSAGEM RECEBIDA, nunca reconstruida a partir de
       // uma mensagem OUT salva.
-      // extractPhoneNumber() sem 2o argumento aqui: ao contrario do
-      // recebimento (messages.upsert, que decodifica um stanza do WhatsApp
-      // com senderPn disponivel), aqui so temos o JID de destino que NOS
-      // mesmos montamos (remoteJid ja salvo, ou digitos do formulario) -
-      // nao existe um "numero real" adicional a preferir, entao o
-      // comportamento e identico ao de antes desta correcao (so
-      // centralizado na mesma funcao, para nao duplicar a logica de
-      // parsing em dois lugares).
-      toNumber: extractPhoneNumber(jid),
+      //
+      // "phoneNumber" (quando informado pelo chamador) e SEMPRE preferido a
+      // extractPhoneNumber(jid) - correcao de um bug real confirmado em
+      // producao (25/07/2026): sem isso, toda resposta a um contato @lid
+      // gravava os digitos do LID em vez do numero real, e
+      // findRecentBySessionAndNumber (historico passado a IA) nunca
+      // encontrava as proprias respostas da VIVI nessas conversas. Callers
+      // que respondem a uma mensagem RECEBIDA (ProcessIncomingMessageUseCase/
+      // EnviarMensagemAtendimentoUseCase) sempre tem esse numero real
+      // disponivel e devem passa-lo. Callers sem esse numero (envio manual
+      // via formulario, campanhas de Repique) continuam com o fallback
+      // antigo - "to" neles ja e so digitos de telefone (nunca @lid), entao
+      // o fallback ja era correto para eles, sem risco de regressao.
+      toNumber: phoneNumber ?? extractPhoneNumber(jid),
       body,
       timestamp: new Date(),
     });

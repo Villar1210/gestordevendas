@@ -12,6 +12,11 @@ interface SendWhatsAppMessageInput {
   // os dois casos.
   to: string;
   body: string;
+  // Numero real do destinatario, quando quem chama ja o resolveu de forma
+  // confiavel (responder a uma mensagem recebida) - ver
+  // IWhatsAppProvider.sendMessage para o porque disso importar quando "to"
+  // e um JID @lid.
+  phoneNumber?: string;
 }
 
 @Injectable()
@@ -35,6 +40,6 @@ export class SendWhatsAppMessageUseCase {
       throw new BadRequestException('Sessao WhatsApp nao esta conectada.');
     }
 
-    await this.whatsAppProvider.sendMessage(session.id, input.to, input.body);
+    await this.whatsAppProvider.sendMessage(session.id, input.to, input.body, input.phoneNumber);
   }
 }

@@ -5,11 +5,24 @@ export interface IWhatsAppProvider {
   createSession(sessionId: string): Promise<void>;
   getQrCode(sessionId: string): Promise<string | null>;
   // "to" aceita, preferencialmente, um JID completo (ex: "123@lid" ou
-  // "5511999999999@s.whatsapp.net"), usado como esta. Se vier so digitos
-  // (sem "@"), cai no fallback de montar "<digitos>@s.whatsapp.net" -
-  // mantido para compatibilidade com o envio manual (formulario), que so
-  // tem o numero de telefone digitado, nunca o JID completo do WhatsApp.
-  sendMessage(sessionId: string, to: string, body: string): Promise<void>;
+  // "5511999999999@s.whatsapp.net"), usado como esta para o ENVIO em si -
+  // nunca derivado de "phoneNumber" abaixo. Se vier so digitos (sem "@"),
+  // cai no fallback de montar "<digitos>@s.whatsapp.net" - mantido para
+  // compatibilidade com o envio manual (formulario) e as campanhas de
+  // Repique, que so tem o numero de telefone (Card.phone), nunca o JID
+  // completo do WhatsApp - nenhum dos dois usa @lid, entao esse fallback
+  // continua correto pra eles.
+  //
+  // "phoneNumber" (opcional): o numero REAL do destinatario, quando quem
+  // chama ja o resolveu de forma confiavel (ex: ProcessIncomingMessageUseCase/
+  // EnviarMensagemAtendimentoUseCase, que respondem a uma mensagem recebida
+  // e ja tem o numero certo, mesmo quando "to" e um JID @lid). Usado SO para
+  // gravar WhatsAppMessage.toNumber - nunca para decidir o destino do envio.
+  // Sem ele, cai no comportamento historico (extrair digitos de "to"), que
+  // grava o LID em vez do numero real quando "to" e um JID @lid (bug
+  // conhecido, ver extract-phone-number.ts) - por isso os chamadores que
+  // respondem a uma mensagem recebida devem sempre passar este parametro.
+  sendMessage(sessionId: string, to: string, body: string, phoneNumber?: string): Promise<void>;
   disconnect(sessionId: string): Promise<void>;
   // Estado real do socket em memoria (sincrono, sem I/O) - diferente do
   // status gravado no banco, que so reflete o ultimo evento 'open'/'close'
