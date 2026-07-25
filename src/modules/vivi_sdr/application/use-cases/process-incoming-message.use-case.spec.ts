@@ -213,4 +213,19 @@ describe('ProcessIncomingMessageUseCase - resiliencia a falha da IA (handleAiFai
     );
     expect(chamadasComFallback).toHaveLength(0);
   });
+
+  it('Guard 1: conversa mais recente com status "encerrada" NAO bloqueia a VIVI - ela responde normalmente (fecha o ciclo da correcao de ReabrirViviAposFechamentoUseCase, que reverte para exatamente este status)', async () => {
+    const { useCase, input, viviConversationRepository, aiConversationService } = setup();
+    viviConversationRepository.findLatestBySessionAndPhone.mockResolvedValue(
+      buildViviConversationRecord({ status: 'encerrada' }),
+    );
+    aiConversationService.generateReply.mockResolvedValue({
+      replyText: 'Oi de novo! Como posso ajudar?',
+      toolCalls: [],
+    });
+
+    await useCase.execute(input);
+
+    expect(aiConversationService.generateReply).toHaveBeenCalledTimes(1);
+  });
 });

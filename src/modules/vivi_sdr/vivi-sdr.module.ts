@@ -19,8 +19,10 @@ import { AgendarVisitaUseCase } from './application/use-cases/agendar-visita.use
 import { GetOrCreateViviConfigUseCase } from './application/use-cases/get-or-create-vivi-config.use-case';
 import { UpdateViviConfigUseCase } from './application/use-cases/update-vivi-config.use-case';
 import { RegistrarUsoViviUseCase } from './application/use-cases/registrar-uso-vivi.use-case';
+import { ReabrirViviAposFechamentoUseCase } from './application/use-cases/reabrir-vivi-apos-fechamento.use-case';
 import { WhatsAppMessageReceivedListener } from './infra/listeners/whatsapp-message-received.listener';
 import { SocialMessageReceivedListener } from './infra/listeners/social-message-received.listener';
+import { AtendimentoFechadoListener } from './infra/listeners/atendimento-fechado.listener';
 import { PrismaViviConversationRepository } from './infra/database/prisma-vivi-conversation.repository';
 import { PrismaSocialConversationRepository } from './infra/database/prisma-social-conversation.repository';
 import { PrismaViviConfigRepository } from './infra/database/prisma-vivi-config.repository';
@@ -68,8 +70,10 @@ import { PrismaService } from '../../config/prisma.service';
     GetOrCreateViviConfigUseCase,
     UpdateViviConfigUseCase,
     RegistrarUsoViviUseCase,
+    ReabrirViviAposFechamentoUseCase,
     WhatsAppMessageReceivedListener,
     SocialMessageReceivedListener,
+    AtendimentoFechadoListener,
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma / Anthropic).
     { provide: 'IViviConversationRepository', useClass: PrismaViviConversationRepository },

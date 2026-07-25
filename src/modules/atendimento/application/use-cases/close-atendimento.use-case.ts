@@ -1,5 +1,6 @@
 // src/modules/atendimento/application/use-cases/close-atendimento.use-case.ts
 import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   IAtendimentoRepository,
   AtendimentoRecord,
@@ -21,6 +22,7 @@ export class CloseAtendimentoUseCase {
     private readonly atendimentoRepository: IAtendimentoRepository,
     @Inject('IAtendimentoEventoRepository')
     private readonly eventoRepository: IAtendimentoEventoRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: CloseAtendimentoInput): Promise<AtendimentoRecord> {
@@ -50,6 +52,21 @@ export class CloseAtendimentoUseCase {
       tipo: 'fechado',
       userId: input.requesterId,
       detalhe: motivo,
+    });
+
+    // Evento generico, sem conhecer quem escuta - o modulo vivi_sdr usa
+    // isso para reabrir a conversa da VIVI quando ela tinha sido
+    // encaminhada para fila por uma falha tecnica (nao uma decisao de
+    // negocio), ver ReabrirViviAposFechamentoUseCase. atendimento NAO
+    // importa vivi_sdr de volta (mesmo padrao ja usado por
+    // 'atendimento.classificado', ver CLAUDE.md sobre organizacao por
+    // modulo).
+    this.eventEmitter.emit('atendimento.fechado', {
+      tenantId: input.tenantId,
+      atendimentoId: atendimento.id,
+      whatsappSessionId: atendimento.whatsappSessionId,
+      remoteJid: atendimento.remoteJid,
+      phoneNumber: atendimento.phoneNumber,
     });
 
     return updated;
