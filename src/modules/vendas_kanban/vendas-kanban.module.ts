@@ -113,6 +113,12 @@ import { CanaisModule } from '../../shared/canais.module';
     'IPipelineRepository',
     'ICardRepository',
     'IStageRepository',
+    // Exportado para o modulo vivi_sdr: AgendarVisitaUseCase injeta
+    // IActivityRepository diretamente (idempotencia do agendar_visita, ver
+    // commit 9c59571) - prover o token dentro deste modulo nao basta, o
+    // Nest exige exportacao explicita para outros modulos conseguirem
+    // injetar o mesmo token.
+    'IActivityRepository',
   ],
 })
 export class VendasKanbanModule {}
