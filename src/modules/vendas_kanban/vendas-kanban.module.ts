@@ -21,6 +21,9 @@ import { ToggleActivityDoneUseCase } from './application/use-cases/toggle-activi
 import { CreateNoteUseCase } from './application/use-cases/create-note.use-case';
 import { ListNotesByCardUseCase } from './application/use-cases/list-notes-by-card.use-case';
 import { CreateQuickCardUseCase } from './application/use-cases/create-quick-card.use-case';
+import { GetOrCreateRemarketingPipelineUseCase } from './application/use-cases/get-or-create-remarketing-pipeline.use-case';
+import { CapturarLeadMinimoUseCase } from './application/use-cases/capturar-lead-minimo.use-case';
+import { PromoverLeadMinimoUseCase } from './application/use-cases/promover-lead-minimo.use-case';
 import { GetInboxUseCase } from './application/use-cases/get-inbox.use-case';
 import { ClaimCardUseCase } from './application/use-cases/claim-card.use-case';
 import { GetMeuDashboardUseCase } from './application/use-cases/get-meu-dashboard.use-case';
@@ -78,6 +81,9 @@ import { CanaisModule } from '../../shared/canais.module';
     CreateNoteUseCase,
     ListNotesByCardUseCase,
     CreateQuickCardUseCase,
+    GetOrCreateRemarketingPipelineUseCase,
+    CapturarLeadMinimoUseCase,
+    PromoverLeadMinimoUseCase,
     GetInboxUseCase,
     ClaimCardUseCase,
     GetMeuDashboardUseCase,
@@ -110,6 +116,13 @@ import { CanaisModule } from '../../shared/canais.module';
     CreateNoteUseCase,
     ClaimCardUseCase,
     CreateActivityUseCase,
+    // Exportados para o modulo vivi_sdr: captura automatica de lead minimo
+    // (funil de remarketing) - CapturarLeadMinimoUseCase e chamado por
+    // ProcessIncomingMessageUseCase, PromoverLeadMinimoUseCase por
+    // ProcessIncomingMessageUseCase (transferToBroker) e por
+    // AgendarVisitaUseCase.
+    CapturarLeadMinimoUseCase,
+    PromoverLeadMinimoUseCase,
     'IPipelineRepository',
     'ICardRepository',
     'IStageRepository',

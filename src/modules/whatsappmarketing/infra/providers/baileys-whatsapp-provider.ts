@@ -205,6 +205,12 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
             phoneNumber: fromNumber,
             remoteJid,
             messageBody: body,
+            // Nome de exibicao do proprio WhatsApp do contato (pode ser
+            // apelido, nome de empresa, ou nao vir preenchido) - usado pela
+            // captura automatica de lead minimo (funil de remarketing, ver
+            // CapturarLeadMinimoUseCase) e pelo Nivel 2 do prompt da VIVI
+            // (confirmar o nome em vez de perguntar do zero).
+            pushName: msg.pushName ?? null,
           });
         } catch (err) {
           // Suprime silenciosamente erros de mensagens individuais (ex: "Bad

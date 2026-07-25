@@ -204,4 +204,37 @@ export interface ICardRepository {
   // lead que enviou mensagem ja tem corretor responsavel no Kanban -
   // se sim, a VIVI nao responde (o corretor esta cuidando do lead).
   existsByTenantAndPhoneWithOwner(tenantId: string, phone: string): Promise<boolean>;
+  // Usado pela captura automatica de lead minimo (funil de remarketing,
+  // ver CapturarLeadMinimoUseCase) para decidir se um contato e realmente
+  // um "primeiro contato" - existe ALGUM Card para este telefone em
+  // QUALQUER pipeline/stage/dono, nao so um com dono como
+  // existsByTenantAndPhoneWithOwner acima.
+  existsByTenantAndPhone(tenantId: string, phone: string): Promise<boolean>;
+  // Usado pela promocao do lead minimo (PromoverLeadMinimoUseCase): acha o
+  // Card de captura automatica (se existir) especificamente dentro de um
+  // pipeline especifico (o de remarketing) - para MOVE-lo, nunca criar um
+  // segundo Card.
+  findByTenantPhoneAndPipeline(
+    tenantId: string,
+    phone: string,
+    pipelineId: string,
+  ): Promise<CardRecord | null>;
+  // Move um Card para outro pipeline/stage, atualizando (opcionalmente) os
+  // mesmos campos que create() aceitaria se o Card estivesse nascendo
+  // agora - usado EXCLUSIVAMENTE pela promocao do lead minimo (funil de
+  // remarketing -> funil de vendas), mutando o MESMO Card em vez de criar
+  // um novo (evita duplicacao, preserva o id/historico do card original).
+  moveToPipelineAndStage(
+    id: string,
+    input: {
+      pipelineId: string;
+      stageId: string | null;
+      position: number;
+      title?: string;
+      description?: string;
+      origem?: string;
+      motivoRepique?: string | null;
+      movidoParaRepiqueEm?: Date | null;
+    },
+  ): Promise<CardRecord>;
 }

@@ -402,7 +402,7 @@ export class PrismaCardRepository implements ICardRepository {
     await this.prisma.card.delete({ where: { id } });
   }
 
- 
+
   async existsByTenantAndPhoneWithOwner(tenantId: string, phone: string): Promise<boolean> {
     const count = await this.prisma.card.count({
       where: {
@@ -412,5 +412,50 @@ export class PrismaCardRepository implements ICardRepository {
       },
     });
     return count > 0;
+  }
+
+  async existsByTenantAndPhone(tenantId: string, phone: string): Promise<boolean> {
+    const count = await this.prisma.card.count({ where: { tenantId, phone } });
+    return count > 0;
+  }
+
+  async findByTenantPhoneAndPipeline(
+    tenantId: string,
+    phone: string,
+    pipelineId: string,
+  ): Promise<CardRecord | null> {
+    const row = await this.prisma.card.findFirst({ where: { tenantId, phone, pipelineId } });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async moveToPipelineAndStage(
+    id: string,
+    input: {
+      pipelineId: string;
+      stageId: string | null;
+      position: number;
+      title?: string;
+      description?: string;
+      origem?: string;
+      motivoRepique?: string | null;
+      movidoParaRepiqueEm?: Date | null;
+    },
+  ): Promise<CardRecord> {
+    const row = await this.prisma.card.update({
+      where: { id },
+      data: {
+        pipelineId: input.pipelineId,
+        stageId: input.stageId,
+        position: input.position,
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.origem !== undefined ? { origem: input.origem } : {}),
+        ...(input.motivoRepique !== undefined ? { motivoRepique: input.motivoRepique } : {}),
+        ...(input.movidoParaRepiqueEm !== undefined
+          ? { movidoParaRepiqueEm: input.movidoParaRepiqueEm }
+          : {}),
+      },
+    });
+    return this.toRecord(row);
   }
 }

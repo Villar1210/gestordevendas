@@ -22,6 +22,10 @@ interface WhatsAppMessageReceivedEvent {
   phoneNumber: string;
   remoteJid: string;
   messageBody: string;
+  // Nome de exibicao do WhatsApp do contato (ver BaileysWhatsAppProvider) -
+  // repassado adiante por processIncomingMessageUseCase.execute(event) para
+  // a captura automatica de lead minimo (funil de remarketing).
+  pushName?: string | null;
 }
 
 @Injectable()

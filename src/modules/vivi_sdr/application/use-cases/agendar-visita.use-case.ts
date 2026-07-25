@@ -6,6 +6,7 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
+import { PromoverLeadMinimoUseCase } from '../../../vendas_kanban/application/use-cases/promover-lead-minimo.use-case';
 import { CreateActivityUseCase } from '../../../vendas_kanban/application/use-cases/create-activity.use-case';
 import { IActivityRepository } from '../../../vendas_kanban/domain/repositories/activity-repository.interface';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
@@ -46,6 +47,7 @@ export class AgendarVisitaUseCase {
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     @Inject('IActivityRepository') private readonly activityRepository: IActivityRepository,
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
+    private readonly promoverLeadMinimoUseCase: PromoverLeadMinimoUseCase,
     private readonly createActivityUseCase: CreateActivityUseCase,
   ) {}
 
@@ -64,18 +66,32 @@ export class AgendarVisitaUseCase {
     // Idempotencia: se a conversa ja tem um Card de uma chamada anterior de
     // agendar_visita, reaproveita em vez de criar outro - so registra uma
     // nova Activity com a data/horario atualizados (o lead pode ter
-    // reconfirmado ou trocado o horario num turno seguinte).
+    // reconfirmado ou trocado o horario num turno seguinte). Se NAO tem
+    // ainda, tenta primeiro PROMOVER (mutar) um Card de captura automatica
+    // do funil de remarketing para este telefone (ver
+    // PromoverLeadMinimoUseCase) - so cria um Card novo se nao existir
+    // nenhum para promover, comportamento identico ao de antes desta fatia.
     const cardId = input.existingCardId
       ? input.existingCardId
       : (
-          await this.createQuickCardUseCase.execute({
+          (await this.promoverLeadMinimoUseCase.execute({
+            tenantId: input.tenantId,
+            phoneNumber: input.phoneNumber,
+            targetPipelineId: pipeline.id,
+            targetStageId: null,
+            position: 0,
+            title: 'Visita agendada via VIVI',
+            description: input.resumo,
+            origem: 'roleta_online',
+          })) ??
+          (await this.createQuickCardUseCase.execute({
             tenantId: input.tenantId,
             pipelineId: pipeline.id,
             title: 'Visita agendada via VIVI',
             origem: 'roleta_online',
             phone: input.phoneNumber,
             description: input.resumo,
-          })
+          }))
         ).id;
 
     const visitaAgendadaEm = this.buildScheduledAt(input.dataVisita, input.horario);

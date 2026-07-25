@@ -53,7 +53,11 @@ export class PipelineController {
   // GET /pipelines - lista os pipelines do tenant autenticado
   @Get('pipelines')
   async list(@Req() req: Request) {
-    return this.listPipelinesUseCase.execute({ tenantId: req.user!.tenantId });
+    return this.listPipelinesUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
+    });
   }
 
   // GET /pipelines/:id/board - retorna o pipeline com stages e cards ordenados

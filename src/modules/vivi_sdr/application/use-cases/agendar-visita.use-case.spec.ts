@@ -32,18 +32,24 @@ function setup() {
     update: jest.fn(),
   };
   const createQuickCardUseCase = { execute: jest.fn() };
+  // Chamado ANTES do fallback createQuickCardUseCase quando nao ha
+  // existingCardId (ver AgendarVisitaUseCase) - retorna null por padrao
+  // (nenhum card de remarketing a promover), mantendo o comportamento
+  // destes testes identico ao de antes desta fatia.
+  const promoverLeadMinimoUseCase = { execute: jest.fn().mockResolvedValue(null) };
   const createActivityUseCase = { execute: jest.fn() };
 
   const useCase = new AgendarVisitaUseCase(
     pipelineRepository as unknown as IPipelineRepository,
     activityRepository as unknown as IActivityRepository,
     createQuickCardUseCase as unknown as CreateQuickCardUseCase,
+    promoverLeadMinimoUseCase as any,
     createActivityUseCase as unknown as CreateActivityUseCase,
   );
 
   pipelineRepository.findAllByTenant.mockResolvedValue([{ id: 'pipeline-1', tenantId: 'tenant-1', name: 'Padrao', createdAt: new Date() }]);
 
-  return { useCase, pipelineRepository, activityRepository, createQuickCardUseCase, createActivityUseCase };
+  return { useCase, pipelineRepository, activityRepository, createQuickCardUseCase, promoverLeadMinimoUseCase, createActivityUseCase };
 }
 
 describe('AgendarVisitaUseCase - idempotencia (upsert) da Activity de visita', () => {
@@ -145,5 +151,43 @@ describe('AgendarVisitaUseCase - idempotencia (upsert) da Activity de visita', (
 
     expect(activityRepository.update).not.toHaveBeenCalled();
     expect(createActivityUseCase.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('sem existingCardId, mas existe Card de captura automatica (funil de remarketing) para o telefone: PROMOVE (nao cria um Card novo)', async () => {
+    const { useCase, activityRepository, createQuickCardUseCase, promoverLeadMinimoUseCase, createActivityUseCase } = setup();
+    promoverLeadMinimoUseCase.execute.mockResolvedValue({ id: 'card-promovido' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord({ id: 'activity-1', cardId: 'card-promovido' }));
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+    });
+
+    expect(resultado?.cardId).toBe('card-promovido');
+    expect(promoverLeadMinimoUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1', phoneNumber: '5511999990000' }),
+    );
+    expect(createQuickCardUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it('sem existingCardId e SEM Card de remarketing para o telefone: cai no caminho antigo (cria um Card novo)', async () => {
+    const { useCase, createQuickCardUseCase, promoverLeadMinimoUseCase, activityRepository, createActivityUseCase } = setup();
+    promoverLeadMinimoUseCase.execute.mockResolvedValue(null);
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-novo' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord({ id: 'activity-1', cardId: 'card-novo' }));
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+    });
+
+    expect(resultado?.cardId).toBe('card-novo');
+    expect(createQuickCardUseCase.execute).toHaveBeenCalledTimes(1);
   });
 });

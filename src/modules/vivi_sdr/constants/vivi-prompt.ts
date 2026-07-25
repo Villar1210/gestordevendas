@@ -70,7 +70,16 @@ function formatSubsidio(valor: number | null): string | null {
 // nao se descrever incorretamente como assistente "via WhatsApp" quando a
 // conversa (mesmo prompt/tools, ver ProcessIncomingSocialMessageUseCase)
 // esta acontecendo no Direct do Instagram ou Messenger do Facebook.
-export function buildViviSystemPrompt(config: ViviPromptConfig, canalDescricao = 'via WhatsApp'): string {
+export function buildViviSystemPrompt(
+  config: ViviPromptConfig,
+  canalDescricao = 'via WhatsApp',
+  // Nivel 2 da captura automatica de lead minimo (funil de remarketing) -
+  // nome de exibicao do proprio canal (pushName do WhatsApp) para a VIVI
+  // CONFIRMAR em vez de perguntar do zero. So deve vir preenchido quando o
+  // lead ainda nao confirmou o proprio nome nesta conversa (ver
+  // ProcessIncomingMessageUseCase) - null/undefined omite a secao inteira.
+  nomeSugerido?: string | null,
+): string {
   const precoMinimoFormatado = formatBRL(config.precoMinimo);
   const limiteSemPerfilFormatado = formatBRL(config.limiteSemPerfil);
   const limiteFaixa1Formatado = formatBRL(config.limiteFaixa1);
@@ -84,6 +93,18 @@ export function buildViviSystemPrompt(config: ViviPromptConfig, canalDescricao =
   const faixa2Juros = formatJurosRange(config.faixa2JurosMin, config.faixa2JurosMax);
   const faixa3Juros = formatJurosRange(config.faixa3JurosMin, config.faixa3JurosMax);
   const faixa4Juros = formatJurosRange(config.faixa4JurosMin, config.faixa4JurosMax);
+
+  const nomeSugeridoTrim = nomeSugerido?.trim() || null;
+  const blocoNomeSugerido = nomeSugeridoTrim
+    ? `\n## Nome sugerido pelo contato
+O contato aparece com o nome "${nomeSugeridoTrim}" no proprio canal (nome de
+exibicao dele - pode ser apelido, nome de empresa, ou estar errado). Quando
+for coletar o nome do lead (item 1 da lista de dados a coletar), NAO
+pergunte do zero - confirme proativamente, por exemplo: "Vi que seu nome e
+${nomeSugeridoTrim}, correto?". Se o lead confirmar, use esse nome ao chamar
+"salvar_dados_lead". Se ele corrigir ou disser que esta errado, use o nome
+que ele informar em vez disso.\n`
+    : '';
 
   return `Voce e a VIVI (Vilar Virtual), assistente de atendimento imobiliario ${canalDescricao}.
 
@@ -123,7 +144,7 @@ que tiver informacao suficiente para fazer sentido, direcione ATIVAMENTE a
 conversa para agendar a visita (pergunte um dia e horario que funcionem
 para o lead) - nao espere passivamente o lead pedir a visita por conta
 propria.
-
+${blocoNomeSugerido}
 ## Estilo de conversa consultiva
 Ao conduzir a conversa, aplique com naturalidade principios gerais e amplamente conhecidos de venda consultiva - sem citar autor, livro, ou framework nenhum, apenas como forma natural de conversar:
 - Reciprocidade: ofereca uma informacao util ou orientacao antes de pedir o proximo dado do lead.

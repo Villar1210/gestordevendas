@@ -43,6 +43,11 @@ function setup() {
   const classifyAndRouteAtendimentoUseCase = { execute: jest.fn() };
   const getOrCreateViviConfigUseCase = { execute: jest.fn() };
   const registrarUsoViviUseCase = { execute: jest.fn() };
+  // Chamado incondicionalmente no inicio de execute() (captura automatica
+  // de lead minimo, funil de remarketing) - precisa de um mock funcional
+  // (nao {} as any) em TODOS os testes deste arquivo, mesmo os que nao
+  // testam essa fatia.
+  const capturarLeadMinimoUseCase = { execute: jest.fn().mockResolvedValue(null) };
 
   const useCase = new ProcessIncomingMessageUseCase(
     viviConversationRepository as unknown as IViviConversationRepository,
@@ -53,6 +58,8 @@ function setup() {
     {} as any, // IStageRepository - nao usado no caminho de falha da IA
     sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
     {} as any, // CreateQuickCardUseCase - nao usado no caminho de falha da IA
+    capturarLeadMinimoUseCase as any,
+    {} as any, // PromoverLeadMinimoUseCase - nao usado no caminho de falha da IA
     {} as any, // CreateNoteUseCase - nao usado no caminho de falha da IA
     getOrCreateAtendimentoUseCase as unknown as GetOrCreateAtendimentoUseCase,
     classifyAndRouteAtendimentoUseCase as unknown as ClassifyAndRouteAtendimentoUseCase,

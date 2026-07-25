@@ -13,6 +13,8 @@ import {
 import { IWhatsAppMessageRepository } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
 import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
+import { CapturarLeadMinimoUseCase } from '../../../vendas_kanban/application/use-cases/capturar-lead-minimo.use-case';
+import { PromoverLeadMinimoUseCase } from '../../../vendas_kanban/application/use-cases/promover-lead-minimo.use-case';
 import { CreateNoteUseCase } from '../../../vendas_kanban/application/use-cases/create-note.use-case';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
@@ -46,6 +48,11 @@ interface ProcessIncomingMessageInput {
   sessionId: string;
   phoneNumber: string;
   messageBody: string;
+  // Nome de exibicao do WhatsApp do contato (ver BaileysWhatsAppProvider) -
+  // usado pela captura automatica de lead minimo (funil de remarketing) e
+  // pelo Nivel 2 do prompt da VIVI (confirmar o nome em vez de perguntar do
+  // zero). Ausente em chamadas antigas/testes que nao o preenchem.
+  pushName?: string | null;
 }
 
 // Resultado de UMA chamada da tool "buscar_empreendimento_por_endereco" -
@@ -91,6 +98,8 @@ export class ProcessIncomingMessageUseCase {
     private readonly stageRepository: IStageRepository,
     private readonly sendWhatsAppMessageUseCase: SendWhatsAppMessageUseCase,
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
+    private readonly capturarLeadMinimoUseCase: CapturarLeadMinimoUseCase,
+    private readonly promoverLeadMinimoUseCase: PromoverLeadMinimoUseCase,
     private readonly createNoteUseCase: CreateNoteUseCase,
     private readonly getOrCreateAtendimentoUseCase: GetOrCreateAtendimentoUseCase,
     private readonly classifyAndRouteAtendimentoUseCase: ClassifyAndRouteAtendimentoUseCase,
@@ -141,6 +150,18 @@ export class ProcessIncomingMessageUseCase {
       }
     }
 
+    // Captura automatica de lead minimo (funil de remarketing) - roda
+    // INDEPENDENTE de qualquer tool call da IA (por isso aqui, antes de
+    // qualquer chamada a IA), so cria o Card se este telefone ainda nao
+    // tiver NENHUM Card em NENHUM pipeline (checagem interna,
+    // idempotente). Nunca lanca excecao nem atrasa a resposta - ver
+    // CapturarLeadMinimoUseCase.
+    await this.capturarLeadMinimoUseCase.execute({
+      tenantId: input.tenantId,
+      phoneNumber: input.phoneNumber,
+      pushName: input.pushName,
+    });
+
     const conversation = await this.findOrCreateConversation(input);
     const viviConfig = await this.getOrCreateViviConfigUseCase.execute({ tenantId: input.tenantId });
 
@@ -183,7 +204,11 @@ export class ProcessIncomingMessageUseCase {
       month: 'long',
       day: 'numeric',
     });
-    const systemPrompt = `Hoje é ${today}.\n\n${buildViviSystemPrompt(viviConfig)}`;
+    // Nivel 2 da captura automatica: so sugere o nome via pushName se o
+    // lead ainda nao confirmou o proprio nome nesta conversa (evita a VIVI
+    // "confirmar" um nome que ja foi confirmado ha turnos atras).
+    const nomeSugerido = conversation.nomeColetado ? null : input.pushName?.trim() || null;
+    const systemPrompt = `Hoje é ${today}.\n\n${buildViviSystemPrompt(viviConfig, undefined, nomeSugerido)}`;
 
     // Coletado pelo resolveTool abaixo (buscar_empreendimento_por_endereco)
     // - so gravado no EnderecoBuscaLog depois de sabermos se esta mesma
@@ -555,20 +580,41 @@ export class ProcessIncomingMessageUseCase {
       urgente: false,
     });
 
-    const card = await this.createQuickCardUseCase.execute({
-      tenantId: input.tenantId,
-      pipelineId: pipeline.id,
-      stageId,
-      title: nome || 'Lead via VIVI',
-      origem: motivo === 'sem_perfil' ? 'vivi_repique' : 'roleta_online',
-      phone: input.phoneNumber,
-      description: resumo,
-      // Mesmo motivo ja usado pelo modal manual e pelo job de inatividade
-      // de 90 dias (ver vendas_kanban/domain/services/motivo-repique.ts) -
-      // so quando o card ja nasce direto na stage "Repique" (stageId
-      // preenchido acima, motivo "sem_perfil").
-      motivoRepique: motivo === 'sem_perfil' ? 'SEM_PERFIL' : undefined,
-    });
+    const origem = motivo === 'sem_perfil' ? 'vivi_repique' : 'roleta_online';
+    const tituloCard = nome || 'Lead via VIVI';
+
+    // Promove (muta) o Card de captura automatica do funil de remarketing
+    // para este mesmo pipeline/stage, se existir um para este telefone -
+    // ver PromoverLeadMinimoUseCase. Se nao existir (contato que qualificou
+    // sem nunca ter passado pela captura automatica), cai no caminho ja
+    // existente de criar um Card novo, comportamento identico ao de antes
+    // desta fatia.
+    const card =
+      (await this.promoverLeadMinimoUseCase.execute({
+        tenantId: input.tenantId,
+        phoneNumber: input.phoneNumber,
+        targetPipelineId: pipeline.id,
+        targetStageId: stageId,
+        position: 0,
+        title: tituloCard,
+        description: resumo,
+        origem,
+        motivoRepique: motivo === 'sem_perfil' ? 'SEM_PERFIL' : null,
+      })) ??
+      (await this.createQuickCardUseCase.execute({
+        tenantId: input.tenantId,
+        pipelineId: pipeline.id,
+        stageId,
+        title: tituloCard,
+        origem,
+        phone: input.phoneNumber,
+        description: resumo,
+        // Mesmo motivo ja usado pelo modal manual e pelo job de inatividade
+        // de 90 dias (ver vendas_kanban/domain/services/motivo-repique.ts) -
+        // so quando o card ja nasce direto na stage "Repique" (stageId
+        // preenchido acima, motivo "sem_perfil").
+        motivoRepique: motivo === 'sem_perfil' ? 'SEM_PERFIL' : undefined,
+      }));
 
     await this.createNoteUseCase.execute({
       tenantId: input.tenantId,

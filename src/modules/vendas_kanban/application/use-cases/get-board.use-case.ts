@@ -1,5 +1,5 @@
 // src/modules/vendas_kanban/application/use-cases/get-board.use-case.ts
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
@@ -7,6 +7,10 @@ import { IActivityRepository } from '../../domain/repositories/activity-reposito
 import { GetSubordinadosRecursivosUseCase } from '../../../auth/application/use-cases/get-subordinados-recursivos.use-case';
 import { GetCorretoresEscaladosHojeUseCase } from '../../../plantao/application/use-cases/get-corretores-escalados-hoje.use-case';
 import { resolveEscopo } from '../../../../shared/domain/services/cargo-escopo';
+import {
+  REMARKETING_PIPELINE_NOME,
+  podeAcessarPipelineRemarketing,
+} from '../../domain/services/remarketing-pipeline';
 
 interface GetBoardInput {
   pipelineId: string;
@@ -54,6 +58,18 @@ export class GetBoardUseCase {
     );
     if (!pipeline) {
       throw new NotFoundException('Pipeline nao encontrado.');
+    }
+
+    // Restricao de visibilidade do funil de remarketing (captura automatica
+    // de lead minimo, ver domain/services/remarketing-pipeline.ts) - so
+    // Administrador/coordenador podem abrir o board, mesmo acessando o
+    // pipelineId diretamente (defesa em profundidade alem do filtro em
+    // ListPipelinesUseCase, que ja esconde este pipeline do seletor).
+    if (
+      pipeline.name === REMARKETING_PIPELINE_NOME &&
+      !podeAcessarPipelineRemarketing(input.requesterRole, input.requesterCargo)
+    ) {
+      throw new ForbiddenException('Voce nao tem acesso a este funil.');
     }
 
     const stages = await this.stageRepository.findAllByPipeline(pipeline.id);
