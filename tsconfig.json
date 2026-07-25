@@ -20,5 +20,5 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": ["node_modules", "dist", "prisma.config.ts", "frontend", "scripts", "WACRM"]
+  "exclude": ["node_modules", "dist", "prisma.config.ts", "frontend", "scripts", "WACRM", "test", "**/*.spec.ts"]
 }
