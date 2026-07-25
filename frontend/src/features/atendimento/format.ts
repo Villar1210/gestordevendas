@@ -28,11 +28,15 @@ export function formatPhoneDisplay(phone: string): string {
   return phone;
 }
 
-// Fallback de avatar: 2 primeiros digitos do telefone (sem avatarUrl no
-// backend hoje).
-export function initialsFromPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  return (digits || phone).slice(0, 2);
+// Iniciais a partir do NOME (1a letra do 1o + do ultimo nome) - usado pelo
+// avatar de agente/contato quando ha um nome real disponivel (ver
+// ContactAvatar.tsx). Movido de AtendimentoList.tsx (era local la) para
+// virar compartilhado entre os avatares de agente e de contato.
+export function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 // Separador de dia no corpo do chat: "Hoje" / "Ontem" / "DD/MM/AAAA".

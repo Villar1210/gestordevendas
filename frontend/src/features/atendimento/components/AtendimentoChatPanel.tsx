@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { Atendimento, AtendimentoEvento, AtendimentoMensagem, Fila } from "../store/useAtendimentoStore";
 import { getStatusOption, EVENTO_TIPO_LABELS, filaChipStyle } from "../constants";
-import { formatPhoneDisplay, initialsFromPhone, formatDayHeader } from "../format";
+import { formatPhoneDisplay, formatDayHeader } from "../format";
+import { ContactAvatar } from "./ContactAvatar";
 
 const timeFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
@@ -139,10 +140,17 @@ export function AtendimentoChatPanel({
 
   if (!atendimento) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm">
-        <div className="flex flex-col items-center gap-2">
-          <Headset className="h-8 w-8" />
-          <p className="text-sm">Selecione um atendimento para comecar.</p>
+      <div className="flex flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
+            <Headset className="h-7 w-7 text-blue-500" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-600">Selecione um atendimento para comecar</p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              As conversas do WhatsApp aparecem na lista a esquerda.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -154,7 +162,6 @@ export function AtendimentoChatPanel({
   const isAguardando = atendimento.status === "aguardando";
   const statusOption = getStatusOption(atendimento.status);
   const displayName = formatPhoneDisplay(atendimento.phoneNumber);
-  const initials = initialsFromPhone(atendimento.phoneNumber);
 
   async function runAction(fn: () => Promise<void>) {
     setActionBusy(true);
@@ -210,9 +217,7 @@ export function AtendimentoChatPanel({
     <div className="relative flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
         <div className="relative shrink-0">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
-            {initials}
-          </span>
+          <ContactAvatar size="sm" />
           <span
             aria-label="WhatsApp"
             title="WhatsApp"
@@ -680,7 +685,9 @@ const HEADER_TONE_CLASSES: Record<HeaderTone, string> = {
   // cor de acao primaria ja usada em todo o projeto (bg-blue-700/800).
   primary: "bg-blue-700 text-white border-transparent hover:bg-blue-800",
   indigo: "bg-indigo-500/15 text-indigo-600 border-indigo-500/30 hover:bg-indigo-500/25",
-  rose: "bg-rose-500 text-white border-transparent hover:bg-rose-600",
+  // "Finalizar" - discreto por padrao, so fica vermelho no hover (mesmo
+  // ajuste do RowAction em AtendimentoList.tsx).
+  rose: "border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200",
   muted: "border-slate-200 text-slate-600 hover:bg-slate-50",
 };
 

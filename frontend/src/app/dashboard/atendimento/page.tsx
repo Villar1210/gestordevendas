@@ -9,6 +9,7 @@ import { AtendimentoList } from "@/features/atendimento/components/AtendimentoLi
 import { AtendimentoChatPanel } from "@/features/atendimento/components/AtendimentoChatPanel";
 import { AtendimentoTab } from "@/features/atendimento/constants";
 import { PlantaoStatusBadge } from "@/features/plantao/components/PlantaoStatusBadge";
+import { Headset } from "lucide-react";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -106,7 +107,12 @@ export default function AtendimentoPage() {
   return (
     <div className="flex h-screen flex-col bg-slate-50">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-slate-800">Central de Atendimento</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+            <Headset className="h-5 w-5 text-blue-600" />
+          </div>
+          <h1 className="text-lg font-semibold text-slate-800">Central de Atendimento</h1>
+        </div>
         <PlantaoStatusBadge />
       </header>
 

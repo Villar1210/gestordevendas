@@ -5,19 +5,11 @@ import { useMemo, useState } from "react";
 import { Search, Inbox, Check, ArrowLeftRight, X, RotateCcw, MessageCircle, AlertTriangle } from "lucide-react";
 import { Atendimento, Fila } from "../store/useAtendimentoStore";
 import { ATENDIMENTO_TABS, AtendimentoTab, filaChipStyle } from "../constants";
-import { formatRelativeTime, formatPhoneDisplay, initialsFromPhone } from "../format";
+import { formatRelativeTime, formatPhoneDisplay, initialsFromName } from "../format";
+import { ContactAvatar } from "./ContactAvatar";
 
 const FILA_FILTER_TODAS = "todas";
 const FILA_FILTER_NAO_CLASSIFICADO = "nao_classificado";
-
-// Iniciais a partir do NOME do corretor (1a letra do 1o + do ultimo nome) -
-// initialsFromPhone (format.ts) e para numero de telefone, nao serve aqui.
-function initialsFromName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 interface Agente {
   id: string;
@@ -185,8 +177,10 @@ export function AtendimentoList({
 
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-slate-400">
-            <Inbox className="h-6 w-6" />
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+              <Inbox className="h-5 w-5 text-blue-400" />
+            </div>
             <p className="text-sm">Nenhum atendimento aqui.</p>
           </div>
         ) : (
@@ -247,7 +241,6 @@ function AtendimentoRow({
   const [transferOwnerId, setTransferOwnerId] = useState("");
 
   const displayName = formatPhoneDisplay(atendimento.phoneNumber);
-  const initials = initialsFromPhone(atendimento.phoneNumber);
   const isFechado = atendimento.status === "fechado";
 
   async function run(kind: typeof busy, fn: () => Promise<unknown>) {
@@ -302,12 +295,10 @@ function AtendimentoRow({
       <button
         onClick={onClick}
         data-testid="atendimento-row"
-        className="flex w-full items-start gap-3 px-3 pt-3 text-left"
+        className="flex w-full items-start gap-3 px-3.5 pt-3.5 text-left"
       >
         <div className="relative shrink-0">
-          <span className="grid h-11 w-11 place-items-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
-            {initials}
-          </span>
+          <ContactAvatar size="md" />
           <span
             aria-label="WhatsApp"
             title="WhatsApp"
@@ -345,7 +336,7 @@ function AtendimentoRow({
         </div>
       </button>
 
-      <div className="flex items-center justify-end gap-1 px-3 pb-2 pt-1.5">
+      <div className="flex items-center justify-end gap-1.5 px-3 pb-2.5 pt-2">
         {tab === "aguardando" && (
           <>
             <RowAction tone="primary" label="Assumir" busy={busy === "assign"} disabled={!!busy} onClick={handleAssign}>
@@ -450,7 +441,10 @@ const TONE_CLASSES: Record<Tone, string> = {
   // cor de acao primaria ja usada em todo o projeto (bg-blue-700/800).
   primary: "bg-blue-700 text-white border-transparent hover:bg-blue-800 active:bg-blue-900",
   indigo: "bg-indigo-500/15 text-indigo-600 border-indigo-500/30 hover:bg-indigo-500/25",
-  rose: "bg-rose-500 text-white border-transparent hover:bg-rose-600 active:bg-rose-700",
+  // "Finalizar" - discreto por padrao (cinza), so fica vermelho ao passar o
+  // mouse. Antes era vermelho solido sempre visivel, destoando da paleta
+  // azul do resto do sistema (ver CLAUDE.md, identidade visual).
+  rose: "bg-transparent text-slate-400 border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200",
   muted: "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200",
 };
 
@@ -477,7 +471,7 @@ function RowAction({
       aria-busy={busy || undefined}
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex h-6 w-6 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TONE_CLASSES[tone]}`}
+      className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TONE_CLASSES[tone]}`}
     >
       {busy ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : children}
     </button>
