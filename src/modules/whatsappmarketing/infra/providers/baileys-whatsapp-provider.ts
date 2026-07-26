@@ -273,10 +273,14 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
     // logica de retry/correcao automatica nesta fatia. Cada mensagem do
     // lote e independente (mesmo padrao de try/catch dos listeners acima).
     sock.ev.on('messages.update', async (updates) => {
-      // DEBUG TEMPORARIO (remover apos diagnostico): confirma se o proprio
-      // evento messages.update dispara no socket real de producao, antes
-      // de qualquer logica de correlacao/gravacao abaixo.
-      this.appLogger.log(`[DEBUG-ACK] evento messages.update recebido, quantidade: ${updates.length}`);
+      // DEBUG TEMPORARIO (remover apos diagnostico): payload CRU, sem
+      // nenhum filtro/correlacao - objetivo e ver exatamente o formato de
+      // key.id/key.fromMe que o Baileys manda de verdade, para comparar
+      // com o baileysMessageId que gravamos no banco (suspeita: pode haver
+      // diferenca de formato impedindo a correlacao) e confirmar se os
+      // eventos que chegam sao fromMe:true (nossas mensagens enviadas) ou
+      // so fromMe:false (mensagens recebidas, ja processadas acima).
+      this.appLogger.log(`[DEBUG-ACK-RAW] ${JSON.stringify(updates)}`);
       for (const { key, update } of updates) {
         try {
           const baileysMessageId = key.id;
