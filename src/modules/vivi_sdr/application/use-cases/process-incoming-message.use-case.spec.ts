@@ -5,6 +5,7 @@
 // banco nem, principalmente, de uma chamada real a API da Anthropic (que
 // jamais deveria rodar num teste automatizado). Mocka TODAS as
 // dependencias e verifica so o caminho de falha (generateReply rejeitando).
+import { Logger } from '@nestjs/common';
 import { ProcessIncomingMessageUseCase } from './process-incoming-message.use-case';
 import { IViviConversationRepository } from '../../domain/repositories/vivi-conversation-repository.interface';
 import { IAiConversationService } from '../../../../shared/domain/services/ai-conversation.interface';
@@ -234,5 +235,102 @@ describe('ProcessIncomingMessageUseCase - resiliencia a falha da IA (handleAiFai
     await useCase.execute(input);
 
     expect(aiConversationService.generateReply).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ProcessIncomingMessageUseCase - resposta da IA vazia (achado real em producao, 26/07/2026, caso "Terreno")', () => {
+  it('replyText vazio e NENHUMA tool chamada: trata como falha - fallback ao lead + fila prioritaria, igual a uma excecao da IA', async () => {
+    const {
+      useCase,
+      input,
+      conversation,
+      aiConversationService,
+      sendWhatsAppMessageUseCase,
+      getOrCreateAtendimentoUseCase,
+      classifyAndRouteAtendimentoUseCase,
+      viviConversationRepository,
+    } = setup();
+
+    // So espacos em branco - equivalente a vazio depois do .trim() no codigo.
+    aiConversationService.generateReply.mockResolvedValue({ replyText: '   ', toolCalls: [] });
+    getOrCreateAtendimentoUseCase.execute.mockResolvedValue(
+      buildAtendimentoRecord({ id: 'atendimento-3', tenantId: 'tenant-1' }),
+    );
+    classifyAndRouteAtendimentoUseCase.execute.mockResolvedValue(undefined);
+    sendWhatsAppMessageUseCase.execute.mockResolvedValue(undefined);
+    viviConversationRepository.update.mockResolvedValue(conversation);
+
+    await useCase.execute(input);
+
+    // 1. Nunca deixa o lead sem NENHUMA resposta - mesmo fallback do caminho de excecao.
+    expect(sendWhatsAppMessageUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.stringMatching(/instabilidade/i) }),
+    );
+
+    // 2. Roteia para a fila prioritaria, com o motivo tecnico correto no resumo.
+    expect(classifyAndRouteAtendimentoUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filaNome: FILA_ATENDIMENTO_PRIORITARIO_NOME,
+        urgente: true,
+        resumo: expect.stringContaining('Resposta da IA veio vazia'),
+      }),
+    );
+
+    // 3. Marca a conversa para a VIVI nao reabrir o dialogo neste numero.
+    expect(viviConversationRepository.update).toHaveBeenCalledWith('conversa-1', {
+      status: 'encaminhado_fila',
+    });
+  });
+
+  it('replyText vazio MAS uma tool foi chamada (ex: transferir_para_fila): NAO aciona fallback, so loga claramente - comportamento esperado', async () => {
+    const {
+      useCase,
+      input,
+      aiConversationService,
+      sendWhatsAppMessageUseCase,
+      getOrCreateAtendimentoUseCase,
+      classifyAndRouteAtendimentoUseCase,
+    } = setup();
+
+    aiConversationService.generateReply.mockResolvedValue({
+      replyText: '',
+      toolCalls: [
+        {
+          name: 'transferir_para_fila',
+          input: { categoria: 'financeiro', resumo: 'Duvida sobre boleto', urgente: false },
+        },
+      ],
+    });
+    getOrCreateAtendimentoUseCase.execute.mockResolvedValue(
+      buildAtendimentoRecord({ id: 'atendimento-4', tenantId: 'tenant-1' }),
+    );
+    classifyAndRouteAtendimentoUseCase.execute.mockResolvedValue(undefined);
+
+    const logSpy = jest.spyOn(Logger.prototype, 'log');
+
+    await useCase.execute(input);
+
+    // 1. NUNCA aciona o caminho de falha/fallback - a tool chamada e legitima.
+    const chamadasComFallback = sendWhatsAppMessageUseCase.execute.mock.calls.filter(([arg]: any[]) =>
+      /instabilidade/i.test(arg?.body ?? ''),
+    );
+    expect(chamadasComFallback).toHaveLength(0);
+    expect(sendWhatsAppMessageUseCase.execute).not.toHaveBeenCalled();
+
+    // 2. O processamento normal da tool (transferToFila) continuou de verdade.
+    expect(classifyAndRouteAtendimentoUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resumo: 'Duvida sobre boleto',
+      }),
+    );
+    // NUNCA o resumo tecnico de falha - senao seria indistinguivel do outro cenario.
+    expect(classifyAndRouteAtendimentoUseCase.execute).not.toHaveBeenCalledWith(
+      expect.objectContaining({ resumo: expect.stringContaining('Resposta da IA veio vazia') }),
+    );
+
+    // 3. Log CLARO e distinto - nunca mais confundir com um turno normal so olhando o log.
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Resposta vazia após tool call'));
+
+    logSpy.mockRestore();
   });
 });

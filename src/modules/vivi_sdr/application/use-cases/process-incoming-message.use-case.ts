@@ -251,6 +251,31 @@ export class ProcessIncomingMessageUseCase {
     const filaCall = toolCalls.find((call) => call.name === 'transferir_para_fila');
     const posVisitaCall = toolCalls.find((call) => call.name === 'salvar_dados_pos_visita');
 
+    // Nenhuma tool "de decisao" chamada, nem buscar_empreendimento_por_endereco
+    // (resolvida via resolveTool, ver enderecoBuscaResultados acima).
+    const nenhumaToolChamada =
+      !agendarVisitaCall && !transferCall && !filaCall && !posVisitaCall && enderecoBuscaResultados.length === 0;
+
+    // Achado real em producao (26/07/2026, caso "Terreno"): a chamada a IA
+    // pode completar SEM lancar excecao mas devolver replyText vazio (sem
+    // bloco de texto) e nenhuma tool chamada - o lead ficava sem NENHUMA
+    // resposta, silenciosamente, com o mesmo log de um turno normal
+    // ("tool=nenhuma"), impossivel de diferenciar de sucesso so olhando o
+    // log. Trata como falha de verdade, reaproveitando o MESMO caminho ja
+    // usado quando a chamada a IA lanca excecao (handleAiFailure): manda o
+    // fallback ao lead e encaminha para a fila "Atendimento Prioritario" -
+    // nao criamos um mecanismo novo, so tratamos essa resposta vazia como o
+    // que ela e na pratica: uma falha da IA em responder.
+    if (!replyText.trim() && nenhumaToolChamada) {
+      await this.handleAiFailure(
+        input,
+        conversation,
+        remoteJid,
+        new Error('Resposta da IA veio vazia - sem texto e sem nenhuma tool chamada neste turno'),
+      );
+      return;
+    }
+
     const updates: ViviConversationUpdateInput = { ...collected };
 
     if (posVisitaCall) {
@@ -407,6 +432,16 @@ export class ProcessIncomingMessageUseCase {
         phoneNumber: input.phoneNumber,
         body: replyText,
       });
+    } else {
+      // Chegou aqui so se uma tool FOI chamada (o caso "nenhuma tool e sem
+      // texto" ja retornou antes, la em cima, como falha) - cenario
+      // legitimo (ex: so salvou dado via salvar_dados_pos_visita, sem
+      // necessidade de responder nada nesse turno). Log CLARO e distinto do
+      // "tool=..." de sucesso normal, para nunca mais precisar investigar
+      // "por que nao enviou nada" so pra descobrir que era esperado.
+      this.logger.log(
+        `[VIVI] Resposta vazia após tool call (${toolsCalled}), nenhuma mensagem enviada - comportamento esperado (conversa ${conversation.id}, ${input.phoneNumber}).`,
+      );
     }
   }
 
