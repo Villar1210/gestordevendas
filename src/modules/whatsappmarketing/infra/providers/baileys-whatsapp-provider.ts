@@ -21,7 +21,6 @@ import { IWhatsAppProvider } from '../../domain/services/whatsapp-provider.inter
 import { extractPhoneNumber } from '../../domain/services/extract-phone-number';
 import {
   HISTORY_RECOVERY_WINDOW_MS,
-  RECENT_HISTORY_SYNC_TYPE,
   RecoverableHistoryCandidate,
   selectRecoverableHistoryMessages,
 } from '../../domain/services/select-recoverable-history-messages';
@@ -113,18 +112,27 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
       auth: state,
       logger: this.logger,
       version,
-      // Habilita APENAS o sync de historico tipo RECENT (mensagens
-      // perdidas durante uma desconexao curta, ver
-      // select-recoverable-history-messages.ts) - sem isso, o Baileys por
-      // padrao nunca aguarda/processa 'messaging-history.set'
-      // (shouldSyncHistoryMessage default e `() => false` quando
-      // syncFullHistory nao e definido, ver Socket/index.js do proprio
-      // Baileys). INITIAL_BOOTSTRAP/FULL (historico completo, so no
-      // primeiro pareamento por QR) e ON_DEMAND (scroll manual do usuario)
-      // sao rejeitados de proposito - processa-los como "mensagem nova"
-      // inundaria a VIVI/Central de Atendimento com conversas antigas.
-      shouldSyncHistoryMessage: (historyMsg) =>
-        historyMsg.syncType === RECENT_HISTORY_SYNC_TYPE,
+      // REVERTIDO (hotfix 26/07/2026): aceitar shouldSyncHistoryMessage para
+      // RECENT fazia o Baileys entrar em estado "AwaitingInitialSync"/
+      // "Syncing" (Socket/chats.js) e bufferizar eventos (ev.buffer()) -
+      // 'messages.update' e bufferizavel (Utils/event-buffer.js,
+      // BUFFERABLE_EVENT). Se a mensagem correspondente tambem estiver
+      // bufferizada como upsert (caso das NOSSAS proprias mensagens
+      // enviadas, via emitOwnEvents), o evento de ACK e silenciosamente
+      // absorvido dentro do upsert (Object.assign) em vez de virar um
+      // 'messages.update' de verdade - e a transicao de volta pra "Online"
+      // depende de doAppStateSync()/resyncAppState(), que nao tem timeout
+      // no proprio Baileys. Resultado: 100% das confirmacoes de entrega
+      // (statusEntrega) travadas em "pending" para sempre, em toda conexao
+      // desde que essa opcao foi introduzida. Voltando ao comportamento
+      // anterior (nunca aceitar nenhum shouldSyncHistoryMessage) ate
+      // decidirmos uma alternativa que nao dependa desse buffer do Baileys.
+      // O listener 'messaging-history.set' abaixo, o dedupe e o campo
+      // baileysMessageId continuam existindo no codigo - so NAO vao mais
+      // receber dados de verdade, ja que o Baileys nunca vai aguardar/
+      // processar esse sync sem essa opcao habilitada (mesmo efeito que
+      // tinhamos antes do e1418dc).
+      shouldSyncHistoryMessage: () => false,
     });
 
     this.sockets.set(sessionId, sock);
