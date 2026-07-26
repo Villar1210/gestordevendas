@@ -6,6 +6,7 @@ import {
   IWhatsAppMessageRepository,
   WhatsAppMessageRecord,
 } from '../../domain/repositories/whatsapp-message-repository.interface';
+import { StatusEntrega } from '../../domain/services/map-delivery-status';
 
 @Injectable()
 export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageRepository {
@@ -21,6 +22,7 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
     body: string;
     timestamp: Date;
     baileysMessageId?: string | null;
+    statusEntrega?: StatusEntrega | null;
   }): Promise<void> {
     await this.prisma.whatsAppMessage.create({
       data: {
@@ -33,6 +35,7 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
         body: input.body,
         timestamp: input.timestamp,
         baileysMessageId: input.baileysMessageId ?? null,
+        statusEntrega: input.statusEntrega ?? null,
       },
     });
   }
@@ -92,5 +95,16 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
     return messages
       .map((message) => message.baileysMessageId)
       .filter((id): id is string => id !== null);
+  }
+
+  async updateStatusEntregaByBaileysMessageId(
+    sessionId: string,
+    baileysMessageId: string,
+    statusEntrega: StatusEntrega,
+  ): Promise<void> {
+    await this.prisma.whatsAppMessage.updateMany({
+      where: { sessionId, baileysMessageId },
+      data: { statusEntrega },
+    });
   }
 }

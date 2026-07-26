@@ -1,5 +1,6 @@
 // src/modules/whatsappmarketing/domain/repositories/whatsapp-message-repository.interface.ts
 // Camada de DOMINIO: define o contrato sem saber que existe Prisma ou Postgres.
+import { StatusEntrega } from '../services/map-delivery-status';
 
 export type WhatsAppMessageDirection = 'IN' | 'OUT';
 
@@ -24,9 +25,12 @@ export interface IWhatsAppMessageRepository {
     body: string;
     timestamp: Date;
     // ID da mensagem no Baileys (msg.key.id) - ver comentario no schema.
-    // So preenchido para mensagens IN (a distincao IN/OUT ja existe via
-    // "direction"); usado para dedupe da recuperacao de historico.
+    // Preenchido tanto em IN (dedupe da recuperacao de historico) quanto em
+    // OUT (correlacionar com messages.update para statusEntrega abaixo).
     baileysMessageId?: string | null;
+    // So relevante em mensagens OUT ("pending" no momento do envio) - ver
+    // comentario no schema. Nulo em IN.
+    statusEntrega?: StatusEntrega | null;
   }): Promise<void>;
   // Ultimas mensagens trocadas com um numero especifico dentro de uma sessao,
   // em ordem cronologica (mais antiga primeiro) - usado pela VIVI para montar
@@ -53,4 +57,15 @@ export interface IWhatsAppMessageRepository {
     sessionId: string,
     baileysMessageIds: string[],
   ): Promise<string[]>;
+  // Confirmacao de entrega (evento messages.update do Baileys, ver
+  // BaileysWhatsAppProvider): atualiza o statusEntrega da mensagem OUT
+  // correspondente a esse baileysMessageId nesta sessao. updateMany (nao
+  // update) de proposito - nao lanca erro se a mensagem ainda nao tiver
+  // sido persistida quando o evento chegar (defensivo contra corrida),
+  // nem se o id nao for reconhecido (mensagem de outra natureza/antiga).
+  updateStatusEntregaByBaileysMessageId(
+    sessionId: string,
+    baileysMessageId: string,
+    statusEntrega: StatusEntrega,
+  ): Promise<void>;
 }

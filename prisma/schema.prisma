@@ -419,14 +419,27 @@ model WhatsAppMessage {
   body       String   @db.Text
   timestamp  DateTime
   createdAt  DateTime @default(now()) @map("created_at")
-  // ID da mensagem no proprio Baileys (msg.key.id) - usado so para dedupe da
+  // ID da mensagem no proprio Baileys (msg.key.id). Dois usos: (1) dedupe da
   // recuperacao de mensagens perdidas durante desconexao (evento
-  // messaging-history.set, ver BaileysWhatsAppProvider): evita reprocessar
-  // uma mensagem que ja chegou normalmente via messages.upsert. Nulo em
-  // mensagens gravadas antes dessa correcao e nas raras mensagens sem
-  // key.id. Sem constraint de unicidade no banco (dedupe e feito por
-  // consulta explicita antes de gravar, nao por conflito de insercao).
+  // messaging-history.set, ver BaileysWhatsAppProvider) - evita reprocessar
+  // uma mensagem que ja chegou normalmente via messages.upsert; (2) em
+  // mensagens OUT, correlacionar com os eventos de confirmacao de entrega
+  // (messages.update) para preencher statusEntrega abaixo. Nulo em
+  // mensagens gravadas antes dessas correcoes e nas raras mensagens sem
+  // key.id. Sem constraint de unicidade no banco (dedupe/correlacao sao
+  // feitos por consulta explicita, nao por conflito de insercao).
   baileysMessageId String? @map("baileys_message_id") @db.VarChar(255)
+  // Progresso de entrega (evento messages.update do Baileys, ver
+  // map-delivery-status.ts): "pending" (aceito pelo nosso socket, ainda sem
+  // confirmacao) -> "server_ack" (servidor do WhatsApp recebeu) ->
+  // "delivery_ack" (aparelho do destinatario recebeu) -> "read" (lido, ou
+  // ouvido no caso de audio). "failed" para o status ERROR do proprio
+  // Baileys. So faz sentido para mensagens OUT - IN fica sempre nulo (nao
+  // ha "confirmacao de entrega" de algo que ja chegou). Nulo tambem em
+  // mensagens OUT gravadas antes desta correcao existir. SEM logica de
+  // retry/correcao automatica nesta fatia - so captura e registro (ver
+  // CLAUDE.md).
+  statusEntrega String? @map("status_entrega") @db.VarChar(20)
 
   tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session WhatsAppSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

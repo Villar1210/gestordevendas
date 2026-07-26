@@ -2,7 +2,7 @@
 // Camada de INFRA: adapta o contrato de dominio (IWhatsAppProvider) para a
 // biblioteca nao-oficial Baileys (conexao via QR Code). Ver CLAUDE.md
 // "Decisao tecnica: Integracao WhatsApp" - nao misturar com a API oficial da Meta.
-import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -25,6 +25,7 @@ import {
   RecoverableHistoryCandidate,
   selectRecoverableHistoryMessages,
 } from '../../domain/services/select-recoverable-history-messages';
+import { mapBaileysAckStatusToStatusEntrega } from '../../domain/services/map-delivery-status';
 import { IWhatsAppSessionRepository } from '../../domain/repositories/whatsapp-session-repository.interface';
 import { IWhatsAppMessageRepository } from '../../domain/repositories/whatsapp-message-repository.interface';
 
@@ -58,6 +59,10 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
   // CLAUDE.md). Nao alterar sem ter certeza do impacto na verbosidade de
   // producao.
   private readonly logger = pino({ level: 'silent' });
+  // Logger do NestJS (independente do pino acima, que so serve pra
+  // silenciar o RUIDO interno do Baileys) - usado para os eventos que
+  // QUEREMOS ver no log de producao, como a confirmacao de entrega abaixo.
+  private readonly appLogger = new Logger(BaileysWhatsAppProvider.name);
 
   constructor(
     @Inject('IWhatsAppSessionRepository')
@@ -253,6 +258,39 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
         }
       }
     });
+
+    // Confirmacao de entrega (ver CLAUDE.md "sem o ACK, os dois casos sao
+    // indistinguiveis..."): so registra o progresso (pending -> server_ack
+    // -> delivery_ack -> read/failed) via statusEntrega - SEM nenhuma
+    // logica de retry/correcao automatica nesta fatia. Cada mensagem do
+    // lote e independente (mesmo padrao de try/catch dos listeners acima).
+    sock.ev.on('messages.update', async (updates) => {
+      for (const { key, update } of updates) {
+        try {
+          const baileysMessageId = key.id;
+          if (!baileysMessageId || typeof update.status !== 'number') continue;
+
+          const statusEntrega = mapBaileysAckStatusToStatusEntrega(update.status);
+          if (!statusEntrega) continue;
+
+          await this.messageRepository.updateStatusEntregaByBaileysMessageId(
+            sessionId,
+            baileysMessageId,
+            statusEntrega,
+          );
+
+          this.appLogger.log(
+            `[ACK] Mensagem ${baileysMessageId} (sessao ${sessionId}): statusEntrega=${statusEntrega}`,
+          );
+        } catch (err) {
+          this.appLogger.error(
+            `[ACK] Falha ao registrar confirmacao de entrega (sessao ${sessionId}, key ${key.id}): ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
+        }
+      }
+    });
   }
 
   // Filtros + persistencia compartilhados entre o recebimento ao vivo
@@ -359,7 +397,7 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
     // ENVIO em si (sock.sendMessage) SEMPRE usa este "jid" - nunca o
     // "phoneNumber" abaixo, que so afeta o que fica gravado no banco.
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-    await sock.sendMessage(jid, { text: body });
+    const sentMessage = await sock.sendMessage(jid, { text: body });
 
     const session = await this.sessionRepository.findById(sessionId);
     await this.messageRepository.create({
@@ -393,6 +431,13 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
       toNumber: phoneNumber ?? extractPhoneNumber(jid),
       body,
       timestamp: new Date(),
+      // sock.sendMessage() retorna a propria mensagem construida (com o
+      // key.id gerado pelo Baileys) - guardado aqui para correlacionar com
+      // os eventos futuros de messages.update (ver listener em connect()).
+      // "pending" porque nesse ponto so sabemos que o socket aceitou enviar
+      // a stanza - ainda nao ha confirmacao alguma do servidor/destinatario.
+      baileysMessageId: sentMessage?.key.id ?? null,
+      statusEntrega: 'pending',
     });
   }
 
