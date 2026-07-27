@@ -69,6 +69,7 @@ export interface IAtendimentoRepository {
       motivoFechamento: string | null;
       closedAt: Date | null;
       urgente: boolean;
+      escalonamentoNotificadoEm: Date | null;
     }>,
   ): Promise<AtendimentoRecord>;
   findAllByTenant(tenantId: string, filter: ListAtendimentosFilter): Promise<AtendimentoWithNames[]>;

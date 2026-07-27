@@ -43,6 +43,12 @@ export class RequeueAtendimentoUseCase {
     const updated = await this.atendimentoRepository.update(atendimento.id, {
       ownerId: null,
       status: 'aguardando',
+      // Auditoria (achado I6): sem isso, um atendimento ja escalonado uma vez
+      // fica permanentemente invisivel a EscalonarAtendimentosSemDonoUseCase
+      // (filtro escalonamentoNotificadoEm: null, sem janela de tempo - ver
+      // findAguardandoSemDonoNaoEscalonados) mesmo devolvido e ficando sem
+      // dono de novo depois.
+      escalonamentoNotificadoEm: null,
     });
 
     await this.eventoRepository.create({

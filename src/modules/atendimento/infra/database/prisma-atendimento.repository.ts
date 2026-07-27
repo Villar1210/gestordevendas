@@ -59,6 +59,7 @@ export class PrismaAtendimentoRepository implements IAtendimentoRepository {
       status: string;
       motivoFechamento: string | null;
       closedAt: Date | null;
+      escalonamentoNotificadoEm: Date | null;
     }>,
   ): Promise<AtendimentoRecord> {
     return this.prisma.atendimento.update({ where: { id }, data });
