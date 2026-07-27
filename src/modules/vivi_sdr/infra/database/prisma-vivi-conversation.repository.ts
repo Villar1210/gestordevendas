@@ -1,7 +1,9 @@
 // src/modules/vivi_sdr/infra/database/prisma-vivi-conversation.repository.ts
 // Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../config/prisma.service';
+import { UniqueConstraintViolationError } from '../../../../shared/domain/errors/unique-constraint-violation.error';
 import {
   IViviConversationRepository,
   ViviConversationRecord,
@@ -17,14 +19,27 @@ export class PrismaViviConversationRepository implements IViviConversationReposi
     whatsappSessionId: string;
     phoneNumber: string;
   }): Promise<ViviConversationRecord> {
-    const record = await this.prisma.viviConversation.create({
-      data: {
-        tenantId: input.tenantId,
-        whatsappSessionId: input.whatsappSessionId,
-        phoneNumber: input.phoneNumber,
-      },
-    });
-    return record as ViviConversationRecord;
+    try {
+      const record = await this.prisma.viviConversation.create({
+        data: {
+          tenantId: input.tenantId,
+          whatsappSessionId: input.whatsappSessionId,
+          phoneNumber: input.phoneNumber,
+        },
+      });
+      return record as ViviConversationRecord;
+    } catch (error) {
+      // Indice unico parcial "vivi_conversations_active_session_phone_key"
+      // (ver schema.prisma) - mensagem concorrente do mesmo lead ja criou a
+      // conversa "em_andamento" entre o find e este create (ver
+      // ProcessIncomingMessageUseCase.findOrCreateConversation).
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new UniqueConstraintViolationError(
+          'Ja existe uma ViviConversation em_andamento para esta sessao+telefone.',
+        );
+      }
+      throw error;
+    }
   }
 
   async findActiveBySessionAndPhone(

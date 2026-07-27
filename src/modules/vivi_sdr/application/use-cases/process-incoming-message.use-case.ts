@@ -37,6 +37,7 @@ import {
 } from '../../../gestao_imobiliaria/application/use-cases/buscar-empreendimento-por-endereco.use-case';
 import { IEnderecoBuscaLogRepository } from '../../domain/repositories/endereco-busca-log-repository.interface';
 import { ehPedidoDeOptOut } from '../../../vendas_kanban/domain/services/repique-optout-detector';
+import { UniqueConstraintViolationError } from '../../../../shared/domain/errors/unique-constraint-violation.error';
 
 // Nome fixo da coluna de deposito estrategico de leads sem perfil de renda
 // para nenhuma faixa de financiamento hoje - ver
@@ -456,11 +457,37 @@ export class ProcessIncomingMessageUseCase {
       return existing;
     }
 
-    return this.viviConversationRepository.create({
-      tenantId: input.tenantId,
-      whatsappSessionId: input.sessionId,
-      phoneNumber: input.phoneNumber,
-    });
+    try {
+      return await this.viviConversationRepository.create({
+        tenantId: input.tenantId,
+        whatsappSessionId: input.sessionId,
+        phoneNumber: input.phoneNumber,
+      });
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationError) {
+        // Race condition (achado C2): uma mensagem concorrente do mesmo
+        // lead ja criou a ViviConversation entre o find acima e este create
+        // (indice unico parcial "vivi_conversations_active_session_phone_key",
+        // ver schema.prisma) - busca de novo a conversa ja criada por ela em
+        // vez de propagar o erro ou duplicar. NUNCA descarta a mensagem
+        // atual: o processamento continua normalmente sobre a conversa
+        // retornada aqui.
+        const concorrente = await this.viviConversationRepository.findActiveBySessionAndPhone(
+          input.sessionId,
+          input.phoneNumber,
+        );
+        if (concorrente) {
+          this.logger.log(
+            `[VIVI] Corrida detectada para ${input.phoneNumber} (sessao ${input.sessionId}) - reaproveitando conversa ${concorrente.id} criada por mensagem concorrente.`,
+          );
+          return concorrente;
+        }
+        // Extremamente improvavel (ex: a conversa concorrente mudou de
+        // status no intervalo entre o catch e este refetch) - deixa
+        // propagar em vez de arriscar um loop de retry.
+      }
+      throw error;
+    }
   }
 
   private async buildHistory(

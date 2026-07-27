@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../config/prisma.service';
+import { UniqueConstraintViolationError } from '../../../../shared/domain/errors/unique-constraint-violation.error';
 import {
   IAtendimentoRepository,
   AtendimentoRecord,
@@ -20,7 +21,20 @@ export class PrismaAtendimentoRepository implements IAtendimentoRepository {
     remoteJid: string;
     phoneNumber: string;
   }): Promise<AtendimentoRecord> {
-    return this.prisma.atendimento.create({ data: input });
+    try {
+      return await this.prisma.atendimento.create({ data: input });
+    } catch (error) {
+      // Indice unico parcial "atendimentos_active_session_remote_jid_key"
+      // (ver schema.prisma) - mensagem concorrente do mesmo lead ja criou o
+      // atendimento aberto entre o find e este create (ver
+      // GetOrCreateAtendimentoUseCase).
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new UniqueConstraintViolationError(
+          'Ja existe um Atendimento aberto para esta sessao+remoteJid.',
+        );
+      }
+      throw error;
+    }
   }
 
   async findActiveBySessionAndRemoteJid(

@@ -452,6 +452,17 @@ model WhatsAppMessage {
 // Guarda o que ja foi coletado do lead e o status do atendimento. Quando
 // a VIVI decide transferir para um corretor humano, cardId e preenchido
 // com o Card criado na Caixa de Entrada (origem "roleta_online").
+// Auditoria de seguranca/integridade (achado C2, 26/07/2026): existe um
+// indice UNICO PARCIAL no banco - "vivi_conversations_active_session_phone_key",
+// UNIQUE (whatsapp_session_id, phone_number) WHERE status = 'em_andamento'
+// (ver migration 20260727024940_add_race_condition_unique_indexes) - o
+// Prisma DSL nao expressa indice unico parcial/filtrado nativamente, por
+// isso NAO aparece como @@unique aqui, mas o Postgres rejeita a violacao
+// normalmente e o Prisma Client reporta como P2002 (ver findOrCreateConversation
+// em process-incoming-message.use-case.ts, que trata esse erro). So pode
+// existir 1 conversa "em_andamento" por sessao+telefone - conversas ja
+// finalizadas/encaminhadas continuam coexistindo livremente (nao violam o
+// indice, ja que o WHERE so cobre status='em_andamento').
 model ViviConversation {
   id                    String    @id @default(uuid()) @db.Uuid
   tenantId              String    @map("tenant_id") @db.Uuid
@@ -536,6 +547,17 @@ model FilaUsuario {
 // SEM VIVI ativa, ou quando a propria VIVI decide que a duvida nao e de
 // venda (tool "transferir_para_fila" - ver ProcessIncomingMessageUseCase
 // no modulo vivi_sdr).
+//
+// Auditoria de seguranca/integridade (achado C2, 26/07/2026): existe um
+// indice UNICO PARCIAL no banco - "atendimentos_active_session_remote_jid_key",
+// UNIQUE (whatsapp_session_id, remote_jid) WHERE status != 'fechado' (ver
+// migration 20260727024940_add_race_condition_unique_indexes). Mesmo motivo
+// do ViviConversation acima: nao expressavel como @@unique no Prisma DSL,
+// mas o Postgres rejeita a violacao e o Prisma Client reporta P2002 (ver
+// GetOrCreateAtendimentoUseCase, que trata esse erro). So pode existir 1
+// atendimento ABERTO por sessao+remoteJid - atendimentos fechados nunca
+// reabrem (ver auditoria anterior), entao um novo Atendimento nasce
+// legitimamente depois que o anterior fecha, sem violar o indice.
 model Atendimento {
   id                        String    @id @default(uuid()) @db.Uuid
   tenantId                  String    @map("tenant_id") @db.Uuid
@@ -625,6 +647,17 @@ model Stage {
 // e opcional: nulo significa que o card esta na Caixa de Entrada, ainda
 // sem coluna e sem dono. "position" e Float pelo mesmo motivo do Stage
 // (algoritmo de posicionamento flutuante).
+//
+// Auditoria de seguranca/integridade (achado C2, 26/07/2026): existe um
+// indice UNICO PARCIAL no banco - "cards_captura_auto_vivi_tenant_phone_key",
+// UNIQUE (tenant_id, phone) WHERE origem = 'captura_auto_vivi' (ver
+// migration 20260727024940_add_race_condition_unique_indexes). Escopado
+// SOMENTE a origem="captura_auto_vivi" de proposito - Cards manuais/outras
+// origens continuam sem nenhuma restricao de unicidade por telefone (um
+// cliente pode legitimamente ter varios Cards ao longo do tempo, isso e uso
+// normal do Kanban). Nao expressavel como @@unique no Prisma DSL (indice
+// parcial), mas o Postgres rejeita a violacao e o Prisma Client reporta
+// P2002 (ver CapturarLeadMinimoUseCase, que trata esse erro).
 model Card {
   id                         String    @id @default(uuid()) @db.Uuid
   tenantId                   String    @map("tenant_id") @db.Uuid

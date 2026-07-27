@@ -60,6 +60,13 @@ export interface CardRecord {
 }
 
 export interface ICardRepository {
+  // Lanca UniqueConstraintViolationError (ver shared/domain/errors) se
+  // origem="captura_auto_vivi" e ja existir um Card de captura automatica
+  // para este tenant+telefone (indice unico parcial, ver schema.prisma) -
+  // protege contra mensagens concorrentes do mesmo lead criando Cards
+  // duplicados (achado C2). Cards de outras origens nunca disparam esse
+  // erro. Ver CapturarLeadMinimoUseCase para o tratamento (busca de novo em
+  // vez de propagar).
   create(input: {
     tenantId: string;
     pipelineId: string;

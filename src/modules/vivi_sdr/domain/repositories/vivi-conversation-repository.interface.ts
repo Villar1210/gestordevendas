@@ -56,6 +56,12 @@ export interface ViviConversationUpdateInput {
 }
 
 export interface IViviConversationRepository {
+  // Lanca UniqueConstraintViolationError (ver shared/domain/errors) se ja
+  // existir uma conversa "em_andamento" para esta sessao+telefone (indice
+  // unico parcial, ver schema.prisma) - protege contra mensagens
+  // concorrentes do mesmo lead criando conversas duplicadas (achado C2).
+  // Ver ProcessIncomingMessageUseCase.findOrCreateConversation para o
+  // tratamento (busca de novo em vez de propagar).
   create(input: {
     tenantId: string;
     whatsappSessionId: string;

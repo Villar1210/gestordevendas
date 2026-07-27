@@ -41,6 +41,12 @@ export interface ListAtendimentosFilter {
 }
 
 export interface IAtendimentoRepository {
+  // Lanca UniqueConstraintViolationError (ver shared/domain/errors) se ja
+  // existir um atendimento ABERTO (status != 'fechado') para esta
+  // sessao+remoteJid (indice unico parcial, ver schema.prisma) - protege
+  // contra mensagens concorrentes do mesmo lead criando atendimentos
+  // duplicados (achado C2). Ver GetOrCreateAtendimentoUseCase para o
+  // tratamento (busca de novo em vez de propagar).
   create(input: {
     tenantId: string;
     whatsappSessionId: string;

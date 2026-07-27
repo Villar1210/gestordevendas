@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
 import { Prisma } from '../../../../generated/prisma/client';
+import { UniqueConstraintViolationError } from '../../../../shared/domain/errors/unique-constraint-violation.error';
 import {
   ICardRepository,
   CardRecord,
@@ -106,26 +107,39 @@ export class PrismaCardRepository implements ICardRepository {
     motivoRepique?: string | null;
     movidoParaRepiqueEm?: Date | null;
   }): Promise<CardRecord> {
-    const row = await this.prisma.card.create({
-      data: {
-        tenantId: input.tenantId,
-        pipelineId: input.pipelineId,
-        stageId: input.stageId ?? null,
-        ownerId: input.ownerId ?? null,
-        imovelId: input.imovelId ?? null,
-        title: input.title,
-        value: input.value ?? 0,
-        position: input.position,
-        origem: input.origem ?? 'manual',
-        phone: input.phone ?? null,
-        temperatura: input.temperatura ?? null,
-        description: input.description ?? null,
-        customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
-        motivoRepique: input.motivoRepique ?? null,
-        movidoParaRepiqueEm: input.movidoParaRepiqueEm ?? null,
-      },
-    });
-    return this.toRecord(row);
+    try {
+      const row = await this.prisma.card.create({
+        data: {
+          tenantId: input.tenantId,
+          pipelineId: input.pipelineId,
+          stageId: input.stageId ?? null,
+          ownerId: input.ownerId ?? null,
+          imovelId: input.imovelId ?? null,
+          title: input.title,
+          value: input.value ?? 0,
+          position: input.position,
+          origem: input.origem ?? 'manual',
+          phone: input.phone ?? null,
+          temperatura: input.temperatura ?? null,
+          description: input.description ?? null,
+          customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
+          motivoRepique: input.motivoRepique ?? null,
+          movidoParaRepiqueEm: input.movidoParaRepiqueEm ?? null,
+        },
+      });
+      return this.toRecord(row);
+    } catch (error) {
+      // Indice unico parcial "cards_captura_auto_vivi_tenant_phone_key"
+      // (ver schema.prisma) - so pode disparar quando origem="captura_auto_vivi"
+      // (ver CapturarLeadMinimoUseCase); Cards de outras origens nunca violam
+      // esse indice, ja que o WHERE do indice nao os cobre.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new UniqueConstraintViolationError(
+          'Ja existe um Card de captura automatica para este tenant+telefone.',
+        );
+      }
+      throw error;
+    }
   }
 
   async findById(id: string): Promise<CardRecord | null> {
