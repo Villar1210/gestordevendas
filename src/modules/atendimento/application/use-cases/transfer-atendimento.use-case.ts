@@ -5,6 +5,8 @@ import {
   AtendimentoRecord,
 } from '../../domain/repositories/atendimento-repository.interface';
 import { IAtendimentoEventoRepository } from '../../domain/repositories/atendimento-evento-repository.interface';
+import { IFilaRepository } from '../../domain/repositories/fila-repository.interface';
+import { IUserRepository } from '../../../auth/domain/repositories/user-repository.interface';
 
 interface TransferAtendimentoInput {
   tenantId: string;
@@ -23,6 +25,10 @@ export class TransferAtendimentoUseCase {
     private readonly atendimentoRepository: IAtendimentoRepository,
     @Inject('IAtendimentoEventoRepository')
     private readonly eventoRepository: IAtendimentoEventoRepository,
+    @Inject('IFilaRepository')
+    private readonly filaRepository: IFilaRepository,
+    @Inject('IUserRepository')
+    private readonly userRepository: IUserRepository,
   ) {}
 
   async execute(input: TransferAtendimentoInput): Promise<AtendimentoRecord> {
@@ -42,6 +48,24 @@ export class TransferAtendimentoUseCase {
     }
     if (input.requesterRole !== 'Administrador' && atendimento.ownerId !== input.requesterId) {
       throw new ForbiddenException('Apenas o Administrador ou o dono do atendimento pode transferi-lo.');
+    }
+
+    // Auditoria de seguranca (achado I1): sem isso, um dono de atendimento
+    // (nao-Admin) podia transferir para qualquer UUID arbitrario, inclusive
+    // de outro tenant - quebrando isolamento multitenant a nivel de dado
+    // (Atendimento.ownerId/filaId nao tem FK formal, ver schema.prisma).
+    // Mesmo padrao de validacao ja usado em AddUsuarioToFilaUseCase.
+    if (input.novoFilaId) {
+      const fila = await this.filaRepository.findByIdAndTenant(input.novoFilaId, input.tenantId);
+      if (!fila) {
+        throw new NotFoundException('Fila de destino nao encontrada.');
+      }
+    }
+    if (input.novoOwnerId) {
+      const novoOwner = await this.userRepository.findById(input.novoOwnerId);
+      if (!novoOwner || novoOwner.tenantId !== input.tenantId) {
+        throw new NotFoundException('Agente de destino nao encontrado.');
+      }
     }
 
     const updated = await this.atendimentoRepository.update(atendimento.id, {
