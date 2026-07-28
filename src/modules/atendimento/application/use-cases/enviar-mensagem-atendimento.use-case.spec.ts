@@ -11,7 +11,7 @@
 // (isOwner OU Administrador) - por isso o use case passou a exigir
 // requesterId/requesterRole, e o teste original abaixo foi atualizado para
 // passar esses campos (dono do atendimento) sem mudar o que ja testava.
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, ConflictException } from '@nestjs/common';
 import { EnviarMensagemAtendimentoUseCase } from './enviar-mensagem-atendimento.use-case';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
@@ -136,5 +136,31 @@ describe('EnviarMensagemAtendimentoUseCase - checagem de escopo (achado I2)', ()
         body: 'Mensagem.',
       }),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('BLOQUEIA enviar mensagem em atendimento ja fechado (achado I2b), mesmo sendo o dono', async () => {
+    const { useCase, atendimentoRepository, sendWhatsAppMessageUseCase } = setup();
+    atendimentoRepository.findByIdAndTenant.mockResolvedValue(
+      buildAtendimentoRecord({
+        id: 'atendimento-1',
+        whatsappSessionId: 'session-1',
+        remoteJid: '5511999990000@s.whatsapp.net',
+        phoneNumber: '5511999990000',
+        ownerId: 'dono-1',
+        status: 'fechado',
+      }),
+    );
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        atendimentoId: 'atendimento-1',
+        requesterId: 'dono-1',
+        requesterRole: 'Corretor',
+        body: 'Mensagem tardia.',
+      }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(sendWhatsAppMessageUseCase.execute).not.toHaveBeenCalled();
   });
 });

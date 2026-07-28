@@ -2,7 +2,7 @@
 // Envia uma mensagem de resposta dentro de um Atendimento - reaproveita
 // SendWhatsAppMessageUseCase (modulo whatsappmarketing), que ja cuida de
 // checar a sessao/enviar via Baileys/persistir o WhatsAppMessage OUT.
-import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
 
@@ -40,6 +40,12 @@ export class EnviarMensagemAtendimentoUseCase {
     // so o dono do atendimento ou o Administrador podem agir.
     if (input.requesterRole !== 'Administrador' && atendimento.ownerId !== input.requesterId) {
       throw new ForbiddenException('Apenas o Administrador ou o dono do atendimento pode enviar mensagem.');
+    }
+    // Auditoria de seguranca (achado I2b): mesmo padrao ja usado em
+    // CloseAtendimentoUseCase/TransferAtendimentoUseCase/RequeueAtendimentoUseCase -
+    // nenhuma acao em atendimento ja fechado.
+    if (atendimento.status === 'fechado') {
+      throw new ConflictException('Este atendimento ja foi fechado.');
     }
 
     await this.sendWhatsAppMessageUseCase.execute({

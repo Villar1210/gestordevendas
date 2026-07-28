@@ -5,7 +5,7 @@
 // CloseAtendimentoUseCase/TransferAtendimentoUseCase/RequeueAtendimentoUseCase
 // (isOwner OU Administrador). Unitario: o que importa e o BRANCHING de
 // autorizacao, nao persistencia real.
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, ConflictException } from '@nestjs/common';
 import { AddNotaAtendimentoUseCase } from './add-nota-atendimento.use-case';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import { IAtendimentoEventoRepository } from '../../domain/repositories/atendimento-evento-repository.interface';
@@ -94,5 +94,27 @@ describe('AddNotaAtendimentoUseCase - checagem de escopo (achado I2)', () => {
         texto: 'Nota.',
       }),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('BLOQUEIA adicionar nota em atendimento ja fechado (achado I2b), mesmo sendo o dono', async () => {
+    const { useCase, atendimentoRepository, eventoRepository } = setup();
+    atendimentoRepository.findByIdAndTenant.mockResolvedValue({
+      id: 'atendimento-1',
+      tenantId: 'tenant-1',
+      status: 'fechado',
+      ownerId: 'dono-1',
+    });
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        atendimentoId: 'atendimento-1',
+        userId: 'dono-1',
+        requesterRole: 'Corretor',
+        texto: 'Nota tardia.',
+      }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(eventoRepository.create).not.toHaveBeenCalled();
   });
 });

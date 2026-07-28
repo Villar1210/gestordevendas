@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/add-nota-atendimento.use-case.ts
-import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import {
   IAtendimentoEventoRepository,
@@ -41,6 +41,12 @@ export class AddNotaAtendimentoUseCase {
     // so o dono do atendimento ou o Administrador podem agir.
     if (input.requesterRole !== 'Administrador' && atendimento.ownerId !== input.userId) {
       throw new ForbiddenException('Apenas o Administrador ou o dono do atendimento pode adicionar uma nota.');
+    }
+    // Auditoria de seguranca (achado I2b): mesmo padrao ja usado em
+    // CloseAtendimentoUseCase/TransferAtendimentoUseCase/RequeueAtendimentoUseCase -
+    // nenhuma acao em atendimento ja fechado.
+    if (atendimento.status === 'fechado') {
+      throw new ConflictException('Este atendimento ja foi fechado.');
     }
 
     return this.eventoRepository.create({
