@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/add-nota-atendimento.use-case.ts
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import {
   IAtendimentoEventoRepository,
@@ -10,6 +10,7 @@ interface AddNotaAtendimentoInput {
   tenantId: string;
   atendimentoId: string;
   userId: string;
+  requesterRole: string;
   texto: string;
 }
 
@@ -34,6 +35,12 @@ export class AddNotaAtendimentoUseCase {
     );
     if (!atendimento) {
       throw new NotFoundException('Atendimento nao encontrado.');
+    }
+    // Auditoria de seguranca (achado I2): mesmo padrao ja usado em
+    // CloseAtendimentoUseCase/TransferAtendimentoUseCase/RequeueAtendimentoUseCase -
+    // so o dono do atendimento ou o Administrador podem agir.
+    if (input.requesterRole !== 'Administrador' && atendimento.ownerId !== input.userId) {
+      throw new ForbiddenException('Apenas o Administrador ou o dono do atendimento pode adicionar uma nota.');
     }
 
     return this.eventoRepository.create({

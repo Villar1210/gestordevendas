@@ -125,6 +125,7 @@ export class AtendimentoController {
       tenantId: req.user!.tenantId,
       atendimentoId: id,
       userId: req.user!.id,
+      requesterRole: req.user!.role,
       texto: dto.texto,
     });
   }
@@ -139,6 +140,8 @@ export class AtendimentoController {
     await this.enviarMensagemAtendimentoUseCase.execute({
       tenantId: req.user!.tenantId,
       atendimentoId: id,
+      requesterId: req.user!.id,
+      requesterRole: req.user!.role,
       body: dto.body,
     });
     return { ok: true };
