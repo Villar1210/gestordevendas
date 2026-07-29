@@ -1209,6 +1209,10 @@ model ViviConfig {
   faixa4TetoFinanciamento String?  @default("R$ 600 mil") @map("faixa4_teto_financiamento") @db.VarChar(100)
   faixa4ExemploParcela    String?  @map("faixa4_exemplo_parcela") @db.VarChar(300)
 
+  // Modulo Kanban - Indicador de Deal Parado (Rotting) (Fatia 2)
+  diasParaRotting         Int     @default(30) @map("dias_para_rotting")
+  ativaRotatingIndicador  Boolean @default(true) @map("ativa_rotating_indicador")
+
   updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

@@ -4,8 +4,10 @@ import { Draggable } from "@hello-pangea/dnd";
 import { MessageCircle, Clock, Send } from "lucide-react";
 import { Card, useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
+import { useRotatingConfig } from "../hooks/useRotatingConfig";
 import { REPIQUE_STAGE_NAME } from "../constants";
 import { ProximaAtividadeBadge } from "./ProximaAtividadeBadge";
+import { RotatingIndicator } from "./RotatingIndicator";
 import { OwnerAvatar } from "./OwnerAvatar";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -51,6 +53,7 @@ export function KanbanCard({ card, index, isDragDisabled, stageName }: KanbanCar
   const isHighlighted = useKanbanStore((state) => state.highlightedCardId === card.id);
   const meuUserId = useKanbanStore((state) => state.meuUserId);
   const { handleAceitarLead, handleDispararRepique } = useKanbanIntegration();
+  const { config: rotatingConfig } = useRotatingConfig();
   const [isAceitando, setAceitando] = useState(false);
   const [isDisparando, setDisparando] = useState(false);
 
@@ -121,6 +124,12 @@ export function KanbanCard({ card, index, isDragDisabled, stageName }: KanbanCar
             snapshot.isDragging ? "shadow-md" : ""
           } ${isHighlighted ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
         >
+          <RotatingIndicator
+            card={card}
+            diasParaRotting={rotatingConfig.diasParaRotting}
+            ativa={rotatingConfig.ativaRotatingIndicador}
+          />
+
           <div className="mb-2 flex items-start justify-between gap-2">
             <p className="flex-1 text-sm font-medium text-slate-800">{card.title}</p>
             <OwnerAvatar name={card.ownerName} />

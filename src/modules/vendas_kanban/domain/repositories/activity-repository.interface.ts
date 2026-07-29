@@ -59,4 +59,13 @@ export interface IActivityRepository {
   findProximasByCardIds(cardIds: string[]): Promise<
     Array<{ cardId: string; type: string; subject: string | null; scheduledAt: Date }>
   >;
+  // Usado pelo Board/Caixa de Entrada (GetBoardUseCase/GetInboxUseCase) para
+  // o indicador visual de "ultima atividade" no RotatingIndicator (Fatia 2 -
+  // rotting detection), numa unica consulta em lote (evita N+1). Para cada
+  // card, retorna a atividade mais recente (createdAt DESC) ou null se nao
+  // houver nenhuma. Diferente de findProximasByCardIds, retorna a ULTIMA
+  // atividade registrada, nao a proxima agendada.
+  findUltimasByCardIds(cardIds: string[]): Promise<
+    Array<{ cardId: string; ultimaAtividadeEm: Date }>
+  >;
 }

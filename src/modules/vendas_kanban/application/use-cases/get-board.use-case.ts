@@ -121,11 +121,20 @@ export class GetBoardUseCase {
     const proximas = await this.activityRepository.findProximasByCardIds(allCardIds);
     const proximaPorCard = new Map(proximas.map((p) => [p.cardId, p]));
 
+    // Indicador visual de "rotting" (Fatia 2) - ultima atividade registrada
+    // para calculo de dias sem atividade. Mesma abordagem que proximas: uma
+    // unica consulta em lote em vez de uma query por card.
+    const ultimas = await this.activityRepository.findUltimasByCardIds(allCardIds);
+    const ultimaPorCard = new Map(
+      ultimas.map((u) => [u.cardId, u.ultimaAtividadeEm.toISOString()]),
+    );
+
     const stagesComProximaAtividade: BoardStage[] = stagesWithCards.map((stage) => ({
       ...stage,
       cards: stage.cards.map((card) => ({
         ...card,
         proximaAtividade: proximaPorCard.get(card.id) ?? null,
+        ultimaAtividadeEm: ultimaPorCard.get(card.id) ?? null,
       })),
     }));
 

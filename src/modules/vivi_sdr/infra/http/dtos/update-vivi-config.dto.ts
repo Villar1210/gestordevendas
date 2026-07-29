@@ -129,4 +129,12 @@ export class UpdateViviConfigDto {
   @IsString()
   @MaxLength(300)
   faixa4ExemploParcela?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  diasParaRotting?: number;
+
+  @IsOptional()
+  ativaRotatingIndicador?: boolean;
 }

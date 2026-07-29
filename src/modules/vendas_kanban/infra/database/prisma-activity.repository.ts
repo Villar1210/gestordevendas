@@ -130,4 +130,30 @@ export class PrismaActivityRepository implements IActivityRepository {
       scheduledAt: row.scheduledAt as Date,
     }));
   }
+
+  async findUltimasByCardIds(
+    cardIds: string[],
+  ): Promise<Array<{ cardId: string; ultimaAtividadeEm: Date }>> {
+    if (cardIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.activity.findMany({
+      where: { cardId: { in: cardIds } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Para cada cardId, pegar apenas a primeira atividade (mais recente por createdAt)
+    const porCard = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      if (!porCard.has(row.cardId)) {
+        porCard.set(row.cardId, row);
+      }
+    }
+
+    return Array.from(porCard.values()).map((row) => ({
+      cardId: row.cardId,
+      ultimaAtividadeEm: row.createdAt,
+    }));
+  }
 }

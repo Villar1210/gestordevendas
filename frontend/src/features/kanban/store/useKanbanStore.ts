@@ -40,6 +40,12 @@ export interface Card {
   // mais proxima no futuro. So vem preenchida pelo Board e pela Caixa de
   // Entrada (ver ProximaAtividadeBadge.tsx).
   proximaAtividade: { type: string; subject: string | null; scheduledAt: string } | null;
+  // Timestamps para calculo de rotting (dias sem atividade) - Fatia 2
+  createdAt: string;
+  updatedAt: string;
+  // Data/hora da ultima atividade registrada no backend (Activity.createdAt
+  // da atividade mais recente). Null se o card nao tem nenhuma atividade.
+  ultimaAtividadeEm: string | null;
 }
 
 export interface Stage {

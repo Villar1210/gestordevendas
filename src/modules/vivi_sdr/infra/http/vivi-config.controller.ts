@@ -59,6 +59,8 @@ export class ViviConfigController {
       faixa4JurosMax: dto.faixa4JurosMax ?? null,
       faixa4TetoFinanciamento: dto.faixa4TetoFinanciamento ?? null,
       faixa4ExemploParcela: dto.faixa4ExemploParcela ?? null,
+      diasParaRotting: dto.diasParaRotting ?? undefined,
+      ativaRotatingIndicador: dto.ativaRotatingIndicador ?? undefined,
     });
   }
 }

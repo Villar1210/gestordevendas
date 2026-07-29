@@ -48,6 +48,10 @@ export class UpdateViviConfigUseCase {
       throw new BadRequestException('O preco minimo precisa ser maior que zero.');
     }
 
+    if (input.diasParaRotting !== undefined && input.diasParaRotting <= 0) {
+      throw new BadRequestException('Os dias para rotting precisam ser maiores que zero.');
+    }
+
     for (const [faixa, min, max] of [
       ['Faixa 1', input.faixa1JurosMin, input.faixa1JurosMax],
       ['Faixa 2', input.faixa2JurosMin, input.faixa2JurosMax],

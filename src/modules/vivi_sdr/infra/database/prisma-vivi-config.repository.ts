@@ -39,6 +39,8 @@ type PrismaViviConfig = {
   faixa4JurosMax: DecimalLike;
   faixa4TetoFinanciamento: string | null;
   faixa4ExemploParcela: string | null;
+  diasParaRotting: number;
+  ativaRotatingIndicador: boolean;
   updatedAt: Date;
 };
 
@@ -80,6 +82,8 @@ export class PrismaViviConfigRepository implements IViviConfigRepository {
       faixa4JurosMax: toNumberOrNull(config.faixa4JurosMax),
       faixa4TetoFinanciamento: config.faixa4TetoFinanciamento,
       faixa4ExemploParcela: config.faixa4ExemploParcela,
+      diasParaRotting: config.diasParaRotting,
+      ativaRotatingIndicador: config.ativaRotatingIndicador,
       updatedAt: config.updatedAt,
     };
   }

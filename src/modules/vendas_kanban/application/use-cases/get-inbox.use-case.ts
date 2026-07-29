@@ -36,14 +36,21 @@ export class GetInboxUseCase {
 
     // Indicador visual de "proxima atividade agendada" (InboxView) - uma
     // unica consulta em lote, mesmo padrao ja usado em GetBoardUseCase.
-    const proximas = await this.activityRepository.findProximasByCardIds(
-      cards.map((card) => card.id),
-    );
+    const cardIds = cards.map((card) => card.id);
+    const proximas = await this.activityRepository.findProximasByCardIds(cardIds);
     const proximaPorCard = new Map(proximas.map((p) => [p.cardId, p]));
+
+    // Indicador visual de "rotting" (Fatia 2) - ultima atividade registrada
+    // para calculo de dias sem atividade. Mesmo padrao que proximas.
+    const ultimas = await this.activityRepository.findUltimasByCardIds(cardIds);
+    const ultimaPorCard = new Map(
+      ultimas.map((u) => [u.cardId, u.ultimaAtividadeEm.toISOString()]),
+    );
 
     return cards.map((card) => ({
       ...card,
       proximaAtividade: proximaPorCard.get(card.id) ?? null,
+      ultimaAtividadeEm: ultimaPorCard.get(card.id) ?? null,
     }));
   }
 }

@@ -29,6 +29,8 @@ export interface ViviConfigRecord {
   faixa4JurosMax: number | null;
   faixa4TetoFinanciamento: string | null;
   faixa4ExemploParcela: string | null;
+  diasParaRotting: number;
+  ativaRotatingIndicador: boolean;
   updatedAt: Date;
 }
 
@@ -59,6 +61,8 @@ export interface UpdateViviConfigInput {
   faixa4JurosMax: number | null;
   faixa4TetoFinanciamento: string | null;
   faixa4ExemploParcela: string | null;
+  diasParaRotting?: number;
+  ativaRotatingIndicador?: boolean;
 }
 
 export interface IViviConfigRepository {
