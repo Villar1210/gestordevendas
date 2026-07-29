@@ -156,8 +156,12 @@ export class PrismaCardRepository implements ICardRepository {
     const rows = await this.prisma.card.findMany({
       where: { stageId },
       orderBy: { position: 'asc' },
+      include: { owner: { select: { name: true } } },
     });
-    return rows.map((row) => this.toRecord(row));
+    return rows.map((row) => ({
+      ...this.toRecord(row),
+      ownerName: row.owner?.name ?? null,
+    }));
   }
 
   async findAllByPipelineInbox(pipelineId: string): Promise<CardRecord[]> {

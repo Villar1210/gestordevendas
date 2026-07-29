@@ -6,6 +6,7 @@ export interface Card {
   pipelineId: string;
   stageId: string | null;
   ownerId: string | null;
+  ownerName: string | null;
   // Sugestao da Roleta Online (modo semi_automatico) - so vem preenchido
   // pelo GET da Caixa de Entrada. suggestedOwnerName vem junto so ali.
   suggestedOwnerId: string | null;

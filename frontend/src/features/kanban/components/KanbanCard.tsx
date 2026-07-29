@@ -6,6 +6,7 @@ import { Card, useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
 import { REPIQUE_STAGE_NAME } from "../constants";
 import { ProximaAtividadeBadge } from "./ProximaAtividadeBadge";
+import { OwnerAvatar } from "./OwnerAvatar";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -120,7 +121,10 @@ export function KanbanCard({ card, index, isDragDisabled, stageName }: KanbanCar
             snapshot.isDragging ? "shadow-md" : ""
           } ${isHighlighted ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
         >
-          <p className="mb-2 text-sm font-medium text-slate-800">{card.title}</p>
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <p className="flex-1 text-sm font-medium text-slate-800">{card.title}</p>
+            <OwnerAvatar name={card.ownerName} />
+          </div>
 
           <div className="mb-2 flex flex-wrap items-center gap-1">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${origemStyle}`}>
