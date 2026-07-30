@@ -12,6 +12,7 @@ interface ConfirmSuggestedOwnerInput {
   tenantId: string;
   requesterUserId: string;
   requesterRole: string;
+  requesterCargo: string | null;
 }
 
 @Injectable()
@@ -43,6 +44,8 @@ export class ConfirmSuggestedOwnerUseCase {
       cardId: input.cardId,
       tenantId: input.tenantId,
       userId: card.suggestedOwnerId,
+      requesterRole: input.requesterRole,
+      requesterCargo: input.requesterCargo,
     });
 
     // Notifica o corretor que confirmou a sugestao (modulo notificacoes,

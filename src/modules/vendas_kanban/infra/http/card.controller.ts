@@ -137,6 +137,8 @@ export class CardController {
       cardId: id,
       tenantId: req.user!.tenantId,
       userId: req.user!.id,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
     });
   }
 

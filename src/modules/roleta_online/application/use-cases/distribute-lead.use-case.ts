@@ -75,6 +75,13 @@ export class DistributeLeadUseCase {
         cardId: input.cardId,
         tenantId: input.tenantId,
         userId: chosen.id,
+        // onlineCorretores acima ja e filtrado pela role "Corretor" - o
+        // funil de remarketing nunca emite 'card.sem_dono.criado' (ver
+        // CapturarLeadMinimoUseCase), entao esta checagem nunca deveria
+        // bloquear na pratica, so mantida por consistencia/defesa em
+        // profundidade com ClaimCardUseCase.
+        requesterRole: CORRETOR_ROLE_NAME,
+        requesterCargo: null,
       });
       // Marca o momento da atribuicao automatica - inicia a janela de
       // timeout de aceite (ver ProcessRoletaTimeoutsUseCase). Card so

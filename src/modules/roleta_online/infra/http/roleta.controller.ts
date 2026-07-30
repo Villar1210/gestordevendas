@@ -50,6 +50,7 @@ export class RoletaController {
       tenantId: req.user!.tenantId,
       requesterUserId: req.user!.id,
       requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
     });
   }
 
