@@ -4,6 +4,36 @@
   --font-sans: var(--font-inter);
 }
 
+@theme {
+  /* Estágios por índice (paleta neutra-progressiva) */
+  --color-stage-0: rgb(79 90 102);
+  --color-stage-1: rgb(59 130 246);
+  --color-stage-2: rgb(79 70 229);
+  --color-stage-3: rgb(147 51 234);
+  --color-stage-4: rgb(59 130 246);
+
+  /* Estágios protegidos */
+  --color-stage-fechamento: rgb(5 150 105);
+  --color-stage-repique: rgb(217 119 6);
+
+  /* Origem dos leads */
+  --color-origem-manual: rgb(148 163 184);
+  --color-origem-webhook: rgb(37 99 235);
+  --color-origem-roleta: rgb(147 51 234);
+  --color-origem-vivi: rgb(13 148 136);
+
+  /* Temperatura/urgência */
+  --color-temp-quente: rgb(239 68 68);
+  --color-temp-morno: rgb(217 119 6);
+  --color-temp-frio: rgb(3 105 161);
+
+  /* Estados especiais */
+  --color-rotting-warn: rgb(180 83 9);
+  --color-rotting-crit: rgb(185 28 28);
+  --color-activity-future: rgb(37 99 235);
+  --color-activity-overdue: rgb(220 38 38);
+}
+
 body {
   background-color: #f8fafc;
 }
