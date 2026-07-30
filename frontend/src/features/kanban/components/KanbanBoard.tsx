@@ -97,6 +97,7 @@ export function KanbanBoard() {
                   {(providedDraggable) => (
                     <KanbanColumn
                       stage={stage}
+                      stageIndex={index}
                       innerRef={providedDraggable.innerRef}
                       draggableProps={providedDraggable.draggableProps}
                       dragHandleProps={providedDraggable.dragHandleProps}

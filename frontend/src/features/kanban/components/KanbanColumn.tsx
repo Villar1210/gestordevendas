@@ -6,6 +6,7 @@ import { Stage, useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
 import { isProtectedStageName } from "../constants";
 import { KanbanCard } from "./KanbanCard";
+import { getStageColorClass } from "../utils/getStageColor";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -14,6 +15,7 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 
 interface KanbanColumnProps {
   stage: Stage;
+  stageIndex: number;
   innerRef: (element: HTMLElement | null) => void;
   draggableProps: React.HTMLAttributes<HTMLDivElement>;
   dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
@@ -21,6 +23,7 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({
   stage,
+  stageIndex,
   innerRef,
   draggableProps,
   dragHandleProps,
@@ -73,12 +76,14 @@ export function KanbanColumn({
     return matchesSearch && matchesTemperature && matchesOrigem;
   });
 
+  const colorClass = getStageColorClass(stage, stageIndex);
+
   return (
     <div
       ref={innerRef}
       {...draggableProps}
       data-testid={`kanban-column-${stage.name}`}
-      className="flex w-72 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm"
+      className={`flex w-72 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm ${colorClass}`}
     >
       <div {...dragHandleProps} className="group cursor-grab border-b border-slate-200 p-3">
         <div className="flex items-center justify-between gap-2">

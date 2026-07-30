@@ -120,8 +120,8 @@ export function KanbanCard({ card, index, isDragDisabled, stageName }: KanbanCar
           {...provided.dragHandleProps}
           data-card-id={card.id}
           onClick={() => openCardDetailPanel(card)}
-          className={`mb-3 cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition ${
-            snapshot.isDragging ? "shadow-md" : ""
+          className={`mb-3 cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-150 ${
+            snapshot.isDragging ? "shadow-lg" : "hover:shadow-md hover:border-slate-300"
           } ${isHighlighted ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
         >
           <RotatingIndicator
