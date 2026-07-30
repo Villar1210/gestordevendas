@@ -9,6 +9,7 @@ import { useMeuDashboardStore } from "@/features/dashboard-corretor/store/useMeu
 import { useMeuDashboardIntegration } from "@/features/dashboard-corretor/hooks/useMeuDashboardIntegration";
 import { getActivityTypeOption } from "@/core/constants/activityTypes";
 import { getOrigemBadgeOption } from "@/features/dashboard-corretor/constants";
+import { ProximaAtividadeBadge } from "@/features/kanban/components/ProximaAtividadeBadge";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", { timeStyle: "short" });
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
@@ -164,21 +165,26 @@ export default function DashboardInicioPage() {
                     <div
                       key={lead.id}
                       onClick={() => goToCardNoKanban(lead.pipelineId, lead.id)}
-                      className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50/40"
+                      className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50/40"
                     >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-800">{lead.title}</p>
-                        <p className="text-xs text-slate-400">
-                          {lead.stageName ?? "Caixa de Entrada"} -{" "}
-                          {dateFormatter.format(new Date(lead.createdAt))}
-                        </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-800">{lead.title}</p>
+                          <p className="text-xs text-slate-400">
+                            {lead.stageName ?? "Caixa de Entrada"} -{" "}
+                            {dateFormatter.format(new Date(lead.createdAt))}
+                          </p>
+                        </div>
+                        {origemBadge && (
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${origemBadge.className}`}
+                          >
+                            {origemBadge.label}
+                          </span>
+                        )}
                       </div>
-                      {origemBadge && (
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${origemBadge.className}`}
-                        >
-                          {origemBadge.label}
-                        </span>
+                      {lead.proximaAtividade && (
+                        <ProximaAtividadeBadge proximaAtividade={lead.proximaAtividade} />
                       )}
                     </div>
                   );

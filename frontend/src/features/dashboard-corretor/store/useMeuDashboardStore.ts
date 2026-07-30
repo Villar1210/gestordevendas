@@ -18,6 +18,12 @@ export interface AtividadeHoje {
   cardTitle: string;
 }
 
+export interface ProximaAtividade {
+  type: string;
+  subject: string | null;
+  scheduledAt: string;
+}
+
 export interface UltimoLead {
   id: string;
   pipelineId: string;
@@ -26,6 +32,7 @@ export interface UltimoLead {
   stageName: string | null;
   origem: string;
   createdAt: string;
+  proximaAtividade: ProximaAtividade | null;
 }
 
 interface MeuDashboardState {

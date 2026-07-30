@@ -13,7 +13,7 @@ const ULTIMOS_LEADS_LIMIT = 5;
 export interface MeuDashboardResult {
   leadsPorEstagio: Array<{ stageId: string; stageName: string; count: number }>;
   atividadesHoje: ActivityRecord[];
-  ultimosLeads: CardRecord[];
+  ultimosLeads: Array<any>;
 }
 
 // Dashboard individual do Corretor (ou de qualquer dono de card, na
@@ -39,6 +39,18 @@ export class GetMeuDashboardUseCase {
       ),
     ]);
 
+    // Indicador visual de "proxima atividade agendada" (Dashboard do Corretor) -
+    // uma unica consulta em lote com todos os leads retornados, em vez de uma
+    // query por card. Mesmo padrao ja usado em GetBoardUseCase.
+    const allCardIds = ultimosLeads.map((card) => card.id);
+    const proximas = await this.activityRepository.findProximasByCardIds(allCardIds);
+    const proximaPorCard = new Map(proximas.map((p) => [p.cardId, p]));
+
+    const ultimosLeadsComProxima = ultimosLeads.map((card) => ({
+      ...card,
+      proximaAtividade: proximaPorCard.get(card.id) ?? null,
+    }));
+
     return {
       leadsPorEstagio: leadsPorEstagio.map(({ stageId, stageName, count }) => ({
         stageId,
@@ -46,7 +58,7 @@ export class GetMeuDashboardUseCase {
         count,
       })),
       atividadesHoje,
-      ultimosLeads,
+      ultimosLeads: ultimosLeadsComProxima,
     };
   }
 }
