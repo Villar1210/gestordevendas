@@ -2,14 +2,32 @@
 // Cria um card "cru", sem stage e sem dono (Caixa de Entrada). Representa a
 // chegada de um lead ainda nao qualificado - hoje disparado manualmente para
 // testes, no futuro sera o ponto de entrada dos webhooks de redes sociais.
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
+import {
+  REMARKETING_PIPELINE_NOME,
+  podeAcessarPipelineRemarketing,
+} from '../../domain/services/remarketing-pipeline';
 
 interface CreateQuickCardInput {
   tenantId: string;
   pipelineId: string;
+  // Restricao de visibilidade do funil de remarketing (ver
+  // domain/services/remarketing-pipeline.ts) - mesma checagem ja aplicada
+  // em GetBoardUseCase/ClaimCardUseCase/GetInboxUseCase. So relevante para
+  // chamadas humanas (isSystemCall ausente/false) - ver isSystemCall abaixo.
+  requesterRole?: string;
+  requesterCargo?: string | null;
+  // true para chamadores internos de sistema (CapturarLeadMinimoUseCase, que
+  // e o proprio mecanismo que deposita neste funil, e os fluxos da VIVI) -
+  // pula a checagem podeAcessarPipelineRemarketing por completo, mesmo sem
+  // requesterRole/requesterCargo preenchidos. Flag explicita em vez de
+  // reaproveitar requesterRole com um valor fixo tipo 'Administrador': um
+  // bypass escondido dentro de um campo que parece uma role real passaria
+  // despercebido se este use case ganhar um caller humano novo no futuro.
+  isSystemCall?: boolean;
   title: string;
   value?: number;
   origem?: string;
@@ -47,6 +65,14 @@ export class CreateQuickCardUseCase {
     );
     if (!pipeline) {
       throw new NotFoundException('Pipeline nao encontrado.');
+    }
+
+    if (
+      pipeline.name === REMARKETING_PIPELINE_NOME &&
+      !input.isSystemCall &&
+      !podeAcessarPipelineRemarketing(input.requesterRole ?? '', input.requesterCargo ?? null)
+    ) {
+      throw new ForbiddenException('Voce nao tem acesso a este funil.');
     }
 
     const card = await this.cardRepository.create({

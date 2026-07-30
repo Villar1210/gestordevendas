@@ -120,6 +120,8 @@ export class CardController {
     return this.createQuickCardUseCase.execute({
       tenantId: req.user!.tenantId,
       pipelineId: dto.pipelineId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
       title: dto.title,
       value: dto.value,
       origem: dto.origem,

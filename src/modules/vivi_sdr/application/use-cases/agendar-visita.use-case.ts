@@ -87,6 +87,9 @@ export class AgendarVisitaUseCase {
           (await this.createQuickCardUseCase.execute({
             tenantId: input.tenantId,
             pipelineId: pipeline.id,
+            // Chamada de sistema, nao humana - nunca mira o funil de
+            // remarketing (ver domain/services/remarketing-pipeline.ts).
+            isSystemCall: true,
             title: 'Visita agendada via VIVI',
             origem: 'roleta_online',
             phone: input.phoneNumber,

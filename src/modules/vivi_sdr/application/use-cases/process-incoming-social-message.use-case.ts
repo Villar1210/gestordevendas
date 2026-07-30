@@ -481,6 +481,9 @@ export class ProcessIncomingSocialMessageUseCase {
       tenantId: input.tenantId,
       pipelineId: pipeline.id,
       stageId,
+      // Chamada de sistema, nao humana - nunca mira o funil de
+      // remarketing (ver domain/services/remarketing-pipeline.ts).
+      isSystemCall: true,
       title: nome || `Lead via VIVI (${input.canal})`,
       origem: motivo === 'sem_perfil' ? 'vivi_repique' : origemLead(input.canal),
       phone: input.identificadorExterno,

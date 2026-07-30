@@ -66,6 +66,11 @@ export class CapturarLeadMinimoUseCase {
           tenantId: input.tenantId,
           pipelineId,
           stageId,
+          // Chamada de sistema, nao humana - este use case E o proprio
+          // mecanismo que deposita leads no funil de remarketing (ver
+          // domain/services/remarketing-pipeline.ts), pula a checagem de
+          // acesso via isSystemCall.
+          isSystemCall: true,
           title: nome,
           origem: ORIGEM_CAPTURA_AUTOMATICA_VIVI,
           phone: input.phoneNumber,

@@ -667,6 +667,9 @@ export class ProcessIncomingMessageUseCase {
         tenantId: input.tenantId,
         pipelineId: pipeline.id,
         stageId,
+        // Chamada de sistema, nao humana - nunca mira o funil de
+        // remarketing (ver domain/services/remarketing-pipeline.ts).
+        isSystemCall: true,
         title: tituloCard,
         origem,
         phone: input.phoneNumber,
