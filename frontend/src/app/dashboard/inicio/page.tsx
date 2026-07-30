@@ -167,8 +167,8 @@ export default function DashboardInicioPage() {
                       onClick={() => goToCardNoKanban(lead.pipelineId, lead.id)}
                       className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50/40"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-slate-800">{lead.title}</p>
                           <p className="text-xs text-slate-400">
                             {lead.stageName ?? "Caixa de Entrada"} -{" "}

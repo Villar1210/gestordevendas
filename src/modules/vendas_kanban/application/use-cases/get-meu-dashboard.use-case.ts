@@ -13,7 +13,7 @@ const ULTIMOS_LEADS_LIMIT = 5;
 export interface MeuDashboardResult {
   leadsPorEstagio: Array<{ stageId: string; stageName: string; count: number }>;
   atividadesHoje: ActivityRecord[];
-  ultimosLeads: Array<any>;
+  ultimosLeads: CardRecord[];
 }
 
 // Dashboard individual do Corretor (ou de qualquer dono de card, na
