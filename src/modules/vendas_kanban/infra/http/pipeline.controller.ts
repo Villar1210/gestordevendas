@@ -95,6 +95,7 @@ export class PipelineController {
       tenantId: req.user!.tenantId,
       requesterRole: req.user!.role,
       requesterUserId: req.user!.id,
+      requesterCargo: req.user!.cargo,
     });
   }
 
