@@ -2,7 +2,7 @@
 // Envia uma mensagem de resposta dentro de um Atendimento - reaproveita
 // SendWhatsAppMessageUseCase (modulo whatsappmarketing), que ja cuida de
 // checar a sessao/enviar via Baileys/persistir o WhatsAppMessage OUT.
-import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
 
@@ -16,6 +16,8 @@ interface EnviarMensagemAtendimentoInput {
 
 @Injectable()
 export class EnviarMensagemAtendimentoUseCase {
+  private readonly logger = new Logger(EnviarMensagemAtendimentoUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -55,5 +57,8 @@ export class EnviarMensagemAtendimentoUseCase {
       phoneNumber: atendimento.phoneNumber,
       body,
     });
+    // Nao loga o corpo da mensagem (dado sensivel do lead) - so o rastro de
+    // que uma resposta foi enviada e por quem.
+    this.logger.log(`[Atendimento] Mensagem enviada no atendimento ${atendimento.id} por ${input.requesterId}.`);
   }
 }

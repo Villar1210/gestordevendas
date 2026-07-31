@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/transfer-atendimento.use-case.ts
-import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import {
   IAtendimentoRepository,
   AtendimentoRecord,
@@ -20,6 +20,8 @@ interface TransferAtendimentoInput {
 
 @Injectable()
 export class TransferAtendimentoUseCase {
+  private readonly logger = new Logger(TransferAtendimentoUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -84,6 +86,9 @@ export class TransferAtendimentoUseCase {
       detalhe: detalheParts.join(' · '),
     });
 
+    this.logger.log(
+      `[Atendimento] Atendimento ${atendimento.id} transferido por ${input.requesterId} (${detalheParts.join(', ')}).`,
+    );
     return updated;
   }
 }

@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/classify-and-route-atendimento.use-case.ts
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   IAtendimentoRepository,
@@ -23,6 +23,8 @@ interface ClassifyAndRouteAtendimentoInput {
 
 @Injectable()
 export class ClassifyAndRouteAtendimentoUseCase {
+  private readonly logger = new Logger(ClassifyAndRouteAtendimentoUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -48,6 +50,9 @@ export class ClassifyAndRouteAtendimentoUseCase {
       // ou removida pelo tenant) - cria uma nova em vez de falhar a
       // classificacao.
       fila = await this.filaRepository.create({ tenantId: input.tenantId, nome });
+      this.logger.warn(
+        `[Atendimento] Fila "${nome}" nao existia para tenant ${input.tenantId} - criada automaticamente ao classificar atendimento ${atendimento.id}.`,
+      );
     }
 
     const updated = await this.atendimentoRepository.update(atendimento.id, {
@@ -79,6 +84,9 @@ export class ClassifyAndRouteAtendimentoUseCase {
       urgente: !!input.urgente,
     });
 
+    this.logger.log(
+      `[Atendimento] Atendimento ${atendimento.id} classificado na fila "${fila.nome}"${input.urgente ? ' [URGENTE]' : ''}.`,
+    );
     return updated;
   }
 }

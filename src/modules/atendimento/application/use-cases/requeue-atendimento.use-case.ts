@@ -2,7 +2,7 @@
 // Devolve o atendimento para "aguardando" na mesma fila, sem dono - mesma
 // ideia do "requeue" do wacalls-chat (estudado como referencia conceitual,
 // nao copiado - ver CLAUDE.md).
-import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import {
   IAtendimentoRepository,
   AtendimentoRecord,
@@ -18,6 +18,8 @@ interface RequeueAtendimentoInput {
 
 @Injectable()
 export class RequeueAtendimentoUseCase {
+  private readonly logger = new Logger(RequeueAtendimentoUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -57,6 +59,7 @@ export class RequeueAtendimentoUseCase {
       userId: input.requesterId,
     });
 
+    this.logger.log(`[Atendimento] Atendimento ${atendimento.id} devolvido a fila por ${input.requesterId}.`);
     return updated;
   }
 }

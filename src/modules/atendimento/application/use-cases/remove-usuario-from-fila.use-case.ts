@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/remove-usuario-from-fila.use-case.ts
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { IFilaRepository } from '../../domain/repositories/fila-repository.interface';
 
 interface RemoveUsuarioFromFilaInput {
@@ -10,6 +10,8 @@ interface RemoveUsuarioFromFilaInput {
 
 @Injectable()
 export class RemoveUsuarioFromFilaUseCase {
+  private readonly logger = new Logger(RemoveUsuarioFromFilaUseCase.name);
+
   constructor(@Inject('IFilaRepository') private readonly filaRepository: IFilaRepository) {}
 
   async execute(input: RemoveUsuarioFromFilaInput): Promise<void> {
@@ -19,5 +21,6 @@ export class RemoveUsuarioFromFilaUseCase {
     }
 
     await this.filaRepository.removeUsuario(input.filaId, input.userId);
+    this.logger.log(`[Atendimento] Usuario ${input.userId} desvinculado da fila "${fila.nome}" (${fila.id}).`);
   }
 }

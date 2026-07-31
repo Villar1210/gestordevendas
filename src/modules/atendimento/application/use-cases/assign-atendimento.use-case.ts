@@ -2,7 +2,7 @@
 // Agente "assume" o atendimento - so permite se ele pertence a fila do
 // atendimento (FilaUsuario) ou e Administrador (mesma logica de excecao
 // ja usada em CancelEnvelopeUseCase/canManageQueue).
-import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import {
   IAtendimentoRepository,
   AtendimentoRecord,
@@ -19,6 +19,8 @@ interface AssignAtendimentoInput {
 
 @Injectable()
 export class AssignAtendimentoUseCase {
+  private readonly logger = new Logger(AssignAtendimentoUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -60,6 +62,7 @@ export class AssignAtendimentoUseCase {
       userId: input.userId,
     });
 
+    this.logger.log(`[Atendimento] Atendimento ${atendimento.id} assumido pelo usuario ${input.userId}.`);
     return updated;
   }
 }

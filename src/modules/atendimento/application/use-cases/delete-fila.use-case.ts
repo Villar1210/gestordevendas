@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { IFilaRepository } from '../../domain/repositories/fila-repository.interface';
 
 interface DeleteFilaInput {
@@ -8,6 +8,8 @@ interface DeleteFilaInput {
 
 @Injectable()
 export class DeleteFilaUseCase {
+  private readonly logger = new Logger(DeleteFilaUseCase.name);
+
   constructor(@Inject('IFilaRepository') private readonly filaRepository: IFilaRepository) {}
 
   async execute(input: DeleteFilaInput): Promise<void> {
@@ -17,5 +19,6 @@ export class DeleteFilaUseCase {
     }
 
     await this.filaRepository.deleteById(input.filaId);
+    this.logger.log(`[Atendimento] Fila "${fila.nome}" (${fila.id}) removida do tenant ${input.tenantId}.`);
   }
 }

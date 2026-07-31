@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/close-atendimento.use-case.ts
-import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   IAtendimentoRepository,
@@ -17,6 +17,8 @@ interface CloseAtendimentoInput {
 
 @Injectable()
 export class CloseAtendimentoUseCase {
+  private readonly logger = new Logger(CloseAtendimentoUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -70,6 +72,9 @@ export class CloseAtendimentoUseCase {
       motivoFechamento: motivo,
     });
 
+    this.logger.log(
+      `[Atendimento] Atendimento ${atendimento.id} fechado por ${input.requesterId}${motivo ? ` (motivo: ${motivo})` : ''}.`,
+    );
     return updated;
   }
 }

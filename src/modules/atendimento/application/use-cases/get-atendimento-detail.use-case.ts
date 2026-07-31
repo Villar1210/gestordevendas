@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/get-atendimento-detail.use-case.ts
-import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import {
   IAtendimentoRepository,
   AtendimentoRecord,
@@ -39,6 +39,8 @@ const MESSAGE_HISTORY_LIMIT = 200;
 
 @Injectable()
 export class GetAtendimentoDetailUseCase {
+  private readonly logger = new Logger(GetAtendimentoDetailUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -82,6 +84,9 @@ export class GetAtendimentoDetailUseCase {
         !!atendimento.filaId &&
         (await this.filaRepository.isUsuarioInFila(atendimento.filaId, input.requesterUserId));
       if (!isOwner && !belongsToFila) {
+        this.logger.warn(
+          `[Atendimento] Acesso negado: usuario ${input.requesterUserId} tentou ver o detalhe do atendimento ${atendimento.id} sem pertencer a fila nem ser o dono.`,
+        );
         throw new ForbiddenException('Voce nao tem acesso a este atendimento.');
       }
     }

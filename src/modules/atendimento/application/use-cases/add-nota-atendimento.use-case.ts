@@ -1,5 +1,5 @@
 // src/modules/atendimento/application/use-cases/add-nota-atendimento.use-case.ts
-import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import {
   IAtendimentoEventoRepository,
@@ -16,6 +16,8 @@ interface AddNotaAtendimentoInput {
 
 @Injectable()
 export class AddNotaAtendimentoUseCase {
+  private readonly logger = new Logger(AddNotaAtendimentoUseCase.name);
+
   constructor(
     @Inject('IAtendimentoRepository')
     private readonly atendimentoRepository: IAtendimentoRepository,
@@ -49,11 +51,15 @@ export class AddNotaAtendimentoUseCase {
       throw new ConflictException('Este atendimento ja foi fechado.');
     }
 
-    return this.eventoRepository.create({
+    const evento = await this.eventoRepository.create({
       atendimentoId: atendimento.id,
       tipo: 'nota',
       userId: input.userId,
       detalhe: texto,
     });
+    // Nao loga o texto da nota (pode conter dado sensivel do atendimento) -
+    // so o rastro de que uma nota foi adicionada e por quem.
+    this.logger.log(`[Atendimento] Nota adicionada ao atendimento ${atendimento.id} por ${input.userId}.`);
+    return evento;
   }
 }
