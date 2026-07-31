@@ -32,10 +32,9 @@ import { mergeCollectedData, applyPostVisitaData } from '../../domain/services/v
 import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
 import { buildViviSystemPrompt } from '../../constants/vivi-prompt';
 import {
-  BuscarEmpreendimentoPorEnderecoUseCase,
-  BuscaEmpreendimentoResultado,
-} from '../../../gestao_imobiliaria/application/use-cases/buscar-empreendimento-por-endereco.use-case';
-import { IEnderecoBuscaLogRepository } from '../../domain/repositories/endereco-busca-log-repository.interface';
+  EnderecoBuscaToolResolverService,
+  EnderecoBuscaResultado,
+} from '../services/endereco-busca-tool-resolver.service';
 import { ehPedidoDeOptOut } from '../../../vendas_kanban/domain/services/repique-optout-detector';
 import { UniqueConstraintViolationError } from '../../../../shared/domain/errors/unique-constraint-violation.error';
 
@@ -54,19 +53,6 @@ interface ProcessIncomingMessageInput {
   // pelo Nivel 2 do prompt da VIVI (confirmar o nome em vez de perguntar do
   // zero). Ausente em chamadas antigas/testes que nao o preenchem.
   pushName?: string | null;
-}
-
-// Resultado de UMA chamada da tool "buscar_empreendimento_por_endereco" -
-// coletado durante o resolveTool (ver execute()) e so gravado no
-// EnderecoBuscaLog depois, quando ja sabemos se a mesma resposta tambem
-// escalou para corretor/fila (ver bloco de log no fim de execute()).
-interface EnderecoBuscaResultado {
-  enderecoBuscado: string;
-  encontradoCatalogo: boolean;
-  nomeEncontradoCatalogo: string | null;
-  precisouBuscaExterna: boolean;
-  confirmadoExternamente: boolean | null;
-  nomeEncontradoExterno: string | null;
 }
 
 const HISTORY_LIMIT = 21; // 20 mensagens de historico + a mensagem atual
@@ -107,9 +93,7 @@ export class ProcessIncomingMessageUseCase {
     private readonly agendarVisitaUseCase: AgendarVisitaUseCase,
     private readonly getOrCreateViviConfigUseCase: GetOrCreateViviConfigUseCase,
     private readonly registrarUsoViviUseCase: RegistrarUsoViviUseCase,
-    private readonly buscarEmpreendimentoPorEnderecoUseCase: BuscarEmpreendimentoPorEnderecoUseCase,
-    @Inject('IEnderecoBuscaLogRepository')
-    private readonly enderecoBuscaLogRepository: IEnderecoBuscaLogRepository,
+    private readonly enderecoBuscaToolResolverService: EnderecoBuscaToolResolverService,
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
@@ -232,7 +216,12 @@ export class ProcessIncomingMessageUseCase {
         history,
         userMessage: input.messageBody,
         resolveTool: async (toolName, toolInput) =>
-          this.resolveTool(toolName, toolInput, input.tenantId, enderecoBuscaResultados),
+          this.enderecoBuscaToolResolverService.resolveTool(
+            toolName,
+            toolInput,
+            input.tenantId,
+            enderecoBuscaResultados,
+          ),
       });
     } catch (error) {
       // A API da Anthropic ja esgotou as proprias tentativas de retry (ver
@@ -393,30 +382,26 @@ export class ProcessIncomingMessageUseCase {
       `[VIVI] Mensagem de ${input.phoneNumber} processada (conversa ${conversation.id}): tool=${toolsCalled}`,
     );
 
-    if (enderecoBuscaResultados.length > 0) {
-      // Escalonamento e propriedade da RESPOSTA inteira, nao de cada busca
-      // individual - se o modelo chamou buscar_empreendimento_por_endereco
-      // e (na mesma resposta) transferir_para_fila/transferir_para_corretor,
-      // TODAS as buscas desta resposta sao registradas com o mesmo motivo.
-      const escalonado = Boolean(filaCall) || Boolean(transferCall);
-      const motivoEscalonamento = filaCall
-        ? filaCall.input.urgente === true
-          ? 'urgencia/pedido explicito'
-          : `fila:${String(filaCall.input.categoria ?? '')}`
-        : transferCall
-          ? `corretor:${String(transferCall.input.motivo ?? '')}`
-          : null;
+    // Escalonamento e propriedade da RESPOSTA inteira, nao de cada busca
+    // individual - se o modelo chamou buscar_empreendimento_por_endereco e
+    // (na mesma resposta) transferir_para_fila/transferir_para_corretor,
+    // TODAS as buscas desta resposta sao registradas com o mesmo motivo.
+    const escalonado = Boolean(filaCall) || Boolean(transferCall);
+    const motivoEscalonamento = filaCall
+      ? filaCall.input.urgente === true
+        ? 'urgencia/pedido explicito'
+        : `fila:${String(filaCall.input.categoria ?? '')}`
+      : transferCall
+        ? `corretor:${String(transferCall.input.motivo ?? '')}`
+        : null;
 
-      for (const resultado of enderecoBuscaResultados) {
-        await this.enderecoBuscaLogRepository.create({
-          tenantId: input.tenantId,
-          phoneNumber: input.phoneNumber,
-          ...resultado,
-          escalonado,
-          motivoEscalonamento,
-        });
-      }
-    }
+    await this.enderecoBuscaToolResolverService.persistirLogs(
+      input.tenantId,
+      input.phoneNumber,
+      enderecoBuscaResultados,
+      escalonado,
+      motivoEscalonamento,
+    );
 
     await this.viviConversationRepository.update(conversation.id, updates);
 
@@ -726,105 +711,4 @@ export class ProcessIncomingMessageUseCase {
     });
   }
 
-  // Chamado pelo AnthropicConversationService (parametro resolveTool de
-  // generateReply) para CADA tool_use da resposta - so
-  // "buscar_empreendimento_por_endereco" tem um resultado real (as demais
-  // tools continuam recebendo o "ok" generico, ver retorno null). Empilha
-  // o resultado estruturado em enderecoBuscaResultados para o log ser
-  // gravado depois, ja com a informacao de escalonamento da resposta inteira.
-  private async resolveTool(
-    toolName: string,
-    toolInput: Record<string, unknown>,
-    tenantId: string,
-    enderecoBuscaResultados: EnderecoBuscaResultado[],
-  ): Promise<string | null> {
-    if (toolName !== 'buscar_empreendimento_por_endereco') {
-      return null;
-    }
-
-    const endereco = typeof toolInput.endereco === 'string' ? toolInput.endereco.trim() : '';
-    if (!endereco) {
-      return 'NAO FOI POSSIVEL PROCESSAR A BUSCA: endereco nao informado.';
-    }
-    const pularBuscaExterna = toolInput.pularBuscaExterna === true;
-
-    const resultadoCatalogo = await this.buscarEmpreendimentoPorEnderecoUseCase.execute({
-      tenantId,
-      enderecoBusca: endereco,
-    });
-
-    if (resultadoCatalogo.encontrado) {
-      enderecoBuscaResultados.push({
-        enderecoBuscado: endereco,
-        encontradoCatalogo: true,
-        nomeEncontradoCatalogo: resultadoCatalogo.nome,
-        precisouBuscaExterna: false,
-        confirmadoExternamente: null,
-        nomeEncontradoExterno: null,
-      });
-      return this.formatCatalogoEncontrado(resultadoCatalogo);
-    }
-
-    // Escalonamento urgente na mesma mensagem (ver secao "Atendimento
-    // urgente" do prompt) - so busca no catalogo proprio, sem busca externa,
-    // pra nao atrasar a transferencia para a fila/corretor humano.
-    if (pularBuscaExterna) {
-      enderecoBuscaResultados.push({
-        enderecoBuscado: endereco,
-        encontradoCatalogo: false,
-        nomeEncontradoCatalogo: null,
-        precisouBuscaExterna: false,
-        confirmadoExternamente: null,
-        nomeEncontradoExterno: null,
-      });
-      return (
-        'NAO ENCONTRADO NO CATALOGO PROPRIO. Busca externa NAO realizada ' +
-        '(escalonamento urgente tem prioridade) - o corretor humano vai verificar esse endereco.'
-      );
-    }
-
-    const confirmacao = await this.aiConversationService.confirmarExistenciaEmpreendimento(endereco);
-    enderecoBuscaResultados.push({
-      enderecoBuscado: endereco,
-      encontradoCatalogo: false,
-      nomeEncontradoCatalogo: null,
-      precisouBuscaExterna: true,
-      confirmadoExternamente: confirmacao.confirmado,
-      nomeEncontradoExterno: confirmacao.nomeEncontrado,
-    });
-
-    if (confirmacao.confirmado) {
-      const nomeTexto = confirmacao.nomeEncontrado
-        ? `um empreendimento chamado "${confirmacao.nomeEncontrado}"`
-        : 'algum empreendimento/imovel';
-      return (
-        'NAO ENCONTRADO NO CATALOGO PROPRIO.\n' +
-        `BUSCA EXTERNA: confirmado que existe ${nomeTexto} nesse endereco ` +
-        '(fonte externa - NAO mencionar preco/condicoes/disponibilidade dessa fonte).'
-      );
-    }
-
-    return (
-      'NAO ENCONTRADO NO CATALOGO PROPRIO.\n' +
-      'BUSCA EXTERNA: NAO foi possivel confirmar a existencia de nenhum empreendimento nesse endereco.'
-    );
-  }
-
-  private formatCatalogoEncontrado(resultado: BuscaEmpreendimentoResultado): string {
-    const precoTexto =
-      resultado.precoDesde !== null
-        ? `R$ ${resultado.precoDesde.toLocaleString('pt-BR')}`
-        : 'nao informado';
-
-    const linhas = [
-      'ENCONTRADO NO CATALOGO PROPRIO.',
-      `Nome: ${resultado.nome ?? 'nao informado'}`,
-      `Diferenciais: ${resultado.diferenciais ?? 'nao informado'}`,
-      `Status: ${resultado.statusResumo ?? 'nao informado'}`,
-      resultado.tipo === 'empreendimento' ? `Unidades disponiveis: ${resultado.unidadesDisponiveis ?? 0}` : null,
-      `Preco a partir de: ${precoTexto}`,
-    ];
-
-    return linhas.filter((linha): linha is string => linha !== null).join('\n');
-  }
 }

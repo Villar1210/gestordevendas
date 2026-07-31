@@ -67,8 +67,7 @@ function setup() {
     {} as any, // AgendarVisitaUseCase - nao usado no caminho de falha da IA
     getOrCreateViviConfigUseCase as unknown as GetOrCreateViviConfigUseCase,
     registrarUsoViviUseCase as unknown as RegistrarUsoViviUseCase,
-    {} as any, // BuscarEmpreendimentoPorEnderecoUseCase - nao usado no caminho de falha da IA
-    {} as any, // IEnderecoBuscaLogRepository - nao usado no caminho de falha da IA
+    {} as any, // EnderecoBuscaToolResolverService - nao usado no caminho de falha da IA
   );
 
   // Estado "feliz" ate a chamada a IA: nenhuma das 2 guardas de reabertura

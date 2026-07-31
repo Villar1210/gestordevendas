@@ -65,8 +65,7 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
       {} as any, // AgendarVisitaUseCase - nao usado no caminho de resposta simples sem tool
       getOrCreateViviConfigUseCase as any,
       registrarUsoViviUseCase as any,
-      {} as any, // BuscarEmpreendimentoPorEnderecoUseCase - nao usado no caminho de resposta simples sem tool
-      {} as any, // IEnderecoBuscaLogRepository - nao usado no caminho de resposta simples sem tool
+      {} as any, // EnderecoBuscaToolResolverService - nao usado no caminho de resposta simples sem tool
     );
 
     const tenant = await prisma.tenant.create({ data: { name: 'Tenant Teste Corrida ViviConversation' } });

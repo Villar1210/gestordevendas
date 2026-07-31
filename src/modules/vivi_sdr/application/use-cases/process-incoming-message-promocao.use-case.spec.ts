@@ -57,8 +57,7 @@ function setup() {
     {} as any, // AgendarVisitaUseCase - nao usado neste caminho (nao chama agendar_visita)
     getOrCreateViviConfigUseCase as unknown as GetOrCreateViviConfigUseCase,
     registrarUsoViviUseCase as unknown as RegistrarUsoViviUseCase,
-    {} as any, // BuscarEmpreendimentoPorEnderecoUseCase - nao usado neste caminho
-    {} as any, // IEnderecoBuscaLogRepository - nao usado neste caminho
+    {} as any, // EnderecoBuscaToolResolverService - nao usado neste caminho
   );
 
   viviConversationRepository.findLatestBySessionAndPhone.mockResolvedValue(null);
