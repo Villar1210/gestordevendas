@@ -99,6 +99,8 @@ export class CardController {
     return this.updateCardUseCase.execute({
       cardId: id,
       tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
       title: dto.title,
       value: dto.value,
       phone: dto.phone,
@@ -150,6 +152,8 @@ export class CardController {
     return this.moveCardUseCase.execute({
       cardId: id,
       tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
       targetStageId: dto.targetStageId,
       targetIndex: dto.targetIndex,
       motivoRepique: dto.motivoRepique,
@@ -163,7 +167,12 @@ export class CardController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(BlockDeleteForCargoGuard)
   async delete(@Param('id') id: string, @Req() req: Request) {
-    await this.deleteCardUseCase.execute({ cardId: id, tenantId: req.user!.tenantId });
+    await this.deleteCardUseCase.execute({
+      cardId: id,
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
+    });
     return { message: 'Card removido com sucesso.' };
   }
 
