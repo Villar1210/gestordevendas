@@ -40,6 +40,18 @@ export class SendWhatsAppMessageUseCase {
       throw new BadRequestException('Sessao WhatsApp nao esta conectada.');
     }
 
+    // session.status e so um filtro rapido (evita a chamada ao provider
+    // quando ja se sabe que a sessao esta desconectada) - pode ficar STALE
+    // apos um restart do processo (o socket em memoria some, mas o ultimo
+    // valor gravado no banco continua "CONNECTED" ate o proximo evento
+    // 'open'/'close' do Baileys). isConnected() e a checagem real, contra o
+    // estado do socket em memoria (ver IWhatsAppProvider.isConnected).
+    if (!this.whatsAppProvider.isConnected(session.id)) {
+      throw new BadRequestException(
+        'Sessao WhatsApp nao esta conectada (socket real desconectado, apesar do status gravado).',
+      );
+    }
+
     await this.whatsAppProvider.sendMessage(session.id, input.to, input.body, input.phoneNumber);
   }
 }
