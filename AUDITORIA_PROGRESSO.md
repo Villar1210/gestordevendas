@@ -195,6 +195,39 @@ de alegar teste que nao foi feito. Revisao manual do diff confirma que
 a estrutura espelha exatamente o toggle "Transferir" ja existente e
 testado na mesma lista.
 
+## I13 — Corrida entre troca de conversa e polling de 5s exibia conversa errada
+**Investigacao:** poll de 5s (`dashboard/atendimento/page.tsx`, `POLL_INTERVAL_MS`)
+chama `loadAtendimentoDetail(selectedAtendimentoId, true)` (silent) a
+cada 5s enquanto houver uma conversa selecionada. `loadAtendimentoDetail`
+(`useAtendimentoIntegration.ts`) aplicava `setDetail(eventos, mensagens)`
+- estado GLOBAL no store, sem escopo por `atendimentoId` - de forma
+incondicional. Como o poll (silent) e a troca manual de conversa
+(`handleSelect`, nao-silent) podem ter requisicoes `GET /atendimentos/:id`
+em voo ao mesmo tempo sem garantia de ordem de resolucao, uma resposta
+ATRASADA de uma conversa antiga (ex: A) podia chegar DEPOIS do usuario
+ja ter trocado para outra conversa (B) e sobrescrever a tela com os
+dados de A, mesmo com o cabeçalho/selecao indicando B.
+`updateAtendimentoInPlace` (tambem chamado ali) NAO tinha esse problema
+- ja fazia merge por `id` na lista, nunca vazando para outro item.
+**Feito:** guarda adicionada em `loadAtendimentoDetail`: so aplica
+`setDetail` se `useAtendimentoStore.getState().selectedAtendimentoId`
+(lido no MOMENTO em que a resposta chega, nao um valor capturado no
+inicio da chamada - mesma armadilha de novo) ainda for igual ao
+`atendimentoId` que originou aquela requisicao especifica. Se a
+selecao ja mudou, a resposta e descartada silenciosamente (nao aplica
+`setDetail`, mas `updateAtendimentoInPlace` continua rodando -
+seguro). Escopo estrito respeitado: so `useAtendimentoIntegration.ts`.
+**Commit:** `142ce2f`
+**Testes:** **sem infraestrutura de teste de frontend configurada
+neste projeto** (sem jest/vitest/@testing-library/react, sem script
+`test` no `package.json` - so `playwright` como devDependency, usado
+historicamente como scripts E2E descartaveis contra o app rodando de
+verdade, nunca como test runner unitario). Confirmado por inspecao
+direta (`package.json`, busca por config files, busca por `*.test.ts*`/
+`*.spec.ts*` em `frontend/src`) antes de decidir - documentado aqui
+explicitamente em vez de simular um teste que nao rodaria de verdade.
+`tsc --noEmit` limpo no frontend.
+
 ---
 
-*Itens pendentes: I8b, I13, I14, I15.*
+*Itens pendentes: I8b, I14, I15.*
