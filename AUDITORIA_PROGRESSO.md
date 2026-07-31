@@ -19,6 +19,12 @@ Registro incremental da correção dos achados da auditoria (I4 em diante — I1
 **Commit:** `3eb3475`
 **Testes:** nova spec `send-whatsapp-message.use-case.spec.ts` (4 testes: envia normalmente, bloqueia quando status stale, bloqueia quando já desconectado no banco, 404 quando sessão não existe) — 4/4 passando. `tsc --noEmit` limpo. Suíte `whatsappmarketing`: mesmas 3 falhas pré-existentes de integração (Postgres indisponível), sem regressão.
 
+## I9 — Escalonamento fixo de 15min → 5min
+**Feito:** `ESCALONAMENTO_MINUTOS_LIMITE` (`EscalonarAtendimentosSemDonoUseCase`) reduzido de 15 para 5 minutos, mesma regra uniforme para todos os tenants/filas (sem configuração por caso).
+**Nota:** existe uma constante espelhada e independente em `roleta_online/EscalonarCardsSemDonoUseCase` (caminho do Kanban) que permanece em 15min — fora do escopo desta auditoria (módulo Atendimento). Registrado no commit para decisão futura se precisar alinhar.
+**Commit:** `8748cd5`
+**Testes:** nova spec (2 testes: valor da constante, cutoff de exatamente 5min passado ao repositório) — 2/2 passando. Suíte completa cobrindo comportamento (evento, idempotência, resiliência a erro) fica para o I14. `tsc --noEmit` limpo. Suíte `atendimento`: 1 falha pré-existente de integração (Postgres indisponível, `get-or-create-atendimento.race-condition.integration.spec.ts`, não relacionada), sem regressão.
+
 ---
 
-*Itens pendentes: I8, I9, I10, I11, I12, I13, I14, I15.*
+*Itens pendentes: I8, I10, I11, I12, I13, I14, I15.*
