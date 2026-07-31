@@ -35,6 +35,7 @@ export const MOTIVO_FECHAMENTO_OPTIONS: { value: string; label: string }[] = [
 
 export const EVENTO_TIPO_LABELS: Record<string, string> = {
   criado: "Criado",
+  classificado: "Classificado",
   atribuido: "Assumiu o atendimento",
   transferido: "Transferido",
   devolvido: "Devolvido para a fila",

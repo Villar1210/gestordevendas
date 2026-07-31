@@ -61,9 +61,15 @@ export class ClassifyAndRouteAtendimentoUseCase {
     });
 
     const resumo = input.resumo?.trim();
+    // Achado I15 da auditoria: usava tipo 'criado' por erro de rotulagem -
+    // este evento e sobre CLASSIFICACAO, nao criacao (a criacao real, so
+    // quando o atendimento e novo, ja e gravada separadamente por
+    // GetOrCreateAtendimentoUseCase). Gerava timeline confusa: atendimentos
+    // novos mostravam "Criado" duas vezes, e atendimentos ja existentes
+    // reclassificados ganhavam um "Criado" fora de lugar.
     await this.eventoRepository.create({
       atendimentoId: atendimento.id,
-      tipo: 'criado',
+      tipo: 'classificado',
       userId: input.userId ?? null,
       detalhe: `Classificado na fila "${fila.nome}"${input.urgente ? ' [URGENTE]' : ''}${resumo ? `: ${resumo}` : ''}`,
     });

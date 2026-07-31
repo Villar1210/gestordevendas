@@ -97,6 +97,26 @@ describe('ClassifyAndRouteAtendimentoUseCase', () => {
     expect(atendimentoRepository.update).toHaveBeenCalledWith('atendimento-1', { filaId: 'fila-1' });
   });
 
+  it('grava o evento de auditoria com tipo "classificado" (achado I15 - antes usava "criado" por erro, gerando duplicidade/rotulagem errada na timeline)', async () => {
+    const { useCase, eventoRepository, filaRepository } = setup();
+    filaRepository.findByTenantAndNome.mockResolvedValue({
+      id: 'fila-1',
+      tenantId: 'tenant-1',
+      nome: 'Suporte',
+      descricao: null,
+      createdAt: new Date(),
+    });
+
+    await useCase.execute({ tenantId: 'tenant-1', atendimentoId: 'atendimento-1', filaNome: 'Suporte' });
+
+    expect(eventoRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'classificado' }),
+    );
+    expect(eventoRepository.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'criado' }),
+    );
+  });
+
   it('inclui urgente:true no update quando input.urgente e true', async () => {
     const { useCase, atendimentoRepository, filaRepository } = setup();
     filaRepository.findByTenantAndNome.mockResolvedValue({
