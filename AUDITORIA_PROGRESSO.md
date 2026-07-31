@@ -45,7 +45,7 @@ so nesse sinal tecnico foi mantido inalterado para `motivoFechamento` nulo
 ou fora da lista (ex: um motivo de texto livre anterior a esta correcao).
 **Escopo estrito respeitado:** nenhum mecanismo de timeout/deteccao
 automatica de abandono foi criado nesta etapa (ver I8b).
-**Commit:** (a ser preenchido apos commit)
+**Commit:** `d2390ee`
 **Testes:** `close-atendimento.use-case.spec.ts` ganhou 1 teste novo
 (motivo de negocio propaga `motivoFechamento` no evento emitido) + o teste
 existente do evento foi atualizado para incluir `motivoFechamento: null`.
