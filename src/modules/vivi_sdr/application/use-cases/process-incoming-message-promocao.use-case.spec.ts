@@ -12,6 +12,7 @@ import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
 import { TransferToBrokerService } from '../services/transfer-to-broker.service';
+import { ViviMessageGuardsService } from '../services/vivi-message-guards.service';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
 import { RegistrarUsoViviUseCase } from './registrar-uso-vivi.use-case';
 import { buildViviConversationRecord } from '../../../../../test/factories/vivi-conversation-record.factory';
@@ -54,11 +55,19 @@ function setup() {
     createNoteUseCase as any,
   );
 
+  // ViviMessageGuardsService extraido de dentro de ProcessIncomingMessageUseCase
+  // (I10 da auditoria, Guardas 2 e 3) - cardRepository mockado abaixo com
+  // existsByTenantAndPhoneWithOwner=false/findRepiqueCardByTenantAndPhone=null
+  // para nenhuma das 2 guardas bloquear este caminho.
+  const viviMessageGuardsService = new ViviMessageGuardsService(
+    cardRepository as unknown as ICardRepository,
+    sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
+  );
+
   const useCase = new ProcessIncomingMessageUseCase(
     viviConversationRepository as unknown as IViviConversationRepository,
     aiConversationService as unknown as IAiConversationService,
     whatsAppMessageRepository as unknown as IWhatsAppMessageRepository,
-    cardRepository as unknown as ICardRepository,
     sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
     capturarLeadMinimoUseCase as any,
     createNoteUseCase as any,
@@ -68,6 +77,7 @@ function setup() {
     {} as any, // EnderecoBuscaToolResolverService - nao usado neste caminho
     transferToBrokerService,
     {} as any, // ViviAtendimentoEscalationService - nao usado neste caminho (nao escala para fila)
+    viviMessageGuardsService,
   );
 
   viviConversationRepository.findLatestBySessionAndPhone.mockResolvedValue(null);

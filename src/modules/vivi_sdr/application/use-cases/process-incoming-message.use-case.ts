@@ -14,11 +14,11 @@ import { IWhatsAppMessageRepository } from '../../../whatsappmarketing/domain/re
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
 import { CapturarLeadMinimoUseCase } from '../../../vendas_kanban/application/use-cases/capturar-lead-minimo.use-case';
 import { CreateNoteUseCase } from '../../../vendas_kanban/application/use-cases/create-note.use-case';
-import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { AgendarVisitaUseCase } from './agendar-visita.use-case';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
 import { RegistrarUsoViviUseCase } from './registrar-uso-vivi.use-case';
 import { mergeCollectedData, applyPostVisitaData } from '../../domain/services/vivi-lead-data-merger';
+import { deveIgnorarPorConversaTransferida } from '../../domain/services/vivi-conversation-guard';
 import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
 import { buildViviSystemPrompt } from '../../constants/vivi-prompt';
 import {
@@ -27,7 +27,7 @@ import {
 } from '../services/endereco-busca-tool-resolver.service';
 import { TransferToBrokerService } from '../services/transfer-to-broker.service';
 import { ViviAtendimentoEscalationService } from '../services/vivi-atendimento-escalation.service';
-import { ehPedidoDeOptOut } from '../../../vendas_kanban/domain/services/repique-optout-detector';
+import { ViviMessageGuardsService } from '../services/vivi-message-guards.service';
 import { UniqueConstraintViolationError } from '../../../../shared/domain/errors/unique-constraint-violation.error';
 
 interface ProcessIncomingMessageInput {
@@ -55,8 +55,6 @@ export class ProcessIncomingMessageUseCase {
     private readonly aiConversationService: IAiConversationService,
     @Inject('IWhatsAppMessageRepository')
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
-    @Inject('ICardRepository')
-    private readonly cardRepository: ICardRepository,
     private readonly sendWhatsAppMessageUseCase: SendWhatsAppMessageUseCase,
     private readonly capturarLeadMinimoUseCase: CapturarLeadMinimoUseCase,
     private readonly createNoteUseCase: CreateNoteUseCase,
@@ -66,6 +64,7 @@ export class ProcessIncomingMessageUseCase {
     private readonly enderecoBuscaToolResolverService: EnderecoBuscaToolResolverService,
     private readonly transferToBrokerService: TransferToBrokerService,
     private readonly viviAtendimentoEscalationService: ViviAtendimentoEscalationService,
+    private readonly viviMessageGuardsService: ViviMessageGuardsService,
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
@@ -80,11 +79,7 @@ export class ProcessIncomingMessageUseCase {
         input.sessionId,
         input.phoneNumber,
       );
-    if (
-      latestConversation &&
-      latestConversation.status !== 'em_andamento' &&
-      latestConversation.status !== 'encerrada'
-    ) {
+    if (latestConversation && deveIgnorarPorConversaTransferida(latestConversation.status)) {
       this.logger.log(
         `[VIVI] Mensagem ignorada para ${input.phoneNumber}: conversa ja ${latestConversation.status} (nao reabre dialogo enquanto corretor/fila responsavel).`,
       );
@@ -95,7 +90,7 @@ export class ProcessIncomingMessageUseCase {
     // para este numero no Kanban (criado manualmente ou pela propria VIVI em
     // sessao anterior), a VIVI tambem nao deve responder.
     if (input.phoneNumber) {
-      const hasActiveCard = await this.cardRepository.existsByTenantAndPhoneWithOwner(
+      const hasActiveCard = await this.viviMessageGuardsService.temCardComDono(
         input.tenantId,
         input.phoneNumber,
       );
@@ -132,22 +127,14 @@ export class ProcessIncomingMessageUseCase {
     // (nao pela IA) de proposito - decisao de compliance precisa ser
     // deterministica, ver domain/services/repique-optout-detector.ts.
     if (input.phoneNumber) {
-      const repiqueCard = await this.cardRepository.findRepiqueCardByTenantAndPhone(
-        input.tenantId,
-        input.phoneNumber,
-      );
-      if (repiqueCard && !repiqueCard.repiqueOptOut && ehPedidoDeOptOut(input.messageBody)) {
-        await this.cardRepository.markRepiqueOptOut(repiqueCard.id);
-        this.logger.log(
-          `[VIVI] Opt-out de campanha de Repique confirmado para ${input.phoneNumber} (card ${repiqueCard.id}).`,
-        );
-        await this.sendWhatsAppMessageUseCase.execute({
-          sessionId: input.sessionId,
-          tenantId: input.tenantId,
-          to: remoteJid ?? input.phoneNumber,
-          phoneNumber: input.phoneNumber,
-          body: 'Combinado! Você não vai mais receber nossas mensagens de remarketing. Se mudar de ideia, é só chamar por aqui.',
-        });
+      const optOutTratado = await this.viviMessageGuardsService.tratarOptOutDeRepique({
+        tenantId: input.tenantId,
+        sessionId: input.sessionId,
+        phoneNumber: input.phoneNumber,
+        messageBody: input.messageBody,
+        remoteJid,
+      });
+      if (optOutTratado) {
         return;
       }
     }

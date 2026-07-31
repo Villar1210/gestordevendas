@@ -23,6 +23,7 @@ import { ReabrirViviAposFechamentoUseCase } from './application/use-cases/reabri
 import { EnderecoBuscaToolResolverService } from './application/services/endereco-busca-tool-resolver.service';
 import { TransferToBrokerService } from './application/services/transfer-to-broker.service';
 import { ViviAtendimentoEscalationService } from './application/services/vivi-atendimento-escalation.service';
+import { ViviMessageGuardsService } from './application/services/vivi-message-guards.service';
 import { WhatsAppMessageReceivedListener } from './infra/listeners/whatsapp-message-received.listener';
 import { SocialMessageReceivedListener } from './infra/listeners/social-message-received.listener';
 import { AtendimentoFechadoListener } from './infra/listeners/atendimento-fechado.listener';
@@ -77,6 +78,7 @@ import { PrismaService } from '../../config/prisma.service';
     EnderecoBuscaToolResolverService,
     TransferToBrokerService,
     ViviAtendimentoEscalationService,
+    ViviMessageGuardsService,
     WhatsAppMessageReceivedListener,
     SocialMessageReceivedListener,
     AtendimentoFechadoListener,

@@ -22,6 +22,7 @@
 import { PrismaService } from '../../../../config/prisma.service';
 import { PrismaViviConversationRepository } from '../../infra/database/prisma-vivi-conversation.repository';
 import { ProcessIncomingMessageUseCase } from './process-incoming-message.use-case';
+import { ViviMessageGuardsService } from '../services/vivi-message-guards.service';
 import { buildViviConfigRecord } from '../../../../../test/factories/vivi-config-record.factory';
 
 describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes na ViviConversation (integracao)', () => {
@@ -46,11 +47,15 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
     prisma = new PrismaService();
     viviConversationRepository = new PrismaViviConversationRepository(prisma);
 
+    const viviMessageGuardsService = new ViviMessageGuardsService(
+      cardRepository as any,
+      sendWhatsAppMessageUseCase as any,
+    );
+
     useCase = new ProcessIncomingMessageUseCase(
       viviConversationRepository,
       aiConversationService as any,
       whatsAppMessageRepository as any,
-      cardRepository as any,
       sendWhatsAppMessageUseCase as any,
       capturarLeadMinimoUseCase as any,
       {} as any, // CreateNoteUseCase - nao usado no caminho de resposta simples sem tool
@@ -60,6 +65,7 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
       {} as any, // EnderecoBuscaToolResolverService - nao usado no caminho de resposta simples sem tool
       {} as any, // TransferToBrokerService - nao usado no caminho de resposta simples sem tool
       {} as any, // ViviAtendimentoEscalationService - nao usado no caminho de resposta simples sem tool
+      viviMessageGuardsService,
     );
 
     const tenant = await prisma.tenant.create({ data: { name: 'Tenant Teste Corrida ViviConversation' } });
