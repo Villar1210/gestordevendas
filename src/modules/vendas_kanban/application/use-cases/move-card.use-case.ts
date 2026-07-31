@@ -65,6 +65,15 @@ export class MoveCardUseCase {
       throw new NotFoundException('Stage de destino nao encontrada.');
     }
 
+    // Integridade de dado, nao permissao (por isso BadRequestException, nao
+    // ForbiddenException - mesmo um Administrador nao pode fazer isso):
+    // updateStageAndPosition nunca atualiza pipelineId, entao uma stage de
+    // destino de outro pipeline deixaria o card com pipelineId e stageId
+    // apontando para pipelines diferentes - ver achado adjacente ao I3.
+    if (targetStage.pipelineId !== card.pipelineId) {
+      throw new BadRequestException('Stage de destino nao pertence ao pipeline do card.');
+    }
+
     const cardsInTargetStage = (
       await this.cardRepository.findAllByStage(input.targetStageId)
     ).filter((c) => c.id !== card.id);
