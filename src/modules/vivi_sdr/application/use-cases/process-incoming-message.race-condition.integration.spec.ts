@@ -39,8 +39,6 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
   };
   const sendWhatsAppMessageUseCase = { execute: jest.fn() };
   const capturarLeadMinimoUseCase = { execute: jest.fn() };
-  const getOrCreateAtendimentoUseCase = { execute: jest.fn() };
-  const classifyAndRouteAtendimentoUseCase = { execute: jest.fn() };
   const getOrCreateViviConfigUseCase = { execute: jest.fn() };
   const registrarUsoViviUseCase = { execute: jest.fn() };
 
@@ -56,13 +54,12 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
       sendWhatsAppMessageUseCase as any,
       capturarLeadMinimoUseCase as any,
       {} as any, // CreateNoteUseCase - nao usado no caminho de resposta simples sem tool
-      getOrCreateAtendimentoUseCase as any,
-      classifyAndRouteAtendimentoUseCase as any,
       {} as any, // AgendarVisitaUseCase - nao usado no caminho de resposta simples sem tool
       getOrCreateViviConfigUseCase as any,
       registrarUsoViviUseCase as any,
       {} as any, // EnderecoBuscaToolResolverService - nao usado no caminho de resposta simples sem tool
       {} as any, // TransferToBrokerService - nao usado no caminho de resposta simples sem tool
+      {} as any, // ViviAtendimentoEscalationService - nao usado no caminho de resposta simples sem tool
     );
 
     const tenant = await prisma.tenant.create({ data: { name: 'Tenant Teste Corrida ViviConversation' } });

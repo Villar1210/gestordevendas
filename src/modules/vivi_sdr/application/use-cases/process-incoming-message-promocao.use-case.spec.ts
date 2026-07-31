@@ -62,13 +62,12 @@ function setup() {
     sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
     capturarLeadMinimoUseCase as any,
     createNoteUseCase as any,
-    { execute: jest.fn() } as any, // GetOrCreateAtendimentoUseCase - nao usado neste caminho
-    { execute: jest.fn() } as any, // ClassifyAndRouteAtendimentoUseCase - nao usado neste caminho
     {} as any, // AgendarVisitaUseCase - nao usado neste caminho (nao chama agendar_visita)
     getOrCreateViviConfigUseCase as unknown as GetOrCreateViviConfigUseCase,
     registrarUsoViviUseCase as unknown as RegistrarUsoViviUseCase,
     {} as any, // EnderecoBuscaToolResolverService - nao usado neste caminho
     transferToBrokerService,
+    {} as any, // ViviAtendimentoEscalationService - nao usado neste caminho (nao escala para fila)
   );
 
   viviConversationRepository.findLatestBySessionAndPhone.mockResolvedValue(null);

@@ -14,6 +14,7 @@ import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
 import { ClassifyAndRouteAtendimentoUseCase } from '../../../atendimento/application/use-cases/classify-and-route-atendimento.use-case';
+import { ViviAtendimentoEscalationService } from '../services/vivi-atendimento-escalation.service';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
 import { RegistrarUsoViviUseCase } from './registrar-uso-vivi.use-case';
 import { FILA_ATENDIMENTO_PRIORITARIO_NOME } from '../../../atendimento/domain/services/fila-categorias';
@@ -50,6 +51,18 @@ function setup() {
   // testam essa fatia.
   const capturarLeadMinimoUseCase = { execute: jest.fn().mockResolvedValue(null) };
 
+  // ViviAtendimentoEscalationService extraido de dentro de
+  // ProcessIncomingMessageUseCase (I10 da auditoria) - instanciado aqui com
+  // os MESMOS mocks que os testes abaixo inspecionam diretamente
+  // (getOrCreateAtendimentoUseCase/classifyAndRouteAtendimentoUseCase/
+  // sendWhatsAppMessageUseCase/viviConversationRepository).
+  const viviAtendimentoEscalationService = new ViviAtendimentoEscalationService(
+    getOrCreateAtendimentoUseCase as unknown as GetOrCreateAtendimentoUseCase,
+    classifyAndRouteAtendimentoUseCase as unknown as ClassifyAndRouteAtendimentoUseCase,
+    sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
+    viviConversationRepository as unknown as IViviConversationRepository,
+  );
+
   const useCase = new ProcessIncomingMessageUseCase(
     viviConversationRepository as unknown as IViviConversationRepository,
     aiConversationService as unknown as IAiConversationService,
@@ -58,13 +71,12 @@ function setup() {
     sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
     capturarLeadMinimoUseCase as any,
     {} as any, // CreateNoteUseCase - nao usado no caminho de falha da IA
-    getOrCreateAtendimentoUseCase as unknown as GetOrCreateAtendimentoUseCase,
-    classifyAndRouteAtendimentoUseCase as unknown as ClassifyAndRouteAtendimentoUseCase,
     {} as any, // AgendarVisitaUseCase - nao usado no caminho de falha da IA
     getOrCreateViviConfigUseCase as unknown as GetOrCreateViviConfigUseCase,
     registrarUsoViviUseCase as unknown as RegistrarUsoViviUseCase,
     {} as any, // EnderecoBuscaToolResolverService - nao usado no caminho de falha da IA
     {} as any, // TransferToBrokerService - nao usado no caminho de falha da IA
+    viviAtendimentoEscalationService,
   );
 
   // Estado "feliz" ate a chamada a IA: nenhuma das 2 guardas de reabertura
