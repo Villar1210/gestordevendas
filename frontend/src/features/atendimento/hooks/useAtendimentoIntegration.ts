@@ -68,7 +68,20 @@ export function useAtendimentoIntegration() {
           eventos: AtendimentoEvento[];
           mensagens: AtendimentoMensagem[];
         }>(`/atendimentos/${atendimentoId}`);
-        setDetail(result.eventos, result.mensagens);
+        // Corrida (I13 da auditoria): o poll de 5s (silent=true) e a troca
+        // manual de conversa (handleSelect) podem ter requisicoes em voo ao
+        // mesmo tempo, sem garantia de ordem de resolucao - uma resposta
+        // atrasada de uma conversa ANTIGA sobrescreveria a tela com dados
+        // errados. So aplica eventos/mensagens ao estado global se esta
+        // ainda for a conversa selecionada NO MOMENTO em que a resposta
+        // chega (leitura direta do store, nao um valor capturado no inicio
+        // desta chamada - que seria a mesma armadilha de novo).
+        if (useAtendimentoStore.getState().selectedAtendimentoId === atendimentoId) {
+          setDetail(result.eventos, result.mensagens);
+        }
+        // updateAtendimentoInPlace continua incondicional - faz merge por
+        // id na lista (nao no detalhe exibido), entao e seguro mesmo para
+        // uma conversa que nao e mais a selecionada.
         updateAtendimentoInPlace(result.atendimento);
         return result;
       } catch (err) {
