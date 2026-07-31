@@ -5,7 +5,7 @@
 // CloseAtendimentoUseCase/TransferAtendimentoUseCase/RequeueAtendimentoUseCase
 // (isOwner OU Administrador). Unitario: o que importa e o BRANCHING de
 // autorizacao, nao persistencia real.
-import { ForbiddenException, NotFoundException, ConflictException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { AddNotaAtendimentoUseCase } from './add-nota-atendimento.use-case';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 import { IAtendimentoEventoRepository } from '../../domain/repositories/atendimento-evento-repository.interface';
@@ -32,6 +32,24 @@ function setup() {
 }
 
 describe('AddNotaAtendimentoUseCase - checagem de escopo (achado I2)', () => {
+  it('lanca BadRequestException se o texto vier vazio ou so com espacos (achado I14)', async () => {
+    const { useCase, atendimentoRepository, eventoRepository } = setup();
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        atendimentoId: 'atendimento-1',
+        userId: 'dono-1',
+        requesterRole: 'Corretor',
+        texto: '   ',
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    // Validacao acontece ANTES de buscar o atendimento no banco.
+    expect(atendimentoRepository.findByIdAndTenant).not.toHaveBeenCalled();
+    expect(eventoRepository.create).not.toHaveBeenCalled();
+  });
+
   it('o DONO do atendimento consegue adicionar a nota', async () => {
     const { useCase, eventoRepository } = setup();
 
