@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { Search, Inbox, Check, ArrowLeftRight, X, RotateCcw, MessageCircle, AlertTriangle } from "lucide-react";
 import { Atendimento, Fila } from "../store/useAtendimentoStore";
-import { ATENDIMENTO_TABS, AtendimentoTab, filaChipStyle } from "../constants";
+import { ATENDIMENTO_TABS, AtendimentoTab, filaChipStyle, MOTIVO_FECHAMENTO_OPTIONS } from "../constants";
 import { formatRelativeTime, formatPhoneDisplay, initialsFromName } from "../format";
 import { ContactAvatar } from "./ContactAvatar";
 
@@ -35,7 +35,7 @@ interface AtendimentoListProps {
   onQuickAssign: (id: string) => Promise<unknown>;
   onQuickTransfer: (id: string, input: { filaId?: string; ownerId?: string }) => Promise<unknown>;
   onQuickRequeue: (id: string) => Promise<unknown>;
-  onQuickClose: (id: string) => Promise<unknown>;
+  onQuickClose: (id: string, motivo?: string) => Promise<unknown>;
 }
 
 export function AtendimentoList({
@@ -215,7 +215,7 @@ interface RowProps {
   onQuickAssign: (id: string) => Promise<unknown>;
   onQuickTransfer: (id: string, input: { filaId?: string; ownerId?: string }) => Promise<unknown>;
   onQuickRequeue: (id: string) => Promise<unknown>;
-  onQuickClose: (id: string) => Promise<unknown>;
+  onQuickClose: (id: string, motivo?: string) => Promise<unknown>;
 }
 
 // AtendimentoRow: linha completa da lista, com avatar/canal/fila/preview e
@@ -239,6 +239,8 @@ function AtendimentoRow({
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferFilaId, setTransferFilaId] = useState("");
   const [transferOwnerId, setTransferOwnerId] = useState("");
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [closeMotivo, setCloseMotivo] = useState("");
 
   const displayName = formatPhoneDisplay(atendimento.phoneNumber);
   const isFechado = atendimento.status === "fechado";
@@ -260,17 +262,31 @@ function AtendimentoRow({
       onClick();
     });
   }
-  function handleClose(e: React.MouseEvent) {
-    e.stopPropagation();
-    void run("close", () => onQuickClose(atendimento.id));
-  }
   function handleRequeue(e: React.MouseEvent) {
     e.stopPropagation();
     void run("requeue", () => onQuickRequeue(atendimento.id));
   }
   function handleTransferToggle(e: React.MouseEvent) {
     e.stopPropagation();
+    setCloseOpen(false);
     setTransferOpen((v) => !v);
+  }
+  // "Finalizar" na lista precisa da MESMA confirmacao ja existente no
+  // painel de chat (AtendimentoChatPanel.tsx, dialog "close") - antes
+  // fechava direto no clique, sem chance de cancelar nem escolher motivo,
+  // inconsistente com o painel.
+  function handleCloseToggle(e: React.MouseEvent) {
+    e.stopPropagation();
+    setTransferOpen(false);
+    setCloseOpen((v) => !v);
+  }
+  function confirmClose(e: React.MouseEvent) {
+    e.stopPropagation();
+    void run("close", async () => {
+      await onQuickClose(atendimento.id, closeMotivo || undefined);
+      setCloseOpen(false);
+      setCloseMotivo("");
+    });
   }
   function confirmTransfer(e: React.MouseEvent) {
     e.stopPropagation();
@@ -345,7 +361,7 @@ function AtendimentoRow({
             <RowAction tone="indigo" label="Transferir" disabled={!!busy} onClick={handleTransferToggle}>
               <ArrowLeftRight className="h-3 w-3" />
             </RowAction>
-            <RowAction tone="rose" label="Finalizar" busy={busy === "close"} disabled={!!busy} onClick={handleClose}>
+            <RowAction tone="rose" label="Finalizar" busy={busy === "close"} disabled={!!busy} onClick={handleCloseToggle}>
               <X className="h-3 w-3" strokeWidth={3} />
             </RowAction>
           </>
@@ -355,7 +371,7 @@ function AtendimentoRow({
             <RowAction tone="indigo" label="Transferir" disabled={!!busy} onClick={handleTransferToggle}>
               <ArrowLeftRight className="h-3 w-3" />
             </RowAction>
-            <RowAction tone="rose" label="Finalizar" busy={busy === "close"} disabled={!!busy} onClick={handleClose}>
+            <RowAction tone="rose" label="Finalizar" busy={busy === "close"} disabled={!!busy} onClick={handleCloseToggle}>
               <X className="h-3 w-3" strokeWidth={3} />
             </RowAction>
             <RowAction tone="muted" label="Devolver para fila" busy={busy === "requeue"} disabled={!!busy} onClick={handleRequeue}>
@@ -369,7 +385,7 @@ function AtendimentoRow({
             label="Finalizar"
             busy={busy === "close"}
             disabled={!!busy || isFechado}
-            onClick={handleClose}
+            onClick={handleCloseToggle}
           >
             <X className="h-3 w-3" strokeWidth={3} />
           </RowAction>
@@ -423,6 +439,45 @@ function AtendimentoRow({
               className="rounded-md bg-blue-700 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-800 disabled:opacity-50"
             >
               Confirmar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {closeOpen && (
+        <div
+          className="mx-3 mb-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <select
+            value={closeMotivo}
+            onChange={(e) => setCloseMotivo(e.target.value)}
+            className="w-full rounded-md border border-slate-200 px-1.5 py-1 text-[11px] text-slate-700 outline-none focus:border-blue-600"
+          >
+            <option value="">Motivo (opcional)</option>
+            {MOTIVO_FECHAMENTO_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <div className="flex justify-end gap-1.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setCloseOpen(false);
+                setCloseMotivo("");
+              }}
+              className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-500 hover:bg-white"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmClose}
+              disabled={busy === "close"}
+              className="rounded-md bg-blue-700 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+            >
+              Confirmar fechamento
             </button>
           </div>
         </div>
