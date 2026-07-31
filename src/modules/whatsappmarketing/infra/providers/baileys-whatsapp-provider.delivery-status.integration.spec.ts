@@ -29,6 +29,7 @@ jest.mock('baileys', () => {
   };
 });
 
+import { Logger } from '@nestjs/common';
 import * as baileysMock from 'baileys';
 import { PrismaService } from '../../../../config/prisma.service';
 import { PrismaWhatsAppSessionRepository } from '../database/prisma-whatsapp-session.repository';
@@ -70,6 +71,9 @@ describe('BaileysWhatsAppProvider - confirmacao de entrega via messages.update (
   }, 30000);
 
   it('sendMessage grava statusEntrega="pending" com o baileysMessageId retornado, e messages.update atualiza a progressao do ACK', async () => {
+    const logSpy = jest.spyOn(Logger.prototype, 'log');
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn');
+
     await provider.sendMessage(sessionId, '5511999990000@s.whatsapp.net', 'Ola! Como posso ajudar?', '5511999990000');
 
     const recemEnviada = await prisma.whatsAppMessage.findFirst({
@@ -95,6 +99,21 @@ describe('BaileysWhatsAppProvider - confirmacao de entrega via messages.update (
     ]);
     atualizada = await prisma.whatsAppMessage.findUnique({ where: { id: recemEnviada!.id } });
     expect(atualizada?.statusEntrega).toBe('delivery_ack');
+
+    // I4: count > 0 (achou e atualizou a mensagem) loga sucesso via .log,
+    // nunca .warn - confirma que o achado I4 nao introduziu falso-negativo
+    // no caminho feliz.
+    expect(
+      logSpy.mock.calls.some((call) => String(call[0]).includes('[ACK] Mensagem BAILEYS-ID-ENVIO-1')),
+    ).toBe(true);
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    // I5: o log de debug removido nao deve mais aparecer em nenhuma chamada
+    // a .log durante todo o fluxo acima (envio + 2 ACKs).
+    expect(logSpy.mock.calls.some((call) => String(call[0]).includes('[DEBUG-ACK-RAW]'))).toBe(false);
+
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('evento sem key.id ou sem update.status (ex: edicao de mensagem) e ignorado sem lancar erro', async () => {
@@ -106,14 +125,28 @@ describe('BaileysWhatsAppProvider - confirmacao de entrega via messages.update (
     ).resolves.not.toThrow();
   });
 
-  it('baileysMessageId desconhecido (nenhuma mensagem correspondente): updateMany nao afeta nada, nao lanca erro', async () => {
+  it('baileysMessageId desconhecido (nenhuma mensagem correspondente): updateMany nao afeta nada, loga warning (I4) em vez de sucesso falso, nao lanca erro', async () => {
     const handlers = (baileysMock as any).__handlers;
     const updateHandler = handlers['messages.update'];
+    const logSpy = jest.spyOn(Logger.prototype, 'log');
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn');
 
     await expect(
       updateHandler([
         { key: { id: 'ID-QUE-NAO-EXISTE', fromMe: true }, update: { status: 2 } },
       ]),
     ).resolves.not.toThrow();
+
+    expect(
+      warnSpy.mock.calls.some((call) =>
+        String(call[0]).includes('Nenhuma mensagem encontrada para baileysMessageId=ID-QUE-NAO-EXISTE'),
+      ),
+    ).toBe(true);
+    expect(
+      logSpy.mock.calls.some((call) => String(call[0]).includes('[ACK] Mensagem ID-QUE-NAO-EXISTE')),
+    ).toBe(false);
+
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 });

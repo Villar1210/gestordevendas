@@ -273,14 +273,6 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
     // logica de retry/correcao automatica nesta fatia. Cada mensagem do
     // lote e independente (mesmo padrao de try/catch dos listeners acima).
     sock.ev.on('messages.update', async (updates) => {
-      // DEBUG TEMPORARIO (remover apos diagnostico): payload CRU, sem
-      // nenhum filtro/correlacao - objetivo e ver exatamente o formato de
-      // key.id/key.fromMe que o Baileys manda de verdade, para comparar
-      // com o baileysMessageId que gravamos no banco (suspeita: pode haver
-      // diferenca de formato impedindo a correlacao) e confirmar se os
-      // eventos que chegam sao fromMe:true (nossas mensagens enviadas) ou
-      // so fromMe:false (mensagens recebidas, ja processadas acima).
-      this.appLogger.log(`[DEBUG-ACK-RAW] ${JSON.stringify(updates)}`);
       for (const { key, update } of updates) {
         try {
           const baileysMessageId = key.id;
@@ -289,15 +281,21 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
           const statusEntrega = mapBaileysAckStatusToStatusEntrega(update.status);
           if (!statusEntrega) continue;
 
-          await this.messageRepository.updateStatusEntregaByBaileysMessageId(
+          const { count } = await this.messageRepository.updateStatusEntregaByBaileysMessageId(
             sessionId,
             baileysMessageId,
             statusEntrega,
           );
 
-          this.appLogger.log(
-            `[ACK] Mensagem ${baileysMessageId} (sessao ${sessionId}): statusEntrega=${statusEntrega}`,
-          );
+          if (count === 0) {
+            this.appLogger.warn(
+              `[ACK] Nenhuma mensagem encontrada para baileysMessageId=${baileysMessageId} (sessao ${sessionId}) - statusEntrega=${statusEntrega} nao aplicado.`,
+            );
+          } else {
+            this.appLogger.log(
+              `[ACK] Mensagem ${baileysMessageId} (sessao ${sessionId}): statusEntrega=${statusEntrega}`,
+            );
+          }
         } catch (err) {
           this.appLogger.error(
             `[ACK] Falha ao registrar confirmacao de entrega (sessao ${sessionId}, key ${key.id}): ${

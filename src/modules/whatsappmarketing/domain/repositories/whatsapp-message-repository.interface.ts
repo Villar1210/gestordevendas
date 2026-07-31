@@ -63,9 +63,12 @@ export interface IWhatsAppMessageRepository {
   // update) de proposito - nao lanca erro se a mensagem ainda nao tiver
   // sido persistida quando o evento chegar (defensivo contra corrida),
   // nem se o id nao for reconhecido (mensagem de outra natureza/antiga).
+  // Retorna { count } (retorno nativo do updateMany do Prisma) para o
+  // caller distinguir "atualizou de verdade" de "nao encontrou nada" -
+  // ver BaileysWhatsAppProvider (achado I4).
   updateStatusEntregaByBaileysMessageId(
     sessionId: string,
     baileysMessageId: string,
     statusEntrega: StatusEntrega,
-  ): Promise<void>;
+  ): Promise<{ count: number }>;
 }

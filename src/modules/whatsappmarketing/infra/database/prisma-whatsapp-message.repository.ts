@@ -101,8 +101,8 @@ export class PrismaWhatsAppMessageRepository implements IWhatsAppMessageReposito
     sessionId: string,
     baileysMessageId: string,
     statusEntrega: StatusEntrega,
-  ): Promise<void> {
-    await this.prisma.whatsAppMessage.updateMany({
+  ): Promise<{ count: number }> {
+    return this.prisma.whatsAppMessage.updateMany({
       where: { sessionId, baileysMessageId },
       data: { statusEntrega },
     });
