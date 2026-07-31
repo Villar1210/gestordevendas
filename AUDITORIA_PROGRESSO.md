@@ -228,6 +228,39 @@ direta (`package.json`, busca por config files, busca por `*.test.ts*`/
 explicitamente em vez de simular um teste que nao rodaria de verdade.
 `tsc --noEmit` limpo no frontend.
 
+## I14 — Specs faltantes em 5 use cases do Atendimento
+**Feito:**
+- `EscalonarAtendimentosSemDonoUseCase`: ja tinha spec minima desde o
+  I9 (so `ESCALONAMENTO_MINUTOS_LIMITE` + cutoff passado ao
+  repositorio, com nota explicita de que a suite comportamental
+  completa ficava para este achado). Expandido com `describe` novo
+  cobrindo: nenhum pendente -> nao marca/emite nada; marca+emite com o
+  payload correto (`tenantId`/`atendimentoId`/`phoneNumber`/`filaNome`/
+  `minutosAguardando`); ordem mark-antes-de-emitir (se
+  `markEscalonamentoNotificado` falhar, o evento NUNCA e emitido para
+  aquele item); multiplos atendimentos no mesmo lote, um evento por
+  item; resiliencia (erro num item nao impede o processamento dos
+  demais no mesmo lote); idempotencia simulada via mock (item marcado
+  nao volta a aparecer numa chamada seguinte, ja que a query real
+  filtraria por `escalonamentoNotificadoEm=null`).
+- `ClassifyAndRouteAtendimentoUseCase`, `AssignAtendimentoUseCase`,
+  `RequeueAtendimentoUseCase`: nao tinham nenhuma spec - criadas do
+  zero, cobrindo guards de estado/autorizacao de cada um (nao
+  encontrado, ja fechado, Administrador vs dono/pertencimento a fila),
+  reaproveitar vs criar fila (Classify), montagem condicional do
+  update e do detalhe do evento combinando urgente/resumo (Classify),
+  e o reset de `escalonamentoNotificadoEm` no Requeue (achado I6)
+  coberto explicitamente.
+- `AddNotaAtendimentoUseCase`: ja tinha boa cobertura de escopo (I2/
+  I2b) - adicionado o caso faltante de texto vazio/so espacos
+  (`BadRequestException`, antes mesmo de consultar o banco).
+**Commit:** `4d47329`
+**Testes:** 43 testes novos/expandidos nos 5 arquivos, 5/5 suites
+passando. `tsc --noEmit` limpo. Suite completa do modulo `atendimento`:
+57/59 passando - a unica falha e a integracao
+`get-or-create-atendimento.race-condition`, pre-existente e dependente
+de Postgres, sem regressao.
+
 ---
 
-*Itens pendentes: I8b, I14, I15.*
+*Itens pendentes: I8b, I15.*
