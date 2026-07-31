@@ -261,6 +261,93 @@ passando. `tsc --noEmit` limpo. Suite completa do modulo `atendimento`:
 `get-or-create-atendimento.race-condition`, pre-existente e dependente
 de Postgres, sem regressao.
 
+## I15 — Evento de auditoria duplicado/mal rotulado com `tipo: 'criado'`
+**Investigacao:** nao era uma chamada duplicada literal - eram duas
+logicas distintas em dois use cases (`GetOrCreateAtendimentoUseCase`
+e `ClassifyAndRouteAtendimentoUseCase`, chamados em sequencia pelo
+mesmo fluxo real - `ViviAtendimentoEscalationService.transferToFila`/
+`.handleAiFailure`) que por erro de rotulagem usavam o MESMO `tipo`
+para eventos semanticamente diferentes (criacao vs. classificacao).
+Impacto era so visual/auditoria (timeline do painel de chat) - nenhuma
+metrica/contagem/logica de negocio no codebase le esse campo (confirmado
+por busca completa antes de propor a correcao). Atendimento NOVO
+mostrava "Criado" duas vezes; atendimento JA EXISTENTE reclassificado
+ganhava um "Criado" fora de lugar no meio da timeline.
+**Feito:** `ClassifyAndRouteAtendimentoUseCase` passou a gravar
+`tipo: 'classificado'` (consistente com o evento de dominio
+`'atendimento.classificado'` ja emitido logo depois). Adicionado
+`classificado: "Classificado"` em `EVENTO_TIPO_LABELS` (frontend).
+`GetOrCreateAtendimentoUseCase` NAO alterado (seu `tipo:'criado'` ja
+estava correto). **Sem migracao de dados historicos** - eventos ja
+gravados no banco ANTES desta correcao continuam com `tipo:'criado'`,
+inclusive os duplicados nos casos de atendimento novo; so atendimentos
+classificados A PARTIR desta correcao ganham o rotulo certo
+("Classificado") na timeline.
+**Commit:** `d98d086`
+**Testes:** teste novo no spec do I14 confirmando `tipo:'classificado'`
+e a ausencia de `tipo:'criado'`. `tsc --noEmit` limpo no backend e no
+frontend. Suite `atendimento`: 58/60 passando (+1 do teste novo) - a
+unica falha e a integracao `get-or-create-atendimento.race-condition`,
+pre-existente e dependente de Postgres, sem regressao.
+
 ---
 
-*Itens pendentes: I8b, I15.*
+## Resumo final consolidado da sessao
+
+Todos os itens NUMERADOS da lista original da auditoria estao
+concluidos (I4 a I15, exceto I8b - ver nota propria abaixo). Restam so
+observacoes cosmeticas nao priorizadas, fora do escopo desta sessao.
+
+### Achados corrigidos (ordem cronologica, commits mais recentes primeiro no `git log`)
+
+| Achado | Resumo | Commit(s) |
+|---|---|---|
+| I4 | ACK do WhatsApp: `updateMany` sem checar `count` | `a6e13d0` |
+| I5 | Log `[DEBUG-ACK-RAW]` exposto em producao | `a6e13d0` (junto com I4) |
+| I7 | `SendWhatsAppMessageUseCase` checava so status do banco, nao o socket real | `3eb3475` |
+| I9 | Escalonamento fixo de 15min -> 5min | `8748cd5` |
+| I8a | Lista fechada de motivos de fechamento + bloqueia reabertura automatica da VIVI por motivo de negocio | `d2390ee` |
+| I10 | Refactor estrutural `ProcessIncomingMessageUseCase` (897 -> 485 linhas, 17 -> 13 parametros no construtor, 5 commits) | `f395eb3`, `8c2b26f`, `b796188`, `7d79940`, `2000db7` |
+| I11 | Logging na camada de aplicacao do Atendimento (12 use cases) | `f8ff3ba` |
+| I12 | Confirmacao ao "Finalizar" na lista de atendimentos (paridade com o painel de chat) | `ca47877` |
+| I13 | Corrida entre polling de 5s e troca de conversa exibindo dados errados | `142ce2f` |
+| I14 | Specs faltantes em 5 use cases do Atendimento (43 testes novos/expandidos) | `4d47329` |
+| I15 | Evento de auditoria duplicado/mal rotulado (`tipo:'criado'` -> `'classificado'`) | `d98d086` |
+
+(I1/I2/I3/I6 ja estavam fechados em sessoes anteriores a esta, ver
+historico de commits mais antigo.)
+
+### I8b — PENDENTE, fora de escopo por decisao deliberada
+Deteccao automatica de "abandono" (fechamento automatico por timeout de
+inatividade, sem acao humana) - nenhum mecanismo de timeout foi
+construido. Decisao registrada com o usuario: avaliar numa tarefa
+futura se vale a pena construir (e, se sim, definir janela de tempo e
+se dispara o fechamento sozinho ou so sinaliza para um humano decidir).
+**Nao e um bug pendente - e um escopo deliberadamente deixado de fora.**
+
+### Trabalho de terceiros protegido (nao relacionado a esta auditoria)
+Durante o I10, foi descoberto um trabalho em andamento em paralelo
+(feature "VIVI Followups" - empreendimentos/plantao/HIS/cadencia de
+reengajamento por WhatsApp) editando ao vivo os mesmos arquivos
+compartilhados do modulo `vivi_sdr`. Verificado com cuidado (diff por
+diff) que nada desse WIP dependia da estrutura pre-refactor do I10 -
+zero risco de conflito. A pedido do usuario, esse trabalho foi
+protegido contra perda acidental em 2 commits `wip(vivi_sdr)` dedicados
+(`d007d02` codigo, `54a5428` briefing/base de conhecimento) - **ainda
+NAO revisado, NAO testado, NAO finalizado** - fica para uma sessao
+futura dedicada a essa feature, separada desta auditoria.
+
+### Regras seguidas durante toda a sessao
+Nenhum `push`/deploy em nenhum momento - todos os commits permanecem
+locais na branch `main`. Nenhum arquivo excluido. Nenhuma dependencia
+nova instalada sem pedido/confirmacao explicita. Toda mudanca de escopo
+maior que o pedido (ex: `npx prisma generate`, ajuste na factory de
+teste do WIP concorrente) foi perguntada e aprovada antes de executar.
+Cada commit foi mostrado (diff/stat) antes de ser criado.
+
+---
+
+## AGUARDANDO REVISAO FINAL DO USUARIO ANTES DE QUALQUER PUSH/DEPLOY
+
+*Itens pendentes: I8b (decisao de escopo, nao um bug). Trabalho de
+terceiros (VIVI Followups) protegido mas nao revisado - ver secao acima.*
