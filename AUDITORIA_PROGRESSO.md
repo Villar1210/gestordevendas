@@ -171,6 +171,30 @@ disparando corretamente no output do jest durante a rodada de testes
 (mensagens `[Atendimento] ...` aparecendo no console para cada mutacao
 exercitada pelos testes existentes).
 
+## I12 — Botao "Finalizar" na lista fechava sem confirmacao (inconsistente com o painel de chat)
+**Feito:** `AtendimentoList.tsx` (linha de atendimento, `AtendimentoRow`)
+chamava `onQuickClose(id)` direto no clique do botao "Finalizar", sem
+chance de cancelar nem escolher motivo - diferente do painel de chat
+(`AtendimentoChatPanel.tsx`), que ja tinha esse dialogo desde o I8a
+(select de `MOTIVO_FECHAMENTO_OPTIONS` + Cancelar/Confirmar). Aplicado
+o MESMO padrao ja usado no toggle "Transferir" da propria lista (painel
+inline abaixo da linha, com select + Cancelar/Confirmar) - so troca o
+select de fila/agente pelo select de motivo de fechamento (mesma
+constante `MOTIVO_FECHAMENTO_OPTIONS` do painel de chat, sem duplicar
+as opcoes). `onQuickClose` (prop do componente) ganhou o parametro
+opcional `motivo` - o hook `useAtendimentoIntegration.handleClose` ja
+aceitava esse parametro, so a lista nao o repassava. Toggle de
+"Finalizar" e "Transferir" sao mutuamente exclusivos (abrir um fecha o
+outro), mesma UX ja esperada pelo padrao existente.
+**Commit:** `ca47877`
+**Testes:** `tsc --noEmit` e `eslint` limpos no frontend. **NAO
+testado no navegador** - Docker Desktop indisponivel neste ambiente
+(sem Postgres rodando, sem como subir o backend para logar e navegar
+ate a Central de Atendimento) - registrado aqui explicitamente em vez
+de alegar teste que nao foi feito. Revisao manual do diff confirma que
+a estrutura espelha exatamente o toggle "Transferir" ja existente e
+testado na mesma lista.
+
 ---
 
-*Itens pendentes: I8b, I12, I13, I14, I15.*
+*Itens pendentes: I8b, I13, I14, I15.*
