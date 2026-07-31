@@ -9,6 +9,7 @@ import {
   CardRecord,
 } from '../../domain/repositories/card-repository.interface';
 import { PROTECTED_STAGE_NAMES, REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
+import { REMARKETING_PIPELINE_NOME } from '../../domain/services/remarketing-pipeline';
 
 type PrismaCardRow = {
   id: string;
@@ -203,7 +204,16 @@ export class PrismaCardRepository implements ICardRepository {
   ): Promise<Array<{ stageId: string; stageName: string; position: number; count: number }>> {
     const groups = await this.prisma.card.groupBy({
       by: ['stageId'],
-      where: { tenantId, ownerId, stageId: { not: null } },
+      // Escopo de metrica pessoal de vendas, nao RBAC - leads brutos do
+      // funil de remarketing (ver domain/services/remarketing-pipeline.ts)
+      // nunca contam para o Dashboard do Corretor, mesmo se algum dia
+      // tiverem ownerId preenchido, nem mesmo para um Administrador.
+      where: {
+        tenantId,
+        ownerId,
+        stageId: { not: null },
+        pipeline: { name: { not: REMARKETING_PIPELINE_NOME } },
+      },
       _count: { _all: true },
     });
     if (groups.length === 0) return [];
@@ -230,7 +240,13 @@ export class PrismaCardRepository implements ICardRepository {
 
   async findRecentByOwner(tenantId: string, ownerId: string, limit: number): Promise<CardRecord[]> {
     const rows = await this.prisma.card.findMany({
-      where: { tenantId, ownerId },
+      // Mesmo escopo estrutural de countByOwnerGroupedByStage acima - leads
+      // do funil de remarketing nunca aparecem no Dashboard do Corretor.
+      where: {
+        tenantId,
+        ownerId,
+        pipeline: { name: { not: REMARKETING_PIPELINE_NOME } },
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: { stage: { select: { name: true } } },

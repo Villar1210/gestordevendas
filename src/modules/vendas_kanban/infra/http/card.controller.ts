@@ -186,7 +186,12 @@ export class CardController {
   // GET /cards/:cardId/activities - lista atividades do card
   @Get('cards/:cardId/activities')
   async listActivities(@Param('cardId') cardId: string, @Req() req: Request) {
-    return this.listActivitiesByCardUseCase.execute({ tenantId: req.user!.tenantId, cardId });
+    return this.listActivitiesByCardUseCase.execute({
+      tenantId: req.user!.tenantId,
+      cardId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
+    });
   }
 
   // PATCH /activities/:id/toggle-done - alterna concluida/pendente
@@ -215,6 +220,11 @@ export class CardController {
   // GET /cards/:cardId/notes - lista anotacoes do card (mais recente primeiro)
   @Get('cards/:cardId/notes')
   async listNotes(@Param('cardId') cardId: string, @Req() req: Request) {
-    return this.listNotesByCardUseCase.execute({ tenantId: req.user!.tenantId, cardId });
+    return this.listNotesByCardUseCase.execute({
+      tenantId: req.user!.tenantId,
+      cardId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo,
+    });
   }
 }
