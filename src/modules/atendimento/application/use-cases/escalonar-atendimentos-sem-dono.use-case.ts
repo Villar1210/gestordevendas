@@ -12,7 +12,9 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IAtendimentoRepository } from '../../domain/repositories/atendimento-repository.interface';
 
-export const ESCALONAMENTO_MINUTOS_LIMITE = 15;
+// Achado I9 da auditoria: era 15min, revisado para 5min fixos - mesma
+// regra para todos os tenants/filas, sem configuracao por caso.
+export const ESCALONAMENTO_MINUTOS_LIMITE = 5;
 
 @Injectable()
 export class EscalonarAtendimentosSemDonoUseCase {
