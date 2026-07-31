@@ -28,7 +28,7 @@ import {
 import { AgendarVisitaUseCase } from './agendar-visita.use-case';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
 import { RegistrarUsoViviUseCase } from './registrar-uso-vivi.use-case';
-import { classificarRenda, FaixasRenda } from '../../domain/services/classificar-renda';
+import { mergeCollectedData, applyPostVisitaData } from '../../domain/services/vivi-lead-data-merger';
 import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
 import { buildViviSystemPrompt } from '../../constants/vivi-prompt';
 import {
@@ -246,7 +246,7 @@ export class ProcessIncomingMessageUseCase {
     }
     const { replyText, toolCalls } = generateReplyResult;
 
-    const collected = this.mergeCollectedData(conversation, toolCalls, viviConfig);
+    const collected = mergeCollectedData(toolCalls, viviConfig);
     const agendarVisitaCall = toolCalls.find((call) => call.name === 'agendar_visita');
     const transferCall = toolCalls.find((call) => call.name === 'transferir_para_corretor');
     const filaCall = toolCalls.find((call) => call.name === 'transferir_para_fila');
@@ -285,7 +285,7 @@ export class ProcessIncomingMessageUseCase {
       // nenhum campo) se a conversa ainda nao tem visita agendada. So
       // registra um aviso - nunca derruba o processamento da mensagem.
       if (conversation.visitaAgendadaEm) {
-        this.applyPostVisitaData(updates, posVisitaCall);
+        applyPostVisitaData(updates, posVisitaCall);
       } else {
         this.logger.warn(
           `[VIVI] Tool salvar_dados_pos_visita chamada para ${input.phoneNumber} (conversa ${conversation.id}) SEM visita agendada ainda - dados REJEITADOS.`,
@@ -513,73 +513,6 @@ export class ProcessIncomingMessageUseCase {
     );
 
     return { history, remoteJid: lastMessage?.remoteJid ?? null };
-  }
-
-  private mergeCollectedData(
-    conversation: ViviConversationRecord,
-    toolCalls: { name: string; input: Record<string, unknown> }[],
-    faixasRenda: FaixasRenda,
-  ): ViviConversationUpdateInput {
-    const collected: ViviConversationUpdateInput = {};
-
-    for (const call of toolCalls) {
-      if (call.name !== 'salvar_dados_lead') continue;
-
-      const nome = call.input.nome;
-      const tipoImovel = call.input.tipoImovel;
-      const orcamento = call.input.orcamento;
-      const regiao = call.input.regiao;
-      const finalidade = call.input.finalidade;
-
-      if (typeof nome === 'string' && nome.trim()) collected.nomeColetado = nome.trim();
-      if (typeof tipoImovel === 'string' && tipoImovel.trim())
-        collected.tipoImovelColetado = tipoImovel.trim();
-      if (typeof orcamento === 'string' && orcamento.trim())
-        collected.orcamentoColetado = orcamento.trim();
-      if (typeof regiao === 'string' && regiao.trim()) collected.regiaoColetado = regiao.trim();
-      if (typeof finalidade === 'string' && finalidade.trim())
-        collected.finalidadeColetado = finalidade.trim();
-
-      // Classificacao SEMPRE em codigo puro (classificarRenda), nunca
-      // decidida pela IA - a IA so extrai o numero da conversa. Aceita
-      // tanto number (o schema da tool pede number) quanto string (defesa
-      // contra o modelo mandar "3500" como texto).
-      const renda = this.parseRenda(call.input.rendaDeclarada);
-      if (renda !== null) {
-        collected.rendaDeclarada = renda;
-        collected.categoriaHabitacional = classificarRenda(renda, faixasRenda);
-      }
-    }
-
-    return collected;
-  }
-
-  private applyPostVisitaData(
-    updates: ViviConversationUpdateInput,
-    call: { name: string; input: Record<string, unknown> },
-  ): void {
-    const dataNascimento = call.input.dataNascimento;
-    const email = call.input.email;
-    const tipoRenda = call.input.tipoRenda;
-    const fezDeclaracaoIR = call.input.fezDeclaracaoIR;
-
-    if (typeof dataNascimento === 'string' && dataNascimento.trim())
-      updates.dataNascimento = dataNascimento.trim();
-    if (typeof email === 'string' && email.trim()) updates.email = email.trim();
-    if (tipoRenda === 'CLT' || tipoRenda === 'AUTONOMO') updates.tipoRenda = tipoRenda;
-    // So faz sentido preencher fezDeclaracaoIR quando tipoRenda e AUTONOMO
-    // (ver vivi-prompt.ts, Passo 3 do loop de captura) - mas nao bloqueamos
-    // aqui se a IA mandar fora de ordem, so aceitamos o boolean como veio.
-    if (typeof fezDeclaracaoIR === 'boolean') updates.fezDeclaracaoIR = fezDeclaracaoIR;
-  }
-
-  private parseRenda(value: unknown): number | null {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value.replace(/[^\d.,-]/g, '').replace(',', '.'));
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    return null;
   }
 
   private async transferToBroker(
