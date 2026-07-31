@@ -14,6 +14,7 @@ interface AtendimentoFechadoEvent {
   whatsappSessionId: string;
   remoteJid: string;
   phoneNumber: string;
+  motivoFechamento: string | null;
 }
 
 @Injectable()
@@ -30,6 +31,7 @@ export class AtendimentoFechadoListener {
         whatsappSessionId: event.whatsappSessionId,
         remoteJid: event.remoteJid,
         phoneNumber: event.phoneNumber,
+        motivoFechamento: event.motivoFechamento,
       });
     } catch (error) {
       // Nunca deixa uma falha aqui derrubar o fechamento do atendimento -

@@ -23,7 +23,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Atendimento, AtendimentoEvento, AtendimentoMensagem, Fila } from "../store/useAtendimentoStore";
-import { getStatusOption, EVENTO_TIPO_LABELS, filaChipStyle } from "../constants";
+import { getStatusOption, EVENTO_TIPO_LABELS, filaChipStyle, MOTIVO_FECHAMENTO_OPTIONS } from "../constants";
 import { formatPhoneDisplay, formatDayHeader } from "../format";
 import { ContactAvatar } from "./ContactAvatar";
 
@@ -349,13 +349,18 @@ export function AtendimentoChatPanel({
           {dialog === "close" && (
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">Fechar atendimento</p>
-              <input
-                type="text"
-                placeholder="Motivo (opcional)"
+              <select
                 value={closeMotivo}
                 onChange={(e) => setCloseMotivo(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
-              />
+              >
+                <option value="">Motivo (opcional)</option>
+                {MOTIVO_FECHAMENTO_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={() => setDialog(null)}

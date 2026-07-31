@@ -8,6 +8,7 @@
 // 'atendimento.fechado', emitido por CloseAtendimentoUseCase).
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IAtendimentoRepository } from '../../../atendimento/domain/repositories/atendimento-repository.interface';
+import { isMotivoFechamentoValido } from '../../../atendimento/domain/services/motivo-fechamento';
 import { IViviConversationRepository } from '../../domain/repositories/vivi-conversation-repository.interface';
 
 interface ReabrirViviAposFechamentoInput {
@@ -15,6 +16,7 @@ interface ReabrirViviAposFechamentoInput {
   whatsappSessionId: string;
   remoteJid: string;
   phoneNumber: string;
+  motivoFechamento: string | null;
 }
 
 @Injectable()
@@ -29,6 +31,17 @@ export class ReabrirViviAposFechamentoUseCase {
   ) {}
 
   async execute(input: ReabrirViviAposFechamentoInput): Promise<void> {
+    // Filtro adicional (I8a da auditoria): motivoFechamento de NEGOCIO
+    // (venda_concluida/desistencia/finalizacao_normal) nunca reabre a VIVI,
+    // mesmo que o sinal tecnico (status=encaminhado_fila) esteja presente -
+    // o fechamento foi uma decisao humana deliberada, nao uma falha tecnica
+    // que justificasse liberar a IA de novo para este contato. Checado
+    // ANTES de qualquer consulta a repositorio, de proposito (mais barato,
+    // e nao muda o resultado final).
+    if (input.motivoFechamento && isMotivoFechamentoValido(input.motivoFechamento)) {
+      return;
+    }
+
     // Se ainda houver OUTRO atendimento em aberto para o mesmo contato
     // (mesma sessao/remoteJid), NAO reabre - evita a VIVI atropelar um
     // segundo atendimento simultaneo que ainda esta em andamento. Chamado

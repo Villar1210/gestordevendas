@@ -52,7 +52,37 @@ describe('CloseAtendimentoUseCase', () => {
       whatsappSessionId: 'session-1',
       remoteJid: '5511999990000@s.whatsapp.net',
       phoneNumber: '5511999990000',
+      motivoFechamento: null,
     });
+  });
+
+  it('fecha com motivo de negocio (ex: venda_concluida) e emite "atendimento.fechado" com motivoFechamento preenchido', async () => {
+    const { useCase, atendimentoRepository, eventoRepository, eventEmitter } = setup();
+    const atendimento = buildAtendimentoRecord({
+      id: 'atendimento-2',
+      tenantId: 'tenant-1',
+      whatsappSessionId: 'session-1',
+      remoteJid: '5511999990000@s.whatsapp.net',
+      phoneNumber: '5511999990000',
+      status: 'em_atendimento',
+      ownerId: 'user-1',
+    });
+    atendimentoRepository.findByIdAndTenant.mockResolvedValue(atendimento);
+    atendimentoRepository.update.mockResolvedValue({ ...atendimento, status: 'fechado' });
+    eventoRepository.create.mockResolvedValue({});
+
+    await useCase.execute({
+      tenantId: 'tenant-1',
+      atendimentoId: 'atendimento-2',
+      requesterId: 'user-1',
+      requesterRole: 'Corretor',
+      motivo: 'venda_concluida',
+    });
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'atendimento.fechado',
+      expect.objectContaining({ motivoFechamento: 'venda_concluida' }),
+    );
   });
 
   it('atendimento ja fechado: lanca erro e NAO emite o evento de novo', async () => {

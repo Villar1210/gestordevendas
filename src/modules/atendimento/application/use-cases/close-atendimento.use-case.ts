@@ -67,6 +67,7 @@ export class CloseAtendimentoUseCase {
       whatsappSessionId: atendimento.whatsappSessionId,
       remoteJid: atendimento.remoteJid,
       phoneNumber: atendimento.phoneNumber,
+      motivoFechamento: motivo,
     });
 
     return updated;
