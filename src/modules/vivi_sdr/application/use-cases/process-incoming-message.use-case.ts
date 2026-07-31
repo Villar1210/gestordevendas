@@ -12,13 +12,9 @@ import {
 } from '../../../../shared/domain/services/ai-conversation.interface';
 import { IWhatsAppMessageRepository } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
-import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
 import { CapturarLeadMinimoUseCase } from '../../../vendas_kanban/application/use-cases/capturar-lead-minimo.use-case';
-import { PromoverLeadMinimoUseCase } from '../../../vendas_kanban/application/use-cases/promover-lead-minimo.use-case';
 import { CreateNoteUseCase } from '../../../vendas_kanban/application/use-cases/create-note.use-case';
-import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
-import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
 import { ClassifyAndRouteAtendimentoUseCase } from '../../../atendimento/application/use-cases/classify-and-route-atendimento.use-case';
 import {
@@ -35,13 +31,9 @@ import {
   EnderecoBuscaToolResolverService,
   EnderecoBuscaResultado,
 } from '../services/endereco-busca-tool-resolver.service';
+import { TransferToBrokerService } from '../services/transfer-to-broker.service';
 import { ehPedidoDeOptOut } from '../../../vendas_kanban/domain/services/repique-optout-detector';
 import { UniqueConstraintViolationError } from '../../../../shared/domain/errors/unique-constraint-violation.error';
-
-// Nome fixo da coluna de deposito estrategico de leads sem perfil de renda
-// para nenhuma faixa de financiamento hoje - ver
-// create-default-pipeline.use-case.ts (modulo vendas_kanban).
-const STAGE_REPIQUE_NOME = 'Repique';
 
 interface ProcessIncomingMessageInput {
   tenantId: string;
@@ -77,16 +69,10 @@ export class ProcessIncomingMessageUseCase {
     private readonly aiConversationService: IAiConversationService,
     @Inject('IWhatsAppMessageRepository')
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
-    @Inject('IPipelineRepository')
-    private readonly pipelineRepository: IPipelineRepository,
     @Inject('ICardRepository')
     private readonly cardRepository: ICardRepository,
-    @Inject('IStageRepository')
-    private readonly stageRepository: IStageRepository,
     private readonly sendWhatsAppMessageUseCase: SendWhatsAppMessageUseCase,
-    private readonly createQuickCardUseCase: CreateQuickCardUseCase,
     private readonly capturarLeadMinimoUseCase: CapturarLeadMinimoUseCase,
-    private readonly promoverLeadMinimoUseCase: PromoverLeadMinimoUseCase,
     private readonly createNoteUseCase: CreateNoteUseCase,
     private readonly getOrCreateAtendimentoUseCase: GetOrCreateAtendimentoUseCase,
     private readonly classifyAndRouteAtendimentoUseCase: ClassifyAndRouteAtendimentoUseCase,
@@ -94,6 +80,7 @@ export class ProcessIncomingMessageUseCase {
     private readonly getOrCreateViviConfigUseCase: GetOrCreateViviConfigUseCase,
     private readonly registrarUsoViviUseCase: RegistrarUsoViviUseCase,
     private readonly enderecoBuscaToolResolverService: EnderecoBuscaToolResolverService,
+    private readonly transferToBrokerService: TransferToBrokerService,
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
@@ -351,7 +338,13 @@ export class ProcessIncomingMessageUseCase {
             ? 'repique'
             : 'qualificado_transferido';
 
-      const cardId = await this.transferToBroker(input, conversation, collected, motivo);
+      const cardId = await this.transferToBrokerService.execute({
+        tenantId: input.tenantId,
+        phoneNumber: input.phoneNumber,
+        conversation,
+        collected,
+        motivo,
+      });
       if (cardId) {
         updates.cardId = cardId;
       }
@@ -498,114 +491,6 @@ export class ProcessIncomingMessageUseCase {
     );
 
     return { history, remoteJid: lastMessage?.remoteJid ?? null };
-  }
-
-  private async transferToBroker(
-    input: ProcessIncomingMessageInput,
-    conversation: ViviConversationRecord,
-    collected: ViviConversationUpdateInput,
-    motivo: string,
-  ): Promise<string | null> {
-    const pipelines = await this.pipelineRepository.findAllByTenant(input.tenantId);
-    const pipeline = pipelines[0];
-    if (!pipeline) {
-      // Situacao rara: tenant sem nenhum pipeline configurado ainda. A
-      // conversa e marcada como transferida mesmo assim, so sem Card.
-      this.logger.error(
-        `Nao foi possivel criar o Card da VIVI: tenant ${input.tenantId} nao tem pipeline.`,
-      );
-      return null;
-    }
-
-    // "sem_perfil" (renda SEM_PERFIL, ver classificar-renda.ts) deposita o
-    // Card direto na coluna "Repique" em vez da Caixa de Entrada - deposito
-    // estrategico para remarketing futuro, nao um lead ativo para
-    // distribuir agora (por isso CreateQuickCardUseCase NAO dispara a
-    // Roleta Online quando stageId vem preenchido, ver comentario la).
-    let stageId: string | null = null;
-    if (motivo === 'sem_perfil') {
-      const stages = await this.stageRepository.findAllByPipeline(pipeline.id);
-      const repiqueStage = stages.find((stage) => stage.name === STAGE_REPIQUE_NOME);
-      stageId = repiqueStage?.id ?? null;
-      if (!stageId) {
-        this.logger.warn(
-          `Stage "${STAGE_REPIQUE_NOME}" nao encontrada para tenant ${input.tenantId} - Card criado na Caixa de Entrada normalmente.`,
-        );
-      }
-    }
-
-    const nome = collected.nomeColetado ?? conversation.nomeColetado;
-    const tipoImovel = collected.tipoImovelColetado ?? conversation.tipoImovelColetado;
-    const orcamento = collected.orcamentoColetado ?? conversation.orcamentoColetado;
-    const regiao = collected.regiaoColetado ?? conversation.regiaoColetado;
-    const finalidade = collected.finalidadeColetado ?? conversation.finalidadeColetado;
-    const rendaDeclarada = collected.rendaDeclarada ?? conversation.rendaDeclarada;
-    const categoriaHabitacional = collected.categoriaHabitacional ?? conversation.categoriaHabitacional;
-
-    const resumo = buildResumoAtendimento({
-      motivo,
-      nome,
-      phoneNumber: input.phoneNumber,
-      tipoImovel,
-      orcamento,
-      rendaDeclarada,
-      categoriaHabitacional,
-      regiao,
-      finalidade,
-      visitaAgendadaEm: conversation.visitaAgendadaEm,
-      dataNascimento: collected.dataNascimento ?? conversation.dataNascimento,
-      email: collected.email ?? conversation.email,
-      tipoRenda: collected.tipoRenda ?? conversation.tipoRenda,
-      fezDeclaracaoIR: collected.fezDeclaracaoIR ?? conversation.fezDeclaracaoIR,
-      urgente: false,
-    });
-
-    const origem = motivo === 'sem_perfil' ? 'vivi_repique' : 'roleta_online';
-    const tituloCard = nome || 'Lead via VIVI';
-
-    // Promove (muta) o Card de captura automatica do funil de remarketing
-    // para este mesmo pipeline/stage, se existir um para este telefone -
-    // ver PromoverLeadMinimoUseCase. Se nao existir (contato que qualificou
-    // sem nunca ter passado pela captura automatica), cai no caminho ja
-    // existente de criar um Card novo, comportamento identico ao de antes
-    // desta fatia.
-    const card =
-      (await this.promoverLeadMinimoUseCase.execute({
-        tenantId: input.tenantId,
-        phoneNumber: input.phoneNumber,
-        targetPipelineId: pipeline.id,
-        targetStageId: stageId,
-        position: 0,
-        title: tituloCard,
-        description: resumo,
-        origem,
-        motivoRepique: motivo === 'sem_perfil' ? 'SEM_PERFIL' : null,
-      })) ??
-      (await this.createQuickCardUseCase.execute({
-        tenantId: input.tenantId,
-        pipelineId: pipeline.id,
-        stageId,
-        // Chamada de sistema, nao humana - nunca mira o funil de
-        // remarketing (ver domain/services/remarketing-pipeline.ts).
-        isSystemCall: true,
-        title: tituloCard,
-        origem,
-        phone: input.phoneNumber,
-        description: resumo,
-        // Mesmo motivo ja usado pelo modal manual e pelo job de inatividade
-        // de 90 dias (ver vendas_kanban/domain/services/motivo-repique.ts) -
-        // so quando o card ja nasce direto na stage "Repique" (stageId
-        // preenchido acima, motivo "sem_perfil").
-        motivoRepique: motivo === 'sem_perfil' ? 'SEM_PERFIL' : undefined,
-      }));
-
-    await this.createNoteUseCase.execute({
-      tenantId: input.tenantId,
-      cardId: card.id,
-      body: resumo,
-    });
-
-    return card.id;
   }
 
   private async transferToFila(

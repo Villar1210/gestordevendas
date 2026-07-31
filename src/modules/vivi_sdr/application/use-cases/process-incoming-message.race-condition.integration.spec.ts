@@ -15,7 +15,7 @@
 // necessario), este teste exercita o metodo PUBLICO execute() de ponta a
 // ponta, usando o PrismaViviConversationRepository REAL (o unico
 // dependencia relevante para este achado) e mocks simples (jest.fn(), sem
-// nenhuma chamada real a rede/IA) para as demais 16 dependencias do use
+// nenhuma chamada real a rede/IA) para as demais dependencias do use
 // case - mesmo padrao de construcao manual ja usado em
 // process-incoming-message.use-case.spec.ts (unitario), so trocando o
 // repositorio da ViviConversation por um real.
@@ -52,13 +52,9 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
       viviConversationRepository,
       aiConversationService as any,
       whatsAppMessageRepository as any,
-      {} as any, // IPipelineRepository - nao usado no caminho de resposta simples sem tool
       cardRepository as any,
-      {} as any, // IStageRepository - nao usado no caminho de resposta simples sem tool
       sendWhatsAppMessageUseCase as any,
-      {} as any, // CreateQuickCardUseCase - nao usado no caminho de resposta simples sem tool
       capturarLeadMinimoUseCase as any,
-      {} as any, // PromoverLeadMinimoUseCase - nao usado no caminho de resposta simples sem tool
       {} as any, // CreateNoteUseCase - nao usado no caminho de resposta simples sem tool
       getOrCreateAtendimentoUseCase as any,
       classifyAndRouteAtendimentoUseCase as any,
@@ -66,6 +62,7 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
       getOrCreateViviConfigUseCase as any,
       registrarUsoViviUseCase as any,
       {} as any, // EnderecoBuscaToolResolverService - nao usado no caminho de resposta simples sem tool
+      {} as any, // TransferToBrokerService - nao usado no caminho de resposta simples sem tool
     );
 
     const tenant = await prisma.tenant.create({ data: { name: 'Tenant Teste Corrida ViviConversation' } });

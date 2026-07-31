@@ -54,13 +54,9 @@ function setup() {
     viviConversationRepository as unknown as IViviConversationRepository,
     aiConversationService as unknown as IAiConversationService,
     whatsAppMessageRepository as unknown as IWhatsAppMessageRepository,
-    {} as any, // IPipelineRepository - nao usado no caminho de falha da IA
     cardRepository as unknown as ICardRepository,
-    {} as any, // IStageRepository - nao usado no caminho de falha da IA
     sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
-    {} as any, // CreateQuickCardUseCase - nao usado no caminho de falha da IA
     capturarLeadMinimoUseCase as any,
-    {} as any, // PromoverLeadMinimoUseCase - nao usado no caminho de falha da IA
     {} as any, // CreateNoteUseCase - nao usado no caminho de falha da IA
     getOrCreateAtendimentoUseCase as unknown as GetOrCreateAtendimentoUseCase,
     classifyAndRouteAtendimentoUseCase as unknown as ClassifyAndRouteAtendimentoUseCase,
@@ -68,6 +64,7 @@ function setup() {
     getOrCreateViviConfigUseCase as unknown as GetOrCreateViviConfigUseCase,
     registrarUsoViviUseCase as unknown as RegistrarUsoViviUseCase,
     {} as any, // EnderecoBuscaToolResolverService - nao usado no caminho de falha da IA
+    {} as any, // TransferToBrokerService - nao usado no caminho de falha da IA
   );
 
   // Estado "feliz" ate a chamada a IA: nenhuma das 2 guardas de reabertura

@@ -11,6 +11,7 @@ import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { SendWhatsAppMessageUseCase } from '../../../whatsappmarketing/application/use-cases/send-whatsapp-message.use-case';
+import { TransferToBrokerService } from '../services/transfer-to-broker.service';
 import { GetOrCreateViviConfigUseCase } from './get-or-create-vivi-config.use-case';
 import { RegistrarUsoViviUseCase } from './registrar-uso-vivi.use-case';
 import { buildViviConversationRecord } from '../../../../../test/factories/vivi-conversation-record.factory';
@@ -40,17 +41,26 @@ function setup() {
   const getOrCreateViviConfigUseCase = { execute: jest.fn() };
   const registrarUsoViviUseCase = { execute: jest.fn() };
 
+  // TransferToBrokerService extraido de dentro de ProcessIncomingMessageUseCase
+  // (I10 da auditoria) - instanciado aqui com os MESMOS mocks que os testes
+  // abaixo inspecionam diretamente (promoverLeadMinimoUseCase/
+  // createQuickCardUseCase/createNoteUseCase), so que agora passados por
+  // dentro do service em vez de direto no construtor do use case principal.
+  const transferToBrokerService = new TransferToBrokerService(
+    pipelineRepository as unknown as IPipelineRepository,
+    stageRepository as unknown as IStageRepository,
+    createQuickCardUseCase as any,
+    promoverLeadMinimoUseCase as any,
+    createNoteUseCase as any,
+  );
+
   const useCase = new ProcessIncomingMessageUseCase(
     viviConversationRepository as unknown as IViviConversationRepository,
     aiConversationService as unknown as IAiConversationService,
     whatsAppMessageRepository as unknown as IWhatsAppMessageRepository,
-    pipelineRepository as unknown as IPipelineRepository,
     cardRepository as unknown as ICardRepository,
-    stageRepository as unknown as IStageRepository,
     sendWhatsAppMessageUseCase as unknown as SendWhatsAppMessageUseCase,
-    createQuickCardUseCase as any,
     capturarLeadMinimoUseCase as any,
-    promoverLeadMinimoUseCase as any,
     createNoteUseCase as any,
     { execute: jest.fn() } as any, // GetOrCreateAtendimentoUseCase - nao usado neste caminho
     { execute: jest.fn() } as any, // ClassifyAndRouteAtendimentoUseCase - nao usado neste caminho
@@ -58,6 +68,7 @@ function setup() {
     getOrCreateViviConfigUseCase as unknown as GetOrCreateViviConfigUseCase,
     registrarUsoViviUseCase as unknown as RegistrarUsoViviUseCase,
     {} as any, // EnderecoBuscaToolResolverService - nao usado neste caminho
+    transferToBrokerService,
   );
 
   viviConversationRepository.findLatestBySessionAndPhone.mockResolvedValue(null);
