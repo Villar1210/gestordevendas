@@ -138,6 +138,39 @@ presente desde antes do I8a, confirmada via `git stash` naquela ocasiao)
 pertencem ao trabalho concorrente (VIVI Followups) e a integracao
 dependente de Postgres, ja documentadas em itens anteriores.
 
+## I11 — Camada de aplicacao do Atendimento quase nao logava nada
+**Feito:** dos 16 use cases do modulo (excluindo specs), so
+`EscalonarAtendimentosSemDonoUseCase` e `GetOrCreateAtendimentoUseCase`
+tinham `Logger`. Adicionado logging nos outros 12 (mesmo padrao ja
+usado nesses dois: `Logger` do NestJS, prefixo `[Atendimento]`,
+mensagens descritivas com os IDs relevantes):
+- **Mutacoes de estado** (`CreateFilaUseCase`, `DeleteFilaUseCase`,
+  `AddUsuarioToFilaUseCase`, `RemoveUsuarioFromFilaUseCase`,
+  `AssignAtendimentoUseCase`, `TransferAtendimentoUseCase`,
+  `RequeueAtendimentoUseCase`, `CloseAtendimentoUseCase`,
+  `ClassifyAndRouteAtendimentoUseCase`, `AddNotaAtendimentoUseCase`,
+  `EnviarMensagemAtendimentoUseCase`) logam com `log()` ao final da
+  operacao, com o ator responsavel.
+- **Decisao notavel de negocio** (`ClassifyAndRouteAtendimentoUseCase`
+  criando uma fila que nao existia, ao classificar) loga com `warn()`.
+- **Decisao de seguranca** (`GetAtendimentoDetailUseCase` negando
+  acesso ao detalhe de um atendimento fora do escopo do requisitante)
+  loga com `warn()`.
+- **Dado sensivel nunca logado**: texto da nota
+  (`AddNotaAtendimentoUseCase`) e corpo da mensagem
+  (`EnviarMensagemAtendimentoUseCase`) - so o rastro de que a acao
+  aconteceu e por quem, nunca o conteudo.
+- **Deliberadamente sem log**: `ListFilasUseCase`/`ListAtendimentosUseCase`
+  (leitura pura, virariam ruido a cada carregamento de tela, sem valor
+  diagnostico novo).
+**Commit:** `f8ff3ba`
+**Testes:** `tsc --noEmit` limpo. Suite `atendimento`: 21/23 passando -
+a unica falha e a integracao `get-or-create-atendimento.race-condition`
+(pre-existente, dependente de Postgres, sem regressao). Logs conferidos
+disparando corretamente no output do jest durante a rodada de testes
+(mensagens `[Atendimento] ...` aparecendo no console para cada mutacao
+exercitada pelos testes existentes).
+
 ---
 
-*Itens pendentes: I8b, I11, I12, I13, I14, I15.*
+*Itens pendentes: I8b, I12, I13, I14, I15.*
