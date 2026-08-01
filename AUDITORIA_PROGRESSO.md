@@ -1,6 +1,6 @@
 # Auditoria — Progresso
 
-Registro incremental da correção dos achados da auditoria (I4 em diante — I1/I2/I3/I6 já fechados em sessões anteriores, ver histórico de commits). Um achado por vez, um commit por achado (ou sub-parte, quando indicado).
+Registro incremental da correção dos achados da auditoria (I4 em diante — I1, I2, I2b, I3 (e sua cadeia completa) e I6 também foram corrigidos nesta mesma sessão, no início do trabalho, antes dos achados I4 em diante documentados abaixo; apenas C1 e C2 são anteriores a esta sessão). Um achado por vez, um commit por achado (ou sub-parte, quando indicado).
 
 ---
 
@@ -314,8 +314,10 @@ observacoes cosmeticas nao priorizadas, fora do escopo desta sessao.
 | I14 | Specs faltantes em 5 use cases do Atendimento (43 testes novos/expandidos) | `4d47329` |
 | I15 | Evento de auditoria duplicado/mal rotulado (`tipo:'criado'` -> `'classificado'`) | `d98d086` |
 
-(I1/I2/I3/I6 ja estavam fechados em sessoes anteriores a esta, ver
-historico de commits mais antigo.)
+(I1, I2, I2b, I3 (e sua cadeia completa) e I6 tambem foram corrigidos
+nesta mesma sessao, no inicio do trabalho, antes dos achados I4 em
+diante documentados acima. Apenas C1 e C2 sao anteriores a esta
+sessao.)
 
 ### I8b — PENDENTE, fora de escopo por decisao deliberada
 Deteccao automatica de "abandono" (fechamento automatico por timeout de
