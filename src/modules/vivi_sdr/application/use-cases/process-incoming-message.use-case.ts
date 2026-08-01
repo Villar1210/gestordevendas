@@ -401,6 +401,7 @@ export class ProcessIncomingMessageUseCase {
         to: remoteJid ?? input.phoneNumber,
         phoneNumber: input.phoneNumber,
         body: replyText,
+        simularDigitando: true,
       });
     } else {
       // Chegou aqui so se uma tool FOI chamada (o caso "nenhuma tool e sem

@@ -398,7 +398,13 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
     return this.connectedSessions.has(sessionId);
   }
 
-  async sendMessage(sessionId: string, to: string, body: string, phoneNumber?: string): Promise<void> {
+  async sendMessage(
+    sessionId: string,
+    to: string,
+    body: string,
+    phoneNumber?: string,
+    simularDigitando?: boolean,
+  ): Promise<void> {
     const sock = this.sockets.get(sessionId);
     if (!sock) {
       throw new Error('Sessao WhatsApp nao esta conectada.');
@@ -411,6 +417,27 @@ export class BaileysWhatsAppProvider implements IWhatsAppProvider, OnModuleInit 
     // ENVIO em si (sock.sendMessage) SEMPRE usa este "jid" - nunca o
     // "phoneNumber" abaixo, que so afeta o que fica gravado no banco.
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+
+    // Integracao VIVI (2026) - indicador de presenca "digitando..." antes da
+    // mensagem. sendPresenceUpdate() sozinho nao tem efeito visivel: chega
+    // quase junto com a mensagem real se nao houver uma pausa entre os dois.
+    // 2s fixos - convencao de comunidade Baileys (nao documentado
+    // oficialmente, nao testado contra numero real neste projeto ainda);
+    // ajustar se, na pratica, ficar rapido/lento demais. Nunca derruba o
+    // envio se falhar - so um efeito visual, tenta uma vez e segue.
+    if (simularDigitando) {
+      try {
+        await sock.sendPresenceUpdate('composing', jid);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (error) {
+        this.appLogger.warn(
+          `Falha ao enviar indicador "digitando..." para ${jid} (sessao ${sessionId}) - envio da mensagem segue normalmente: ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+      }
+    }
+
     const sentMessage = await sock.sendMessage(jid, { text: body });
 
     const session = await this.sessionRepository.findById(sessionId);

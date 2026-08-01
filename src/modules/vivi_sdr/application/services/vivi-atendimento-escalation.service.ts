@@ -107,6 +107,7 @@ export class ViviAtendimentoEscalationService {
         to: jid,
         phoneNumber,
         body: AI_FALLBACK_MESSAGE,
+        simularDigitando: true,
       });
     } catch (sendError) {
       // Se ate o envio do fallback falhar (ex: sessao do WhatsApp caiu

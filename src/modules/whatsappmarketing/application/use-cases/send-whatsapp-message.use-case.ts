@@ -17,6 +17,9 @@ interface SendWhatsAppMessageInput {
   // IWhatsAppProvider.sendMessage para o porque disso importar quando "to"
   // e um JID @lid.
   phoneNumber?: string;
+  // Integracao VIVI (2026, opcional, default false) - ver
+  // IWhatsAppProvider.sendMessage. So a VIVI passa true.
+  simularDigitando?: boolean;
 }
 
 @Injectable()
@@ -52,6 +55,12 @@ export class SendWhatsAppMessageUseCase {
       );
     }
 
-    await this.whatsAppProvider.sendMessage(session.id, input.to, input.body, input.phoneNumber);
+    await this.whatsAppProvider.sendMessage(
+      session.id,
+      input.to,
+      input.body,
+      input.phoneNumber,
+      input.simularDigitando,
+    );
   }
 }

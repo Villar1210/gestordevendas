@@ -61,6 +61,7 @@ export class ViviMessageGuardsService {
       to: input.remoteJid ?? input.phoneNumber,
       phoneNumber: input.phoneNumber,
       body: 'Combinado! Você não vai mais receber nossas mensagens de remarketing. Se mudar de ideia, é só chamar por aqui.',
+      simularDigitando: true,
     });
     return true;
   }

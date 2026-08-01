@@ -47,6 +47,7 @@ describe('SendWhatsAppMessageUseCase - checagem real do socket (I7)', () => {
       '5511999990000@s.whatsapp.net',
       'Ola',
       undefined,
+      undefined,
     );
   });
 
