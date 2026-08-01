@@ -152,10 +152,28 @@ export class EnderecoBuscaToolResolverService {
         ? `R$ ${resultado.precoDesde.toLocaleString('pt-BR')}`
         : 'nao informado';
 
+    // Linhas condicionais (Integracao VIVI 2026) - so entram no texto
+    // devolvido ao modelo se o campo estiver preenchido, mesma filosofia de
+    // "omitir se vazio" ja usada em formatSobreConstrutora (vivi-prompt.ts).
+    // So existem no caminho "empreendimento" (ver buildResultadoImovelAvulso).
+    const plantaoPartes = [
+      resultado.plantaoEndereco,
+      resultado.plantaoHorarioFuncionamento,
+      resultado.plantaoCorretorResponsavel,
+      resultado.plantaoWhatsappCorretor,
+    ].filter((parte): parte is string => Boolean(parte));
+
     const linhas = [
       'ENCONTRADO NO CATALOGO PROPRIO.',
       `Nome: ${resultado.nome ?? 'nao informado'}`,
-      `Diferenciais: ${resultado.diferenciais ?? 'nao informado'}`,
+      `Descricao: ${resultado.descricao ?? 'nao informado'}`,
+      resultado.diferenciais && resultado.diferenciais.length > 0
+        ? `Diferenciais: ${resultado.diferenciais.join('; ')}`
+        : null,
+      resultado.provaSocial ? `Prova social: ${resultado.provaSocial}` : null,
+      resultado.statusObra ? `Status da obra: ${resultado.statusObra}` : null,
+      resultado.proximoMetro === true ? 'Proximo ao metro: sim' : null,
+      plantaoPartes.length > 0 ? `Plantao: ${plantaoPartes.join(' - ')}` : null,
       `Status: ${resultado.statusResumo ?? 'nao informado'}`,
       resultado.tipo === 'empreendimento' ? `Unidades disponiveis: ${resultado.unidadesDisponiveis ?? 0}` : null,
       `Preco a partir de: ${precoTexto}`,

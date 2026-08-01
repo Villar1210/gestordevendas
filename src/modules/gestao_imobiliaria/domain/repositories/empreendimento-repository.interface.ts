@@ -28,6 +28,19 @@ export interface EmpreendimentoRecord {
   gabarito: number | null;
   vagas: number | null;
   itensLazer: string[];
+  // Integracao VIVI (2026) - campos para a VIVI falar sobre o empreendimento
+  // com mais contexto ao consultar o catalogo real via
+  // BuscarEmpreendimentoPorEnderecoUseCase (nunca duplicados em ViviConfig -
+  // ver CLAUDE.md). diferenciais/provaSocial sao texto curado manualmente,
+  // nao gerados automaticamente.
+  proximoMetro: boolean;
+  diferenciais: string[];
+  provaSocial: string | null;
+  statusObra: string | null;
+  plantaoEndereco: string | null;
+  plantaoHorarioFuncionamento: string | null;
+  plantaoCorretorResponsavel: string | null;
+  plantaoWhatsappCorretor: string | null;
 }
 
 // Foto do EMPREENDIMENTO como um todo (Fatia 5) - model separado de

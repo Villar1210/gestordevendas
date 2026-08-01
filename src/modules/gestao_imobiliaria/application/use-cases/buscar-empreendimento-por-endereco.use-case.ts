@@ -22,7 +22,22 @@ export interface BuscaEmpreendimentoResultado {
   encontrado: boolean;
   tipo: 'empreendimento' | 'imovel' | null;
   nome: string | null;
-  diferenciais: string | null;
+  // Ate a Integracao VIVI (2026) este campo se chamava "diferenciais", mas
+  // sempre veio de Empreendimento.description (texto livre) - renomeado
+  // para refletir a origem real, agora que "diferenciais" passou a
+  // significar outra coisa (ver abaixo).
+  descricao: string | null;
+  // Lista curada (Empreendimento.diferenciais, Migration A/2026) - so
+  // preenchida no caminho "empreendimento" (Imovel avulso nao tem essa
+  // coluna, ver buildResultadoImovelAvulso).
+  diferenciais: string[] | null;
+  provaSocial: string | null;
+  statusObra: string | null;
+  proximoMetro: boolean | null;
+  plantaoEndereco: string | null;
+  plantaoHorarioFuncionamento: string | null;
+  plantaoCorretorResponsavel: string | null;
+  plantaoWhatsappCorretor: string | null;
   unidadesDisponiveis: number | null;
   precoDesde: number | null;
   statusResumo: string | null;
@@ -70,7 +85,15 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
       encontrado: false,
       tipo: null,
       nome: null,
+      descricao: null,
       diferenciais: null,
+      provaSocial: null,
+      statusObra: null,
+      proximoMetro: null,
+      plantaoEndereco: null,
+      plantaoHorarioFuncionamento: null,
+      plantaoCorretorResponsavel: null,
+      plantaoWhatsappCorretor: null,
       unidadesDisponiveis: null,
       precoDesde: null,
       statusResumo: null,
@@ -78,7 +101,18 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
   }
 
   private buildResultadoEmpreendimento(
-    empreendimento: { name: string; description: string | null },
+    empreendimento: {
+      name: string;
+      description: string | null;
+      diferenciais: string[];
+      provaSocial: string | null;
+      statusObra: string | null;
+      proximoMetro: boolean;
+      plantaoEndereco: string | null;
+      plantaoHorarioFuncionamento: string | null;
+      plantaoCorretorResponsavel: string | null;
+      plantaoWhatsappCorretor: string | null;
+    },
     unidades: ImovelRecord[],
   ): BuscaEmpreendimentoResultado {
     const disponiveis = unidades.filter((u) => u.status === STATUS_DISPONIVEL);
@@ -91,7 +125,15 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
       encontrado: true,
       tipo: 'empreendimento',
       nome: empreendimento.name,
-      diferenciais: empreendimento.description,
+      descricao: empreendimento.description,
+      diferenciais: empreendimento.diferenciais.length > 0 ? empreendimento.diferenciais : null,
+      provaSocial: empreendimento.provaSocial,
+      statusObra: empreendimento.statusObra,
+      proximoMetro: empreendimento.proximoMetro,
+      plantaoEndereco: empreendimento.plantaoEndereco,
+      plantaoHorarioFuncionamento: empreendimento.plantaoHorarioFuncionamento,
+      plantaoCorretorResponsavel: empreendimento.plantaoCorretorResponsavel,
+      plantaoWhatsappCorretor: empreendimento.plantaoWhatsappCorretor,
       unidadesDisponiveis: disponiveis.length,
       precoDesde,
       statusResumo:
@@ -101,12 +143,24 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
     };
   }
 
+  // Imovel avulso NAO tem empreendimento - as colunas novas (diferenciais/
+  // provaSocial/statusObra/proximoMetro/plantao*) so existem em
+  // Empreendimento (Migration A/2026), entao ficam ausentes aqui de
+  // proposito, sem inventar dado.
   private buildResultadoImovelAvulso(imovel: ImovelRecord): BuscaEmpreendimentoResultado {
     return {
       encontrado: true,
       tipo: 'imovel',
       nome: imovel.title,
-      diferenciais: imovel.description,
+      descricao: imovel.description,
+      diferenciais: null,
+      provaSocial: null,
+      statusObra: null,
+      proximoMetro: null,
+      plantaoEndereco: null,
+      plantaoHorarioFuncionamento: null,
+      plantaoCorretorResponsavel: null,
+      plantaoWhatsappCorretor: null,
       unidadesDisponiveis: imovel.status === STATUS_DISPONIVEL ? 1 : 0,
       precoDesde: imovel.price ?? imovel.rentPrice,
       statusResumo: imovel.status,
