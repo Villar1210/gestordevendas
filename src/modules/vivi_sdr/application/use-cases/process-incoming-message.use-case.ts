@@ -237,182 +237,254 @@ export class ProcessIncomingMessageUseCase {
     }
 
     const updates: ViviConversationUpdateInput = { ...collected };
+    // Preenchida dentro do bloco agendarVisitaCall abaixo, enviada como
+    // SEGUNDA mensagem (depois da confirmacao cordial gerada pela IA) - ver
+    // final do try abaixo. Escopo de funcao (nao do bloco if) de proposito,
+    // para sobreviver ate o envio, depois do resto do processamento.
+    let mensagemConfirmacaoEstruturada: string | null = null;
 
-    if (posVisitaCall) {
-      // Defesa em profundidade: mesmo que o prompt instrua a IA a so chamar
-      // esta tool depois de agendar_visita, o codigo REJEITA (nao aplica
-      // nenhum campo) se a conversa ainda nao tem visita agendada. So
-      // registra um aviso - nunca derruba o processamento da mensagem.
-      if (conversation.visitaAgendadaEm) {
-        applyPostVisitaData(updates, posVisitaCall);
-      } else {
-        this.logger.warn(
-          `[VIVI] Tool salvar_dados_pos_visita chamada para ${input.phoneNumber} (conversa ${conversation.id}) SEM visita agendada ainda - dados REJEITADOS.`,
-        );
+    // Gap de resiliencia (Integracao VIVI 2026): tudo neste bloco - do
+    // tratamento das tools ate os dois envios de mensagem - agora tem a
+    // MESMA rede de seguranca ja usada para falha da IA (handleAiFailure,
+    // ver catch acima). Antes desta mudanca, uma excecao em qualquer ponto
+    // aqui dentro (ex: AgendarVisitaUseCase, CreateNoteUseCase,
+    // TransferToBrokerService, ou o proprio envio da mensagem) propagava
+    // sem tratamento ate WhatsAppMessageReceivedListener, que so loga o
+    // erro - NENHUMA mensagem de fallback chegava ao lead, a conversa
+    // "morria" silenciosamente so para aquele numero (investigado e
+    // confirmado como a causa mais provavel do bug real relatado pelo
+    // usuario - lead respondeu "a tarde" a um horario, VIVI nunca mais
+    // respondeu). Ver AUDITORIA/notas desta sessao para o diagnostico
+    // completo.
+    try {
+      if (posVisitaCall) {
+        // Defesa em profundidade: mesmo que o prompt instrua a IA a so
+        // chamar esta tool depois de agendar_visita, o codigo REJEITA (nao
+        // aplica nenhum campo) se a conversa ainda nao tem visita agendada.
+        // So registra um aviso - nunca derruba o processamento da mensagem.
+        if (conversation.visitaAgendadaEm) {
+          applyPostVisitaData(updates, posVisitaCall);
+        } else {
+          this.logger.warn(
+            `[VIVI] Tool salvar_dados_pos_visita chamada para ${input.phoneNumber} (conversa ${conversation.id}) SEM visita agendada ainda - dados REJEITADOS.`,
+          );
+        }
       }
-    }
 
-    if (agendarVisitaCall) {
-      // Meta absoluta da VIVI (ver vivi-prompt.ts) - tem prioridade sobre as
-      // demais tools se o modelo chamar mais de uma na mesma resposta.
-      // Deliberadamente NAO seta updates.status: ao contrario de
-      // transferir_para_corretor/transferir_para_fila, agendar uma visita
-      // NAO encerra a conversa - a VIVI continua no "em_andamento" para
-      // coletar os dados pos-visita (nascimento/email/tipo de renda/IR)
-      // numa fatia futura.
-      const dataVisita = String(agendarVisitaCall.input.dataVisita ?? '');
-      const horario = String(agendarVisitaCall.input.horario ?? '');
-      const imovelInteresse =
-        typeof agendarVisitaCall.input.imovelInteresse === 'string'
-          ? agendarVisitaCall.input.imovelInteresse
-          : undefined;
+      if (agendarVisitaCall) {
+        // Meta absoluta da VIVI (ver vivi-prompt.ts) - tem prioridade sobre
+        // as demais tools se o modelo chamar mais de uma na mesma resposta.
+        // Deliberadamente NAO seta updates.status: ao contrario de
+        // transferir_para_corretor/transferir_para_fila, agendar uma visita
+        // NAO encerra a conversa - a VIVI continua no "em_andamento" para
+        // coletar os dados pos-visita (nascimento/email/tipo de renda/IR)
+        // numa fatia futura.
+        const dataVisita = String(agendarVisitaCall.input.dataVisita ?? '');
+        const horario = String(agendarVisitaCall.input.horario ?? '');
+        const imovelInteresse =
+          typeof agendarVisitaCall.input.imovelInteresse === 'string'
+            ? agendarVisitaCall.input.imovelInteresse
+            : undefined;
 
-      const resumo = buildResumoAtendimento({
-        motivo: 'visita agendada',
-        nome: collected.nomeColetado ?? conversation.nomeColetado,
-        phoneNumber: input.phoneNumber,
-        tipoImovel: collected.tipoImovelColetado ?? conversation.tipoImovelColetado,
-        orcamento: collected.orcamentoColetado ?? conversation.orcamentoColetado,
-        rendaDeclarada: collected.rendaDeclarada ?? conversation.rendaDeclarada,
-        categoriaHabitacional: collected.categoriaHabitacional ?? conversation.categoriaHabitacional,
-        regiao: collected.regiaoColetado ?? conversation.regiaoColetado,
-        finalidade: collected.finalidadeColetado ?? conversation.finalidadeColetado,
-        // Ainda nao temos o Date parseado (isso acontece dentro de
-        // AgendarVisitaUseCase) - mostra o texto bruto extraido pela IA,
-        // legivel do mesmo jeito para o corretor.
-        visitaAgendadaEm: `${dataVisita} as ${horario}`,
-        dataNascimento: collected.dataNascimento ?? conversation.dataNascimento,
-        email: collected.email ?? conversation.email,
-        tipoRenda: collected.tipoRenda ?? conversation.tipoRenda,
-        fezDeclaracaoIR: collected.fezDeclaracaoIR ?? conversation.fezDeclaracaoIR,
-        urgente: false,
-      });
+        const resumo = buildResumoAtendimento({
+          motivo: 'visita agendada',
+          nome: collected.nomeColetado ?? conversation.nomeColetado,
+          phoneNumber: input.phoneNumber,
+          tipoImovel: collected.tipoImovelColetado ?? conversation.tipoImovelColetado,
+          orcamento: collected.orcamentoColetado ?? conversation.orcamentoColetado,
+          rendaDeclarada: collected.rendaDeclarada ?? conversation.rendaDeclarada,
+          categoriaHabitacional: collected.categoriaHabitacional ?? conversation.categoriaHabitacional,
+          regiao: collected.regiaoColetado ?? conversation.regiaoColetado,
+          finalidade: collected.finalidadeColetado ?? conversation.finalidadeColetado,
+          // Ainda nao temos o Date parseado (isso acontece dentro de
+          // AgendarVisitaUseCase) - mostra o texto bruto extraido pela IA,
+          // legivel do mesmo jeito para o corretor.
+          visitaAgendadaEm: `${dataVisita} as ${horario}`,
+          dataNascimento: collected.dataNascimento ?? conversation.dataNascimento,
+          email: collected.email ?? conversation.email,
+          tipoRenda: collected.tipoRenda ?? conversation.tipoRenda,
+          fezDeclaracaoIR: collected.fezDeclaracaoIR ?? conversation.fezDeclaracaoIR,
+          urgente: false,
+        });
 
-      const result = await this.agendarVisitaUseCase.execute({
-        tenantId: input.tenantId,
-        phoneNumber: input.phoneNumber,
-        dataVisita,
-        horario,
-        imovelInteresse,
-        // Evita Card duplicado se a IA re-chamar agendar_visita num turno
-        // seguinte da mesma conversa (observado em teste real) - ver
-        // comentario em AgendarVisitaUseCase.
-        existingCardId: conversation.cardId,
-        resumo,
-      });
-      if (result) {
-        updates.cardId = result.cardId;
-        updates.visitaAgendadaEm = result.visitaAgendadaEm;
-        // Nota de auditoria com o mesmo resumo (mesmo padrao ja usado em
-        // transferToBroker) - reconfirmacoes em turnos seguintes acumulam
-        // mais de uma nota, aceitavel (historico de cada confirmacao).
-        await this.createNoteUseCase.execute({
+        const result = await this.agendarVisitaUseCase.execute({
           tenantId: input.tenantId,
-          cardId: result.cardId,
-          body: resumo,
+          phoneNumber: input.phoneNumber,
+          dataVisita,
+          horario,
+          imovelInteresse,
+          // Evita Card duplicado se a IA re-chamar agendar_visita num turno
+          // seguinte da mesma conversa (observado em teste real) - ver
+          // comentario em AgendarVisitaUseCase.
+          existingCardId: conversation.cardId,
+          resumo,
+          // Integracao VIVI (2026) - usado por AgendarVisitaUseCase so para
+          // achar o plantao (endereco/horario) do Empreendimento, se algum
+          // ja foi encontrado nesta conversa (ver captura mais abaixo).
+          empreendimentoId: conversation.empreendimentoId,
+        });
+        if (result) {
+          updates.cardId = result.cardId;
+          updates.visitaAgendadaEm = result.visitaAgendadaEm;
+          mensagemConfirmacaoEstruturada = result.mensagemConfirmacaoEstruturada;
+          // Nota de auditoria com o mesmo resumo (mesmo padrao ja usado em
+          // transferToBroker) - reconfirmacoes em turnos seguintes acumulam
+          // mais de uma nota, aceitavel (historico de cada confirmacao).
+          await this.createNoteUseCase.execute({
+            tenantId: input.tenantId,
+            cardId: result.cardId,
+            body: resumo,
+          });
+        }
+      } else if (transferCall) {
+        const motivo = String(transferCall.input.motivo ?? 'lead qualificado');
+        updates.status =
+          motivo === 'duvida especifica'
+            ? 'duvida_transferido'
+            : motivo === 'sem_perfil'
+              ? 'repique'
+              : motivo === 'fora_do_portfolio'
+                ? 'fora_do_portfolio_transferido'
+                : 'qualificado_transferido';
+
+        const cardId = await this.transferToBrokerService.execute({
+          tenantId: input.tenantId,
+          phoneNumber: input.phoneNumber,
+          conversation,
+          collected,
+          motivo,
+        });
+        if (cardId) {
+          updates.cardId = cardId;
+        }
+      } else if (filaCall) {
+        // Pergunta fora do fluxo de venda (suporte/financeiro/duvida generica) -
+        // vai para a Central de Atendimento em vez de virar Card no Kanban.
+        updates.status = 'encaminhado_fila';
+        await this.viviAtendimentoEscalationService.transferToFila({
+          tenantId: input.tenantId,
+          sessionId: input.sessionId,
+          phoneNumber: input.phoneNumber,
+          remoteJid,
+          filaCall,
         });
       }
-    } else if (transferCall) {
-      const motivo = String(transferCall.input.motivo ?? 'lead qualificado');
-      updates.status =
-        motivo === 'duvida especifica'
-          ? 'duvida_transferido'
-          : motivo === 'sem_perfil'
-            ? 'repique'
-            : motivo === 'fora_do_portfolio'
-              ? 'fora_do_portfolio_transferido'
-              : 'qualificado_transferido';
 
-      const cardId = await this.transferToBrokerService.execute({
-        tenantId: input.tenantId,
-        phoneNumber: input.phoneNumber,
-        conversation,
-        collected,
-        motivo,
-      });
-      if (cardId) {
-        updates.cardId = cardId;
-      }
-    } else if (filaCall) {
-      // Pergunta fora do fluxo de venda (suporte/financeiro/duvida generica) -
-      // vai para a Central de Atendimento em vez de virar Card no Kanban.
-      updates.status = 'encaminhado_fila';
-      await this.viviAtendimentoEscalationService.transferToFila({
-        tenantId: input.tenantId,
-        sessionId: input.sessionId,
-        phoneNumber: input.phoneNumber,
-        remoteJid,
-        filaCall,
-      });
-    }
-
-    // Log de auditoria: unico ponto do caminho de sucesso que registra algo -
-    // sem isso, uma mensagem processada sem nenhuma tool chamada (ex: troca
-    // de assunto que o modelo respondeu so conversacionalmente) fica
-    // impossivel de diferenciar de "nao processou" so olhando o banco, ja
-    // que Prisma nao bumpa @updatedAt quando o update() e chamado com
-    // data={} (nenhum campo alterado) - achado confirmado durante a
-    // investigacao do caso da Antonia (07/2026).
-    const toolsCalled =
-      [
-        agendarVisitaCall && 'agendar_visita',
-        transferCall && 'transferir_para_corretor',
-        filaCall && 'transferir_para_fila',
-        posVisitaCall && 'salvar_dados_pos_visita',
-      ]
-        .filter((name): name is string => !!name)
-        .join(',') || 'nenhuma';
-    this.logger.log(
-      `[VIVI] Mensagem de ${input.phoneNumber} processada (conversa ${conversation.id}): tool=${toolsCalled}`,
-    );
-
-    // Escalonamento e propriedade da RESPOSTA inteira, nao de cada busca
-    // individual - se o modelo chamou buscar_empreendimento_por_endereco e
-    // (na mesma resposta) transferir_para_fila/transferir_para_corretor,
-    // TODAS as buscas desta resposta sao registradas com o mesmo motivo.
-    const escalonado = Boolean(filaCall) || Boolean(transferCall);
-    const motivoEscalonamento = filaCall
-      ? filaCall.input.urgente === true
-        ? 'urgencia/pedido explicito'
-        : `fila:${String(filaCall.input.categoria ?? '')}`
-      : transferCall
-        ? `corretor:${String(transferCall.input.motivo ?? '')}`
-        : null;
-
-    await this.enderecoBuscaToolResolverService.persistirLogs(
-      input.tenantId,
-      input.phoneNumber,
-      enderecoBuscaResultados,
-      escalonado,
-      motivoEscalonamento,
-    );
-
-    await this.viviConversationRepository.update(conversation.id, updates);
-
-    if (replyText.trim()) {
-      await this.sendWhatsAppMessageUseCase.execute({
-        sessionId: input.sessionId,
-        tenantId: input.tenantId,
-        // JID completo (com sufixo @lid ou @s.whatsapp.net) da ultima
-        // mensagem recebida - reconstruir a partir so dos digitos
-        // (input.phoneNumber) quebra a resposta em numeros @lid. Fallback
-        // para os digitos so cobre mensagens antigas, salvas antes desse
-        // campo existir.
-        to: remoteJid ?? input.phoneNumber,
-        phoneNumber: input.phoneNumber,
-        body: replyText,
-        simularDigitando: true,
-      });
-    } else {
-      // Chegou aqui so se uma tool FOI chamada (o caso "nenhuma tool e sem
-      // texto" ja retornou antes, la em cima, como falha) - cenario
-      // legitimo (ex: so salvou dado via salvar_dados_pos_visita, sem
-      // necessidade de responder nada nesse turno). Log CLARO e distinto do
-      // "tool=..." de sucesso normal, para nunca mais precisar investigar
-      // "por que nao enviou nada" so pra descobrir que era esperado.
+      // Log de auditoria: unico ponto do caminho de sucesso que registra
+      // algo - sem isso, uma mensagem processada sem nenhuma tool chamada
+      // (ex: troca de assunto que o modelo respondeu so conversacionalmente)
+      // fica impossivel de diferenciar de "nao processou" so olhando o
+      // banco, ja que Prisma nao bumpa @updatedAt quando o update() e
+      // chamado com data={} (nenhum campo alterado) - achado confirmado
+      // durante a investigacao do caso da Antonia (07/2026).
+      const toolsCalled =
+        [
+          agendarVisitaCall && 'agendar_visita',
+          transferCall && 'transferir_para_corretor',
+          filaCall && 'transferir_para_fila',
+          posVisitaCall && 'salvar_dados_pos_visita',
+        ]
+          .filter((name): name is string => !!name)
+          .join(',') || 'nenhuma';
       this.logger.log(
-        `[VIVI] Resposta vazia após tool call (${toolsCalled}), nenhuma mensagem enviada - comportamento esperado (conversa ${conversation.id}, ${input.phoneNumber}).`,
+        `[VIVI] Mensagem de ${input.phoneNumber} processada (conversa ${conversation.id}): tool=${toolsCalled}`,
       );
+
+      // Integracao VIVI (2026) - se alguma busca desta resposta encontrou um
+      // Empreendimento no catalogo proprio (nao Imovel avulso), grava como o
+      // "empreendimento atual de interesse" da conversa - usado por
+      // AgendarVisitaUseCase para achar o plantao (endereco/horario) a citar
+      // na mensagem de confirmacao de visita. O ULTIMO encontrado nesta
+      // resposta prevalece (o modelo pode chamar a tool mais de uma vez);
+      // buscas de turnos anteriores continuam gravadas se nenhuma nova
+      // ocorrer agora (updates so mexe no campo quando ha algo novo a
+      // sobrescrever).
+      const empreendimentoEncontradoNestaResposta = enderecoBuscaResultados
+        .filter((resultado) => resultado.empreendimentoId !== null)
+        .at(-1)?.empreendimentoId;
+      if (empreendimentoEncontradoNestaResposta) {
+        updates.empreendimentoId = empreendimentoEncontradoNestaResposta;
+      }
+
+      // Escalonamento e propriedade da RESPOSTA inteira, nao de cada busca
+      // individual - se o modelo chamou buscar_empreendimento_por_endereco e
+      // (na mesma resposta) transferir_para_fila/transferir_para_corretor,
+      // TODAS as buscas desta resposta sao registradas com o mesmo motivo.
+      const escalonado = Boolean(filaCall) || Boolean(transferCall);
+      const motivoEscalonamento = filaCall
+        ? filaCall.input.urgente === true
+          ? 'urgencia/pedido explicito'
+          : `fila:${String(filaCall.input.categoria ?? '')}`
+        : transferCall
+          ? `corretor:${String(transferCall.input.motivo ?? '')}`
+          : null;
+
+      await this.enderecoBuscaToolResolverService.persistirLogs(
+        input.tenantId,
+        input.phoneNumber,
+        enderecoBuscaResultados,
+        escalonado,
+        motivoEscalonamento,
+      );
+
+      await this.viviConversationRepository.update(conversation.id, updates);
+
+      if (replyText.trim()) {
+        await this.sendWhatsAppMessageUseCase.execute({
+          sessionId: input.sessionId,
+          tenantId: input.tenantId,
+          // JID completo (com sufixo @lid ou @s.whatsapp.net) da ultima
+          // mensagem recebida - reconstruir a partir so dos digitos
+          // (input.phoneNumber) quebra a resposta em numeros @lid. Fallback
+          // para os digitos so cobre mensagens antigas, salvas antes desse
+          // campo existir.
+          to: remoteJid ?? input.phoneNumber,
+          phoneNumber: input.phoneNumber,
+          body: replyText,
+          simularDigitando: true,
+        });
+      } else {
+        // Chegou aqui so se uma tool FOI chamada (o caso "nenhuma tool e sem
+        // texto" ja retornou antes, la em cima, como falha) - cenario
+        // legitimo (ex: so salvou dado via salvar_dados_pos_visita, sem
+        // necessidade de responder nada nesse turno). Log CLARO e distinto
+        // do "tool=..." de sucesso normal, para nunca mais precisar
+        // investigar "por que nao enviou nada" so pra descobrir que era
+        // esperado.
+        this.logger.log(
+          `[VIVI] Resposta vazia após tool call (${toolsCalled}), nenhuma mensagem enviada - comportamento esperado (conversa ${conversation.id}, ${input.phoneNumber}).`,
+        );
+      }
+
+      // Integracao VIVI (2026) - mensagem estruturada de confirmacao de
+      // visita, enviada como SEGUNDA mensagem, sempre DEPOIS da confirmacao
+      // cordial acima (mesmo quando replyText veio vazio - agendar_visita
+      // sempre gera algum texto cordial no mesmo turno na pratica, mas o
+      // envio aqui nao depende disso).
+      if (mensagemConfirmacaoEstruturada) {
+        await this.sendWhatsAppMessageUseCase.execute({
+          sessionId: input.sessionId,
+          tenantId: input.tenantId,
+          to: remoteJid ?? input.phoneNumber,
+          phoneNumber: input.phoneNumber,
+          body: mensagemConfirmacaoEstruturada,
+          simularDigitando: true,
+        });
+      }
+    } catch (error) {
+      // Mesmo tratamento ja usado para falha da chamada a IA (handleAiFailure,
+      // ver catch acima) - nunca deixa o lead sem resposta nenhuma, mesmo
+      // quando o que falhou foi o processamento POS-resposta da IA (tool,
+      // nota, log, ou o proprio envio da mensagem).
+      await this.viviAtendimentoEscalationService.handleAiFailure({
+        tenantId: input.tenantId,
+        sessionId: input.sessionId,
+        phoneNumber: input.phoneNumber,
+        messageBody: input.messageBody,
+        conversationId: conversation.id,
+        remoteJid,
+        error,
+      });
     }
   }
 
