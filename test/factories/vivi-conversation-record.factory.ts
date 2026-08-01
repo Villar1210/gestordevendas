@@ -24,6 +24,7 @@ export function buildViviConversationRecord(
     email: null,
     tipoRenda: null,
     fezDeclaracaoIR: null,
+    empreendimentoId: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,

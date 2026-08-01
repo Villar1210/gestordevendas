@@ -136,6 +136,10 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     'IProprietarioRepository',
     'IContratoRepository',
     'IImovelRepository',
+    // Integracao VIVI (2026) - exportado para AgendarVisitaUseCase (vivi_sdr)
+    // buscar o plantao (endereco/horario) do Empreendimento da conversa, na
+    // mensagem de confirmacao de visita.
+    'IEmpreendimentoRepository',
     BuscarEmpreendimentoPorEnderecoUseCase,
   ],
 })

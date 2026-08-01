@@ -6,6 +6,7 @@ import { AtendimentoModule } from '../atendimento/atendimento.module';
 import { GestaoImobiliariaModule } from '../gestao_imobiliaria/gestao-imobiliaria.module';
 import { SocialMediaModule } from '../social_media/social-media.module';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
+import { AuthModule } from '../auth/auth.module';
 import { CanaisModule } from '../../shared/canais.module';
 import { ViviSessionController } from './infra/http/vivi-session.controller';
 import { ViviConversationController } from './infra/http/vivi-conversation.controller';
@@ -52,7 +53,11 @@ import { PrismaService } from '../../config/prisma.service';
   // vivi_sdr de volta. ConfiguracoesModule (Fatia B) e consumido so por
   // RegistrarUsoViviUseCase, para LER Tenant.limiteMensagensViviDia via
   // ITenantConfigRepository ja exportado (mesmo padrao de reaproveitamento
-  // ja usado pelo modulo rh para os dados de CNPJ/endereco).
+  // ja usado pelo modulo rh para os dados de CNPJ/endereco). AuthModule
+  // (Integracao VIVI 2026) adicionado so para AgendarVisitaUseCase resolver
+  // o nome do corretor atribuido pela Roleta (IUserRepository.findById) e o
+  // fallback Administrador (findAllByTenantAndRole) na mensagem de
+  // confirmacao de visita - mesmo padrao ja usado pelo portal_cliente.
   imports: [
     WhatsAppMarketingModule,
     VendasKanbanModule,
@@ -60,6 +65,7 @@ import { PrismaService } from '../../config/prisma.service';
     GestaoImobiliariaModule,
     SocialMediaModule,
     ConfiguracoesModule,
+    AuthModule,
     CanaisModule,
   ],
   controllers: [ViviSessionController, ViviConversationController, ViviConfigController],

@@ -8,6 +8,9 @@
 import { AgendarVisitaUseCase } from './agendar-visita.use-case';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { IActivityRepository, ActivityRecord } from '../../../vendas_kanban/domain/repositories/activity-repository.interface';
+import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
+import { IUserRepository } from '../../../auth/domain/repositories/user-repository.interface';
+import { IEmpreendimentoRepository } from '../../../gestao_imobiliaria/domain/repositories/empreendimento-repository.interface';
 import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
 import { CreateActivityUseCase } from '../../../vendas_kanban/application/use-cases/create-activity.use-case';
 
@@ -31,6 +34,17 @@ function setup() {
     findPendingByCardAndType: jest.fn(),
     update: jest.fn(),
   };
+  // Integracao VIVI (2026) - resolveResponsavelNome/resolveLocal. Defaults
+  // resolvem para o fallback generico ("nossa equipe", ver
+  // AgendarVisitaUseCase) sem quebrar nenhum teste existente, que nao
+  // testava esse aspecto - ver specs dedicados na Integracao VIVI para os
+  // casos de corretor/administrador/local especificos.
+  const cardRepository = { findByIdAndTenant: jest.fn().mockResolvedValue(null) };
+  const userRepository = {
+    findById: jest.fn().mockResolvedValue(null),
+    findAllByTenantAndRole: jest.fn().mockResolvedValue([]),
+  };
+  const empreendimentoRepository = { findByIdAndTenant: jest.fn().mockResolvedValue(null) };
   const createQuickCardUseCase = { execute: jest.fn() };
   // Chamado ANTES do fallback createQuickCardUseCase quando nao ha
   // existingCardId (ver AgendarVisitaUseCase) - retorna null por padrao
@@ -42,6 +56,9 @@ function setup() {
   const useCase = new AgendarVisitaUseCase(
     pipelineRepository as unknown as IPipelineRepository,
     activityRepository as unknown as IActivityRepository,
+    cardRepository as unknown as ICardRepository,
+    userRepository as unknown as IUserRepository,
+    empreendimentoRepository as unknown as IEmpreendimentoRepository,
     createQuickCardUseCase as unknown as CreateQuickCardUseCase,
     promoverLeadMinimoUseCase as any,
     createActivityUseCase as unknown as CreateActivityUseCase,
@@ -49,7 +66,17 @@ function setup() {
 
   pipelineRepository.findAllByTenant.mockResolvedValue([{ id: 'pipeline-1', tenantId: 'tenant-1', name: 'Padrao', createdAt: new Date() }]);
 
-  return { useCase, pipelineRepository, activityRepository, createQuickCardUseCase, promoverLeadMinimoUseCase, createActivityUseCase };
+  return {
+    useCase,
+    pipelineRepository,
+    activityRepository,
+    cardRepository,
+    userRepository,
+    empreendimentoRepository,
+    createQuickCardUseCase,
+    promoverLeadMinimoUseCase,
+    createActivityUseCase,
+  };
 }
 
 describe('AgendarVisitaUseCase - idempotencia (upsert) da Activity de visita', () => {
@@ -189,5 +216,123 @@ describe('AgendarVisitaUseCase - idempotencia (upsert) da Activity de visita', (
 
     expect(resultado?.cardId).toBe('card-novo');
     expect(createQuickCardUseCase.execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Integracao VIVI (2026) - mensagem de confirmacao estruturada (dia/horario/
+// local/responsavel), enviada como segunda mensagem depois da confirmacao
+// cordial gerada pela IA (ver ProcessIncomingMessageUseCase).
+describe('AgendarVisitaUseCase - mensagem de confirmacao estruturada', () => {
+  it('Card com ownerId (corretor atribuido pela Roleta): mensagem cita o nome do corretor', async () => {
+    const { useCase, cardRepository, userRepository, createQuickCardUseCase, activityRepository, createActivityUseCase } =
+      setup();
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-1' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord());
+    cardRepository.findByIdAndTenant.mockResolvedValue({ id: 'card-1', ownerId: 'user-corretor' });
+    userRepository.findById.mockResolvedValue({ id: 'user-corretor', name: 'Joao Corretor' });
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+    });
+
+    expect(resultado?.mensagemConfirmacaoEstruturada).toContain('Responsável: Joao Corretor');
+    expect(userRepository.findAllByTenantAndRole).not.toHaveBeenCalled();
+  });
+
+  it('Card SEM ownerId (Roleta inativa/ninguem online, ou so suggestedOwnerId): cai no fallback Administrador', async () => {
+    const { useCase, cardRepository, userRepository, createQuickCardUseCase, activityRepository, createActivityUseCase } =
+      setup();
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-1' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord());
+    cardRepository.findByIdAndTenant.mockResolvedValue({ id: 'card-1', ownerId: null, suggestedOwnerId: 'user-sugerido' });
+    userRepository.findAllByTenantAndRole.mockResolvedValue([{ id: 'user-admin' }]);
+    userRepository.findById.mockResolvedValue({ id: 'user-admin', name: 'Daniel Villar' });
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+    });
+
+    expect(resultado?.mensagemConfirmacaoEstruturada).toContain('Responsável: Daniel Villar');
+    expect(userRepository.findAllByTenantAndRole).toHaveBeenCalledWith('tenant-1', 'Administrador');
+  });
+
+  it('nenhum Administrador encontrado (caso extremo): usa o fallback generico "nossa equipe"', async () => {
+    const { useCase, cardRepository, createQuickCardUseCase, activityRepository, createActivityUseCase } = setup();
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-1' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord());
+    cardRepository.findByIdAndTenant.mockResolvedValue({ id: 'card-1', ownerId: null });
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+    });
+
+    expect(resultado?.mensagemConfirmacaoEstruturada).toContain('Responsável: nossa equipe');
+  });
+
+  it('empreendimentoId presente com plantao cadastrado: mensagem inclui a linha "Local"', async () => {
+    const { useCase, empreendimentoRepository, createQuickCardUseCase, activityRepository, createActivityUseCase } = setup();
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-1' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord());
+    empreendimentoRepository.findByIdAndTenant.mockResolvedValue({
+      id: 'emp-1',
+      plantaoEndereco: 'Av. Principal, 100',
+      plantaoHorarioFuncionamento: 'Seg a Sab, 9h-18h',
+    });
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+      empreendimentoId: 'emp-1',
+    });
+
+    expect(resultado?.mensagemConfirmacaoEstruturada).toContain('Local: Av. Principal, 100 - Seg a Sab, 9h-18h');
+  });
+
+  it('empreendimentoId ausente (conversa nunca encontrou empreendimento no catalogo): mensagem OMITE a linha "Local"', async () => {
+    const { useCase, createQuickCardUseCase, activityRepository, createActivityUseCase } = setup();
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-1' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord());
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: '10:00',
+    });
+
+    expect(resultado?.mensagemConfirmacaoEstruturada).not.toContain('Local:');
+  });
+
+  it('horario generico (ex: "a tarde", o gatilho do bug relatado pelo usuario): aparece literal, sem inventar hora especifica', async () => {
+    const { useCase, createQuickCardUseCase, activityRepository, createActivityUseCase } = setup();
+    createQuickCardUseCase.execute.mockResolvedValue({ id: 'card-1' });
+    activityRepository.findPendingByCardAndType.mockResolvedValue(null);
+    createActivityUseCase.execute.mockResolvedValue(buildActivityRecord());
+
+    const resultado = await useCase.execute({
+      tenantId: 'tenant-1',
+      phoneNumber: '5511999990000',
+      dataVisita: '2026-07-18',
+      horario: 'a tarde',
+    });
+
+    expect(resultado?.mensagemConfirmacaoEstruturada).toContain('Horário: a tarde');
+    expect(resultado?.mensagemConfirmacaoEstruturada).toContain('Dia: 18/07/2026');
   });
 });

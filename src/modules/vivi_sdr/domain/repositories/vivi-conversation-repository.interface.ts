@@ -40,6 +40,10 @@ export interface ViviConversationRecord {
   email: string | null;
   tipoRenda: TipoRenda | null;
   fezDeclaracaoIR: boolean | null;
+  // Integracao VIVI (2026) - preenchido quando "buscar_empreendimento_por_
+  // endereco" encontra um Empreendimento no catalogo proprio (nunca para
+  // Imovel avulso). Ver AgendarVisitaUseCase (mensagem de confirmacao).
+  empreendimentoId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +63,7 @@ export interface ViviConversationUpdateInput {
   email?: string;
   tipoRenda?: TipoRenda;
   fezDeclaracaoIR?: boolean;
+  empreendimentoId?: string;
 }
 
 export interface IViviConversationRepository {
