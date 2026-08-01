@@ -14,7 +14,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 function setup(pipelineName: string) {
   const pipelineRepository = { findByIdAndTenant: jest.fn() };
   const cardRepository = { create: jest.fn() };
-  const eventEmitter = { emit: jest.fn() };
+  const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn().mockResolvedValue([]) };
 
   const useCase = new CreateQuickCardUseCase(
     pipelineRepository as unknown as IPipelineRepository,

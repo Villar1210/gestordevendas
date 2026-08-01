@@ -93,15 +93,22 @@ export class CreateQuickCardUseCase {
       movidoParaRepiqueEm: input.motivoRepique ? new Date() : null,
     });
 
-    // Dispara a Roleta Online (se estiver ativa) - emit() nao aguarda o
-    // listener, nao bloqueia a criacao do card (mesmo padrao do
-    // BaileysWhatsAppProvider para nao acoplar os modulos entre si).
+    // Dispara a Roleta Online (se estiver ativa). Integracao VIVI (2026):
+    // trocado de emit() para emitAsync() - a mensagem de confirmacao
+    // estruturada de agendar_visita (ver AgendarVisitaUseCase) precisa ler
+    // o Card.ownerId JA atribuido pela Roleta ao continuar depois deste
+    // metodo retornar; com emit() (fire-and-forget) isso era uma condicao
+    // de corrida - nada garantia que o listener (CardSemDonoCriadoListener)
+    // ja tivesse terminado. So existe 1 listener deste evento hoje. Efeito
+    // colateral aceito (decisao do usuario): callers deste metodo (webhook,
+    // criacao manual) passam a esperar a Roleta terminar antes de retornar -
+    // impacto de latencia baixo, so 1 listener rapido.
     // SO dispara se o card realmente caiu na Caixa de Entrada (sem stageId) -
     // um card criado ja com stage explicito (ex: "Repique", deposito
     // estrategico para remarketing futuro) foi posicionado de proposito e
     // NAO deve ser distribuido/movido pela Roleta.
     if (!card.stageId) {
-      this.eventEmitter.emit('card.sem_dono.criado', {
+      await this.eventEmitter.emitAsync('card.sem_dono.criado', {
         tenantId: input.tenantId,
         cardId: card.id,
         pipelineId: pipeline.id,

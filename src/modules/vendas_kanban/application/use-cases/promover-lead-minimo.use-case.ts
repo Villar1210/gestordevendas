@@ -79,9 +79,11 @@ export class PromoverLeadMinimoUseCase {
     // Mesma condicao ja usada por CreateQuickCardUseCase: so dispara a
     // Roleta Online se o card promovido caiu na Caixa de Entrada (sem
     // stage) - um card promovido direto para "Repique" (motivo sem_perfil)
-    // NAO deve ser distribuido.
+    // NAO deve ser distribuido. emitAsync (nao emit) pelo mesmo motivo
+    // documentado em CreateQuickCardUseCase - Integracao VIVI 2026 precisa
+    // ler o Card.ownerId ja atribuido pela Roleta logo em seguida.
     if (!cardPromovido.stageId) {
-      this.eventEmitter.emit('card.sem_dono.criado', {
+      await this.eventEmitter.emitAsync('card.sem_dono.criado', {
         tenantId: input.tenantId,
         cardId: cardPromovido.id,
         pipelineId: input.targetPipelineId,

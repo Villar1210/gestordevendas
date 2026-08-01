@@ -13,7 +13,7 @@ function setup() {
     findByTenantPhoneAndPipeline: jest.fn(),
     moveToPipelineAndStage: jest.fn(),
   };
-  const eventEmitter = { emit: jest.fn() };
+  const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn().mockResolvedValue([]) };
 
   const useCase = new PromoverLeadMinimoUseCase(
     pipelineRepository as unknown as IPipelineRepository,
@@ -59,7 +59,7 @@ describe('PromoverLeadMinimoUseCase', () => {
     );
     // Caiu na Caixa de Entrada (stageId null) -> dispara a Roleta Online,
     // mesma condicao ja usada por CreateQuickCardUseCase.
-    expect(eventEmitter.emit).toHaveBeenCalledWith(
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
       'card.sem_dono.criado',
       expect.objectContaining({ tenantId: 'tenant-1', cardId: 'card-1', pipelineId: 'pipeline-vendas' }),
     );
@@ -84,7 +84,7 @@ describe('PromoverLeadMinimoUseCase', () => {
       motivoRepique: 'SEM_PERFIL',
     });
 
-    expect(eventEmitter.emit).not.toHaveBeenCalled();
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
   });
 
   it('pipeline de remarketing nunca existiu para o tenant: retorna null sem consultar Card nenhum', async () => {
