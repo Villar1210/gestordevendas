@@ -257,7 +257,9 @@ export class ProcessIncomingSocialMessageUseCase {
           ? 'duvida_transferido'
           : motivo === 'sem_perfil'
             ? 'repique'
-            : 'qualificado_transferido';
+            : motivo === 'fora_do_portfolio'
+              ? 'fora_do_portfolio_transferido'
+              : 'qualificado_transferido';
 
       const cardId = await this.transferToBroker(input, conversation, collected, motivo);
       if (cardId) {

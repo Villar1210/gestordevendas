@@ -67,15 +67,17 @@ const TOOLS: Anthropic.Tool[] = [
       'Encerra o atendimento da VIVI e cria um Card no Kanban para um corretor humano. ' +
       'Chame quando nome, tipo de imovel, orcamento, regiao e finalidade ja tiverem sido ' +
       'coletados (lead qualificado), quando o lead perguntar algo muito especifico sobre ' +
-      'COMPRA/ALUGUEL que a VIVI nao pode responder (duvida especifica), OU quando a renda ' +
+      'COMPRA/ALUGUEL que a VIVI nao pode responder (duvida especifica), quando a renda ' +
       'declarada do lead for classificada como SEM_PERFIL - abaixo de R$ 1.500 (sem_perfil, ' +
-      'ver secao "Enquadramento por renda").',
+      'ver secao "Enquadramento por renda"), OU quando o lead demonstrar interesse especifico ' +
+      'em um imovel/empreendimento/bairro que nao faz parte do portfolio configurado deste ' +
+      'tenant (fora_do_portfolio - ver secao "Busca de empreendimento por endereco").',
     input_schema: {
       type: 'object',
       properties: {
         motivo: {
           type: 'string',
-          enum: ['lead qualificado', 'duvida especifica', 'sem_perfil'],
+          enum: ['lead qualificado', 'duvida especifica', 'sem_perfil', 'fora_do_portfolio'],
           description: 'Motivo da transferencia',
         },
       },

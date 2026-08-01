@@ -86,16 +86,22 @@ function fromPrismaTipoItem(tipoItem: string): string {
   return TIPO_ITEM_FROM_PRISMA[tipoItem as ImovelTipoItem] ?? tipoItem;
 }
 
+// Nomenclatura 2026: alinhado com CategoriaHabitacional (vivi_sdr) - ver
+// comentario no enum ImovelEnquadramento em schema.prisma.
 const ENQUADRAMENTO_TO_PRISMA: Record<string, ImovelEnquadramento> = {
-  his2: ImovelEnquadramento.HIS2,
-  hmp: ImovelEnquadramento.HMP,
+  faixa1: ImovelEnquadramento.FAIXA_1,
+  faixa2: ImovelEnquadramento.FAIXA_2,
+  faixa3: ImovelEnquadramento.FAIXA_3,
+  faixa4: ImovelEnquadramento.FAIXA_4,
   r2v: ImovelEnquadramento.R2V,
   nenhum: ImovelEnquadramento.NENHUM,
 };
 
 const ENQUADRAMENTO_FROM_PRISMA: Record<ImovelEnquadramento, string> = {
-  HIS2: 'his2',
-  HMP: 'hmp',
+  FAIXA_1: 'faixa1',
+  FAIXA_2: 'faixa2',
+  FAIXA_3: 'faixa3',
+  FAIXA_4: 'faixa4',
   R2V: 'r2v',
   NENHUM: 'nenhum',
 };

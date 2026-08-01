@@ -22,7 +22,7 @@ function normalizarTexto(texto: string): string {
 
 // So letras/numeros, sem espacos/hifens/barras - usado para comparar codigos
 // curtos (status, enquadramento) tolerando variacoes de grafia como
-// "HIS-2" vs "HIS2", "R2v" vs "R2V".
+// "FAIXA-1" vs "FAIXA1", "R2v" vs "R2V".
 function normalizarCodigoCurto(texto: string): string {
   return normalizarTexto(texto).replace(/[^a-z0-9]/g, '');
 }
@@ -74,12 +74,15 @@ export function parseIdentificador(identificadorBruto: string): IdentificadorPar
   return { valido: true, tipoItem: 'unidade', bloco, andar, numeroNoAndar };
 }
 
-const ENQUADRAMENTO_CODES = new Set(['his2', 'hmp', 'r2v']);
+// Nomenclatura 2026: alinhado com ImovelEnquadramento (schema.prisma) -
+// "FAIXA 1".."FAIXA 4" normalizam para "faixa1".."faixa4" via
+// normalizarCodigoCurto (remove espaco/hifen).
+const ENQUADRAMENTO_CODES = new Set(['faixa1', 'faixa2', 'faixa3', 'faixa4', 'r2v']);
 
 // A coluna ENQUADRAMENTO pode trazer "R2V / PCD" (pcd embutido, separado por
 // barra) ou so "Vaga avulsa" (que NAO e um enquadramento de verdade - so
 // reflexo de a linha ser uma vaga, ver enunciado da fatia). Vazio/nulo ou
-// qualquer texto que nao bata com um dos 3 codigos reconhecidos vira NENHUM.
+// qualquer texto que nao bata com um dos codigos reconhecidos vira NENHUM.
 export function normalizeEnquadramentoEPcd(raw: string | undefined | null): {
   enquadramento: string;
   pcd: boolean;

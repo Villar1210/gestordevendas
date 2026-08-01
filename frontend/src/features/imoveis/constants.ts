@@ -110,8 +110,10 @@ export function getStatusOption(status: string): StatusOption {
 // criar-imoveis-lote.dto.ts do backend.
 export const ENQUADRAMENTO_OPTIONS = [
   { value: "nenhum", label: "Nenhum" },
-  { value: "his2", label: "HIS2" },
-  { value: "hmp", label: "HMP" },
+  { value: "faixa1", label: "Faixa 1" },
+  { value: "faixa2", label: "Faixa 2" },
+  { value: "faixa3", label: "Faixa 3" },
+  { value: "faixa4", label: "Faixa 4" },
   { value: "r2v", label: "R2V" },
 ];
 

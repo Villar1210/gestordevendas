@@ -11,6 +11,12 @@ export type ViviConversationStatus =
   // Card criado direto na coluna "Repique" do Kanban (deposito estrategico
   // para remarketing futuro), NAO uma Fila da Central de Atendimento.
   | 'repique'
+  // Lead pediu um imovel/empreendimento/bairro fora do portfolio do tenant
+  // (motivo "fora_do_portfolio" de transferir_para_corretor) - status
+  // separado de qualificado_transferido de proposito, para permitir medir
+  // essa demanda separadamente (decisao de negocio: avaliar expansao de
+  // portfolio ou oportunidade perdida).
+  | 'fora_do_portfolio_transferido'
   | 'encerrada';
 
 export type TipoRenda = 'CLT' | 'AUTONOMO';

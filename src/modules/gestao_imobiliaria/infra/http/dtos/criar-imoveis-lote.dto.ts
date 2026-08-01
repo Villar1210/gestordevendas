@@ -14,7 +14,7 @@ import {
 import { CreateImovelDto } from './create-imovel.dto';
 
 export const TIPO_ITEM_VALUES = ['unidade', 'vaga_avulsa'];
-export const ENQUADRAMENTO_VALUES = ['his2', 'hmp', 'r2v', 'nenhum'];
+export const ENQUADRAMENTO_VALUES = ['faixa1', 'faixa2', 'faixa3', 'faixa4', 'r2v', 'nenhum'];
 
 // Mesma forma do CreateImovelDto (title/tipo/finalidade obrigatorios, resto
 // opcional) + os campos novos da Fatia 1 que so o cadastro em lote usa por
