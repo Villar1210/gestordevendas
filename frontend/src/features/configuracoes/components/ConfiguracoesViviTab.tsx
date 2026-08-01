@@ -32,6 +32,8 @@ interface ViviConfig {
   faixa4JurosMax: number | null;
   faixa4TetoFinanciamento: string | null;
   faixa4ExemploParcela: string | null;
+  sobreConstrutora: string | null;
+  diferenciaisConstrutora: string | null;
 }
 
 // Espelha os 4 grupos de campo por faixa em ViviConfig (backend) - usado
@@ -68,6 +70,8 @@ export function ConfiguracoesViviTab() {
 
   const [precoMinimo, setPrecoMinimo] = useState("");
   const [limiteSemPerfil, setLimiteSemPerfil] = useState("");
+  const [sobreConstrutora, setSobreConstrutora] = useState("");
+  const [diferenciaisConstrutora, setDiferenciaisConstrutora] = useState("");
   const [faixas, setFaixas] = useState<Record<FaixaNumero, FaixaFormState>>({
     1: emptyFaixaState(),
     2: emptyFaixaState(),
@@ -85,6 +89,8 @@ export function ConfiguracoesViviTab() {
       .then((config) => {
         setPrecoMinimo(String(config.precoMinimo));
         setLimiteSemPerfil(String(config.limiteSemPerfil));
+        setSobreConstrutora(config.sobreConstrutora ?? "");
+        setDiferenciaisConstrutora(config.diferenciaisConstrutora ?? "");
         setFaixas({
           1: {
             limite: String(config.limiteFaixa1),
@@ -184,6 +190,8 @@ export function ConfiguracoesViviTab() {
       faixa4JurosMax: parseOptionalNumber(faixas[4].jurosMax),
       faixa4TetoFinanciamento: parseOptionalString(faixas[4].tetoFinanciamento),
       faixa4ExemploParcela: parseOptionalString(faixas[4].exemploParcela),
+      sobreConstrutora: parseOptionalString(sobreConstrutora),
+      diferenciaisConstrutora: parseOptionalString(diferenciaisConstrutora),
     };
 
     setSaving(true);
@@ -310,6 +318,41 @@ export function ConfiguracoesViviTab() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 rounded-xl border border-slate-200 p-4">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+          Sobre a construtora/incorporadora (opcional)
+        </p>
+        <p className="mb-3 text-xs text-slate-500">
+          Texto institucional usado pela VIVI como pano de fundo quando fizer sentido na conversa
+          (ex: o lead perguntar &quot;quem são vocês?&quot;). Deixe em branco para não incluir essa
+          seção no prompt da VIVI.
+        </p>
+        <div className="space-y-4">
+          <Field label="Sobre a construtora (texto livre)">
+            <textarea
+              value={sobreConstrutora}
+              onChange={(e) => setSobreConstrutora(e.target.value)}
+              placeholder="Ex: A Construtora XPTO atua ha 20 anos no mercado, com mais de 100 mil imoveis entregues..."
+              rows={4}
+              maxLength={2000}
+              data-testid="vivi-sobre-construtora"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+            />
+          </Field>
+          <Field label="Diferenciais (texto livre)">
+            <textarea
+              value={diferenciaisConstrutora}
+              onChange={(e) => setDiferenciaisConstrutora(e.target.value)}
+              placeholder="Ex: Entrega rapida; atendimento 100% digital; portal de acompanhamento de obra..."
+              rows={4}
+              maxLength={1500}
+              data-testid="vivi-diferenciais-construtora"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+            />
+          </Field>
+        </div>
       </div>
 
       <div className="mt-6 flex items-center gap-3">

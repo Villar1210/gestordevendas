@@ -80,3 +80,54 @@ describe('buildViviSystemPrompt - mitigacao de prompt injection via nome sugerid
     expect(seguranca.toLowerCase()).toContain('nunca uma');
   });
 });
+
+// Integracao VIVI (2026) - texto institucional curado por tenant
+// (ViviConfig.sobreConstrutora/diferenciaisConstrutora), interpolado numa
+// secao opcional do prompt (ver formatSobreConstrutora).
+describe('buildViviSystemPrompt - secao opcional "Sobre a construtora/incorporadora"', () => {
+  it('sobreConstrutora e diferenciaisConstrutora ausentes: a secao inteira e omitida', () => {
+    const prompt = buildViviSystemPrompt(baseConfig);
+    expect(prompt).not.toContain('Sobre a construtora/incorporadora');
+  });
+
+  it('sobreConstrutora e diferenciaisConstrutora vazios/so espacos: tratados como ausentes', () => {
+    const prompt = buildViviSystemPrompt({ ...baseConfig, sobreConstrutora: '   ', diferenciaisConstrutora: '' });
+    expect(prompt).not.toContain('Sobre a construtora/incorporadora');
+  });
+
+  it('sobreConstrutora preenchido (diferenciaisConstrutora ausente): secao aparece so com o texto informado', () => {
+    const prompt = buildViviSystemPrompt({
+      ...baseConfig,
+      sobreConstrutora: 'A Construtora XPTO atua ha 20 anos no mercado.',
+      diferenciaisConstrutora: null,
+    });
+    expect(prompt).toContain('Sobre a construtora/incorporadora');
+    expect(prompt).toContain('A Construtora XPTO atua ha 20 anos no mercado.');
+  });
+
+  it('os dois campos preenchidos: secao aparece com os dois textos, entre "Bloco 4" e "Enquadramento por renda"', () => {
+    const prompt = buildViviSystemPrompt({
+      ...baseConfig,
+      sobreConstrutora: 'A Construtora XPTO atua ha 20 anos no mercado.',
+      diferenciaisConstrutora: 'Entrega rapida; atendimento 100% digital.',
+    });
+    expect(prompt).toContain('A Construtora XPTO atua ha 20 anos no mercado.');
+    expect(prompt).toContain('Entrega rapida; atendimento 100% digital.');
+
+    const indiceBloco4 = prompt.indexOf('Bloco 4');
+    const indiceSecao = prompt.indexOf('Sobre a construtora/incorporadora');
+    const indiceEnquadramento = prompt.indexOf('## Enquadramento por renda');
+    expect(indiceBloco4).toBeGreaterThan(-1);
+    expect(indiceSecao).toBeGreaterThan(indiceBloco4);
+    expect(indiceEnquadramento).toBeGreaterThan(indiceSecao);
+  });
+
+  it('nao recita como propaganda - inclui a instrucao de uso natural/contextual', () => {
+    const prompt = buildViviSystemPrompt({
+      ...baseConfig,
+      sobreConstrutora: 'Texto institucional.',
+      diferenciaisConstrutora: null,
+    });
+    expect(prompt.toLowerCase()).toContain('nunca recite como propaganda');
+  });
+});

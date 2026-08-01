@@ -137,4 +137,18 @@ export class UpdateViviConfigDto {
 
   @IsOptional()
   ativaRotatingIndicador?: boolean;
+
+  // Texto institucional curado por tenant (Integracao VIVI 2026) - secao
+  // opcional do prompt, omitida se ambos vierem vazios (ver
+  // formatSobreConstrutora em constants/vivi-prompt.ts). Limites de
+  // caracteres espelham @db.VarChar do schema.prisma.
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  sobreConstrutora?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1500)
+  diferenciaisConstrutora?: string | null;
 }

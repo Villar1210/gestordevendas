@@ -31,6 +31,10 @@ export interface ViviConfigRecord {
   faixa4ExemploParcela: string | null;
   diasParaRotting: number;
   ativaRotatingIndicador: boolean;
+  // Texto institucional curado por tenant (Integracao VIVI 2026) - ver
+  // formatSobreConstrutora em constants/vivi-prompt.ts.
+  sobreConstrutora: string | null;
+  diferenciaisConstrutora: string | null;
   updatedAt: Date;
 }
 
@@ -63,6 +67,8 @@ export interface UpdateViviConfigInput {
   faixa4ExemploParcela: string | null;
   diasParaRotting?: number;
   ativaRotatingIndicador?: boolean;
+  sobreConstrutora: string | null;
+  diferenciaisConstrutora: string | null;
 }
 
 export interface IViviConfigRepository {

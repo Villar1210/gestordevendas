@@ -37,6 +37,12 @@ export interface ViviPromptConfig {
   faixa4JurosMin: number | null;
   faixa4JurosMax: number | null;
   faixa4TetoFinanciamento: string | null;
+  // Texto institucional curado por tenant (Integracao VIVI 2026) - ver
+  // formatSobreConstrutora. Opcionais aqui (diferente das faixas acima,
+  // sempre obrigatorias) porque a secao inteira e omitida quando vazios -
+  // nao ha "default" que faca sentido para texto livre nao preenchido.
+  sobreConstrutora?: string | null;
+  diferenciaisConstrutora?: string | null;
 }
 
 function formatBRL(value: number): string {
@@ -63,6 +69,28 @@ function formatJurosRange(min: number | null, max: number | null): string | null
 function formatSubsidio(valor: number | null): string | null {
   if (valor === null) return null;
   return `podera ter direito a um subsidio do governo de ate ${formatBRL(valor)} (estimativa, sujeita a analise da Caixa)`;
+}
+
+// Secao institucional OPCIONAL, curada por tenant (ViviConfig.sobreConstrutora/
+// diferenciaisConstrutora) - substitui o Bloco 9 hardcoded do ViviPrompt.md
+// (que citava uma construtora especifica por nome) por conteudo generico
+// configuravel: o prompt base continua agnostico de construtora (decisao
+// do usuario). Omite a secao inteira (string vazia, sem placeholder tipo
+// "nao configurado") quando os dois campos vierem vazios/nulos - evita
+// gastar contexto do modelo com uma secao sem conteudo.
+function formatSobreConstrutora(sobreConstrutora?: string | null, diferenciaisConstrutora?: string | null): string {
+  const sobre = sobreConstrutora?.trim() || null;
+  const diferenciais = diferenciaisConstrutora?.trim() || null;
+  if (!sobre && !diferenciais) return '';
+
+  return `
+## Sobre a construtora/incorporadora
+Use o texto abaixo como pano de fundo institucional quando fizer sentido
+na conversa (ex: o lead perguntar "quem sao voces?", pedir mais confianca,
+ou questionar a credibilidade) - NUNCA recite como propaganda nem despeje
+tudo de uma vez, adapte ao fluxo natural da conversa, como os outros
+blocos de conhecimento acima.
+${sobre ? `\n${sobre}\n` : ''}${diferenciais ? `\n${diferenciais}\n` : ''}`;
 }
 
 // canalDescricao: default preserva o texto original ("via WhatsApp") -
@@ -93,6 +121,8 @@ export function buildViviSystemPrompt(
   const faixa2Juros = formatJurosRange(config.faixa2JurosMin, config.faixa2JurosMax);
   const faixa3Juros = formatJurosRange(config.faixa3JurosMin, config.faixa3JurosMax);
   const faixa4Juros = formatJurosRange(config.faixa4JurosMin, config.faixa4JurosMax);
+
+  const blocoSobreConstrutora = formatSobreConstrutora(config.sobreConstrutora, config.diferenciaisConstrutora);
 
   const nomeSugeridoTrim = nomeSugerido?.trim() || null;
   // Auditoria de seguranca (achado C1): o nome de exibicao do WhatsApp e
@@ -219,7 +249,7 @@ valor que voce da para um condominio que oferece para sua familia
 seguranca 24h, lazer completo e bem-estar todos os dias? Esse e o valor
 real da casa propria." So DEPOIS dessa inversao, se o lead ainda quiser
 saber o preco, use o Bloco 3 normalmente.
-
+${blocoSobreConstrutora}
 ## Enquadramento por renda (NUNCA mencione "Faixa 1/2/3/4", "SEM_PERFIL" ou
 "R2V" ao lead - sao nomes internos de classificacao, nao termos pra usar
 na conversa)

@@ -61,6 +61,8 @@ export class ViviConfigController {
       faixa4ExemploParcela: dto.faixa4ExemploParcela ?? null,
       diasParaRotting: dto.diasParaRotting ?? undefined,
       ativaRotatingIndicador: dto.ativaRotatingIndicador ?? undefined,
+      sobreConstrutora: dto.sobreConstrutora ?? null,
+      diferenciaisConstrutora: dto.diferenciaisConstrutora ?? null,
     });
   }
 }

@@ -41,6 +41,8 @@ type PrismaViviConfig = {
   faixa4ExemploParcela: string | null;
   diasParaRotting: number;
   ativaRotatingIndicador: boolean;
+  sobreConstrutora: string | null;
+  diferenciaisConstrutora: string | null;
   updatedAt: Date;
 };
 
@@ -84,6 +86,8 @@ export class PrismaViviConfigRepository implements IViviConfigRepository {
       faixa4ExemploParcela: config.faixa4ExemploParcela,
       diasParaRotting: config.diasParaRotting,
       ativaRotatingIndicador: config.ativaRotatingIndicador,
+      sobreConstrutora: config.sobreConstrutora,
+      diferenciaisConstrutora: config.diferenciaisConstrutora,
       updatedAt: config.updatedAt,
     };
   }
