@@ -495,12 +495,20 @@ model ViviConversation {
   email                 String?   @db.VarChar(150)
   tipoRenda             String?   @map("tipo_renda") @db.VarChar(20)
   fezDeclaracaoIR       Boolean?  @map("fez_declaracao_ir")
+  // Integracao VIVI (2026) - preenchido quando "buscar_empreendimento_por_
+  // endereco" encontra um Empreendimento no catalogo proprio (nao um Imovel
+  // avulso, que nao tem essa FK) - o ultimo encontrado na conversa
+  // sobrescreve o anterior (reflete o empreendimento "atual" de interesse).
+  // Usado por AgendarVisitaUseCase para achar o plantao (endereco/horario)
+  // a citar na mensagem de confirmacao de visita.
+  empreendimentoId      String?   @map("empreendimento_id") @db.Uuid
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  session WhatsAppSession @relation(fields: [whatsappSessionId], references: [id], onDelete: Cascade)
-  card    Card?           @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session        WhatsAppSession @relation(fields: [whatsappSessionId], references: [id], onDelete: Cascade)
+  card           Card?           @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  empreendimento Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
 
   @@map("vivi_conversations")
 }
@@ -863,10 +871,11 @@ model Empreendimento {
   plantaoCorretorResponsavel  String?  @map("plantao_corretor_responsavel") @db.VarChar(150)
   plantaoWhatsappCorretor     String?  @map("plantao_whatsapp_corretor") @db.VarChar(30)
 
-  tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  imoveis    Imovel[]
-  tipologias Tipologia[]
-  photos     EmpreendimentoPhoto[]
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  imoveis           Imovel[]
+  tipologias        Tipologia[]
+  photos            EmpreendimentoPhoto[]
+  viviConversations ViviConversation[]
 
   @@map("empreendimentos")
 }
