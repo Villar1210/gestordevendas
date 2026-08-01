@@ -335,17 +335,23 @@ compartilhados do modulo `vivi_sdr`. Verificado com cuidado (diff por
 diff) que nada desse WIP dependia da estrutura pre-refactor do I10 -
 zero risco de conflito. A pedido do usuario, esse trabalho foi
 protegido contra perda acidental em 2 commits `wip(vivi_sdr)` dedicados
-(`d007d02` codigo, `54a5428` briefing/base de conhecimento) - **ainda
-NAO revisado, NAO testado, NAO finalizado** - fica para uma sessao
+(`d007d02` codigo, `54a5428` briefing/base de conhecimento), inicialmente
+commitados na propria `main` por engano - **ainda NAO revisado, NAO
+testado, NAO finalizado**. Antes do push final desta auditoria, esses
+2 commits foram removidos da `main` via `git rebase --onto` (sem alterar
+conteudo/ordem dos commits da auditoria que vieram depois) e preservados
+intactos na branch dedicada `wip/vivi-followups` - fica para uma sessao
 futura dedicada a essa feature, separada desta auditoria.
 
 ### Regras seguidas durante toda a sessao
-Nenhum `push`/deploy em nenhum momento - todos os commits permanecem
-locais na branch `main`. Nenhum arquivo excluido. Nenhuma dependencia
-nova instalada sem pedido/confirmacao explicita. Toda mudanca de escopo
-maior que o pedido (ex: `npx prisma generate`, ajuste na factory de
-teste do WIP concorrente) foi perguntada e aprovada antes de executar.
-Cada commit foi mostrado (diff/stat) antes de ser criado.
+Nenhum `push`/deploy em nenhum momento. Todos os commits da auditoria
+permanecem locais na branch `main` (pronta para push); o WIP nao
+relacionado foi isolado na branch `wip/vivi-followups`. Nenhum arquivo
+excluido. Nenhuma dependencia nova instalada sem pedido/confirmacao
+explicita. Toda mudanca de escopo maior que o pedido (ex: `npx prisma
+generate`, ajuste na factory de teste do WIP concorrente) foi
+perguntada e aprovada antes de executar. Cada commit foi mostrado
+(diff/stat) antes de ser criado.
 
 ---
 
