@@ -186,7 +186,7 @@ opcional `motivo` - o hook `useAtendimentoIntegration.handleClose` ja
 aceitava esse parametro, so a lista nao o repassava. Toggle de
 "Finalizar" e "Transferir" sao mutuamente exclusivos (abrir um fecha o
 outro), mesma UX ja esperada pelo padrao existente.
-**Commit:** `ca47877`
+**Commit:** `7a0a445`
 **Testes:** `tsc --noEmit` e `eslint` limpos no frontend. **NAO
 testado no navegador** - Docker Desktop indisponivel neste ambiente
 (sem Postgres rodando, sem como subir o backend para logar e navegar
@@ -217,7 +217,7 @@ inicio da chamada - mesma armadilha de novo) ainda for igual ao
 selecao ja mudou, a resposta e descartada silenciosamente (nao aplica
 `setDetail`, mas `updateAtendimentoInPlace` continua rodando -
 seguro). Escopo estrito respeitado: so `useAtendimentoIntegration.ts`.
-**Commit:** `142ce2f`
+**Commit:** `fe45ba0`
 **Testes:** **sem infraestrutura de teste de frontend configurada
 neste projeto** (sem jest/vitest/@testing-library/react, sem script
 `test` no `package.json` - so `playwright` como devDependency, usado
@@ -254,7 +254,7 @@ explicitamente em vez de simular um teste que nao rodaria de verdade.
 - `AddNotaAtendimentoUseCase`: ja tinha boa cobertura de escopo (I2/
   I2b) - adicionado o caso faltante de texto vazio/so espacos
   (`BadRequestException`, antes mesmo de consultar o banco).
-**Commit:** `4d47329`
+**Commit:** `b9a7bf4`
 **Testes:** 43 testes novos/expandidos nos 5 arquivos, 5/5 suites
 passando. `tsc --noEmit` limpo. Suite completa do modulo `atendimento`:
 57/59 passando - a unica falha e a integracao
@@ -283,7 +283,7 @@ gravados no banco ANTES desta correcao continuam com `tipo:'criado'`,
 inclusive os duplicados nos casos de atendimento novo; so atendimentos
 classificados A PARTIR desta correcao ganham o rotulo certo
 ("Classificado") na timeline.
-**Commit:** `d98d086`
+**Commit:** `29280a2`
 **Testes:** teste novo no spec do I14 confirmando `tipo:'classificado'`
 e a ausencia de `tipo:'criado'`. `tsc --noEmit` limpo no backend e no
 frontend. Suite `atendimento`: 58/60 passando (+1 do teste novo) - a
@@ -309,10 +309,10 @@ observacoes cosmeticas nao priorizadas, fora do escopo desta sessao.
 | I8a | Lista fechada de motivos de fechamento + bloqueia reabertura automatica da VIVI por motivo de negocio | `d2390ee` |
 | I10 | Refactor estrutural `ProcessIncomingMessageUseCase` (897 -> 485 linhas, 17 -> 13 parametros no construtor, 5 commits) | `f395eb3`, `8c2b26f`, `b796188`, `7d79940`, `2000db7` |
 | I11 | Logging na camada de aplicacao do Atendimento (12 use cases) | `f8ff3ba` |
-| I12 | Confirmacao ao "Finalizar" na lista de atendimentos (paridade com o painel de chat) | `ca47877` |
-| I13 | Corrida entre polling de 5s e troca de conversa exibindo dados errados | `142ce2f` |
-| I14 | Specs faltantes em 5 use cases do Atendimento (43 testes novos/expandidos) | `4d47329` |
-| I15 | Evento de auditoria duplicado/mal rotulado (`tipo:'criado'` -> `'classificado'`) | `d98d086` |
+| I12 | Confirmacao ao "Finalizar" na lista de atendimentos (paridade com o painel de chat) | `7a0a445` |
+| I13 | Corrida entre polling de 5s e troca de conversa exibindo dados errados | `fe45ba0` |
+| I14 | Specs faltantes em 5 use cases do Atendimento (43 testes novos/expandidos) | `b9a7bf4` |
+| I15 | Evento de auditoria duplicado/mal rotulado (`tipo:'criado'` -> `'classificado'`) | `29280a2` |
 
 (I1, I2, I2b, I3 (e sua cadeia completa) e I6 tambem foram corrigidos
 nesta mesma sessao, no inicio do trabalho, antes dos achados I4 em
