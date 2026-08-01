@@ -404,21 +404,21 @@ model WhatsAppSession {
 // Historico de mensagens trocadas em uma sessao de WhatsApp.
 // Apenas armazenamento: nao dispara Card nem roteamento para SDR.
 model WhatsAppMessage {
-  id         String   @id @default(uuid()) @db.Uuid
-  tenantId   String   @map("tenant_id") @db.Uuid
-  sessionId  String   @map("session_id") @db.Uuid
-  direction  String   @db.VarChar(3) // "IN" ou "OUT"
-  fromNumber String   @map("from_number") @db.VarChar(30)
-  toNumber   String   @map("to_number") @db.VarChar(30)
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  sessionId        String   @map("session_id") @db.Uuid
+  direction        String   @db.VarChar(3) // "IN" ou "OUT"
+  fromNumber       String   @map("from_number") @db.VarChar(30)
+  toNumber         String   @map("to_number") @db.VarChar(30)
   // JID completo do Baileys, com sufixo (@lid ou @s.whatsapp.net).
   // fromNumber/toNumber guardam so os digitos (exibicao); remoteJid e o
   // valor correto para RESPONDER - numeros @lid nao sao um MSISDN valido
   // sob @s.whatsapp.net, entao reconstruir o JID a partir dos digitos
   // quebra o envio. Nulo em mensagens antigas, anteriores a essa correcao.
-  remoteJid  String?  @map("remote_jid") @db.VarChar(50)
-  body       String   @db.Text
-  timestamp  DateTime
-  createdAt  DateTime @default(now()) @map("created_at")
+  remoteJid        String?  @map("remote_jid") @db.VarChar(50)
+  body             String   @db.Text
+  timestamp        DateTime
+  createdAt        DateTime @default(now()) @map("created_at")
   // ID da mensagem no proprio Baileys (msg.key.id). Dois usos: (1) dedupe da
   // recuperacao de mensagens perdidas durante desconexao (evento
   // messaging-history.set, ver BaileysWhatsAppProvider) - evita reprocessar
@@ -428,7 +428,7 @@ model WhatsAppMessage {
   // mensagens gravadas antes dessas correcoes e nas raras mensagens sem
   // key.id. Sem constraint de unicidade no banco (dedupe/correlacao sao
   // feitos por consulta explicita, nao por conflito de insercao).
-  baileysMessageId String? @map("baileys_message_id") @db.VarChar(255)
+  baileysMessageId String?  @map("baileys_message_id") @db.VarChar(255)
   // Progresso de entrega (evento messages.update do Baileys, ver
   // map-delivery-status.ts): "pending" (aceito pelo nosso socket, ainda sem
   // confirmacao) -> "server_ack" (servidor do WhatsApp recebeu) ->
@@ -439,7 +439,7 @@ model WhatsAppMessage {
   // mensagens OUT gravadas antes desta correcao existir. SEM logica de
   // retry/correcao automatica nesta fatia - so captura e registro (ver
   // CLAUDE.md).
-  statusEntrega String? @map("status_entrega") @db.VarChar(20)
+  statusEntrega    String?  @map("status_entrega") @db.VarChar(20)
 
   tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session WhatsAppSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -776,11 +776,21 @@ enum ImovelTipoItem {
 // financiamento (mesma nomenclatura MCMV 2026 ja usada por
 // ViviConfig/classificar-renda.ts no modulo vivi_sdr - ver comentario
 // acima de ViviConfig). NENHUM = sem enquadramento especial.
+// Nomenclatura 2026: alinhado com CategoriaHabitacional
+// (src/modules/vivi_sdr/domain/services/classificar-renda.ts), que ja usa
+// FAIXA_1/2/3/4 desde a atualizacao 2026 - este enum ainda usava os nomes
+// antigos (HIS2/HMP), gerando inconsistencia entre o enquadramento do
+// Imovel e a classificacao de renda da VIVI. Renomeado/estendido (agora
+// cobre Faixa 1 e Faixa 3, que nao tinham valor antes) como parte da
+// integracao do catalogo real com a VIVI - seguro nesta migration porque
+// nao havia nenhum Imovel cadastrado ainda (confirmado com o usuario).
 enum ImovelEnquadramento {
-  HIS2
-  HMP
-  R2V
   NENHUM
+  FAIXA_1
+  FAIXA_2
+  FAIXA_3
+  FAIXA_4
+  R2V
 }
 
 // Status comercial do Imovel. EM_ANALISE incluido (alem dos 9 valores
@@ -835,6 +845,23 @@ model Empreendimento {
   gabarito         Int?
   vagas            Int?
   itensLazer       String[] @default([]) @map("itens_lazer")
+
+  // Integracao VIVI (2026) - campos que faltavam para a VIVI falar sobre o
+  // empreendimento com mais contexto ao consultar o catalogo real via a
+  // tool "buscar_empreendimento_por_endereco" (nunca duplicados em
+  // ViviConfig - decisao deliberada, ver CLAUDE.md). diferenciais e
+  // provaSocial sao texto curado manualmente (mesmo padrao de
+  // description), nao gerados automaticamente.
+  proximoMetro                Boolean  @default(false) @map("proximo_metro")
+  diferenciais                String[] @default([])
+  provaSocial                 String?  @map("prova_social") @db.Text
+  statusObra                  String?  @map("status_obra") @db.VarChar(20)
+  // Plantao/showroom - por empreendimento (nao por tenant), ja que um
+  // tenant pode ter mais de um empreendimento com plantoes diferentes.
+  plantaoEndereco             String?  @map("plantao_endereco") @db.VarChar(200)
+  plantaoHorarioFuncionamento String?  @map("plantao_horario_funcionamento") @db.VarChar(150)
+  plantaoCorretorResponsavel  String?  @map("plantao_corretor_responsavel") @db.VarChar(150)
+  plantaoWhatsappCorretor     String?  @map("plantao_whatsapp_corretor") @db.VarChar(30)
 
   tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   imoveis    Imovel[]
@@ -1210,8 +1237,23 @@ model ViviConfig {
   faixa4ExemploParcela    String?  @map("faixa4_exemplo_parcela") @db.VarChar(300)
 
   // Modulo Kanban - Indicador de Deal Parado (Rotting) (Fatia 2)
-  diasParaRotting         Int     @default(30) @map("dias_para_rotting")
-  ativaRotatingIndicador  Boolean @default(true) @map("ativa_rotating_indicador")
+  diasParaRotting        Int     @default(30) @map("dias_para_rotting")
+  ativaRotatingIndicador Boolean @default(true) @map("ativa_rotating_indicador")
+
+  // Texto institucional curado por tenant (Integracao VIVI 2026) - preenchido
+  // uma vez pelo Administrador no Painel de Configuracao, interpolado numa
+  // secao OPCIONAL do prompt (omitida por completo se ambos vazios - ver
+  // buildViviSystemPrompt). Substitui o Bloco 9 hardcoded do ViviPrompt.md
+  // (que citava a Direcional por nome) por conteudo generico por tenant -
+  // decisao: o prompt base continua agnostico de construtora.
+  sobreConstrutora        String? @map("sobre_construtora") @db.VarChar(2000)
+  diferenciaisConstrutora String? @map("diferenciais_construtora") @db.VarChar(1500)
+  // Permite a VIVI usar o termo de marketing "HIS" (Habitacao de Interesse
+  // Social) explicitamente com o lead - excecao deliberada e opcional a
+  // regra geral de nunca nomear "Faixa 1/2/3/4" na conversa (ver
+  // vivi-prompt.ts). Numeros de subsidio/juros continuam vindo SEMPRE de
+  // faixa1SubsidioMax/faixa1JurosMin/faixa1JurosMax - nunca duplicados aqui.
+  mencionarSeloHis        Boolean @default(false) @map("mencionar_selo_his")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
