@@ -24,6 +24,12 @@ export interface EnderecoBuscaResultado {
   precisouBuscaExterna: boolean;
   confirmadoExternamente: boolean | null;
   nomeEncontradoExterno: string | null;
+  // Integracao VIVI (2026) - so preenchido quando encontradoCatalogo=true E
+  // veio de um Empreendimento (nao Imovel avulso). NAO e um campo do
+  // EnderecoBuscaLog (ver persistirLogs, que o exclui explicitamente antes
+  // de gravar) - existe so para o orquestrador (ProcessIncomingMessageUseCase)
+  // ler e gravar em ViviConversation.empreendimentoId.
+  empreendimentoId: string | null;
 }
 
 @Injectable()
@@ -72,6 +78,7 @@ export class EnderecoBuscaToolResolverService {
         precisouBuscaExterna: false,
         confirmadoExternamente: null,
         nomeEncontradoExterno: null,
+        empreendimentoId: resultadoCatalogo.empreendimentoId,
       });
       return this.formatCatalogoEncontrado(resultadoCatalogo);
     }
@@ -87,6 +94,7 @@ export class EnderecoBuscaToolResolverService {
         precisouBuscaExterna: false,
         confirmadoExternamente: null,
         nomeEncontradoExterno: null,
+        empreendimentoId: null,
       });
       return (
         'NAO ENCONTRADO NO CATALOGO PROPRIO. Busca externa NAO realizada ' +
@@ -102,6 +110,7 @@ export class EnderecoBuscaToolResolverService {
       precisouBuscaExterna: true,
       confirmadoExternamente: confirmacao.confirmado,
       nomeEncontradoExterno: confirmacao.nomeEncontrado,
+      empreendimentoId: null,
     });
 
     if (confirmacao.confirmado) {
@@ -136,10 +145,14 @@ export class EnderecoBuscaToolResolverService {
     motivoEscalonamento: string | null,
   ): Promise<void> {
     for (const resultado of resultados) {
+      // empreendimentoId NAO existe no schema de EnderecoBuscaLog (ver
+      // interface EnderecoBuscaResultado acima) - excluido explicitamente
+      // do spread para nao mandar um campo desconhecido ao repositorio.
+      const { empreendimentoId: _empreendimentoId, ...logFields } = resultado;
       await this.enderecoBuscaLogRepository.create({
         tenantId,
         phoneNumber,
-        ...resultado,
+        ...logFields,
         escalonado,
         motivoEscalonamento,
       });

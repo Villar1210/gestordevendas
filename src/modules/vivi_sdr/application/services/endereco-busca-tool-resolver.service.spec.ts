@@ -11,6 +11,7 @@ function buildResultadoEncontrado(overrides: Partial<BuscaEmpreendimentoResultad
   return {
     encontrado: true,
     tipo: 'empreendimento',
+    empreendimentoId: 'emp-1',
     nome: 'Residencial Jardim',
     descricao: 'Empreendimento na Zona Sul.',
     diferenciais: null,

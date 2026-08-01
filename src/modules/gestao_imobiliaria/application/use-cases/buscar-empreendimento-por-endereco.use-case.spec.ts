@@ -122,6 +122,7 @@ describe('BuscarEmpreendimentoPorEnderecoUseCase - campos novos da Integracao VI
 
     expect(resultado.encontrado).toBe(true);
     expect(resultado.tipo).toBe('empreendimento');
+    expect(resultado.empreendimentoId).toBe('emp-1');
     expect(resultado.descricao).toBe('Empreendimento na Zona Sul.');
     expect(resultado.diferenciais).toEqual(['Piscina', 'Coworking', 'Pet place']);
     expect(resultado.provaSocial).toBe('42 unidades vendidas nos primeiros 30 dias');
@@ -157,6 +158,7 @@ describe('BuscarEmpreendimentoPorEnderecoUseCase - campos novos da Integracao VI
 
     expect(resultado.encontrado).toBe(true);
     expect(resultado.tipo).toBe('imovel');
+    expect(resultado.empreendimentoId).toBeNull();
     expect(resultado.descricao).toBe('Imovel avulso bem localizado.');
     expect(resultado.diferenciais).toBeNull();
     expect(resultado.provaSocial).toBeNull();
@@ -176,6 +178,7 @@ describe('BuscarEmpreendimentoPorEnderecoUseCase - campos novos da Integracao VI
     const resultado = await useCase.execute({ tenantId: 'tenant-1', enderecoBusca: 'Rua Inexistente, 999' });
 
     expect(resultado.encontrado).toBe(false);
+    expect(resultado.empreendimentoId).toBeNull();
     expect(resultado.diferenciais).toBeNull();
     expect(resultado.provaSocial).toBeNull();
     expect(resultado.statusObra).toBeNull();

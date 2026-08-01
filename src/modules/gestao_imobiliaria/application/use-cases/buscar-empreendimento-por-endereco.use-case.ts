@@ -21,6 +21,10 @@ interface BuscarEmpreendimentoPorEnderecoInput {
 export interface BuscaEmpreendimentoResultado {
   encontrado: boolean;
   tipo: 'empreendimento' | 'imovel' | null;
+  // Integracao VIVI (2026) - id do Empreendimento encontrado, para
+  // ViviConversation.empreendimentoId (ver ProcessIncomingMessageUseCase).
+  // Nulo no caminho "imovel" (avulso, sem Empreendimento) e "nao encontrado".
+  empreendimentoId: string | null;
   nome: string | null;
   // Ate a Integracao VIVI (2026) este campo se chamava "diferenciais", mas
   // sempre veio de Empreendimento.description (texto livre) - renomeado
@@ -84,6 +88,7 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
     return {
       encontrado: false,
       tipo: null,
+      empreendimentoId: null,
       nome: null,
       descricao: null,
       diferenciais: null,
@@ -102,6 +107,7 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
 
   private buildResultadoEmpreendimento(
     empreendimento: {
+      id: string;
       name: string;
       description: string | null;
       diferenciais: string[];
@@ -124,6 +130,7 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
     return {
       encontrado: true,
       tipo: 'empreendimento',
+      empreendimentoId: empreendimento.id,
       nome: empreendimento.name,
       descricao: empreendimento.description,
       diferenciais: empreendimento.diferenciais.length > 0 ? empreendimento.diferenciais : null,
@@ -151,6 +158,7 @@ export class BuscarEmpreendimentoPorEnderecoUseCase {
     return {
       encontrado: true,
       tipo: 'imovel',
+      empreendimentoId: null,
       nome: imovel.title,
       descricao: imovel.description,
       diferenciais: null,
