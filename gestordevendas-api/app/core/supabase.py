@@ -32,3 +32,12 @@ def get_supabase_anon() -> Client:
     """
     cfg = get_settings()
     return create_client(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY)
+
+
+# Alias para compatibilidade
+def get_supabase_client() -> Client:
+    """
+    Alias para get_supabase_admin().
+    Retorna cliente com service_role (sem RLS).
+    """
+    return get_supabase_admin()

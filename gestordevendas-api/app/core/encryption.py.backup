@@ -13,6 +13,7 @@ import json
 from typing import Any, Optional, Union
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2 as PBKDF2_KDF
 import base64
 
 
@@ -237,15 +238,3 @@ class ContactRepository:
         # Descriptografar todos
         return [EncryptedContact.decrypt(c) for c in contacts]
 """
-
-
-# ─── Funções Helper Globais ─────────────────────────────────────────────────
-
-def encrypt(value: str) -> str:
-    """Criptografar um valor usando a instância global de FieldEncryption."""
-    return get_encryption().encrypt(value)
-
-
-def decrypt(encrypted_value: str) -> str:
-    """Descriptografar um valor usando a instância global de FieldEncryption."""
-    return get_encryption().decrypt(encrypted_value)
