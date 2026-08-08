@@ -9,7 +9,7 @@ pydantic-settings==2.6.1
 
 # ─── Supabase ─────────────────────────────────────────────────────────────────
 supabase==2.10.0
-gotrue==2.9.3
+gotrue>=2.10.0
 postgrest==0.18.0
 storage3==0.8.1
 realtime==2.0.6
