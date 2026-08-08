@@ -1,0 +1,104 @@
+# Alertmanager Configuration - Alert Routing
+
+global:
+  resolve_timeout: 5m
+
+# Rotas de alertas
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+
+  # Subrotas para diferentes severidades
+  routes:
+    # Alertas críticos
+    - match:
+        severity: critical
+      receiver: 'critical'
+      group_wait: 0s
+      repeat_interval: 1h
+      routes:
+        - match:
+            alertname: 'DatabaseDown|BackendDown'
+          receiver: 'critical-oncall'
+          continue: true
+
+    # Alertas de warning
+    - match:
+        severity: warning
+      receiver: 'warning'
+      group_wait: 30s
+      repeat_interval: 4h
+
+# Receptores (onde enviar alertas)
+receivers:
+  # Default (logs)
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://backend:8000/api/internal/alerts/webhook'
+        send_resolved: true
+
+  # Critical (Slack + Email + PagerDuty)
+  - name: 'critical'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-critical'
+        title: '🚨 ALERTA CRÍTICO'
+        text: '{{ .GroupLabels.alertname }}\n{{ .CommonAnnotations.summary }}\n{{ .CommonAnnotations.description }}'
+        send_resolved: true
+        actions:
+          - type: button
+            text: 'Grafana Dashboard'
+            url: 'http://grafana:3000/d/deskcomm-main'
+          - type: button
+            text: 'Prometheus'
+            url: 'http://prometheus:9090'
+
+    email_configs:
+      - to: '${ALERT_EMAIL}'
+        from: 'alerts@ivillar.com.br'
+        smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+        auth_username: '${SMTP_USER}'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '🚨 [CRÍTICO] {{ .GroupLabels.alertname }}'
+
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .CommonAnnotations.summary }}'
+        details:
+          firing: '{{ template "pagerduty.default.instances" .Alerts.Firing }}'
+
+  # Warning (Slack + Email)
+  - name: 'warning'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-warning'
+        title: '⚠️ ALERTA'
+        text: '{{ .GroupLabels.alertname }}\n{{ .CommonAnnotations.summary }}'
+        send_resolved: true
+
+  # Critical OnCall (SMS + PagerDuty)
+  - name: 'critical-oncall'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '[CRÍTICO] {{ .CommonAnnotations.summary }}'
+        severity: 'critical'
+
+# Inibição de alertas (para evitar duplicatas)
+inhibit_rules:
+  # Se há alerta crítico, suprimir warnings do mesmo serviço
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster']
+
+  # Database down suprime slow queries
+  - source_match:
+      alertname: 'DatabaseDown'
+    target_match:
+      alertname: 'SlowDatabaseQueries'
+    equal: ['cluster']

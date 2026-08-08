@@ -1,0 +1,240 @@
+"""
+Criptografia de Campos Sensíveis (PII).
+
+Protege dados como:
+- CPF/CNPJ
+- Email
+- Telefone
+- Endereço
+- Dados bancários
+"""
+import os
+import json
+from typing import Any, Optional, Union
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+import base64
+
+
+class EncryptedFieldError(Exception):
+    """Erro em operação de criptografia."""
+    pass
+
+
+class FieldEncryption:
+    """
+    Criptografia de campos sensíveis com Fernet (AES-128).
+
+    Usa chave gerada do ENCRYPTION_KEY env var.
+    """
+
+    def __init__(self, key: Optional[str] = None):
+        """
+        Inicializar criptografia.
+
+        Args:
+            key: Chave de criptografia (base64). Se None, usa env var.
+        """
+        if key is None:
+            key = os.getenv("ENCRYPTION_KEY")
+
+        if not key:
+            raise EncryptedFieldError(
+                "ENCRYPTION_KEY not set. Generate with: "
+                "python -c \"from cryptography.fernet import Fernet; "
+                "print(Fernet.generate_key().decode())\""
+            )
+
+        try:
+            self.cipher = Fernet(key.encode() if isinstance(key, str) else key)
+        except Exception as e:
+            raise EncryptedFieldError(f"Invalid encryption key: {e}")
+
+    def encrypt(self, value: str) -> str:
+        """
+        Criptografar um valor de string.
+
+        Args:
+            value: Valor a criptografar
+
+        Returns:
+            Valor criptografado (base64)
+        """
+        if not isinstance(value, str):
+            value = str(value)
+
+        try:
+            encrypted = self.cipher.encrypt(value.encode())
+            return base64.b64encode(encrypted).decode()
+        except Exception as e:
+            raise EncryptedFieldError(f"Encryption failed: {e}")
+
+    def decrypt(self, encrypted_value: str) -> str:
+        """
+        Descriptografar um valor.
+
+        Args:
+            encrypted_value: Valor criptografado (base64)
+
+        Returns:
+            Valor original
+        """
+        try:
+            encrypted = base64.b64decode(encrypted_value.encode())
+            decrypted = self.cipher.decrypt(encrypted)
+            return decrypted.decode()
+        except Exception as e:
+            raise EncryptedFieldError(f"Decryption failed: {e}")
+
+    def encrypt_dict(self, data: dict, fields: list[str]) -> dict:
+        """
+        Criptografar campos específicos em um dicionário.
+
+        Args:
+            data: Dicionário com dados
+            fields: Lista de campos a criptografar
+
+        Returns:
+            Dicionário com campos criptografados
+        """
+        result = data.copy()
+
+        for field in fields:
+            if field in result and result[field] is not None:
+                result[field] = self.encrypt(result[field])
+
+        return result
+
+    def decrypt_dict(self, data: dict, fields: list[str]) -> dict:
+        """
+        Descriptografar campos específicos em um dicionário.
+
+        Args:
+            data: Dicionário com dados criptografados
+            fields: Lista de campos a descriptografar
+
+        Returns:
+            Dicionário com campos descriptografados
+        """
+        result = data.copy()
+
+        for field in fields:
+            if field in result and result[field] is not None:
+                try:
+                    result[field] = self.decrypt(result[field])
+                except EncryptedFieldError:
+                    # Campo pode não estar criptografado
+                    pass
+
+        return result
+
+
+# Instância global
+_encryption = None
+
+
+def get_encryption() -> FieldEncryption:
+    """Obter instância de criptografia."""
+    global _encryption
+    if _encryption is None:
+        _encryption = FieldEncryption()
+    return _encryption
+
+
+# ─── Campos sensíveis por tipo de recurso ───────────────────────────────────
+
+SENSITIVE_FIELDS = {
+    "contact": ["email", "phone", "cpf", "cnpj", "address"],
+    "person": ["email", "phone", "cpf", "birth_date", "address"],
+    "user": ["email", "phone"],
+    "bank_account": ["account_number", "routing_number", "account_holder"],
+}
+
+
+class EncryptedContact:
+    """
+    Helper para criptografar/descriptografar campos de Contato.
+
+    Uso:
+        # Ao salvar
+        encrypted_data = EncryptedContact.encrypt(contact_dict)
+        await db.create(Contact, encrypted_data)
+
+        # Ao ler
+        contact = await db.get(Contact, id)
+        decrypted = EncryptedContact.decrypt(contact)
+    """
+
+    ENCRYPTED_FIELDS = SENSITIVE_FIELDS.get("contact", [])
+
+    @classmethod
+    def encrypt(cls, data: dict) -> dict:
+        """Criptografar campos sensíveis de contato."""
+        enc = get_encryption()
+        return enc.encrypt_dict(data, cls.ENCRYPTED_FIELDS)
+
+    @classmethod
+    def decrypt(cls, data: dict) -> dict:
+        """Descriptografar campos sensíveis de contato."""
+        enc = get_encryption()
+        return enc.decrypt_dict(data, cls.ENCRYPTED_FIELDS)
+
+
+class EncryptedPerson:
+    """Helper para criptografar/descriptografar campos de Pessoa."""
+
+    ENCRYPTED_FIELDS = SENSITIVE_FIELDS.get("person", [])
+
+    @classmethod
+    def encrypt(cls, data: dict) -> dict:
+        enc = get_encryption()
+        return enc.encrypt_dict(data, cls.ENCRYPTED_FIELDS)
+
+    @classmethod
+    def decrypt(cls, data: dict) -> dict:
+        enc = get_encryption()
+        return enc.decrypt_dict(data, cls.ENCRYPTED_FIELDS)
+
+
+class EncryptedUser:
+    """Helper para criptografar/descriptografar campos de Usuário."""
+
+    ENCRYPTED_FIELDS = SENSITIVE_FIELDS.get("user", [])
+
+    @classmethod
+    def encrypt(cls, data: dict) -> dict:
+        enc = get_encryption()
+        return enc.encrypt_dict(data, cls.ENCRYPTED_FIELDS)
+
+    @classmethod
+    def decrypt(cls, data: dict) -> dict:
+        enc = get_encryption()
+        return enc.decrypt_dict(data, cls.ENCRYPTED_FIELDS)
+
+
+# ─── Exemplo de uso em repository ───────────────────────────────────────────
+
+"""
+class ContactRepository:
+    async def create(self, contact_data: dict) -> Contact:
+        # Criptografar campos sensíveis
+        encrypted = EncryptedContact.encrypt(contact_data)
+
+        # Salvar no banco
+        return await db.create(Contact, encrypted)
+
+    async def get(self, contact_id: str) -> dict:
+        # Buscar do banco (criptografado)
+        contact = await db.get(Contact, contact_id)
+
+        # Descriptografar campos sensíveis
+        return EncryptedContact.decrypt(contact)
+
+    async def list_all(self, tenant_id: str) -> list[dict]:
+        # Buscar do banco (criptografados)
+        contacts = await db.query(Contact).filter(...).all()
+
+        # Descriptografar todos
+        return [EncryptedContact.decrypt(c) for c in contacts]
+"""

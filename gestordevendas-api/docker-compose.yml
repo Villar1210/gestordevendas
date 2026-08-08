@@ -1,0 +1,146 @@
+version: "3.9"
+
+# ─── Rede compartilhada ───────────────────────────────────────────────────────
+networks:
+  gestordevendas:
+    driver: bridge
+
+# ─── Volumes persistentes ─────────────────────────────────────────────────────
+volumes:
+  redis_data:
+
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+
+  # ── API FastAPI ─────────────────────────────────────────────────────────────
+  api:
+    build: .
+    container_name: gestordevendas_api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - gestordevendas
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    # Produção: sem volume de hot-reload, sem --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --log-level info
+
+  # ── API em modo dev (hot-reload) — apenas perfil "dev" ─────────────────────
+  api_dev:
+    build: .
+    container_name: gestordevendas_api_dev
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - gestordevendas
+    volumes:
+      - ./app:/app/app             # hot-reload: reflete mudanças locais
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    profiles:
+      - dev
+
+  # ── Celery Worker principal (automações + broadcasts + flows) ───────────────
+  worker:
+    build: .
+    container_name: gestordevendas_worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - gestordevendas
+    command: >
+      celery -A app.workers.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      --queues=default,broadcasts,automations,flows
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping", "--timeout=5"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 20s
+
+  # ── Celery Worker Embeddings (IA — isolado para não competir com broadcasts) ─
+  worker_embed:
+    build: .
+    container_name: gestordevendas_worker_embed
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - gestordevendas
+    command: >
+      celery -A app.workers.celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=embeddings
+
+  # ── Celery Beat (cron tasks: expirar flows, retries agendados) ──────────────
+  beat:
+    build: .
+    container_name: gestordevendas_beat
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - gestordevendas
+    command: >
+      celery -A app.workers.celery_app beat
+      --loglevel=info
+      --scheduler celery.beat:PersistentScheduler
+
+  # ── Redis (broker Celery + storage do rate limiter) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: gestordevendas_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gestordevendas
+    # appendonly: durabilidade; maxmemory-policy: LRU para rate limit keys
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Flower (monitor visual do Celery) — apenas perfil "dev" ─────────────────
+  flower:
+    build: .
+    container_name: gestordevendas_flower
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - gestordevendas
+    command: celery -A app.workers.celery_app flower --port=5555
+    profiles:
+      - dev        # docker compose --profile dev up

@@ -1,0 +1,61 @@
+# Docker Compose para desenvolvimento local do Deskcomm
+# Inclui PostgreSQL, Redis, e o servidor FastAPI
+#
+# Uso:
+#   docker-compose -f docker-compose.dev.yml up -d
+#   docker-compose -f docker-compose.dev.yml down
+#
+version: '3.9'
+
+services:
+
+  # ─── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: deskcomm_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: deskcomm_dev
+      POSTGRES_USER: deskcomm
+      POSTGRES_PASSWORD: deskcomm_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deskcomm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - deskcomm_net
+
+  # ─── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: deskcomm_redis_dev
+    restart: unless-stopped
+    command: redis-server --requirepass deskcomm_dev_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - deskcomm_net
+
+  # ─── Supabase Mock (Postgres + API) ─────────────────────────────────────────
+  # Em desenvolvimento, usamos a mesma instância de postgres acima
+  # Em produção, usaríamos Supabase gerenciado (supabase.com)
+
+volumes:
+  postgres_data_dev:
+  redis_data_dev:
+
+networks:
+  deskcomm_net:
+    driver: bridge
