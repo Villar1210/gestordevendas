@@ -1,0 +1,1 @@
+"""Message Templates use cases."""
