@@ -17,7 +17,7 @@ from app.api.internal import inboxes
 from app.api.internal import automations, broadcasts
 
 # ── Fase 5: AI Config + Knowledge Base ───────────────────────────────────────
-from app.api.internal import ai_config, knowledge, card_order, knowledge_search, metrics_endpoints
+from app.api.internal import ai_config, knowledge, card_order, knowledge_search, metrics_endpoints, settings
 
 # ── Fase 6: Chatbot Flows ─────────────────────────────────────────────────────
 from app.api.internal import flows
@@ -58,6 +58,7 @@ router.include_router(knowledge.router)
 router.include_router(card_order.router)
 router.include_router(knowledge_search.router)
 router.include_router(metrics_endpoints.router)
+router.include_router(settings.router)
 router.include_router(flows.router)
 router.include_router(account.router)
 
