@@ -1,0 +1,86 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "requirements.txt"
+      - "main.py"
+      - ".github/workflows/deploy.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PRIVATE_KEY: ${{ secrets.VPS_PRIVATE_KEY }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p $VPS_PORT $VPS_HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Deploy script
+          ssh -i ~/.ssh/deploy_key -p $VPS_PORT $VPS_USER@$VPS_HOST << 'EOF'
+          set -e
+
+          cd /app/gestordevendas-api
+
+          # Parar o serviço anterior
+          sudo systemctl stop gestordevendas-api || true
+
+          # Atualizar código
+          git fetch origin
+          git reset --hard origin/main
+
+          # Atualizar dependências
+          python3.13 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+          # Executar migrações
+          python scripts/run_migrations.py
+
+          # Reiniciar serviço
+          sudo systemctl start gestordevendas-api
+          sudo systemctl enable gestordevendas-api
+
+          # Verificar saúde
+          sleep 5
+          curl -f http://localhost:8000/health || exit 1
+
+          echo "✅ Deploy concluído com sucesso!"
+          EOF
+
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Notify on Slack
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "Deploy to Production: ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deploy Report*\n*Status:* ${{ job.status }}\n*Ref:* ${{ github.ref }}\n*Commit:* ${{ github.sha }}"
+                  }
+                }
+              ]
+            }
