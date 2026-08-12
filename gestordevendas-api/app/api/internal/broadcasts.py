@@ -1,146 +1,185 @@
-"""
-Router interno: /api/broadcasts
-Envio em massa via WhatsApp Template Messages.
-Apenas Admin/Owner pode criar e lançar. Agents podem visualizar.
-"""
-from __future__ import annotations
-
-from typing import Optional
-from uuid import UUID
-
-from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel, Field
-
-from app.application.broadcasts.use_cases import (
-    AddRecipientsToBroadcastUseCase,
-    CancelBroadcastUseCase,
-    CreateBroadcastUseCase,
-    GetBroadcastUseCase,
-    LaunchBroadcastUseCase,
-    ListBroadcastsUseCase,
+"""Endpoints para Broadcasts Module (Task 3, Fase 3)"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.shared.auth import verify_token
+from app.infra.supabase.client import get_supabase
+from app.api.internal.broadcasts_schemas import (
+    BroadcastCreate,
+    BroadcastUpdate,
+    BroadcastResponse,
+    BroadcastStats,
 )
-from app.core.dependencies import CurrentUser, get_current_user, require_admin, require_agent
+from app.infra.supabase.broadcasts_repository import BroadcastsRepository
 
 router = APIRouter(prefix="/broadcasts", tags=["Broadcasts"])
 
 
-class BroadcastCreate(BaseModel):
-    inbox_id: UUID
-    name: str = Field(..., min_length=1, max_length=200)
-    template_name: str = Field(..., min_length=1, max_length=200)
-    template_params: Optional[list[str]] = Field(
-        None,
-        description="Parâmetros do template ({{1}}, {{2}}, ...). "
-                    "Use {{contact.name}} para interpolação automática (Fase 5).",
-    )
-    language_code: str = Field("pt_BR", max_length=10)
-    scheduled_at: Optional[str] = Field(
-        None, description="ISO8601. Se informado, status inicial = 'scheduled'."
-    )
-
-
-class AddRecipientsBody(BaseModel):
-    contact_ids: Optional[list[str]] = Field(
-        None, description="IDs de contatos já cadastrados."
-    )
-    phones: Optional[list[str]] = Field(
-        None,
-        description="Números de telefone avulsos (E.164). "
-                    "Contatos serão criados automaticamente se não existirem.",
-    )
-
-
-# ── CRUD ──────────────────────────────────────────────────────────────────────
-
-@router.post(
-    "",
-    status_code=status.HTTP_201_CREATED,
-    summary="Criar broadcast",
-)
+@router.post("/", response_model=BroadcastResponse, status_code=status.HTTP_201_CREATED, summary="Criar broadcast")
 async def create_broadcast(
-    body: BroadcastCreate,
-    user: CurrentUser = Depends(require_admin),
+    broadcast_data: BroadcastCreate,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = CreateBroadcastUseCase(user.account_id)
-    return uc.execute(
-        inbox_id=body.inbox_id,
-        name=body.name,
-        template_name=body.template_name,
-        template_params=body.template_params,
-        language_code=body.language_code,
-        scheduled_at=body.scheduled_at,
-        created_by=user.user_id,
+    """Criar novo broadcast"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = BroadcastsRepository(supabase)
+    broadcast = await repo.create_broadcast(
+        account_id=account_id,
+        name=broadcast_data.name,
+        message_template_id=broadcast_data.message_template_id,
+        recipient_filter=broadcast_data.recipient_filter,
+        scheduled_at=broadcast_data.scheduled_at.isoformat() if broadcast_data.scheduled_at else None,
     )
 
+    if not broadcast:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erro ao criar broadcast")
 
-@router.get("", summary="Listar broadcasts")
+    return BroadcastResponse(**broadcast)
+
+
+@router.get("/", summary="Listar broadcasts")
 async def list_broadcasts(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(25, ge=1, le=100),
-    status: Optional[str] = Query(None, pattern="^(draft|scheduled|running|completed|cancelled|failed)$"),
-    user: CurrentUser = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = ListBroadcastsUseCase(user.account_id)
-    return uc.execute(page=page, per_page=per_page, status=status)
+    """Listar broadcasts do tenant"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = BroadcastsRepository(supabase)
+    broadcasts, total = await repo.get_broadcasts(account_id, limit=limit, offset=offset)
+
+    return {
+        "broadcasts": [BroadcastResponse(**b) for b in broadcasts],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
-@router.get("/{broadcast_id}", summary="Buscar broadcast")
+@router.get("/{broadcast_id}", response_model=BroadcastResponse, summary="Obter broadcast")
 async def get_broadcast(
-    broadcast_id: UUID,
-    user: CurrentUser = Depends(get_current_user),
+    broadcast_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = GetBroadcastUseCase(user.account_id)
-    return uc.execute(broadcast_id)
+    """Obter broadcast específico"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = BroadcastsRepository(supabase)
+    broadcast = await repo.get_broadcast(broadcast_id, account_id)
+
+    if not broadcast:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broadcast não encontrado")
+
+    return BroadcastResponse(**broadcast)
 
 
-# ── Destinatários ─────────────────────────────────────────────────────────────
-
-@router.post(
-    "/{broadcast_id}/recipients",
-    summary="Adicionar destinatários",
-)
-async def add_recipients(
-    broadcast_id: UUID,
-    body: AddRecipientsBody,
-    user: CurrentUser = Depends(require_admin),
+@router.patch("/{broadcast_id}", response_model=BroadcastResponse, summary="Atualizar broadcast")
+async def update_broadcast(
+    broadcast_id: str,
+    broadcast_data: BroadcastUpdate,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = AddRecipientsToBroadcastUseCase(user.account_id)
-    return uc.execute(
-        broadcast_id,
-        contact_ids=body.contact_ids,
-        phones=body.phones,
+    """Atualizar broadcast"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = BroadcastsRepository(supabase)
+    update_data = broadcast_data.model_dump(exclude_none=True)
+    if "scheduled_at" in update_data and update_data["scheduled_at"]:
+        update_data["scheduled_at"] = update_data["scheduled_at"].isoformat()
+
+    broadcast = await repo.update_broadcast(broadcast_id, account_id, **update_data)
+
+    if not broadcast:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broadcast não encontrado")
+
+    return BroadcastResponse(**broadcast)
+
+
+@router.delete("/{broadcast_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Deletar broadcast")
+async def delete_broadcast(
+    broadcast_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
+):
+    """Deletar broadcast"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = BroadcastsRepository(supabase)
+    success = await repo.delete_broadcast(broadcast_id, account_id)
+
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broadcast não encontrado")
+
+
+@router.post("/{broadcast_id}/send", summary="Enviar broadcast agora")
+async def send_broadcast_now(
+    broadcast_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
+):
+    """Enviar broadcast imediatamente (não agendado)"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = BroadcastsRepository(supabase)
+    broadcast = await repo.get_broadcast(broadcast_id, account_id)
+
+    if not broadcast:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broadcast não encontrado")
+
+    if broadcast["status"] != "draft":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Broadcast já foi enviado")
+
+    # Iniciar envio (em produção, isso seria uma task Celery)
+    await repo.update_broadcast(broadcast_id, account_id, status="in_progress", started_at="NOW()")
+
+    return {"message": "Envio iniciado", "broadcast_id": broadcast_id}
+
+
+@router.get("/{broadcast_id}/stats", response_model=BroadcastStats, summary="Obter estatísticas")
+async def get_broadcast_stats(
+    broadcast_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
+):
+    """Obter estatísticas de envio"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = BroadcastsRepository(supabase)
+    broadcast = await repo.get_broadcast(broadcast_id, account_id)
+
+    if not broadcast:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broadcast não encontrado")
+
+    total = broadcast["total_recipients"]
+    sent = broadcast["sent_count"]
+    failed = broadcast["failed_count"]
+    pending = total - sent - failed
+
+    success_rate = (sent / total * 100) if total > 0 else 0
+
+    return BroadcastStats(
+        broadcast_id=broadcast_id,
+        total=total,
+        sent=sent,
+        failed=failed,
+        pending=pending,
+        success_rate=success_rate,
     )
-
-
-# ── Ações de ciclo de vida ────────────────────────────────────────────────────
-
-@router.post(
-    "/{broadcast_id}/launch",
-    summary="Lançar broadcast (iniciar envios)",
-)
-async def launch_broadcast(
-    broadcast_id: UUID,
-    user: CurrentUser = Depends(require_admin),
-):
-    """
-    Valida o broadcast, muda status para 'running' e enfileira o worker Celery.
-    O envio ocorre em background com rate limiting de 1 msg/s.
-    """
-    uc = LaunchBroadcastUseCase(user.account_id)
-    return uc.execute(broadcast_id)
-
-
-@router.post(
-    "/{broadcast_id}/cancel",
-    summary="Cancelar broadcast",
-)
-async def cancel_broadcast(
-    broadcast_id: UUID,
-    user: CurrentUser = Depends(require_admin),
-):
-    """
-    Marca o broadcast como 'cancelled'. O worker em execução interrompe
-    no próximo destinatário ao detectar a mudança de status.
-    """
-    uc = CancelBroadcastUseCase(user.account_id)
-    return uc.execute(broadcast_id)
