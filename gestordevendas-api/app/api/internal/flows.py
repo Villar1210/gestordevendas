@@ -1,135 +1,188 @@
-"""
-Router interno: /api/flows
-Chatbot flows com trigger por keyword. Apenas Admin/Owner gerencia; qualquer agente visualiza.
-"""
-from __future__ import annotations
-
-from typing import Any, Optional
-from uuid import UUID
-
-from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel, Field
-
-from app.application.flows.use_cases import (
-    CreateFlowUseCase,
-    DeleteFlowUseCase,
-    GetFlowRunsUseCase,
-    GetFlowUseCase,
-    ListFlowsUseCase,
-    UpdateFlowUseCase,
+"""Endpoints para Chatbot Flows (Task 2, Fase 4)"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.shared.auth import verify_token
+from app.infra.supabase.client import get_supabase
+from app.api.internal.flows_schemas import (
+    FlowCreate,
+    FlowResponse,
+    FlowNodeCreate,
+    ConversationSessionResponse,
 )
-from app.core.dependencies import CurrentUser, get_current_user, require_admin
+from app.infra.supabase.flows_repository import FlowsRepository
 
-router = APIRouter(prefix="/flows", tags=["Chatbot Flows"])
-
-
-class FlowCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = Field(None, max_length=1000)
-    trigger_keywords: list[str] = Field(
-        default_factory=list,
-        description=(
-            "Palavras-chave que disparam o flow (case-insensitive, busca substring). "
-            "Ex: ['oi', 'olá', 'começar']"
-        ),
-    )
-    nodes: list[dict[str, Any]] = Field(
-        ...,
-        description=(
-            "Sequência de nós do flow. Tipos suportados: "
-            "'message' (envia texto), "
-            "'condition' (avalia resposta do usuário), "
-            "'action' (executa ação: assign_conversation, close_conversation, add_tag, remove_tag)."
-        ),
-    )
-    is_active: bool = True
+router = APIRouter(prefix="/flows", tags=["Flows"])
 
 
-class FlowUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = Field(None, max_length=1000)
-    trigger_keywords: Optional[list[str]] = None
-    nodes: Optional[list[dict[str, Any]]] = None
-    is_active: Optional[bool] = None
-
-
-# ── CRUD ──────────────────────────────────────────────────────────────────────
-
-@router.post(
-    "",
-    status_code=status.HTTP_201_CREATED,
-    summary="Criar chatbot flow",
-)
+@router.post("/", response_model=FlowResponse, status_code=status.HTTP_201_CREATED, summary="Criar flow")
 async def create_flow(
-    body: FlowCreate,
-    user: CurrentUser = Depends(require_admin),
+    flow_data: FlowCreate,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    """
-    Cria um flow com nós e keywords de disparo.
-    O flow é ativado automaticamente quando uma mensagem inbound contém uma das keywords.
-    """
-    uc = CreateFlowUseCase(user.account_id)
-    return uc.execute(
-        name=body.name,
-        nodes=body.nodes,
-        trigger_keywords=body.trigger_keywords,
-        description=body.description,
-        is_active=body.is_active,
-        created_by=user.user_id,
+    """Criar novo flow conversacional"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = FlowsRepository(supabase)
+
+    # Criar flow
+    flow = await repo.create_flow(
+        account_id=account_id,
+        name=flow_data.name,
+        description=flow_data.description,
     )
 
+    if not flow:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erro ao criar flow")
 
-@router.get("", summary="Listar flows")
+    # Criar nós
+    node_map = {}
+    for node_data in flow_data.nodes:
+        node = await repo.create_node(
+            flow_id=flow["id"],
+            node_type=node_data.node_type,
+            title=node_data.title,
+            config=node_data.config.model_dump(),
+            position=node_data.position,
+            description=node_data.description,
+        )
+        node_map[node_data.title] = node["id"]
+
+    # Criar arestas
+    for edge_data in flow_data.edges:
+        await repo.create_edge(
+            flow_id=flow["id"],
+            from_node_id=edge_data.from_node_id,
+            to_node_id=edge_data.to_node_id,
+            condition=edge_data.condition,
+            label=edge_data.label,
+        )
+
+    # Set start node
+    first_node_id = list(node_map.values())[0] if node_map else None
+    if first_node_id:
+        await repo.update_flow(flow["id"], account_id, start_node_id=first_node_id)
+        flow["start_node_id"] = first_node_id
+
+    flow["nodes"] = flow_data.nodes
+
+    return FlowResponse(**flow)
+
+
+@router.get("/", summary="Listar flows")
 async def list_flows(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(25, ge=1, le=100),
-    is_active: Optional[bool] = Query(None),
-    user: CurrentUser = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = ListFlowsUseCase(user.account_id)
-    return uc.execute(page=page, per_page=per_page, is_active=is_active)
+    """Listar flows do tenant"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = FlowsRepository(supabase)
+    flows, total = await repo.get_flows(account_id, limit, offset)
+
+    return {
+        "flows": [FlowResponse(**f) for f in flows],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
-@router.get("/{flow_id}", summary="Buscar flow por ID")
+@router.get("/{flow_id}", response_model=FlowResponse, summary="Obter flow")
 async def get_flow(
-    flow_id: UUID,
-    user: CurrentUser = Depends(get_current_user),
+    flow_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = GetFlowUseCase(user.account_id)
-    return uc.execute(flow_id)
+    """Obter flow específico"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = FlowsRepository(supabase)
+    flow = await repo.get_flow(flow_id, account_id)
+
+    if not flow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow não encontrado")
+
+    # Carregar nós
+    nodes = await repo.get_nodes(flow_id)
+    flow["nodes"] = nodes
+
+    return FlowResponse(**flow)
 
 
-@router.patch("/{flow_id}", summary="Atualizar flow")
-async def update_flow(
-    flow_id: UUID,
-    body: FlowUpdate,
-    user: CurrentUser = Depends(require_admin),
-):
-    uc = UpdateFlowUseCase(user.account_id)
-    return uc.execute(flow_id, body.model_dump(exclude_unset=True))
-
-
-@router.delete("/{flow_id}", summary="Remover flow")
+@router.delete("/{flow_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Deletar flow")
 async def delete_flow(
-    flow_id: UUID,
-    user: CurrentUser = Depends(require_admin),
+    flow_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = DeleteFlowUseCase(user.account_id)
-    return uc.execute(flow_id)
+    """Deletar flow"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = FlowsRepository(supabase)
+    success = await repo.delete_flow(flow_id, account_id)
+
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow não encontrado")
 
 
-# ── Flow Runs ─────────────────────────────────────────────────────────────────
-
-@router.get("/{flow_id}/runs", summary="Listar execuções de um flow")
-async def list_flow_runs(
-    flow_id: UUID,
-    page: int = Query(1, ge=1),
-    per_page: int = Query(25, ge=1, le=100),
-    user: CurrentUser = Depends(get_current_user),
+@router.post("/{flow_id}/start", summary="Iniciar conversa")
+async def start_conversation(
+    flow_id: str,
+    phone_number: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    """
-    Lista as execuções (flow_runs) de um flow específico.
-    Útil para monitorar quantas conversas passaram pelo flow e seus status.
-    """
-    uc = GetFlowRunsUseCase(user.account_id)
-    return uc.execute(flow_id, page=page, per_page=per_page)
+    """Iniciar nova conversa"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = FlowsRepository(supabase)
+    flow = await repo.get_flow(flow_id, account_id)
+
+    if not flow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow não encontrado")
+
+    start_node_id = flow.get("start_node_id")
+    if not start_node_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Flow sem nó inicial")
+
+    session = await repo.create_session(
+        account_id=account_id,
+        flow_id=flow_id,
+        phone_number=phone_number,
+        start_node_id=start_node_id,
+    )
+
+    return ConversationSessionResponse(**session)
+
+
+@router.get("/{flow_id}/session", summary="Obter sessão ativa")
+async def get_active_session(
+    flow_id: str,
+    phone_number: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
+):
+    """Obter sessão ativa para número"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    repo = FlowsRepository(supabase)
+    session = await repo.get_session(phone_number, flow_id)
+
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sessão não encontrada")
+
+    return ConversationSessionResponse(**session)
