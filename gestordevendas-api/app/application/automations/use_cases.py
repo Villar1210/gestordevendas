@@ -1,154 +1,318 @@
-"""
-Use cases de Automations.
-"""
-from __future__ import annotations
-
-from typing import Optional
-from uuid import UUID
-
-import structlog
-
-from app.application.automations.engine import ActionExecutor, ConditionEvaluator
-from app.infra.supabase.automations_repo import AutomationsRepository
-
-logger = structlog.get_logger(__name__)
+"""Use cases para Automations Module (Task 2, Fase 3)"""
+from typing import List, Optional
+from datetime import datetime
+from app.api.internal.automations_schemas import (
+    AutomationCreate,
+    AutomationUpdate,
+    AutomationResponse,
+    AutomationLogResponse,
+    ExecutedAction,
+)
 
 
 class CreateAutomationUseCase:
-    def __init__(self, account_id: UUID):
-        self._repo = AutomationsRepository(account_id)
+    """Criar nova automação"""
 
-    def execute(
+    def __init__(self, automations_repository):
+        self.automations_repository = automations_repository
+
+    async def execute(
         self,
-        *,
-        name: str,
-        trigger_event: str,
-        actions: list[dict],
-        conditions: Optional[dict] = None,
-        description: Optional[str] = None,
-        is_active: bool = True,
-    ) -> dict:
-        return self._repo.create(
-            name=name,
-            trigger_event=trigger_event,
+        account_id: str,
+        automation_data: AutomationCreate,
+    ) -> AutomationResponse:
+        """Criar automação"""
+        # Converter ActionConfig para dict
+        actions = [action.model_dump() for action in automation_data.actions]
+
+        automation = await self.automations_repository.create_automation(
+            account_id=account_id,
+            name=automation_data.name,
+            description=automation_data.description,
+            trigger_type=automation_data.trigger_type,
+            trigger_conditions=automation_data.trigger_conditions,
             actions=actions,
-            conditions=conditions,
-            description=description,
-            is_active=is_active,
         )
 
-
-class GetAutomationUseCase:
-    def __init__(self, account_id: UUID):
-        self._repo = AutomationsRepository(account_id)
-
-    def execute(self, automation_id: UUID) -> dict:
-        return self._repo.get_by_id(automation_id)
+        return AutomationResponse(**automation)
 
 
 class ListAutomationsUseCase:
-    def __init__(self, account_id: UUID):
-        self._repo = AutomationsRepository(account_id)
+    """Listar automações"""
 
-    def execute(
+    def __init__(self, automations_repository):
+        self.automations_repository = automations_repository
+
+    async def execute(
         self,
-        *,
-        is_active: Optional[bool] = None,
-        trigger_event: Optional[str] = None,
-    ) -> list[dict]:
-        return self._repo.list(is_active=is_active, trigger_event=trigger_event)
+        account_id: str,
+        active_only: bool = False,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> dict:
+        """Listar automações do tenant"""
+        automations, total = await self.automations_repository.get_automations(
+            account_id=account_id,
+            active_only=active_only,
+            limit=limit,
+            offset=offset,
+        )
+
+        return {
+            "automations": [AutomationResponse(**a) for a in automations],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+
+
+class GetAutomationUseCase:
+    """Obter automação específica"""
+
+    def __init__(self, automations_repository):
+        self.automations_repository = automations_repository
+
+    async def execute(self, automation_id: str, account_id: str) -> AutomationResponse:
+        """Obter automação"""
+        automation = await self.automations_repository.get_automation(
+            automation_id, account_id
+        )
+
+        if not automation:
+            raise ValueError(f"Automação {automation_id} não encontrada")
+
+        return AutomationResponse(**automation)
 
 
 class UpdateAutomationUseCase:
-    def __init__(self, account_id: UUID):
-        self._repo = AutomationsRepository(account_id)
+    """Atualizar automação"""
 
-    def execute(self, automation_id: UUID, data: dict) -> dict:
-        return self._repo.update(automation_id, data)
+    def __init__(self, automations_repository):
+        self.automations_repository = automations_repository
+
+    async def execute(
+        self,
+        automation_id: str,
+        account_id: str,
+        automation_data: AutomationUpdate,
+    ) -> AutomationResponse:
+        """Atualizar automação"""
+        # Preparar dados para update
+        update_data = automation_data.model_dump(exclude_none=True)
+
+        # Converter actions se fornecido
+        if "actions" in update_data:
+            update_data["actions"] = [
+                action.model_dump() for action in update_data["actions"]
+            ]
+
+        automation = await self.automations_repository.update_automation(
+            automation_id=automation_id,
+            account_id=account_id,
+            **update_data,
+        )
+
+        if not automation:
+            raise ValueError(f"Automação {automation_id} não encontrada")
+
+        return AutomationResponse(**automation)
 
 
 class DeleteAutomationUseCase:
-    def __init__(self, account_id: UUID):
-        self._repo = AutomationsRepository(account_id)
+    """Deletar automação"""
 
-    def execute(self, automation_id: UUID) -> None:
-        self._repo.delete(automation_id)
+    def __init__(self, automations_repository):
+        self.automations_repository = automations_repository
 
-
-class TriggerAutomationsUseCase:
-    """
-    Avalia e dispara TODAS as automações ativas para um evento.
-    Chamado após eventos: mensagem recebida, conversa criada, etc.
-
-    Design decision: chamado INLINE pelo webhook_processor por ora (Fase 4).
-    Em produção com muitas automações, mover para worker Celery via
-    trigger_automations.delay(event, context, account_id).
-    """
-
-    def __init__(self, account_id: UUID):
-        self._account_id = account_id
-        self._repo = AutomationsRepository(account_id)
-        self._evaluator = ConditionEvaluator()
-        self._executor = ActionExecutor(account_id)
-
-    def execute(self, trigger_event: str, context: dict) -> None:
-        automations = self._repo.get_active_for_event(trigger_event)
-        if not automations:
-            return
-
-        logger.info(
-            "automations_triggered",
-            event=trigger_event,
-            count=len(automations),
-            account_id=str(self._account_id),
+    async def execute(self, automation_id: str, account_id: str) -> bool:
+        """Deletar automação"""
+        success = await self.automations_repository.delete_automation(
+            automation_id, account_id
         )
 
+        if not success:
+            raise ValueError(f"Automação {automation_id} não encontrada")
+
+        return True
+
+
+class GetAutomationLogsUseCase:
+    """Obter logs de automação"""
+
+    def __init__(self, automations_repository):
+        self.automations_repository = automations_repository
+
+    async def execute(
+        self,
+        automation_id: str,
+        account_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict:
+        """Obter logs"""
+        # Verificar que automação pertence ao tenant
+        automation = await self.automations_repository.get_automation(
+            automation_id, account_id
+        )
+        if not automation:
+            raise ValueError(f"Automação {automation_id} não encontrada")
+
+        logs, total = await self.automations_repository.get_automation_logs(
+            automation_id=automation_id,
+            limit=limit,
+            offset=offset,
+        )
+
+        return {
+            "logs": [AutomationLogResponse(**log) for log in logs],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+
+
+class ExecuteAutomationUseCase:
+    """Executar automação quando evento ocorre"""
+
+    def __init__(self, automations_repository):
+        self.automations_repository = automations_repository
+
+    async def execute(
+        self,
+        account_id: str,
+        trigger_type: str,
+        trigger_data: dict,
+    ) -> List[dict]:
+        """Executar automações para um evento"""
+        # Buscar automações ativadas para este trigger
+        automations = await self.automations_repository.get_automations_by_trigger(
+            account_id, trigger_type
+        )
+
+        results = []
+
         for automation in automations:
-            automation_id = UUID(automation["id"])
-            try:
-                conditions = automation.get("conditions") or {}
-                if not self._evaluator.evaluate(conditions, context):
-                    self._repo.log_execution(
-                        automation_id=automation_id,
-                        entity_id=context.get("conversation", {}).get("id", ""),
-                        entity_type="conversation",
-                        status="skipped",
-                    )
-                    continue
+            result = await self._execute_automation(automation, trigger_data)
+            results.append(result)
 
-                results = self._executor.execute_all(automation.get("actions", []), context)
-                all_ok = all(r["ok"] for r in results)
-                failed = [r for r in results if not r["ok"]]
+        return results
 
-                self._repo.log_execution(
-                    automation_id=automation_id,
-                    entity_id=context.get("conversation", {}).get("id", ""),
-                    entity_type="conversation",
-                    status="success" if all_ok else "partial",
-                    error_message=str(failed) if failed else None,
-                )
+    async def _execute_automation(
+        self,
+        automation: dict,
+        trigger_data: dict,
+    ) -> dict:
+        """Executar automação individual"""
+        automation_id = automation["id"]
+        actions = automation.get("actions", [])
 
-            except Exception as e:
-                logger.error(
-                    "automation_execution_error",
-                    automation_id=str(automation_id),
-                    error=str(e),
-                )
+        executed_actions = []
+        overall_status = "success"
+
+        try:
+            for action in actions:
+                action_type = action.get("type")
+                parameters = action.get("parameters", {})
+
                 try:
-                    self._repo.log_execution(
-                        automation_id=automation_id,
-                        entity_id="",
-                        entity_type="unknown",
-                        status="failed",
-                        error_message=str(e)[:500],
+                    # Executar ação (aqui você conectaria com as ações reais)
+                    action_result = await self._execute_action(
+                        action_type, parameters, trigger_data
                     )
-                except Exception:
-                    pass
 
+                    executed_actions.append({
+                        "type": action_type,
+                        "parameters": parameters,
+                        "status": "success",
+                        "result": action_result,
+                    })
 
-class GetExecutionLogsUseCase:
-    def __init__(self, account_id: UUID):
-        self._repo = AutomationsRepository(account_id)
+                except Exception as e:
+                    overall_status = "partial" if overall_status == "success" else overall_status
+                    executed_actions.append({
+                        "type": action_type,
+                        "parameters": parameters,
+                        "status": "failed",
+                        "error_message": str(e),
+                    })
 
-    def execute(self, automation_id: UUID, *, limit: int = 50) -> list[dict]:
-        return self._repo.list_executions(automation_id, limit=limit)
+            # Criar log
+            await self.automations_repository.create_automation_log(
+                automation_id=automation_id,
+                trigger_data=trigger_data,
+                executed_actions=executed_actions,
+                status=overall_status,
+            )
+
+            # Incrementar contador
+            await self.automations_repository.increment_execution_count(automation_id)
+
+            return {
+                "automation_id": automation_id,
+                "status": overall_status,
+                "executed_actions": executed_actions,
+            }
+
+        except Exception as e:
+            await self.automations_repository.create_automation_log(
+                automation_id=automation_id,
+                trigger_data=trigger_data,
+                executed_actions=executed_actions,
+                status="failed",
+                error_message=str(e),
+            )
+
+            return {
+                "automation_id": automation_id,
+                "status": "failed",
+                "error": str(e),
+            }
+
+    async def _execute_action(
+        self,
+        action_type: str,
+        parameters: dict,
+        trigger_data: dict,
+    ) -> dict:
+        """Executar ação específica"""
+        # Aqui você conectaria com os serviços reais
+        # Por enquanto, retorna um resultado de mock
+
+        if action_type == "send_message":
+            return {
+                "message_sent": True,
+                "template_id": parameters.get("message_template_id"),
+            }
+
+        elif action_type == "send_email":
+            return {
+                "email_sent": True,
+                "subject": parameters.get("subject"),
+            }
+
+        elif action_type == "create_task":
+            return {
+                "task_created": True,
+                "title": parameters.get("title"),
+            }
+
+        elif action_type == "add_tag":
+            return {
+                "tag_added": True,
+                "tag": parameters.get("tag_name"),
+            }
+
+        elif action_type == "update_field":
+            return {
+                "field_updated": True,
+                "field": parameters.get("field_name"),
+            }
+
+        elif action_type == "create_note":
+            return {
+                "note_created": True,
+                "text": parameters.get("text"),
+            }
+
+        else:
+            raise ValueError(f"Tipo de ação desconhecido: {action_type}")

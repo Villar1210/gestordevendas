@@ -1,130 +1,201 @@
-"""
-Router interno: /api/automations
-"""
-from __future__ import annotations
-
-from typing import Any, Optional
-from uuid import UUID
-
-from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel, Field
-
+"""Endpoints para Automations Module (Task 2, Fase 3)"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.shared.auth import verify_token
+from app.infra.supabase.client import get_supabase
+from app.api.internal.automations_schemas import (
+    AutomationCreate,
+    AutomationUpdate,
+    AutomationResponse,
+    AVAILABLE_ACTIONS,
+    TRIGGER_TYPES,
+)
 from app.application.automations.use_cases import (
     CreateAutomationUseCase,
-    DeleteAutomationUseCase,
-    GetAutomationUseCase,
-    GetExecutionLogsUseCase,
     ListAutomationsUseCase,
+    GetAutomationUseCase,
     UpdateAutomationUseCase,
+    DeleteAutomationUseCase,
+    GetAutomationLogsUseCase,
+    ExecuteAutomationUseCase,
 )
-from app.core.dependencies import CurrentUser, get_current_user, require_admin, require_agent
+from app.infra.supabase.automations_repository import AutomationsRepository
 
 router = APIRouter(prefix="/automations", tags=["Automations"])
 
-# Eventos de gatilho disponíveis
-TRIGGER_EVENTS = [
-    "conversation_created",
-    "message_received",
-    "contact_created",
-    "conversation_assigned",
-    "conversation_resolved",
-]
+
+@router.get("/triggers", summary="Listar tipos de triggers disponíveis")
+async def list_triggers():
+    """Listar todos os tipos de triggers suportados"""
+    return {
+        "triggers": TRIGGER_TYPES,
+        "count": len(TRIGGER_TYPES),
+    }
 
 
-class AutomationCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = None
-    trigger_event: str = Field(..., description=f"Um de: {', '.join(TRIGGER_EVENTS)}")
-    conditions: Optional[dict[str, Any]] = Field(
-        None,
-        description='{"operator":"and","rules":[{"field":"contact.phone","op":"contains","value":"+55"}]}'
-    )
-    actions: list[dict[str, Any]] = Field(
-        ...,
-        min_length=1,
-        description='[{"type":"send_message","template_name":"..."},{"type":"assign_conversation","assignee_id":"..."}]',
-    )
-    is_active: bool = True
+@router.get("/actions", summary="Listar tipos de ações disponíveis")
+async def list_actions():
+    """Listar todas as ações suportadas com seus parâmetros"""
+    return {
+        "actions": AVAILABLE_ACTIONS,
+        "count": len(AVAILABLE_ACTIONS),
+    }
 
 
-class AutomationUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = None
-    conditions: Optional[dict[str, Any]] = None
-    actions: Optional[list[dict[str, Any]]] = None
-    is_active: Optional[bool] = None
-
-
-@router.post(
-    "",
-    status_code=status.HTTP_201_CREATED,
-    summary="Criar automação",
-)
+@router.post("/", response_model=AutomationResponse, status_code=status.HTTP_201_CREATED, summary="Criar automação")
 async def create_automation(
-    body: AutomationCreate,
-    user: CurrentUser = Depends(require_admin),
+    automation_data: AutomationCreate,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = CreateAutomationUseCase(user.account_id)
-    return uc.execute(
-        name=body.name,
-        trigger_event=body.trigger_event,
-        actions=body.actions,
-        conditions=body.conditions,
-        description=body.description,
-        is_active=body.is_active,
+    """Criar nova automação"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido",
+        )
+
+    automations_repository = AutomationsRepository(supabase)
+    use_case = CreateAutomationUseCase(automations_repository)
+
+    try:
+        return await use_case.execute(account_id, automation_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.get("/", summary="Listar automações")
+async def list_automations(
+    active_only: bool = False,
+    limit: int = 20,
+    offset: int = 0,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
+):
+    """Listar automações do tenant"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido",
+        )
+
+    automations_repository = AutomationsRepository(supabase)
+    use_case = ListAutomationsUseCase(automations_repository)
+
+    return await use_case.execute(
+        account_id,
+        active_only=active_only,
+        limit=limit,
+        offset=offset,
     )
 
 
-@router.get("", summary="Listar automações")
-async def list_automations(
-    is_active: Optional[bool] = Query(None),
-    trigger_event: Optional[str] = Query(None),
-    user: CurrentUser = Depends(get_current_user),
-):
-    uc = ListAutomationsUseCase(user.account_id)
-    return uc.execute(is_active=is_active, trigger_event=trigger_event)
-
-
-@router.get("/{automation_id}", summary="Buscar automação")
+@router.get("/{automation_id}", response_model=AutomationResponse, summary="Obter automação")
 async def get_automation(
-    automation_id: UUID,
-    user: CurrentUser = Depends(get_current_user),
+    automation_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = GetAutomationUseCase(user.account_id)
-    return uc.execute(automation_id)
+    """Obter automação específica"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido",
+        )
+
+    automations_repository = AutomationsRepository(supabase)
+    use_case = GetAutomationUseCase(automations_repository)
+
+    try:
+        return await use_case.execute(automation_id, account_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
-@router.patch("/{automation_id}", summary="Atualizar automação")
+@router.patch("/{automation_id}", response_model=AutomationResponse, summary="Atualizar automação")
 async def update_automation(
-    automation_id: UUID,
-    body: AutomationUpdate,
-    user: CurrentUser = Depends(require_admin),
+    automation_id: str,
+    automation_data: AutomationUpdate,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = UpdateAutomationUseCase(user.account_id)
-    return uc.execute(automation_id, body.model_dump(exclude_unset=True))
+    """Atualizar automação"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido",
+        )
+
+    automations_repository = AutomationsRepository(supabase)
+    use_case = UpdateAutomationUseCase(automations_repository)
+
+    try:
+        return await use_case.execute(automation_id, account_id, automation_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
-@router.delete(
-    "/{automation_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Deletar automação",
-)
+@router.delete("/{automation_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Deletar automação")
 async def delete_automation(
-    automation_id: UUID,
-    user: CurrentUser = Depends(require_admin),
+    automation_id: str,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = DeleteAutomationUseCase(user.account_id)
-    uc.execute(automation_id)
+    """Deletar automação"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido",
+        )
+
+    automations_repository = AutomationsRepository(supabase)
+    use_case = DeleteAutomationUseCase(automations_repository)
+
+    try:
+        await use_case.execute(automation_id, account_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
-@router.get(
-    "/{automation_id}/executions",
-    summary="Histórico de execuções",
-)
-async def list_executions(
-    automation_id: UUID,
-    limit: int = Query(50, ge=1, le=200),
-    user: CurrentUser = Depends(require_agent),
+@router.get("/{automation_id}/logs", summary="Obter logs de automação")
+async def get_automation_logs(
+    automation_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    token: dict = Depends(verify_token),
+    supabase=Depends(get_supabase),
 ):
-    uc = GetExecutionLogsUseCase(user.account_id)
-    return uc.execute(automation_id, limit=limit)
+    """Obter logs de execução da automação"""
+    account_id = token.get("account_id")
+    if not account_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido",
+        )
+
+    automations_repository = AutomationsRepository(supabase)
+    use_case = GetAutomationLogsUseCase(automations_repository)
+
+    try:
+        return await use_case.execute(automation_id, account_id, limit=limit, offset=offset)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
