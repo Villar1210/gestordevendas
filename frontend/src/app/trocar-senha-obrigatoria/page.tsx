@@ -12,9 +12,9 @@ import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 import {
   apiRequest,
+  logout,
   ApiError,
   TOKEN_STORAGE_KEY,
-  STATUS_DISPONIBILIDADE_STORAGE_KEY,
 } from "@/core/api/client";
 import { DASHBOARD_ROLES } from "@/core/constants/dashboardRoles";
 import { ehCargoSupervisor } from "@/core/constants/cargoHierarquico";
@@ -69,9 +69,7 @@ export default function TrocarSenhaObrigatoriaPage() {
   }, [router]);
 
   function handleLogout() {
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    window.localStorage.removeItem(STATUS_DISPONIBILIDADE_STORAGE_KEY);
-    router.push("/login");
+    logout();
   }
 
   async function handleSubmit(event: FormEvent) {

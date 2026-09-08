@@ -12,9 +12,9 @@ import { useRouter } from "next/navigation";
 import { Building2, LogOut, Loader2, LogIn, History } from "lucide-react";
 import {
   apiRequest,
+  logout,
   ApiError,
   TOKEN_STORAGE_KEY,
-  STATUS_DISPONIBILIDADE_STORAGE_KEY,
   IMPERSONANDO_TENANT_NOME_STORAGE_KEY,
 } from "@/core/api/client";
 
@@ -89,10 +89,7 @@ export default function SuperUsuarioPage() {
   }
 
   function handleLogout() {
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    window.localStorage.removeItem(STATUS_DISPONIBILIDADE_STORAGE_KEY);
-    window.localStorage.removeItem(IMPERSONANDO_TENANT_NOME_STORAGE_KEY);
-    router.push("/login");
+    logout();
   }
 
   function abrirConfirmacao(tenant: TenantSummary) {

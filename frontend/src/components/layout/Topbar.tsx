@@ -2,9 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { apiRequest, TOKEN_STORAGE_KEY, STATUS_DISPONIBILIDADE_STORAGE_KEY } from "@/core/api/client";
+import { apiRequest, logout, STATUS_DISPONIBILIDADE_STORAGE_KEY } from "@/core/api/client";
 import {
   STATUS_DISPONIBILIDADE_OPTIONS,
   getStatusDisponibilidadeOption,
@@ -19,7 +18,6 @@ interface Me {
 }
 
 export function Topbar() {
-  const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState("offline");
 
@@ -47,9 +45,7 @@ export function Topbar() {
   }
 
   function handleLogout() {
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    window.localStorage.removeItem(STATUS_DISPONIBILIDADE_STORAGE_KEY);
-    router.push("/login");
+    logout();
   }
 
   const statusOption = getStatusDisponibilidadeOption(status);
