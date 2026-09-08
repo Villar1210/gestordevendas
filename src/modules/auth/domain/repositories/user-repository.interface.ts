@@ -8,26 +8,15 @@ export interface UserWithRole {
   email: string;
   password: string;
   twoFactorEnabled: boolean;
-  // Modulo RH completo: pendente_aprovacao, aprovado ou rejeitado - ver
-  // AuthenticateUserUseCase.
   statusCadastro: string;
-  // So relevante quando o Role for Cliente: comprador, proprietario ou
-  // ambos - ver Portal do Cliente (GetMeUseCase devolve para o frontend
-  // decidir quais secoes mostrar em /minha-conta).
   tipoCliente: string | null;
-  // Sistema de permissoes por cargo hierarquico (RBAC) - null para quem
-  // nao tem cargo definido (Administrador, Cliente, Corretor Parceiro,
-  // ou Corretor ainda sem cargo atribuido). Ver
-  // shared/domain/services/cargo-escopo.ts.
   cargoHierarquico: string | null;
-  // Modulo Plantao/Stand: stand FIXO que o Coordenador supervisiona (null
-  // para qualquer outro cargo, ou Coordenador ainda sem stand atribuido).
-  // Ver shared/domain/services/cargo-escopo.ts, escopo 'plantao'.
   standId: string | null;
-  // Onboarding do Corretor: true forca a tela de troca de senha antes do
-  // dashboard (ver AuthenticateUserUseCase/VerifyTwoFactorCodeUseCase) -
-  // gravado true so por CreateCorretorUseCase, zerado por updatePassword.
   mustChangePassword: boolean;
+  // Controle de revogacao de sessao: incrementado no logout e na troca de
+  // senha. Tokens JWT carregam este valor como claim "tv" e sao rejeitados
+  // se o valor no banco divergir (sessao revogada).
+  tokenVersion: number;
   role: { name: string };
 }
 
@@ -37,12 +26,10 @@ export interface IUserRepository {
   updatePassword(userId: string, hashedPassword: string): Promise<void>;
   updateName(userId: string, name: string): Promise<void>;
   setTwoFactorEnabled(userId: string, enabled: boolean): Promise<void>;
-  // Usado pelo modulo notificacoes (CadastroPendenteCriadoListener) para
-  // encontrar todos os Administradores de um tenant e notificar cada um.
+  // Revoga todas as sessoes ativas do usuario incrementando o tokenVersion.
+  // Chamado no logout e automaticamente na troca de senha.
+  incrementTokenVersion(userId: string): Promise<void>;
   findAllByTenantAndRole(tenantId: string, roleName: string): Promise<{ id: string }[]>;
-  // Usado por GetSubordinadosRecursivosUseCase (RBAC por cargo) - busca em
-  // LOTE os subordinados diretos de varios superiores de uma vez (1 query
-  // por nivel da hierarquia, nao 1 por pessoa).
   findAllByTenantAndSuperiorIds(tenantId: string, superiorIds: string[]): Promise<{ id: string }[]>;
 }
 

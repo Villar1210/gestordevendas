@@ -21,8 +21,6 @@ export class VerifyTwoFactorCodeUseCase {
   async execute(input: VerifyTwoFactorCodeInput) {
     const record = await this.twoFactorCodeRepository.findById(input.challengeId);
 
-    // Mensagem generica em todos os casos invalidos (nao encontrado, usado,
-    // expirado ou codigo errado) para nao revelar detalhes sobre o motivo da falha.
     if (
       !record ||
       record.used ||
@@ -45,6 +43,7 @@ export class VerifyTwoFactorCodeUseCase {
       role: user.role.name,
       cargo: user.cargoHierarquico,
       standId: user.standId,
+      tv: user.tokenVersion,
     };
 
     const token = this.jwtService.sign(payload);

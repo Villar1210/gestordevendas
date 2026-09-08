@@ -12,6 +12,7 @@ import { EnableTwoFactorUseCase } from './application/use-cases/enable-two-facto
 import { DisableTwoFactorUseCase } from './application/use-cases/disable-two-factor.use-case';
 import { GetMeUseCase } from './application/use-cases/get-me.use-case';
 import { UpdateMyProfileUseCase } from './application/use-cases/update-my-profile.use-case';
+import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { GetSubordinadosRecursivosUseCase } from './application/use-cases/get-subordinados-recursivos.use-case';
 import { PrismaUserRepository } from './infra/database/prisma-user.repository';
 import { PrismaPasswordResetTokenRepository } from './infra/database/prisma-password-reset-token.repository';
@@ -20,11 +21,22 @@ import { JwtStrategy } from './infra/strategies/jwt.strategy';
 import { PrismaService } from '../../config/prisma.service';
 import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
 
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.trim() === '') {
+    throw new Error(
+      '[FATAL] JWT_SECRET nao esta configurado no .env. ' +
+      'Defina uma chave longa e aleatoria antes de iniciar o servidor.',
+    );
+  }
+  return secret;
+}
+
 @Module({
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secret-fallback',
+      secret: getJwtSecret(),
       signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '1d') as any },
     }),
   ],
@@ -40,22 +52,15 @@ import { ResendEmailSender } from '../../shared/infra/services/resend-email-send
     DisableTwoFactorUseCase,
     GetMeUseCase,
     UpdateMyProfileUseCase,
+    LogoutUseCase,
     GetSubordinadosRecursivosUseCase,
     JwtStrategy,
-    // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
-    // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IUserRepository', useClass: PrismaUserRepository },
     { provide: 'ITenantOnboardingRepository', useClass: PrismaUserRepository },
     { provide: 'IPasswordResetTokenRepository', useClass: PrismaPasswordResetTokenRepository },
     { provide: 'ITwoFactorCodeRepository', useClass: PrismaTwoFactorCodeRepository },
     { provide: 'IEmailSender', useClass: ResendEmailSender },
   ],
-  // IUserRepository exportado para o modulo portal_cliente: o
-  // PortalClienteController resolve o e-mail do usuario logado (nao vem no
-  // payload do JWT, so id/tenantId/role) a partir do proprio id.
-  // GetSubordinadosRecursivosUseCase exportado para os modulos que
-  // precisam do escopo "equipe" do RBAC por cargo (vendas_kanban,
-  // atendimento, whatsappmarketing - ver shared/domain/services/cargo-escopo.ts).
   exports: [JwtModule, 'IUserRepository', GetSubordinadosRecursivosUseCase],
 })
 export class AuthModule {}

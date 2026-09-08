@@ -1,5 +1,4 @@
 // src/modules/auth/infra/database/prisma-user.repository.ts
-// Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
 import {
@@ -29,13 +28,16 @@ export class PrismaUserRepository
   }
 
   async updatePassword(userId: string, hashedPassword: string): Promise<void> {
-    // Qualquer troca de senha real (via "Meu Perfil" ou "Esqueci minha
-    // senha") ja cumpre o requisito de onboarding - zera mustChangePassword
-    // aqui, direto na infra, pra nao duplicar essa regra nos dois use cases
-    // que chamam este metodo.
+    // Troca de senha invalida TODAS as sessoes ativas (outros dispositivos
+    // sao forcados a fazer login novamente). mustChangePassword zerado aqui
+    // pois qualquer troca real cumpre o requisito de onboarding do Corretor.
     await this.prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword, mustChangePassword: false },
+      data: {
+        password: hashedPassword,
+        mustChangePassword: false,
+        tokenVersion: { increment: 1 },
+      },
     });
   }
 
@@ -53,10 +55,13 @@ export class PrismaUserRepository
     });
   }
 
-  // orderBy createdAt asc: irrelevante para o fan-out de notificacoes
-  // (CadastroPendenteCriadoListener, unico consumidor ate aqui), mas
-  // ImpersonarTenantUseCase (modulo super_usuario) depende dessa ordem
-  // para escolher deterministicamente "o primeiro Administrador" do tenant.
+  async incrementTokenVersion(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+  }
+
   async findAllByTenantAndRole(tenantId: string, roleName: string): Promise<{ id: string }[]> {
     return this.prisma.user.findMany({
       where: { tenantId, role: { name: roleName } },
@@ -82,16 +87,13 @@ export class PrismaUserRepository
     email: string;
     hashedPassword: string;
   }): Promise<{ tenantId: string; userId: string }> {
-    // Transacao "tudo ou nada": se qualquer passo falhar, nada e criado
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: { name: input.companyName },
       });
-
       const role = await tx.role.create({
         data: { name: 'Administrador', tenantId: tenant.id },
       });
-
       const user = await tx.user.create({
         data: {
           name: input.ownerName,
@@ -101,10 +103,8 @@ export class PrismaUserRepository
           roleId: role.id,
         },
       });
-
       return { tenantId: tenant.id, userId: user.id };
     });
-
     return result;
   }
 }

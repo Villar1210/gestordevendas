@@ -153,6 +153,10 @@ model User {
   // que a senha muda de verdade (ver PrismaUserRepository.updatePassword,
   // usado tanto por "Meu Perfil" quanto por "Esqueci minha senha").
   mustChangePassword Boolean @default(false) @map("must_change_password")
+  // Controle de revogacao de sessao: incrementado no logout e em toda
+  // troca de senha. O JwtStrategy valida que o claim "tv" do token
+  // bate com este valor — divergencia significa sessao revogada.
+  tokenVersion       Int     @default(0) @map("token_version")
   telefone           String? @db.VarChar(30)
   cpf                String? @db.VarChar(20)
   // Corretor House / Corretor Parceiro.

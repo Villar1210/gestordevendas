@@ -13,6 +13,6 @@ export class UpdateMyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(6, { message: 'A nova senha deve ter pelo menos 6 caracteres.' })
+  @MinLength(8, { message: 'A nova senha deve ter pelo menos 8 caracteres.' })
   newPassword?: string;
 }

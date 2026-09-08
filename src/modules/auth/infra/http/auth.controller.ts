@@ -17,6 +17,7 @@ import { EnableTwoFactorUseCase } from '../../application/use-cases/enable-two-f
 import { DisableTwoFactorUseCase } from '../../application/use-cases/disable-two-factor.use-case';
 import { GetMeUseCase } from '../../application/use-cases/get-me.use-case';
 import { UpdateMyProfileUseCase } from '../../application/use-cases/update-my-profile.use-case';
+import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -31,17 +32,15 @@ export class AuthController {
     private readonly disableTwoFactorUseCase: DisableTwoFactorUseCase,
     private readonly getMeUseCase: GetMeUseCase,
     private readonly updateMyProfileUseCase: UpdateMyProfileUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
   ) {}
 
-  // GET /auth/me - dados do usuario autenticado (usado pela Topbar)
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@Req() req: Request) {
     return this.getMeUseCase.execute(req.user!.id, req.user!.impersonadoPor);
   }
 
-  // PATCH /auth/me - aba "Meu Perfil" do Painel Administrativo: o proprio
-  // usuario logado edita nome e/ou troca a senha (exige senha atual).
   @Patch('me')
   @UseGuards(JwtAuthGuard)
   async updateMe(@Body() dto: UpdateMyProfileDto, @Req() req: Request) {
@@ -54,7 +53,6 @@ export class AuthController {
     return { message: 'Perfil atualizado com sucesso.' };
   }
 
-  // POST /auth/register - cria a empresa (Tenant) + usuario Administrador
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     const result = await this.registerTenantUseCase.execute(dto);
@@ -64,9 +62,6 @@ export class AuthController {
     };
   }
 
-  // POST /auth/login - autentica e devolve o token JWT
-  // Sobrescreve o throttler "default" global (100/min) para 5 tentativas
-  // a cada 15 minutos por IP - ver app.module.ts.
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 900_000 } })
@@ -74,8 +69,16 @@ export class AuthController {
     return this.authenticateUserUseCase.execute({ ...dto, ip: req.ip });
   }
 
-  // POST /auth/forgot-password - dispara o e-mail de redefinicao de senha.
-  // Resposta identica exista ou nao o e-mail, para nao revelar cadastro.
+  // POST /auth/logout - invalida todas as sessoes ativas do usuario.
+  // O frontend deve remover o token do localStorage apos esta chamada.
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async logout(@Req() req: Request) {
+    await this.logoutUseCase.execute(req.user!.id);
+    return { message: 'Logout realizado com sucesso.' };
+  }
+
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() dto: RequestPasswordResetDto) {
@@ -85,7 +88,6 @@ export class AuthController {
     };
   }
 
-  // POST /auth/reset-password - efetiva a nova senha a partir do token recebido por e-mail
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto) {
@@ -96,29 +98,24 @@ export class AuthController {
     return { message: 'Senha redefinida com sucesso.' };
   }
 
-  // POST /auth/2fa/verify - troca o codigo de 6 digitos pelo token JWT definitivo
   @Post('2fa/verify')
   @HttpCode(HttpStatus.OK)
   async verifyTwoFactorCode(@Body() dto: VerifyTwoFactorCodeDto) {
     return this.verifyTwoFactorCodeUseCase.execute(dto);
   }
 
-  // POST /auth/2fa/enable - ativa o 2FA por e-mail na propria conta (exige login)
   @Post('2fa/enable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async enableTwoFactor(@Req() req: Request) {
-    // JwtAuthGuard ja garante que req.user existe neste ponto.
     await this.enableTwoFactorUseCase.execute(req.user!.id);
     return { message: '2FA ativado com sucesso.' };
   }
 
-  // POST /auth/2fa/disable - desativa o 2FA por e-mail na propria conta (exige login)
   @Post('2fa/disable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async disableTwoFactor(@Req() req: Request) {
-    // JwtAuthGuard ja garante que req.user existe neste ponto.
     await this.disableTwoFactorUseCase.execute(req.user!.id);
     return { message: '2FA desativado com sucesso.' };
   }

@@ -77,12 +77,15 @@ export class AuthenticateUserUseCase {
       };
     }
 
+    // tv (tokenVersion) e incluido no payload para permitir revogacao de
+    // sessao no logout e na troca de senha — ver JwtStrategy.validate().
     const payload = {
       sub: user.id,
       tenantId: user.tenantId,
       role: user.role.name,
       cargo: user.cargoHierarquico,
       standId: user.standId,
+      tv: user.tokenVersion,
     };
 
     const token = input.rememberMe
@@ -102,9 +105,6 @@ export class AuthenticateUserUseCase {
     };
   }
 
-  // Auditoria de tentativas de login com falha (e-mail inexistente ou senha
-  // errada) - so console/pm2 logs por enquanto, sem logger estruturado (ver
-  // CLAUDE.md/plano aprovado: pino fica de fora deste escopo).
   private logFailedAttempt(email: string, ip?: string): void {
     this.logger.warn(`Tentativa de login falhou - email: ${email}, ip: ${ip ?? 'desconhecido'}`);
   }
