@@ -37,7 +37,15 @@ export class FollowUpService {
         },
       },
       include: {
-        card: true,
+        card: {
+          include: {
+            viviConversations: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+            owner: true,
+          },
+        },
       },
     });
 
@@ -48,14 +56,16 @@ export class FollowUpService {
 
   private async processarFollowUp(atividade: any, horaAtual: Date) {
     const visita = toZonedTime(new Date(atividade.scheduledAt), TZ);
-    const card = (atividade as any).card;
-    if (!card?.contato?.phone) return;
+    const card = atividade.card;
+    if (!card) return;
 
-    const telefoneCliente = card.contato.phone.replace(/\D/g, '');
-    const nomeCliente = card.contato.name || 'cliente';
-    const nomeCorretor = card.corretor?.name || 'nosso corretor';
-    const empreendimento = card.empreendimento?.nome || 'o imóvel';
-    const followUps: string[] = card.followUpsEnviados || [];
+    const viviConv = card.viviConversations?.[0];
+    const telefoneCliente = viviConv?.phoneNumber;
+    if (!telefoneCliente) return;
+
+    const nomeCliente = viviConv?.nomeColetado || 'cliente';
+    const nomeCorretor = card.owner?.name || 'nosso corretor';
+    const followUps: string[] = (card.followUpsEnviados as string[]) || [];
 
     const dataFormatada = visita.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
     const horaFormatada = visita.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -66,7 +76,7 @@ export class FollowUpService {
         await this.chatwoot.enviarMensagem({
           telefone: telefoneCliente,
           nomeContato: nomeCliente,
-          mensagem: `⏰ Olá, ${nomeCliente}! Só passando para lembrar que *amanhã é sua visita* 🏠\n\n📅 ${dataFormatada} às ${horaFormatada}\n📍 ${empreendimento}\n👤 Seu corretor: *${nomeCorretor}*\n\nCaso precise reagendar, me avise aqui! 😊`,
+          mensagem: `⏰ Olá, ${nomeCliente}! Só passando para lembrar que *amanhã é sua visita* 🏠\n\n📅 ${dataFormatada} às ${horaFormatada}\n👤 Seu corretor: *${nomeCorretor}*\n\nCaso precise reagendar, me avise aqui! 😊`,
         });
         await this.marcarEnviado(atividade.id, card.id, followUps, 't_minus_1d');
       }
@@ -78,7 +88,7 @@ export class FollowUpService {
         await this.chatwoot.enviarMensagem({
           telefone: telefoneCliente,
           nomeContato: nomeCliente,
-          mensagem: `🏠 Sua visita começa em *2 horas*!\n\n📍 ${empreendimento} — ${horaFormatada}h\n👤 ${nomeCorretor} está te aguardando.\n\nPrecisa de alguma informação de endereço? 📲`,
+          mensagem: `🏠 Sua visita começa em *2 horas*!\n\n⏰ ${horaFormatada}h\n👤 ${nomeCorretor} está te aguardando.\n\nPrecisa de alguma informação? 📲`,
         });
         await this.marcarEnviado(atividade.id, card.id, followUps, 't_minus_2h');
       }
@@ -90,15 +100,8 @@ export class FollowUpService {
         await this.chatwoot.enviarMensagem({
           telefone: telefoneCliente,
           nomeContato: nomeCliente,
-          mensagem: `Oi, ${nomeCliente}! 😊 Como foi a visita ontem?\n\nO *${nomeCorretor}* explicou bem as condições? Ficou com alguma dúvida sobre ${empreendimento}?\n\nPode responder aqui! 🏠`,
+          mensagem: `Oi, ${nomeCliente}! 😊 Como foi a visita ontem?\n\nFicou com alguma dúvida? Pode responder aqui! 🏠`,
         });
-        if (card.corretor?.phone) {
-          await this.chatwoot.enviarMensagem({
-            telefone: card.corretor.phone.replace(/\D/g, ''),
-            nomeContato: nomeCorretor,
-            mensagem: `📊 *Follow-up pós-visita*\n\nO cliente *${nomeCliente}* visitou ${empreendimento} ontem.\nJá entrei em contato para colher feedback.\n\nhttps://gestordevendas.ivillar.com.br`,
-          });
-        }
         await this.marcarEnviado(atividade.id, card.id, followUps, 't_plus_1d');
       }
     }
@@ -109,7 +112,7 @@ export class FollowUpService {
         await this.chatwoot.enviarMensagem({
           telefone: telefoneCliente,
           nomeContato: nomeCliente,
-          mensagem: `Oi, ${nomeCliente}! Tudo bem? 😊\n\nAinda está pensando em *${empreendimento}*? Posso ajudar com uma simulação ou tirar qualquer dúvida que ficou.\n\nÉ só me chamar! 🏠`,
+          mensagem: `Oi, ${nomeCliente}! Tudo bem? 😊\n\nAinda está pensando no imóvel que visitou? Posso ajudar com simulação ou tirar qualquer dúvida.\n\nÉ só me chamar! 🏠`,
         });
         await this.marcarEnviado(atividade.id, card.id, followUps, 't_plus_4d');
       }
@@ -119,6 +122,6 @@ export class FollowUpService {
   private async marcarEnviado(atividadeId: string, cardId: string, atual: string[], chave: string) {
     const novos = [...atual, chave];
     this.logger.log(`Follow-up [${chave}] enviado para atividade ${atividadeId}`);
-    await this.prisma.fila.update({ where: { id: cardId }, data: { followUpsEnviados: novos } });
+    await this.prisma.card.update({ where: { id: cardId }, data: { followUpsEnviados: novos } });
   }
 }
