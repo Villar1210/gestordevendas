@@ -46,21 +46,44 @@ export class ChatwootWhatsappService {
     return criacao.data.id;
   }
 
+  async obterConversaAtiva(contatoId: number): Promise<number | null> {
+    try {
+      const resp = await axios.get(
+        `${this.baseUrl}/api/v1/accounts/${this.accountId}/contacts/${contatoId}/conversations`,
+        { headers: this.headers },
+      );
+      const conversas = resp.data?.payload ?? [];
+      const ativa = conversas.find(
+        (c: any) =>
+          c.inbox_id === Number(this.inboxId) &&
+          (c.status === 'open' || c.status === 'pending'),
+      );
+      return ativa ? ativa.id : null;
+    } catch (err: any) {
+      this.logger.warn(`Falha ao buscar conversas do contato ${contatoId}: ${err.message}`);
+      return null;
+    }
+  }
+
   async enviarMensagem(params: EnviarMensagemParams): Promise<void> {
     const { telefone, mensagem, nomeContato } = params;
     try {
       const contatoId = await this.obterOuCriarContato(telefone, nomeContato);
-      const conversa = await axios.post(
-        `${this.baseUrl}/api/v1/accounts/${this.accountId}/conversations`,
-        { contact_id: contatoId, inbox_id: Number(this.inboxId), status: 'open' },
-        { headers: this.headers },
-      );
+      let conversaId = await this.obterConversaAtiva(contatoId);
+      if (!conversaId) {
+        const conversa = await axios.post(
+          `${this.baseUrl}/api/v1/accounts/${this.accountId}/conversations`,
+          { contact_id: contatoId, inbox_id: Number(this.inboxId), status: 'open' },
+          { headers: this.headers },
+        );
+        conversaId = conversa.data.id;
+      }
       await axios.post(
-        `${this.baseUrl}/api/v1/accounts/${this.accountId}/conversations/${conversa.data.id}/messages`,
+        `${this.baseUrl}/api/v1/accounts/${this.accountId}/conversations/${conversaId}/messages`,
         { content: mensagem, message_type: 'outgoing', private: false },
         { headers: this.headers },
       );
-      this.logger.log(`Mensagem enviada para ${telefone} (conversa #${conversa.data.id})`);
+      this.logger.log(`Mensagem enviada para ${telefone} (conversa #${conversaId})`);
     } catch (err: any) {
       this.logger.error(`Erro ao enviar WhatsApp para ${telefone}: ${err?.response?.data?.message || err.message}`);
     }
