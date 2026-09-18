@@ -158,6 +158,7 @@ model User {
   // bate com este valor — divergencia significa sessao revogada.
   tokenVersion       Int     @default(0) @map("token_version")
   telefone           String? @db.VarChar(30)
+  whatsapp           String? @db.VarChar(30)
   cpf                String? @db.VarChar(20)
   // Corretor House / Corretor Parceiro.
   creci              String? @db.VarChar(30)
@@ -527,7 +528,8 @@ model Fila {
   tenantId  String   @map("tenant_id") @db.Uuid
   nome      String   @db.VarChar(100)
   descricao String?  @db.VarChar(300)
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  followUpsEnviados String[]
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   usuarios     FilaUsuario[]
@@ -835,6 +837,11 @@ model Empreendimento {
   cidade           String   @db.VarChar(100)
   uf               String   @db.VarChar(2)
   cep              String   @db.VarChar(10)
+  complemento      String?  @db.VarChar(100)
+  tipo             String?  @db.VarChar(50)
+  construtora      String?  @db.VarChar(150)
+  precoMinimo      Float?   @map("preco_minimo")
+  precoMaximo      Float?   @map("preco_maximo")
   description      String?  @db.Text
   createdAt        DateTime @default(now()) @map("created_at")
   // Controla se o empreendimento aparece no site publico/vitrine (fora do
