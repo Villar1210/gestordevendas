@@ -4,11 +4,13 @@ import { ViviIntegrationController } from './infra/http/vivi-integration.control
 import { ChatwootWhatsappService } from './services/chatwoot-whatsapp.service';
 import { ViviSdrModule } from '../vivi_sdr/vivi-sdr.module';
 import { PrismaService } from '../../config/prisma.service';
+import { FollowUpModule } from '../follow-up/follow-up.module';
 
 @Module({
   imports: [
     ConfigModule,
-    ViviSdrModule,   // importa AgendarVisitaUseCase
+    ViviSdrModule,
+    FollowUpModule,
   ],
   controllers: [ViviIntegrationController],
   providers: [PrismaService, ChatwootWhatsappService],

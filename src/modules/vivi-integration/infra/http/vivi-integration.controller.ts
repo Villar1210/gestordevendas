@@ -14,6 +14,7 @@ import { AgendarVisitaUseCase } from '../../../vivi_sdr/application/use-cases/ag
 import { PrismaService } from '../../../../config/prisma.service';
 import { ChatwootWhatsappService } from '../../services/chatwoot-whatsapp.service';
 import { ConfigService } from '@nestjs/config';
+import { FollowUpService } from '../../../follow-up/follow-up.service';
 
 @Controller('vivi')
 @UseGuards(ViviApiKeyGuard)
@@ -25,6 +26,7 @@ export class ViviIntegrationController {
     private readonly prisma: PrismaService,
     private readonly chatwoot: ChatwootWhatsappService,
     private readonly config: ConfigService,
+    private readonly followUpService: FollowUpService,
   ) {}
 
   @Get('empreendimentos')
@@ -123,5 +125,11 @@ export class ViviIntegrationController {
       nomeContato: body.nomeCorretor,
       mensagem: body.mensagem,
     });
+  }
+
+  @Get('trigger-followup-test')
+  async triggerFollowupTest() {
+    await this.followUpService.verificarFollowUps();
+    return { ok: true };
   }
 }

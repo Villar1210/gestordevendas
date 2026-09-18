@@ -1,16 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { FollowUpService } from './follow-up.service';
 import { PrismaService } from '../../config/prisma.service';
-import { ViviIntegrationModule } from '../vivi-integration/vivi-integration.module';
+import { ChatwootWhatsappService } from '../vivi-integration/services/chatwoot-whatsapp.service';
 
 @Module({
-  imports: [
-    ScheduleModule.forRoot(),
-    ConfigModule,
-    ViviIntegrationModule,
-  ],
-  providers: [PrismaService, FollowUpService],
+  imports: [ConfigModule],
+  providers: [PrismaService, ChatwootWhatsappService, FollowUpService],
+  exports: [FollowUpService],
 })
 export class FollowUpModule {}

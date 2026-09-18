@@ -35,3 +35,8 @@ ivillar-logo-fundo-*.png
 
 # Configuracao local do Claude Code (nao parte do produto)
 .claude/
+.env.backup
+.env.bak.*
+.env.save*
+gestaodevendas-backend@*
+nest
