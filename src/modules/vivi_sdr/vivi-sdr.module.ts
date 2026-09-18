@@ -69,6 +69,7 @@ import { PrismaService } from '../../config/prisma.service';
     CanaisModule,
   ],
   controllers: [ViviSessionController, ViviConversationController, ViviConfigController],
+  exports: [AgendarVisitaUseCase],
   providers: [
     PrismaService,
     EnableViviOnSessionUseCase,
