@@ -62,6 +62,9 @@ export class RhController {
       name: dto.name,
       email: dto.email,
       password: dto.password,
+      telefone: dto.telefone,
+      whatsapp: dto.whatsapp,
+      creci: dto.creci,
     });
   }
 

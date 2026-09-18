@@ -17,11 +17,12 @@ interface CreateCorretorInput {
   name: string;
   email: string;
   password?: string;
+  telefone?: string;
+  whatsapp?: string;
+  creci?: string;
 }
 
 function generateTemporaryPassword(): string {
-  // 12 caracteres legiveis (hex), suficiente para uma senha temporaria de
-  // uso unico - o corretor deve troca-la apos o primeiro login.
   return crypto.randomBytes(9).toString('hex');
 }
 
@@ -36,7 +37,6 @@ export class CreateCorretorUseCase {
   ) {}
 
   async execute(input: CreateCorretorInput): Promise<CorretorRecord> {
-    // So Administrador pode cadastrar corretores.
     if (input.requesterRole !== 'Administrador') {
       throw new ForbiddenException('Apenas o Administrador pode cadastrar corretores.');
     }
@@ -48,10 +48,7 @@ export class CreateCorretorUseCase {
 
     let role = await this.roleRepository.findByTenantAndName(input.tenantId, CORRETOR_ROLE_NAME);
     if (!role) {
-      role = await this.roleRepository.create({
-        tenantId: input.tenantId,
-        name: CORRETOR_ROLE_NAME,
-      });
+      role = await this.roleRepository.create({ tenantId: input.tenantId, name: CORRETOR_ROLE_NAME });
     }
 
     const temporaryPassword = input.password?.trim() || generateTemporaryPassword();
@@ -63,6 +60,9 @@ export class CreateCorretorUseCase {
       name: input.name,
       email: input.email,
       hashedPassword,
+      telefone: input.telefone,
+      whatsapp: input.whatsapp,
+      creci: input.creci,
     });
 
     const template = await this.getOrCreateEmailTemplateUseCase.execute({

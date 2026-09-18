@@ -77,6 +77,12 @@ export class EmpreendimentoController {
       cidade: dto.cidade,
       uf: dto.uf,
       cep: dto.cep,
+      complemento: dto.complemento,
+      tipo: dto.tipo,
+      construtora: dto.construtora,
+      statusObra: dto.statusObra,
+      precoMinimo: dto.precoMinimo,
+      precoMaximo: dto.precoMaximo,
       description: dto.description,
     });
   }

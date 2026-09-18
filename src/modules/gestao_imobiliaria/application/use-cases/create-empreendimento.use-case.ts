@@ -10,10 +10,16 @@ interface CreateEmpreendimentoInput {
   name: string;
   rua: string;
   numero: string;
+  complemento?: string;
   bairro: string;
   cidade: string;
   uf: string;
   cep: string;
+  tipo?: string;
+  construtora?: string;
+  statusObra?: string;
+  precoMinimo?: number;
+  precoMaximo?: number;
   description?: string;
 }
 

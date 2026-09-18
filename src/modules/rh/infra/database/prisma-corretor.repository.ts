@@ -1,11 +1,29 @@
 // src/modules/rh/infra/database/prisma-corretor.repository.ts
-// Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
 import {
   ICorretorRepository,
   CorretorRecord,
 } from '../../domain/repositories/corretor-repository.interface';
+
+function mapUser(u: {
+  id: string; tenantId: string; name: string; email: string;
+  statusDisponibilidade: string; telefone: string | null;
+  whatsapp: string | null; creci: string | null; createdAt: Date;
+}): CorretorRecord {
+  return {
+    id: u.id, tenantId: u.tenantId, name: u.name, email: u.email,
+    statusDisponibilidade: u.statusDisponibilidade,
+    telefone: u.telefone, whatsapp: u.whatsapp, creci: u.creci,
+    createdAt: u.createdAt,
+  };
+}
+
+const SELECT = {
+  id: true, tenantId: true, name: true, email: true,
+  statusDisponibilidade: true, telefone: true, whatsapp: true,
+  creci: true, createdAt: true,
+};
 
 @Injectable()
 export class PrismaCorretorRepository implements ICorretorRepository {
@@ -16,80 +34,41 @@ export class PrismaCorretorRepository implements ICorretorRepository {
   }
 
   async create(input: {
-    tenantId: string;
-    roleId: string;
-    name: string;
-    email: string;
-    hashedPassword: string;
+    tenantId: string; roleId: string; name: string; email: string;
+    hashedPassword: string; telefone?: string | null;
+    whatsapp?: string | null; creci?: string | null;
   }): Promise<CorretorRecord> {
     const user = await this.prisma.user.create({
       data: {
-        tenantId: input.tenantId,
-        roleId: input.roleId,
-        name: input.name,
-        email: input.email,
+        tenantId: input.tenantId, roleId: input.roleId,
+        name: input.name, email: input.email,
         password: input.hashedPassword,
-        // Onboarding do Corretor: este metodo so e chamado por
-        // CreateCorretorUseCase (Administrador cadastrando um corretor) -
-        // o proprio corretor nunca escolheu essa senha, mesmo quando o
-        // Administrador digita uma especifica (nao so no caso auto-gerado).
         mustChangePassword: true,
+        telefone: input.telefone ?? null,
+        whatsapp: input.whatsapp ?? null,
+        creci: input.creci ?? null,
       },
+      select: SELECT,
     });
-
-    return {
-      id: user.id,
-      tenantId: user.tenantId,
-      name: user.name,
-      email: user.email,
-      statusDisponibilidade: user.statusDisponibilidade,
-      createdAt: user.createdAt,
-    };
+    return mapUser(user);
   }
 
   async findAllByTenantAndRole(tenantId: string, roleId: string): Promise<CorretorRecord[]> {
     const users = await this.prisma.user.findMany({
-      where: { tenantId, roleId },
-      orderBy: { name: 'asc' },
+      where: { tenantId, roleId }, orderBy: { name: 'asc' }, select: SELECT,
     });
-
-    return users.map((user) => ({
-      id: user.id,
-      tenantId: user.tenantId,
-      name: user.name,
-      email: user.email,
-      statusDisponibilidade: user.statusDisponibilidade,
-      createdAt: user.createdAt,
-    }));
+    return users.map(mapUser);
   }
 
   async findOnlineByTenantAndRole(tenantId: string, roleId: string): Promise<CorretorRecord[]> {
     const users = await this.prisma.user.findMany({
       where: { tenantId, roleId, statusDisponibilidade: 'online' },
-      orderBy: { name: 'asc' },
+      orderBy: { name: 'asc' }, select: SELECT,
     });
-
-    return users.map((user) => ({
-      id: user.id,
-      tenantId: user.tenantId,
-      name: user.name,
-      email: user.email,
-      statusDisponibilidade: user.statusDisponibilidade,
-      createdAt: user.createdAt,
-    }));
+    return users.map(mapUser);
   }
 
-  async updateStatusDisponibilidade(
-    userId: string,
-    tenantId: string,
-    status: string,
-  ): Promise<void> {
-    // updateMany (nao update) porque "id" sozinho e a unica chave unica do
-    // Prisma aqui - updateMany permite combinar id + tenantId no filtro
-    // sem exigir um indice composto unico.
-    await this.prisma.user.updateMany({
-      where: { id: userId, tenantId },
-      data: { statusDisponibilidade: status },
-    });
+  async updateStatusDisponibilidade(userId: string, tenantId: string, status: string): Promise<void> {
+    await this.prisma.user.updateMany({ where: { id: userId, tenantId }, data: { statusDisponibilidade: status } });
   }
 }

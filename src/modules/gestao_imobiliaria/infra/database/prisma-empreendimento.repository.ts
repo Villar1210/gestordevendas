@@ -23,6 +23,12 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
     uf: string;
     cep: string;
     description?: string | null;
+    complemento?: string | null;
+    tipo?: string | null;
+    construtora?: string | null;
+    statusObra?: string | null;
+    precoMinimo?: number | null;
+    precoMaximo?: number | null;
   }): Promise<EmpreendimentoRecord> {
     return this.prisma.empreendimento.create({
       data: {
@@ -35,6 +41,12 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
         uf: input.uf,
         cep: input.cep,
         description: input.description ?? null,
+        complemento: input.complemento ?? null,
+        tipo: input.tipo ?? null,
+        construtora: input.construtora ?? null,
+        statusObra: input.statusObra ?? null,
+        precoMinimo: input.precoMinimo ?? null,
+        precoMaximo: input.precoMaximo ?? null,
       },
     });
   }

@@ -84,6 +84,12 @@ export interface IEmpreendimentoRepository {
     uf: string;
     cep: string;
     description?: string | null;
+    complemento?: string | null;
+    tipo?: string | null;
+    construtora?: string | null;
+    statusObra?: string | null;
+    precoMinimo?: number | null;
+    precoMaximo?: number | null;
   }): Promise<EmpreendimentoRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<EmpreendimentoRecord | null>;
   // filters.publicado opcional (Fatia 4): ausente = todos (Catalogo/Cadastro

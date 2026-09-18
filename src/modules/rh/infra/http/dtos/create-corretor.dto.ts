@@ -13,4 +13,18 @@ export class CreateCorretorDto {
   @IsString()
   @MinLength(6, { message: 'A senha deve ter pelo menos 6 caracteres.' })
   password?: string;
+
+  // Contato
+  @IsOptional()
+  @IsString()
+  telefone?: string;
+
+  @IsOptional()
+  @IsString()
+  whatsapp?: string;
+
+  // Registro profissional
+  @IsOptional()
+  @IsString()
+  creci?: string;
 }
