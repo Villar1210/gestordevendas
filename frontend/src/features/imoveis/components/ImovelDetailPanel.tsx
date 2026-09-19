@@ -474,13 +474,13 @@ export function ImovelDetailPanel() {
                 {imovel.linkTourVirtual && (
                   <div>
                     <h3 className="mb-2 text-sm font-semibold text-slate-700">Tour virtual</h3>
-                    
+                    <a
                       href={imovel.linkTourVirtual}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 w-fit"
                     >
-                      <ExternalLink className="h-4 w-4" /> Ver tour virtual 360deg
+                      <ExternalLink className="h-4 w-4" /> Ver tour virtual
                     </a>
                   </div>
                 )}
@@ -489,7 +489,7 @@ export function ImovelDetailPanel() {
                 {imovel.latitude && imovel.longitude && (
                   <div>
                     <h3 className="mb-2 text-sm font-semibold text-slate-700">Localizacao</h3>
-                    
+                    <a
                       href={`https://www.google.com/maps?q=${imovel.latitude},${imovel.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
