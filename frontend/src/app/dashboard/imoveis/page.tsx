@@ -1,7 +1,7 @@
 // src/app/dashboard/imoveis/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Plus, LayoutGrid, ClipboardCheck } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
@@ -40,6 +40,11 @@ export default function ImoveisDashboardPage() {
   const [role, setRole] = useState<string | null>(null);
   const hasCheckedRole = useRef(false);
 
+  const [tipoFilter, setTipoFilter] = useState<string>("all");
+  const [bedroomsFilter, setBedroomsFilter] = useState<string>("all");
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
+
   useEffect(() => {
     loadEmpreendimentos();
     if (!hasCheckedRole.current) {
@@ -48,10 +53,6 @@ export default function ImoveisDashboardPage() {
         .then((me) => setRole(me.role))
         .catch(() => setRole(null));
     }
-    // Deep-link de volta apos o Cadastro em Lote de Unidades (fatia 2b) -
-    // le direto de window.location (nao useSearchParams, que exigiria
-    // envolver a pagina numa Suspense boundary so por causa disso, mesmo
-    // padrao ja usado em /dashboard/kanban).
     const params = new URLSearchParams(window.location.search);
     const empreendimentoIdParam = params.get("empreendimentoId");
     if (empreendimentoIdParam) {
@@ -60,7 +61,6 @@ export default function ImoveisDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Roda tambem no mount (com os filtros default), servindo como carga inicial.
   useEffect(() => {
     loadImoveis({
       busca,
@@ -70,6 +70,25 @@ export default function ImoveisDashboardPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busca, finalidadeFilter, statusFilter, empreendimentoFilter]);
+
+  const filteredImoveis = useMemo(() => {
+    return imoveis.filter((imovel) => {
+      if (tipoFilter !== "all" && imovel.tipo !== tipoFilter) return false;
+      if (bedroomsFilter !== "all") {
+        const min = parseInt(bedroomsFilter, 10);
+        if ((imovel.quartos ?? 0) < min) return false;
+      }
+      if (minPrice !== "") {
+        const min = parseFloat(minPrice);
+        if (!isNaN(min) && (imovel.valor ?? 0) < min) return false;
+      }
+      if (maxPrice !== "") {
+        const max = parseFloat(maxPrice);
+        if (!isNaN(max) && (imovel.valor ?? 0) > max) return false;
+      }
+      return true;
+    });
+  }, [imoveis, tipoFilter, bedroomsFilter, minPrice, maxPrice]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -162,26 +181,39 @@ export default function ImoveisDashboardPage() {
 
       {activeView === "catalogo" ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <ImoveisFilters />
-              {empreendimentoFilter !== "all" && (
-                <>
-                  <Link
-                    href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}/lote`}
-                    className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
-                  </Link>
-                  <Link
-                    href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}`}
-                    className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <ClipboardCheck className="h-4 w-4" /> Revisao e Publicacao
-                  </Link>
-                </>
-              )}
+          <ImoveisFilters
+            tipoFilter={tipoFilter}
+            setTipoFilter={setTipoFilter}
+            bedroomsFilter={bedroomsFilter}
+            setBedroomsFilter={setBedroomsFilter}
+            minPrice={minPrice}
+            setMinPrice={setMinPrice}
+            maxPrice={maxPrice}
+            setMaxPrice={setMaxPrice}
+          />
+
+          {empreendimentoFilter !== "all" && (
+            <div className="flex items-center gap-2 px-6 pt-3">
+              <Link
+                href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}/lote`}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
+              </Link>
+              <Link
+                href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}`}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <ClipboardCheck className="h-4 w-4" /> Revisao e Publicacao
+              </Link>
             </div>
+          )}
+
+          <div className="flex items-center justify-between px-6 pt-3 pb-1">
+            <p className="text-sm text-slate-500">
+              {filteredImoveis.length}{" "}
+              {filteredImoveis.length !== 1 ? "imoveis encontrados" : "imovel encontrado"}
+            </p>
             <div className="flex rounded-lg border border-slate-200 p-0.5">
               <button
                 onClick={() => setCatalogLayout("cards")}
@@ -215,17 +247,17 @@ export default function ImoveisDashboardPage() {
             <div className="px-6 py-4">
               {catalogLayout === "cards" ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {imoveis.map((imovel) => (
+                  {filteredImoveis.map((imovel) => (
                     <ImovelCard key={imovel.id} imovel={imovel} />
                   ))}
-                  {imoveis.length === 0 && (
+                  {filteredImoveis.length === 0 && (
                     <p className="col-span-full py-10 text-center text-sm text-slate-400">
                       Nenhum imovel encontrado.
                     </p>
                   )}
                 </div>
               ) : (
-                <ImovelListTable imoveis={imoveis} />
+                <ImovelListTable imoveis={filteredImoveis} />
               )}
             </div>
           )}
