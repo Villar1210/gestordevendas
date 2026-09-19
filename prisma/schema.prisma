@@ -988,6 +988,16 @@ model Imovel {
   valorTabela          Decimal?            @map("valor_tabela") @db.Decimal(12, 2)
   valorComDesconto     Decimal?            @map("valor_com_desconto") @db.Decimal(12, 2)
   vagasIncluidas       Int                 @default(0) @map("vagas_incluidas")
+  suites               Int?
+  areaTotal            Float?              @map("area_total")
+  iptu                 Decimal?            @db.Decimal(12, 2)
+  valorCondominio      Decimal?            @map("valor_condominio") @db.Decimal(12, 2)
+  aceitaFinanciamento  Boolean             @default(false) @map("aceita_financiamento")
+  aceitaPermuta        Boolean             @default(false) @map("aceita_permuta")
+  latitude             Float?
+  longitude            Float?
+  linkTourVirtual      String?             @map("link_tour_virtual") @db.VarChar(500)
+  areaExterna          Float?              @map("area_externa")
   customFields         Json                @default("{}") @map("custom_fields")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
