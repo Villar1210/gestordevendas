@@ -159,6 +159,16 @@ type PrismaImovelRow = {
   valorComDesconto: { toNumber(): number } | null;
   vagasIncluidas: number;
   customFields: unknown;
+  suites: number | null;
+  areaTotal: number | null;
+  iptu: { toNumber(): number } | null;
+  valorCondominio: { toNumber(): number } | null;
+  aceitaFinanciamento: boolean;
+  aceitaPermuta: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  linkTourVirtual: string | null;
+  areaExterna: number | null;
   createdAt: Date;
   updatedAt: Date;
   // So presente quando a query faz include: { photos: ... } (findAllByTenant)
@@ -211,6 +221,16 @@ export class PrismaImovelRepository implements IImovelRepository {
       valorComDesconto: row.valorComDesconto ? row.valorComDesconto.toNumber() : null,
       vagasIncluidas: row.vagasIncluidas,
       customFields: (row.customFields as Record<string, unknown>) ?? {},
+      suites: row.suites,
+      areaTotal: row.areaTotal,
+      iptu: row.iptu ? row.iptu.toNumber() : null,
+      valorCondominio: row.valorCondominio ? row.valorCondominio.toNumber() : null,
+      aceitaFinanciamento: row.aceitaFinanciamento,
+      aceitaPermuta: row.aceitaPermuta,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      linkTourVirtual: row.linkTourVirtual,
+      areaExterna: row.areaExterna,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       coverPhotoUrl: row.photos && row.photos.length > 0 ? row.photos[0].url : null,
@@ -267,6 +287,16 @@ export class PrismaImovelRepository implements IImovelRepository {
       valorComDesconto: input.valorComDesconto ?? null,
       vagasIncluidas: input.vagasIncluidas ?? 0,
       customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
+      suites: input.suites ?? null,
+      areaTotal: input.areaTotal ?? null,
+      iptu: input.iptu ?? null,
+      valorCondominio: input.valorCondominio ?? null,
+      aceitaFinanciamento: input.aceitaFinanciamento ?? false,
+      aceitaPermuta: input.aceitaPermuta ?? false,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      linkTourVirtual: input.linkTourVirtual ?? null,
+      areaExterna: input.areaExterna ?? null,
     };
   }
 
@@ -360,6 +390,16 @@ export class PrismaImovelRepository implements IImovelRepository {
         ...(input.customFields !== undefined
           ? { customFields: input.customFields as Prisma.InputJsonValue }
           : {}),
+        ...(input.suites !== undefined ? { suites: input.suites } : {}),
+        ...(input.areaTotal !== undefined ? { areaTotal: input.areaTotal } : {}),
+        ...(input.iptu !== undefined ? { iptu: input.iptu } : {}),
+        ...(input.valorCondominio !== undefined ? { valorCondominio: input.valorCondominio } : {}),
+        ...(input.aceitaFinanciamento !== undefined ? { aceitaFinanciamento: input.aceitaFinanciamento } : {}),
+        ...(input.aceitaPermuta !== undefined ? { aceitaPermuta: input.aceitaPermuta } : {}),
+        ...(input.latitude !== undefined ? { latitude: input.latitude } : {}),
+        ...(input.longitude !== undefined ? { longitude: input.longitude } : {}),
+        ...(input.linkTourVirtual !== undefined ? { linkTourVirtual: input.linkTourVirtual } : {}),
+        ...(input.areaExterna !== undefined ? { areaExterna: input.areaExterna } : {}),
       },
       // Mesmo motivo do findAllByTenant: manter coverPhotoUrl correto tambem
       // apos um PATCH (sem isso, salvar o formulario apos upload zerava a capa).

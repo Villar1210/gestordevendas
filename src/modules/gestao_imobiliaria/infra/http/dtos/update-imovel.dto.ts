@@ -134,4 +134,44 @@ export class UpdateImovelDto {
   @IsOptional()
   @IsObject()
   customFields?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsInt()
+  suites?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  areaTotal?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  iptu?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  valorCondominio?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  aceitaFinanciamento?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  aceitaPermuta?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number | null;
+
+  @IsOptional()
+  @IsString()
+  linkTourVirtual?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  areaExterna?: number | null;
 }

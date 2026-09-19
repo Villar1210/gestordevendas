@@ -43,6 +43,16 @@ export interface ImovelRecord {
   valorComDesconto: number | null;
   vagasIncluidas: number;
   customFields: Record<string, unknown>;
+  suites: number | null;
+  areaTotal: number | null;
+  iptu: number | null;
+  valorCondominio: number | null;
+  aceitaFinanciamento: boolean;
+  aceitaPermuta: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  linkTourVirtual: string | null;
+  areaExterna: number | null;
   createdAt: Date;
   updatedAt: Date;
   // Preenchido apenas por findAllByTenant (1a foto, para a visao Cards do
@@ -109,6 +119,16 @@ export interface ImovelWritableFields {
   valorComDesconto?: number | null;
   vagasIncluidas?: number;
   customFields?: Record<string, unknown>;
+  suites?: number | null;
+  areaTotal?: number | null;
+  iptu?: number | null;
+  valorCondominio?: number | null;
+  aceitaFinanciamento?: boolean;
+  aceitaPermuta?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  linkTourVirtual?: string | null;
+  areaExterna?: number | null;
 }
 
 export interface IImovelRepository {

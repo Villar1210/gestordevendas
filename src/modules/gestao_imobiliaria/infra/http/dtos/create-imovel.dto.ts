@@ -141,4 +141,44 @@ export class CreateImovelDto {
   @IsOptional()
   @IsObject()
   customFields?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsInt()
+  suites?: number;
+
+  @IsOptional()
+  @IsNumber()
+  areaTotal?: number;
+
+  @IsOptional()
+  @IsNumber()
+  iptu?: number;
+
+  @IsOptional()
+  @IsNumber()
+  valorCondominio?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  aceitaFinanciamento?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  aceitaPermuta?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  linkTourVirtual?: string;
+
+  @IsOptional()
+  @IsNumber()
+  areaExterna?: number;
 }

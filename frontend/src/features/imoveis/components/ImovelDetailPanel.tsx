@@ -78,6 +78,16 @@ export function ImovelDetailPanel() {
   const [parkingSpots, setParkingSpots] = useState("");
   const [description, setDescription] = useState("");
 
+  const [suites, setSuites] = useState("");
+  const [areaTotal, setAreaTotal] = useState("");
+  const [iptu, setIptu] = useState("");
+  const [valorCondominio, setValorCondominio] = useState("");
+  const [aceitaFinanciamento, setAceitaFinanciamento] = useState(false);
+  const [aceitaPermuta, setAceitaPermuta] = useState(false);
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [linkTourVirtual, setLinkTourVirtual] = useState("");
+  const [areaExterna, setAreaExterna] = useState("");
   const [saving, setSaving] = useState(false);
 
   const imovel = imovelDetailPanel.imovel;
@@ -112,6 +122,16 @@ export function ImovelDetailPanel() {
     setBathrooms(imovel.bathrooms ? String(imovel.bathrooms) : "");
     setParkingSpots(imovel.parkingSpots ? String(imovel.parkingSpots) : "");
     setDescription(imovel.description ?? "");
+    setSuites(imovel.suites ? String(imovel.suites) : "");
+    setAreaTotal(imovel.areaTotal ? String(imovel.areaTotal) : "");
+    setIptu(imovel.iptu ? String(imovel.iptu) : "");
+    setValorCondominio(imovel.valorCondominio ? String(imovel.valorCondominio) : "");
+    setAceitaFinanciamento(imovel.aceitaFinanciamento ?? false);
+    setAceitaPermuta(imovel.aceitaPermuta ?? false);
+    setLatitude(imovel.latitude ? String(imovel.latitude) : "");
+    setLongitude(imovel.longitude ? String(imovel.longitude) : "");
+    setLinkTourVirtual(imovel.linkTourVirtual ?? "");
+    setAreaExterna(imovel.areaExterna ? String(imovel.areaExterna) : "");
 
     // Recarrega do backend para garantir que a galeria de fotos esta atualizada
     // (a lista do Catalogo so traz a foto de capa, nao a galeria completa).
@@ -216,6 +236,16 @@ export function ImovelDetailPanel() {
         bathrooms: bathrooms ? Number(bathrooms) : undefined,
         parkingSpots: parkingSpots ? Number(parkingSpots) : undefined,
         description: description.trim() || undefined,
+        suites: suites ? Number(suites) : undefined,
+        areaTotal: areaTotal ? Number(areaTotal) : undefined,
+        iptu: iptu ? Number(iptu) : undefined,
+        valorCondominio: valorCondominio ? Number(valorCondominio) : undefined,
+        aceitaFinanciamento,
+        aceitaPermuta,
+        latitude: latitude ? Number(latitude) : undefined,
+        longitude: longitude ? Number(longitude) : undefined,
+        linkTourVirtual: linkTourVirtual.trim() || undefined,
+        areaExterna: areaExterna ? Number(areaExterna) : undefined,
       });
     } finally {
       setSaving(false);
@@ -619,6 +649,54 @@ export function ImovelDetailPanel() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm text-slate-500">Suites</label>
+                    <input type="number" min="0" value={suites} onChange={(e) => setSuites(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm text-slate-500">Area total (m²)</label>
+                    <input type="number" step="0.01" min="0" value={areaTotal} onChange={(e) => setAreaTotal(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm text-slate-500">Area externa (m²)</label>
+                    <input type="number" step="0.01" min="0" value={areaExterna} onChange={(e) => setAreaExterna(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm text-slate-500">IPTU (R$/ano)</label>
+                    <input type="number" step="0.01" min="0" value={iptu} onChange={(e) => setIptu(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm text-slate-500">Condominio (R$/mes)</label>
+                    <input type="number" step="0.01" min="0" value={valorCondominio} onChange={(e) => setValorCondominio(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                </div>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" checked={aceitaFinanciamento} onChange={(e) => setAceitaFinanciamento(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
+                    Aceita financiamento
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" checked={aceitaPermuta} onChange={(e) => setAceitaPermuta(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
+                    Aceita permuta
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm text-slate-500">Latitude</label>
+                    <input type="number" step="any" value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="-23.5505" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm text-slate-500">Longitude</label>
+                    <input type="number" step="any" value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="-46.6333" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm text-slate-500">Link tour virtual</label>
+                  <input type="url" value={linkTourVirtual} onChange={(e) => setLinkTourVirtual(e.target.value)} placeholder="https://..." className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                </div>
                 <div>
                   <label className="mb-1 block text-sm text-slate-500">Descricao</label>
                   <textarea

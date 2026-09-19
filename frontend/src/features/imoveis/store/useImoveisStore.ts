@@ -36,6 +36,16 @@ export interface Imovel {
   exclusividade: boolean;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
+  suites: number | null;
+  areaTotal: number | null;
+  iptu: number | null;
+  valorCondominio: number | null;
+  aceitaFinanciamento: boolean;
+  aceitaPermuta: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  linkTourVirtual: string | null;
+  areaExterna: number | null;
   customFields: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;

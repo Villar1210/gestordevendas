@@ -51,6 +51,16 @@ export interface CreateImovelInput {
   exclusividade?: boolean;
   proprietarioNome?: string;
   proprietarioTelefone?: string;
+  suites?: number;
+  areaTotal?: number;
+  iptu?: number;
+  valorCondominio?: number;
+  aceitaFinanciamento?: boolean;
+  aceitaPermuta?: boolean;
+  latitude?: number;
+  longitude?: number;
+  linkTourVirtual?: string;
+  areaExterna?: number;
 }
 
 export type UpdateImovelInput = Partial<CreateImovelInput>;
