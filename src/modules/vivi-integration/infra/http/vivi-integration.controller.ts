@@ -15,6 +15,8 @@ import { PrismaService } from '../../../../config/prisma.service';
 import { ChatwootWhatsappService } from '../../services/chatwoot-whatsapp.service';
 import { ConfigService } from '@nestjs/config';
 import { FollowUpService } from '../../../follow-up/follow-up.service';
+import { MoverCardViviDto } from './dto/mover-card.dto';
+import { MoverCardViviUseCase } from '../../application/use-cases/mover-card-vivi.use-case';
 
 @Controller('vivi')
 @UseGuards(ViviApiKeyGuard)
@@ -27,6 +29,7 @@ export class ViviIntegrationController {
     private readonly chatwoot: ChatwootWhatsappService,
     private readonly config: ConfigService,
     private readonly followUpService: FollowUpService,
+    private readonly moverCardViviUseCase: MoverCardViviUseCase,
   ) {}
 
   @Get('empreendimentos')
@@ -124,6 +127,18 @@ export class ViviIntegrationController {
       telefone: body.telefoneCorretor,
       nomeContato: body.nomeCorretor,
       mensagem: body.mensagem,
+    });
+  }
+
+  @Post('mover-card')
+  @HttpCode(HttpStatus.OK)
+  async moverCard(@Body() dto: MoverCardViviDto) {
+    const tenantId = this.config.get<string>('VIVI_TENANT_ID') ?? '';
+    return this.moverCardViviUseCase.execute({
+      cardId: dto.cardId,
+      tenantId,
+      stageName: dto.stageName,
+      motivoRepique: dto.motivoRepique,
     });
   }
 
