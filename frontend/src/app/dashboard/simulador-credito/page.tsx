@@ -90,7 +90,7 @@ export default function SimuladorCreditoPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-1 text-xl font-semibold text-slate-800">
-        Simulador de Credito
+        Simulador de Crédito
       </h1>
       <p className="mb-6 text-sm text-slate-500">
         Minha Casa Minha Vida - Tabela APROVE 2026
@@ -182,10 +182,10 @@ export default function SimuladorCreditoPage() {
                 <span className="text-2xl">✅</span>
                 <div>
                   <p className="font-semibold text-emerald-800">
-                    Cliente elegivel
+                    Cliente elegível
                   </p>
                   <p className="text-sm text-emerald-600">
-                    {result.faixaRenda} - Faixa etaria {result.faixaEtaria} anos
+                    {result.faixaRenda} - Faixa etária {result.faixaEtaria} anos
                   </p>
                 </div>
               </div>
@@ -199,7 +199,7 @@ export default function SimuladorCreditoPage() {
                 />
                 {result.subsidio ? (
                   <Card
-                    label="Subsidio"
+                    label="Subsídio"
                     value={fmt(result.subsidio)}
                     icon="🎁"
                     highlight
@@ -225,7 +225,7 @@ export default function SimuladorCreditoPage() {
                 />
                 {result.tetoAvaliacao ? (
                   <Card
-                    label="Teto de avaliacao"
+                    label="Teto de avaliação"
                     value={fmt(result.tetoAvaliacao)}
                     icon="🏷️"
                   />
@@ -237,7 +237,7 @@ export default function SimuladorCreditoPage() {
               <span className="text-2xl">❌</span>
               <div>
                 <p className="font-semibold text-red-800">
-                  Cliente nao elegivel
+                  Cliente não elegível
                 </p>
                 <p className="mt-1 text-sm text-red-700">
                   {result.motivoNaoElegivel}

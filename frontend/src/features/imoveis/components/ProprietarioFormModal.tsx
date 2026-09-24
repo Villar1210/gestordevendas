@@ -85,7 +85,7 @@ export function ProprietarioFormModal() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Novo Proprietario"
+      aria-label="Novo Proprietário"
       onClick={closeProprietarioFormModal}
     >
       <div
@@ -93,7 +93,7 @@ export function ProprietarioFormModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">Novo Proprietario</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Novo Proprietário</h2>
           <button
             onClick={closeProprietarioFormModal}
             className="text-slate-400 hover:text-slate-600"
@@ -110,7 +110,7 @@ export function ProprietarioFormModal() {
               <input
                 type="text"
                 required
-                placeholder="Nome do proprietario"
+                placeholder="Nome do proprietário"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className={inputClass}
@@ -151,7 +151,7 @@ export function ProprietarioFormModal() {
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-600">Endereco (opcional)</p>
+            <p className="mb-2 text-sm font-medium text-slate-600">Endereço (opcional)</p>
             <div className="space-y-3">
               <div className="flex gap-3">
                 <input
@@ -163,7 +163,7 @@ export function ProprietarioFormModal() {
                 />
                 <input
                   type="text"
-                  placeholder="Numero"
+                  placeholder="Número"
                   value={numero}
                   onChange={(e) => setNumero(e.target.value)}
                   className={`w-1/3 ${inputClass}`}
@@ -212,7 +212,7 @@ export function ProprietarioFormModal() {
 
           <div>
             <p className="mb-2 text-sm font-medium text-slate-600">
-              Dados bancarios (opcional, para repasse)
+              Dados bancários (opcional, para repasse)
             </p>
             <div className="space-y-3">
               <div className="flex gap-3">
@@ -225,7 +225,7 @@ export function ProprietarioFormModal() {
                 />
                 <input
                   type="text"
-                  placeholder="Agencia"
+                  placeholder="Agência"
                   value={agencia}
                   onChange={(e) => setAgencia(e.target.value)}
                   className={`w-1/2 ${inputClass}`}

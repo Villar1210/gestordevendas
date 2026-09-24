@@ -60,7 +60,7 @@ export function StandsPlantaoTab() {
   useEffect(() => {
     loadStands()
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os stands.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar os stands.");
       })
       .finally(() => setIsLoading(false));
   }, [loadStands]);
@@ -71,7 +71,7 @@ export function StandsPlantaoTab() {
       const resp = await apiRequest<Escala[]>(`/stands/${standId}/escalas`);
       setEscalas(resp);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar a escala.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar a escala.");
     } finally {
       setIsLoadingEscalas(false);
     }
@@ -97,7 +97,7 @@ export function StandsPlantaoTab() {
       setNovoEndereco("");
       await loadStands();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o stand.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível criar o stand.");
     } finally {
       setIsCreating(false);
     }
@@ -113,7 +113,7 @@ export function StandsPlantaoTab() {
       }
       await loadStands();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel excluir o stand.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível excluir o stand.");
     }
   }
 
@@ -128,7 +128,7 @@ export function StandsPlantaoTab() {
       setNovoCorretorPorDia((prev) => ({ ...prev, [diaSemana]: "" }));
       await loadEscalas(selectedStandId);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel adicionar a escala.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível adicionar a escala.");
     }
   }
 
@@ -138,7 +138,7 @@ export function StandsPlantaoTab() {
       await apiRequest(`/escalas/${escalaId}`, { method: "DELETE" });
       await loadEscalas(selectedStandId);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel remover a escala.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível remover a escala.");
     }
   }
 

@@ -127,7 +127,7 @@ export function ConfiguracoesViviTab() {
         });
       })
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar as configuracoes da VIVI.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar as configurações da VIVI.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -202,7 +202,7 @@ export function ConfiguracoesViviTab() {
       });
       setSavedAt(Date.now());
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar as configuracoes da VIVI.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível salvar as configurações da VIVI.");
     } finally {
       setSaving(false);
     }
@@ -334,7 +334,7 @@ export function ConfiguracoesViviTab() {
             <textarea
               value={sobreConstrutora}
               onChange={(e) => setSobreConstrutora(e.target.value)}
-              placeholder="Ex: A Construtora XPTO atua ha 20 anos no mercado, com mais de 100 mil imoveis entregues..."
+              placeholder="Ex: A Construtora XPTO atua há 20 anos no mercado, com mais de 100 mil imóveis entregues..."
               rows={4}
               maxLength={2000}
               data-testid="vivi-sobre-construtora"
@@ -345,7 +345,7 @@ export function ConfiguracoesViviTab() {
             <textarea
               value={diferenciaisConstrutora}
               onChange={(e) => setDiferenciaisConstrutora(e.target.value)}
-              placeholder="Ex: Entrega rapida; atendimento 100% digital; portal de acompanhamento de obra..."
+              placeholder="Ex: Entrega rápida; atendimento 100% digital; portal de acompanhamento de obra..."
               rows={4}
               maxLength={1500}
               data-testid="vivi-diferenciais-construtora"

@@ -78,7 +78,7 @@ async function rawApiRequest<T>(endpoint: string, options: RequestInit): Promise
   if (response.status === 401 && token) {
     clearLocalSession();
     window.location.href = "/login";
-    throw new ApiError("Sessao expirada.", 401);
+    throw new ApiError("Sessão expirada.", 401);
   }
 
   const body = await response.json().catch(() => null);

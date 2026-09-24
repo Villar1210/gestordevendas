@@ -26,7 +26,7 @@ export function InquilinosTab() {
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">Documento</th>
               <th className="px-4 py-3 font-medium">Telefone</th>
-              <th className="px-4 py-3 font-medium">Analise de Credito</th>
+              <th className="px-4 py-3 font-medium">Análise de Crédito</th>
             </tr>
           </thead>
           <tbody>
@@ -61,7 +61,7 @@ export function InquilinosTab() {
 
         {inquilinosCompradores.length === 0 && (
           <p className="px-4 py-10 text-center text-sm text-slate-400">
-            Nenhum inquilino/comprador cadastrado ainda. Eles sao criados a partir de um Contrato,
+            Nenhum inquilino/comprador cadastrado ainda. Eles são criados a partir de um Contrato,
             na aba Contratos.
           </p>
         )}

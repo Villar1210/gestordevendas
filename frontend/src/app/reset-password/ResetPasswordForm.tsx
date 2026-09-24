@@ -23,12 +23,12 @@ export function ResetPasswordForm({ token }: Props) {
     setError(null);
 
     if (newPassword !== confirmPassword) {
-      setError("As senhas nao coincidem.");
+      setError("As senhas não coincidem.");
       return;
     }
 
     if (!token) {
-      setError("Link invalido ou incompleto.");
+      setError("Link inválido ou incompleto.");
       return;
     }
 
@@ -40,7 +40,7 @@ export function ResetPasswordForm({ token }: Props) {
       });
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Nao foi possivel redefinir a senha.");
+      setError(err instanceof ApiError ? err.message : "Não foi possível redefinir a senha.");
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export function ResetPasswordForm({ token }: Props) {
 
         {!token ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-            Link invalido ou incompleto. Solicite um novo e-mail de redefinicao.
+            Link inválido ou incompleto. Solicite um novo e-mail de redefinição.
           </div>
         ) : success ? (
           <div className="space-y-4">

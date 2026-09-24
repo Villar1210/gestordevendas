@@ -95,7 +95,7 @@ export function AtendimentoList({
         <Search className="h-4 w-4 shrink-0 text-slate-400" />
         <input
           type="text"
-          placeholder="Buscar por numero..."
+          placeholder="Buscar por número..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full text-sm text-slate-800 outline-none placeholder:text-slate-400"
@@ -132,7 +132,7 @@ export function AtendimentoList({
           className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-600"
         >
           <option value={FILA_FILTER_TODAS}>Todas as filas</option>
-          <option value={FILA_FILTER_NAO_CLASSIFICADO}>Nao Classificados</option>
+          <option value={FILA_FILTER_NAO_CLASSIFICADO}>Não Classificados</option>
           {filas.map((fila) => (
             <option key={fila.id} value={fila.id}>
               {fila.nome}

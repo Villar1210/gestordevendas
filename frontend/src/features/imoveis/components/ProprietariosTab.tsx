@@ -24,7 +24,7 @@ export function ProprietariosTab() {
           onClick={openProprietarioFormModal}
           className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
         >
-          <Plus className="h-4 w-4" /> Novo Proprietario
+          <Plus className="h-4 w-4" /> Novo Proprietário
         </button>
       </div>
 
@@ -35,7 +35,7 @@ export function ProprietariosTab() {
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">Documento</th>
               <th className="px-4 py-3 font-medium">Telefone</th>
-              <th className="px-4 py-3 font-medium">Imoveis Vinculados</th>
+              <th className="px-4 py-3 font-medium">Imóveis Vinculados</th>
             </tr>
           </thead>
           <tbody>
@@ -60,7 +60,7 @@ export function ProprietariosTab() {
 
         {proprietarios.length === 0 && (
           <p className="px-4 py-10 text-center text-sm text-slate-400">
-            Nenhum proprietario cadastrado.
+            Nenhum proprietário cadastrado.
           </p>
         )}
       </div>

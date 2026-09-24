@@ -280,8 +280,8 @@ export function CreateEnvelopeModal() {
     const errors: RecipientErrors = {};
     recipients.forEach((r, i) => {
       const entry: { name?: string; email?: string } = {};
-      if (!r.name.trim()) entry.name = "Nome obrigatorio";
-      if (!r.email.trim() || !EMAIL_REGEX.test(r.email.trim())) entry.email = "E-mail invalido";
+      if (!r.name.trim()) entry.name = "Nome obrigatório";
+      if (!r.email.trim() || !EMAIL_REGEX.test(r.email.trim())) entry.email = "E-mail inválido";
       if (entry.name || entry.email) errors[i] = entry;
     });
     setRecipientErrors(errors);
@@ -389,11 +389,11 @@ export function CreateEnvelopeModal() {
         ) : step === 1 ? (
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm text-slate-500">Titulo</label>
+              <label className="mb-1 block text-sm text-slate-500">Título</label>
               <input
                 type="text"
                 required
-                placeholder="Ex: Contrato de Locacao - Apto 302"
+                placeholder="Ex: Contrato de Locação - Apto 302"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className={inputClass}
@@ -550,8 +550,8 @@ export function CreateEnvelopeModal() {
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
               Arraste a caixa de cada participante para o local onde o campo deve aparecer.
-              Destinatarios e Remetentes podem adicionar rubrica (repetida em todas as paginas)
-              alem da assinatura; Testemunhas so tem assinatura, na ultima pagina.
+              Destinatários e Remetentes podem adicionar rubrica (repetida em todas as páginas)
+              além da assinatura; Testemunhas só tem assinatura, na última página.
             </p>
 
             {previewConverting ? (
@@ -569,8 +569,8 @@ export function CreateEnvelopeModal() {
             ) : (
               <div className="flex h-64 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
                 <span className="text-sm text-slate-400">
-                  Nao foi possivel gerar o preview. Voce ainda pode continuar — o
-                  documento sera convertido ao salvar.
+                  Não foi possível gerar o preview. Você ainda pode continuar — o
+                  documento será convertido ao salvar.
                 </span>
               </div>
             )}
@@ -604,7 +604,7 @@ export function CreateEnvelopeModal() {
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
               Personalize o assunto e a mensagem do e-mail enviado a cada participante quando for
-              a vez dele assinar. Deixe em branco para usar o padrao.
+              a vez dele assinar. Deixe em branco para usar o padrão.
             </p>
 
             <div>
@@ -629,7 +629,7 @@ export function CreateEnvelopeModal() {
               </label>
               <textarea
                 rows={5}
-                placeholder="Ex: Segue o contrato combinado, qualquer duvida me avise."
+                placeholder="Ex: Segue o contrato combinado, qualquer dúvida me avise."
                 value={emailMessage}
                 onChange={(e) => setEmailMessage(e.target.value)}
                 className={`${inputClass} resize-none`}

@@ -46,8 +46,8 @@ export function MotivoRepiqueModal({ isOpen, onConfirm, onCancel }: MotivoRepiqu
         </div>
 
         <p className="mb-4 text-sm text-slate-500">
-          Selecione o motivo de mover este negocio para Repique - isso ajuda a entender por que o
-          lead nao avancou e a preparar futuras acoes de reengajamento.
+          Selecione o motivo de mover este negócio para Repique - isso ajuda a entender por que o
+          lead não avançou e a preparar futuras ações de reengajamento.
         </p>
 
         <div className="space-y-2">

@@ -48,7 +48,7 @@ export function DadosEmpresaTab() {
         setCep(config.cep ?? "");
       })
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os dados da empresa.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar os dados da empresa.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -62,7 +62,7 @@ export function DadosEmpresaTab() {
       });
       setSavedAt(Date.now());
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar os dados da empresa.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível salvar os dados da empresa.");
     } finally {
       setSaving(false);
     }

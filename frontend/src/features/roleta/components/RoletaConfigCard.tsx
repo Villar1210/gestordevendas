@@ -26,7 +26,7 @@ export function RoletaConfigCard() {
   if (isLoading || !config) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6">
-        <p className="text-sm text-slate-400">Carregando configuracao da Roleta Online...</p>
+        <p className="text-sm text-slate-400">Carregando configuração da Roleta Online...</p>
       </div>
     );
   }
@@ -59,8 +59,8 @@ export function RoletaConfigCard() {
 
       <p className="mb-4 text-sm text-slate-500">
         {config.ativa
-          ? "Ativa: todo lead novo sem dono (Caixa de Entrada) e distribuido automaticamente entre os corretores online."
-          : "Inativa: leads novos continuam caindo na Caixa de Entrada normalmente, sem distribuicao automatica."}
+          ? "Ativa: todo lead novo sem dono (Caixa de Entrada) é distribuído automaticamente entre os corretores online."
+          : "Inativa: leads novos continuam caindo na Caixa de Entrada normalmente, sem distribuição automática."}
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -77,7 +77,7 @@ export function RoletaConfigCard() {
           </select>
           <p className="mt-1 text-xs text-slate-400">
             {config.algoritmo === "menor_fila"
-              ? "Escolhe sempre o corretor online com menos negocios ativos no momento."
+              ? "Escolhe sempre o corretor online com menos negócios ativos no momento."
               : "Alterna entre os corretores online, um de cada vez, em ordem fixa."}
           </p>
         </div>
@@ -90,13 +90,13 @@ export function RoletaConfigCard() {
             disabled={isSaving}
             className={selectClass}
           >
-            <option value="semi_automatico">Semi-automatico</option>
-            <option value="automatico">Automatico</option>
+            <option value="semi_automatico">Semi-automático</option>
+            <option value="automatico">Automático</option>
           </select>
           <p className="mt-1 text-xs text-slate-400">
             {config.modo === "automatico"
               ? "Atribui o lead direto ao corretor escolhido, com uma janela de tempo para aceitar (ver ao lado)."
-              : "So sugere o corretor na Caixa de Entrada - alguem precisa confirmar antes de virar dono."}
+              : "Só sugere o corretor na Caixa de Entrada - alguém precisa confirmar antes de virar dono."}
           </p>
         </div>
 
@@ -120,8 +120,8 @@ export function RoletaConfigCard() {
               className={selectClass}
             />
             <p className="mt-1 text-xs text-slate-400">
-              Se o corretor nao clicar em &quot;Aceitar Lead&quot; dentro desse prazo, o lead e
-              reatribuido automaticamente ao proximo corretor online.
+              Se o corretor não clicar em &quot;Aceitar Lead&quot; dentro desse prazo, o lead é
+              reatribuído automaticamente ao próximo corretor online.
             </p>
           </div>
         )}

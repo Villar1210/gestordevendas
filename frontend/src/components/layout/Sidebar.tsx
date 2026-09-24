@@ -32,9 +32,9 @@ interface NavItem {
 
 // Array de navegacao: adicionar novos modulos aqui conforme o sistema cresce.
 const NAV_ITEMS: NavItem[] = [
-  { icon: Home, label: "Inicio", href: "/dashboard/inicio" },
+  { icon: Home, label: "Início", href: "/dashboard/inicio" },
   { icon: Kanban, label: "Vendas", href: "/dashboard/kanban" },
-  { icon: Building2, label: "Imoveis", href: "/dashboard/imoveis" },
+  { icon: Building2, label: "Imóveis", href: "/dashboard/imoveis" },
   { icon: MessageCircle, label: "WhatsApp", href: "/dashboard/whatsapp" },
   { icon: FileSignature, label: "E-doc", href: "/dashboard/edoc" },
   { icon: Headset, label: "Atendimento", href: "/dashboard/atendimento" },

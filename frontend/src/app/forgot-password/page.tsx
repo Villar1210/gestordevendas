@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
       setSuccess(true);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Nao foi possivel enviar o link. Tente novamente.",
+        err instanceof ApiError ? err.message : "Não foi possível enviar o link. Tente novamente.",
       );
     } finally {
       setLoading(false);
@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
         {success ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-              Se esse e-mail existir em nossa base, um link de redefinicao foi enviado.
+              Se esse e-mail existir em nossa base, um link de redefinição foi enviado.
             </div>
             <Link href="/login" className="block text-center text-sm text-blue-600 hover:underline">
               Voltar para o login
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full rounded-lg bg-blue-700 px-4 py-2 font-medium text-white transition hover:bg-blue-800 disabled:opacity-60"
             >
-              {loading ? "Enviando..." : "Enviar link de redefinicao"}
+              {loading ? "Enviando..." : "Enviar link de redefinição"}
             </button>
 
             <Link href="/login" className="block text-center text-sm text-blue-600 hover:underline">

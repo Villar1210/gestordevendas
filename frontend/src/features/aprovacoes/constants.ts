@@ -36,7 +36,7 @@ export function getStatusContratoLabel(status: string): { label: string; badgeCl
 
 export function getTipoClienteLabel(tipoCliente: string | null): string {
   if (tipoCliente === "comprador") return "Comprador";
-  if (tipoCliente === "proprietario") return "Proprietario";
-  if (tipoCliente === "ambos") return "Comprador e Proprietario";
+  if (tipoCliente === "proprietario") return "Proprietário";
+  if (tipoCliente === "ambos") return "Comprador e Proprietário";
   return "-";
 }

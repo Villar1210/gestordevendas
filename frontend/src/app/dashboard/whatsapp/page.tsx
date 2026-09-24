@@ -137,7 +137,7 @@ export default function WhatsAppPage() {
           startQrPolling(current.id);
         }
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Nao foi possivel carregar a conexao.");
+        setError(err instanceof ApiError ? err.message : "Não foi possível carregar a conexão.");
       } finally {
         setLoading(false);
       }
@@ -159,7 +159,7 @@ export default function WhatsAppPage() {
       setSession(newSession);
       startQrPolling(newSession.id);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Nao foi possivel conectar.");
+      setError(err instanceof ApiError ? err.message : "Não foi possível conectar.");
     } finally {
       setConnecting(false);
     }
@@ -169,8 +169,8 @@ export default function WhatsAppPage() {
     if (!session) return;
     const confirmado = window.confirm(
       session.phoneNumber
-        ? `Desconectar o WhatsApp (${session.phoneNumber})? Voce vai precisar escanear o QR Code de novo para reconectar (ou trocar de numero).`
-        : "Desconectar o WhatsApp? Voce vai precisar escanear o QR Code de novo para reconectar.",
+        ? `Desconectar o WhatsApp (${session.phoneNumber})? Você vai precisar escanear o QR Code de novo para reconectar (ou trocar de número).`
+        : "Desconectar o WhatsApp? Você vai precisar escanear o QR Code de novo para reconectar.",
     );
     if (!confirmado) return;
 
@@ -184,7 +184,7 @@ export default function WhatsAppPage() {
       setAtendendoCount(null);
       setAguardandoCount(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Nao foi possivel desconectar.");
+      setError(err instanceof ApiError ? err.message : "Não foi possível desconectar.");
     } finally {
       setDisconnecting(false);
     }
@@ -202,7 +202,7 @@ export default function WhatsAppPage() {
       );
       setSession({ ...session, isAiEnabled: nextEnabled });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Nao foi possivel atualizar a VIVI.");
+      setError(err instanceof ApiError ? err.message : "Não foi possível atualizar a VIVI.");
     } finally {
       setViviLoading(false);
     }
@@ -228,7 +228,7 @@ export default function WhatsAppPage() {
         </div>
         <h1 className="text-xl font-semibold text-slate-800">WhatsApp</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Conecte o numero da imobiliaria para atender seus leads direto pelo CRM.
+          Conecte o número da imobiliária para atender seus leads direto pelo CRM.
         </p>
       </div>
 
@@ -310,15 +310,15 @@ export default function WhatsAppPage() {
                   disabled={disconnecting}
                   className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
                 >
-                  {disconnecting ? "Desconectando..." : "Desconectar / Trocar numero"}
+                  {disconnecting ? "Desconectando..." : "Desconectar / Trocar número"}
                 </button>
               </div>
             </div>
           ) : isReconnecting ? (
             <div className="text-center">
               <p className="mb-4 text-sm text-slate-500">
-                O servidor reiniciou e esta restabelecendo a conexao com o WhatsApp
-                automaticamente. Nao e necessario escanear o QR Code de novo.
+                O servidor reiniciou e está restabelecendo a conexão com o WhatsApp
+                automaticamente. Não é necessário escanear o QR Code de novo.
               </p>
               <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-1.5 text-sm font-medium text-amber-700">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -346,7 +346,7 @@ export default function WhatsAppPage() {
           ) : (
             <div className="text-center">
               <p className="mb-6 text-sm text-slate-500">
-                Escaneie o QR Code no seu celular para vincular o numero
+                Escaneie o QR Code no seu celular para vincular o número
               </p>
               <button
                 onClick={handleConnect}

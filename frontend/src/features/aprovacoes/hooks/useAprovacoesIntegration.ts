@@ -58,7 +58,7 @@ export function useAprovacoesIntegration() {
         removePendente(id);
         return true;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel aprovar o cadastro.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível aprovar o cadastro.");
         return false;
       } finally {
         setSaving(false);
@@ -75,7 +75,7 @@ export function useAprovacoesIntegration() {
         removePendente(id);
         return true;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel rejeitar o cadastro.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível rejeitar o cadastro.");
         return false;
       } finally {
         setSaving(false);

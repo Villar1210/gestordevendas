@@ -59,7 +59,7 @@ export function LancamentoFormModal() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Novo Lancamento"
+      aria-label="Novo Lançamento"
       onClick={closeLancamentoFormModal}
     >
       <div
@@ -67,7 +67,7 @@ export function LancamentoFormModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">Novo Lancamento</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Novo Lançamento</h2>
           <button
             onClick={closeLancamentoFormModal}
             className="text-slate-400 hover:text-slate-600"
@@ -156,7 +156,7 @@ export function LancamentoFormModal() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-slate-500">Descricao (opcional)</label>
+            <label className="mb-1 block text-sm text-slate-500">Descrição (opcional)</label>
             <input
               type="text"
               value={descricao}

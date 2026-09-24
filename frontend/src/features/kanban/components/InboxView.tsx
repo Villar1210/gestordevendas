@@ -123,7 +123,7 @@ export function InboxView() {
               disabled={claimingId === card.id}
               className="mt-2 w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-60"
             >
-              {claimingId === card.id ? "Confirmando..." : "Confirmar Atribuicao"}
+              {claimingId === card.id ? "Confirmando..." : "Confirmar Atribuição"}
             </button>
           ) : (
             <button

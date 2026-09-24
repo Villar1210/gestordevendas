@@ -49,7 +49,7 @@ export function CorretorSignupForm({
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("As senhas nao coincidem.");
+      setError("As senhas não coincidem.");
       return;
     }
 
@@ -146,7 +146,7 @@ export function CorretorSignupForm({
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-sm text-slate-500">Endereco</label>
+              <label className="mb-1 block text-sm text-slate-500">Endereço</label>
               <input
                 type="text"
                 value={endereco}
@@ -169,7 +169,7 @@ export function CorretorSignupForm({
 
           <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>Seu cadastro passara por aprovacao da nossa equipe antes de voce poder acessar.</p>
+            <p>Seu cadastro passará por aprovação da nossa equipe antes de você poder acessar.</p>
           </div>
 
           <div className="flex gap-3">

@@ -34,11 +34,11 @@ export function DocumentDropzone({
       ACCEPTED_DOCUMENT_EXTENSIONS.includes(extension) ||
       ACCEPTED_DOCUMENT_MIMETYPES.includes(selected.type);
     if (!isAccepted) {
-      alert("Formato nao suportado. Envie um arquivo PDF, Word (.doc/.docx) ou Excel (.xls/.xlsx).");
+      alert("Formato não suportado. Envie um arquivo PDF, Word (.doc/.docx) ou Excel (.xls/.xlsx).");
       return;
     }
     if (selected.size > MAX_DOCUMENT_SIZE_BYTES) {
-      alert("O arquivo excede o tamanho maximo de 30MB.");
+      alert("O arquivo excede o tamanho máximo de 30MB.");
       return;
     }
     onFileSelected(selected);
@@ -78,7 +78,7 @@ export function DocumentDropzone({
           <span className="text-sm text-slate-500">Arraste o arquivo aqui ou clique para escolher</span>
         )}
         <span className="text-xs text-slate-400">
-          PDF, Word (.doc/.docx) ou Excel (.xls/.xlsx), ate 30MB. Arquivos Word e Excel sao
+          PDF, Word (.doc/.docx) ou Excel (.xls/.xlsx), até 30MB. Arquivos Word e Excel são
           convertidos automaticamente para PDF.
         </span>
         <input

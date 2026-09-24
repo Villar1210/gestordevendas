@@ -68,7 +68,7 @@ export function ImoveisFilters({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Buscar imovel..."
+            placeholder="Buscar imóvel..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             className="h-9 rounded-lg border border-slate-200 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
@@ -157,7 +157,7 @@ export function ImoveisFilters({
 
           <input
             type="number"
-            placeholder="Preco min (R$)"
+            placeholder="Preço min (R$)"
             value={minPrice}
             onChange={(e) => setMinPrice(e.target.value)}
             className="h-9 w-36 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -165,7 +165,7 @@ export function ImoveisFilters({
 
           <input
             type="number"
-            placeholder="Preco max (R$)"
+            placeholder="Preço max (R$)"
             value={maxPrice}
             onChange={(e) => setMaxPrice(e.target.value)}
             className="h-9 w-36 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"

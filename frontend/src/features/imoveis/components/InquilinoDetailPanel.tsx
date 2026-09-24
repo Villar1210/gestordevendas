@@ -168,7 +168,7 @@ export function InquilinoDetailPanel() {
           <div className="space-y-8">
             {/* Dados Basicos */}
             <section>
-              <h3 className="mb-3 text-sm font-semibold text-slate-700">Dados Basicos</h3>
+              <h3 className="mb-3 text-sm font-semibold text-slate-700">Dados Básicos</h3>
               <div className="space-y-3">
                 <div>
                   <label className="mb-1 block text-sm text-slate-500">Nome</label>
@@ -218,12 +218,12 @@ export function InquilinoDetailPanel() {
                 {/* Analise de Credito */}
                 <section>
                   <h3 className="mb-3 text-sm font-semibold text-slate-700">
-                    Analise de Credito
+                    Análise de Crédito
                   </h3>
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Profissao</label>
+                        <label className="mb-1 block text-sm text-slate-500">Profissão</label>
                         <input
                           type="text"
                           value={profissao}
@@ -252,7 +252,7 @@ export function InquilinoDetailPanel() {
                     </div>
                     <div>
                       <label className="mb-1 block text-sm text-slate-500">
-                        Status da analise
+                        Status da análise
                       </label>
                       <select
                         value={statusAnaliseCredito}
@@ -267,7 +267,7 @@ export function InquilinoDetailPanel() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm text-slate-500">Observacoes</label>
+                      <label className="mb-1 block text-sm text-slate-500">Observações</label>
                       <textarea
                         rows={3}
                         value={observacoesAnalise}

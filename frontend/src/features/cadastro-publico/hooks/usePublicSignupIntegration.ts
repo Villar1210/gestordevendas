@@ -30,7 +30,7 @@ export function usePublicSignupIntegration() {
     } catch (err) {
       return {
         ok: false as const,
-        message: err instanceof ApiError ? err.message : "Nao foi possivel enviar o cadastro.",
+        message: err instanceof ApiError ? err.message : "Não foi possível enviar o cadastro.",
       };
     }
   }, []);

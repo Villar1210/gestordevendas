@@ -160,7 +160,7 @@ export default function CadastroEmLotePage({
   async function handleGerar(padrao: PadraoLoteInput) {
     if (rows.length > 0) {
       const confirmado = window.confirm(
-        "Isso vai substituir as unidades ja geradas no grid abaixo. Continuar?",
+        "Isso vai substituir as unidades já geradas no grid abaixo. Continuar?",
       );
       if (!confirmado) return;
     }
@@ -181,7 +181,7 @@ export default function CadastroEmLotePage({
   async function handleImportar(file: File, produto: string) {
     if (rows.length > 0) {
       const confirmado = window.confirm(
-        "Isso vai substituir as unidades ja geradas no grid abaixo. Continuar?",
+        "Isso vai substituir as unidades já geradas no grid abaixo. Continuar?",
       );
       if (!confirmado) return;
     }
@@ -215,7 +215,7 @@ export default function CadastroEmLotePage({
 
     if (duplicadosNoGrid.length > 0) {
       setSaveError({
-        message: "Ha identificadores duplicados dentro do proprio grid. Corrija antes de salvar.",
+        message: "Há identificadores duplicados dentro do próprio grid. Corrija antes de salvar.",
         identificadoresColidindo: duplicadosNoGrid,
       });
       setRows((current) =>
@@ -255,7 +255,7 @@ export default function CadastroEmLotePage({
           ),
         );
       } else {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o lote.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível salvar o lote.");
       }
     } finally {
       setIsSaving(false);
@@ -275,9 +275,9 @@ export default function CadastroEmLotePage({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-50 text-slate-400">
         <Building2 className="h-8 w-8" />
-        <p className="text-sm">Empreendimento nao encontrado.</p>
+        <p className="text-sm">Empreendimento não encontrado.</p>
         <Link href="/dashboard/imoveis" className="text-sm text-blue-700 hover:text-blue-800">
-          Voltar para Imoveis
+          Voltar para Imóveis
         </Link>
       </div>
     );
@@ -310,7 +310,7 @@ export default function CadastroEmLotePage({
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            <Wand2 className="h-4 w-4" /> Gerar por padrao
+            <Wand2 className="h-4 w-4" /> Gerar por padrão
           </button>
           <button
             type="button"
@@ -353,7 +353,7 @@ export default function CadastroEmLotePage({
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <p className="flex items-center gap-2 font-medium">
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              {errosParsing.length} linha(s) nao puderam ser importadas
+              {errosParsing.length} linha(s) não puderam ser importadas
             </p>
             <ul className="mt-2 space-y-1 pl-6">
               {errosParsing.map((erro) => (

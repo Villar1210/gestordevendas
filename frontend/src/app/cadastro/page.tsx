@@ -9,19 +9,19 @@ const PERFIS = [
     href: "/cadastro/cliente",
     icon: User,
     title: "Cliente",
-    description: "Busco imoveis para comprar, alugar ou quero anunciar o meu.",
+    description: "Busco imóveis para comprar, alugar ou quero anunciar o meu.",
   },
   {
     href: "/cadastro/corretor",
     icon: Briefcase,
-    title: "Corretor de Imoveis",
-    description: "Sou profissional autonomo e quero ser corretor da equipe.",
+    title: "Corretor de Imóveis",
+    description: "Sou profissional autônomo e quero ser corretor da equipe.",
   },
   {
     href: "/cadastro/parceiro",
     icon: Users,
     title: "Parceiro",
-    description: "Sou corretor de outra imobiliaria ou represento uma imobiliaria.",
+    description: "Sou corretor de outra imobiliária ou represento uma imobiliária.",
   },
 ];
 
@@ -32,7 +32,7 @@ export default function CadastroPage() {
         <div className="mb-8 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Gestor de Vendas" className="mx-auto mb-4 w-[200px]" />
-          <p className="text-sm text-slate-500">Criar Cadastro - escolha o perfil que combina com voce</p>
+          <p className="text-sm text-slate-500">Criar Cadastro - escolha o perfil que combina com você</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -58,7 +58,7 @@ export default function CadastroPage() {
           href="/login"
           className="mt-8 block text-center text-sm text-blue-600 hover:underline"
         >
-          Ja tenho uma conta - fazer login
+          Já tenho uma conta - fazer login
         </Link>
       </div>
     </div>

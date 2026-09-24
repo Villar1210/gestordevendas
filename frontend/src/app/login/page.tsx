@@ -112,7 +112,7 @@ export default function LoginPage() {
         goToDashboard(result.token, result.user);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Nao foi possivel fazer login.");
+      setError(err instanceof ApiError ? err.message : "Não foi possível fazer login.");
     } finally {
       setLoading(false);
     }
@@ -132,7 +132,7 @@ export default function LoginPage() {
       });
       goToDashboard(result.token, result.user);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Codigo invalido.");
+      setError(err instanceof ApiError ? err.message : "Código inválido.");
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function LoginPage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="Gestor de Vendas" className="mx-auto mb-4 w-[200px]" />
         <p className="mb-6 text-center text-sm text-slate-500">
-          {challengeId ? "Confirme o codigo enviado por e-mail" : "Entre na sua conta"}
+          {challengeId ? "Confirme o código enviado por e-mail" : "Entre na sua conta"}
         </p>
 
         {error && (
@@ -219,7 +219,7 @@ export default function LoginPage() {
           <form onSubmit={handleVerifyCodeSubmit} className="space-y-4">
             <div>
               <label htmlFor="code" className="mb-1 block text-sm text-slate-500">
-                Codigo de 6 digitos
+                Código de 6 dígitos
               </label>
               <input
                 id="code"

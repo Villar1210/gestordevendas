@@ -28,9 +28,9 @@ export function getStatusOption(status: string): StatusOption {
 // (deteccao automatica por timeout) fica de fora de proposito - e o escopo
 // do I8b, ainda nao implementado.
 export const MOTIVO_FECHAMENTO_OPTIONS: { value: string; label: string }[] = [
-  { value: "venda_concluida", label: "Venda concluida" },
-  { value: "desistencia", label: "Desistencia" },
-  { value: "finalizacao_normal", label: "Finalizacao normal" },
+  { value: "venda_concluida", label: "Venda concluída" },
+  { value: "desistencia", label: "Desistência" },
+  { value: "finalizacao_normal", label: "Finalização normal" },
 ];
 
 export const EVENTO_TIPO_LABELS: Record<string, string> = {

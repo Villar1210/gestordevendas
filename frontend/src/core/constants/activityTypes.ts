@@ -12,8 +12,8 @@ export interface ActivityTypeOption {
 }
 
 export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
-  { value: "ligacao", label: "Ligacao", icon: Phone },
-  { value: "reuniao", label: "Reuniao", icon: Users },
+  { value: "ligacao", label: "Ligação", icon: Phone },
+  { value: "reuniao", label: "Reunião", icon: Users },
   { value: "visita", label: "Visita", icon: Home },
   { value: "tarefa", label: "Tarefa", icon: CheckSquare },
   { value: "proposta", label: "Proposta", icon: DollarSign },

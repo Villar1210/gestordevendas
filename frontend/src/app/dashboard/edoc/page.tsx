@@ -16,14 +16,14 @@ const FILTER_TABS: { label: string; status?: string }[] = [
   { label: "Todos" },
   { label: "Rascunho", status: "rascunho" },
   { label: "Enviados", status: "aguardando_assinaturas" },
-  { label: "Concluidos", status: "concluido" },
+  { label: "Concluídos", status: "concluido" },
   { label: "Cancelados", status: "cancelado" },
 ];
 
 const STATS_CARDS: { key: keyof EnvelopeStats; label: string }[] = [
   { key: "total", label: "Total de Envelopes" },
   { key: "aguardando_assinaturas", label: "Aguardando Assinatura" },
-  { key: "concluido", label: "Concluidos" },
+  { key: "concluido", label: "Concluídos" },
   { key: "rascunho", label: "Rascunhos" },
 ];
 
@@ -127,7 +127,7 @@ export default function EdocPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por titulo..."
+              placeholder="Buscar por título..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
@@ -150,7 +150,7 @@ export default function EdocPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Titulo</th>
+                  <th className="px-4 py-3 font-medium">Título</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Assinantes</th>
                   <th className="px-4 py-3 font-medium">Criado em</th>

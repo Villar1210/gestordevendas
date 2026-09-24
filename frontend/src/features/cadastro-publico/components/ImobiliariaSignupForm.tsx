@@ -36,7 +36,7 @@ export function ImobiliariaSignupForm() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("As senhas nao coincidem.");
+      setError("As senhas não coincidem.");
       return;
     }
 
@@ -71,8 +71,8 @@ export function ImobiliariaSignupForm() {
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="Gestor de Vendas" className="mx-auto mb-4 w-[200px]" />
-        <h1 className="mb-1 text-center text-xl font-semibold text-slate-800">Cadastro de Imobiliaria Parceira</h1>
-        <p className="mb-6 text-center text-sm text-slate-500">Dados do responsavel e da imobiliaria.</p>
+        <h1 className="mb-1 text-center text-xl font-semibold text-slate-800">Cadastro de Imobiliária Parceira</h1>
+        <p className="mb-6 text-center text-sm text-slate-500">Dados do responsável e da imobiliária.</p>
 
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -81,7 +81,7 @@ export function ImobiliariaSignupForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-sm font-medium text-slate-600">Responsavel</p>
+          <p className="text-sm font-medium text-slate-600">Responsável</p>
 
           <div>
             <label className="mb-1 block text-sm text-slate-500">Nome</label>
@@ -117,7 +117,7 @@ export function ImobiliariaSignupForm() {
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-sm text-slate-500">CPF do responsavel</label>
+              <label className="mb-1 block text-sm text-slate-500">CPF do responsável</label>
               <input
                 type="text"
                 value={cpf}
@@ -138,7 +138,7 @@ export function ImobiliariaSignupForm() {
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-sm text-slate-500">Endereco</label>
+              <label className="mb-1 block text-sm text-slate-500">Endereço</label>
               <input
                 type="text"
                 value={endereco}
@@ -148,10 +148,10 @@ export function ImobiliariaSignupForm() {
             </div>
           </div>
 
-          <p className="pt-2 text-sm font-medium text-slate-600">Imobiliaria</p>
+          <p className="pt-2 text-sm font-medium text-slate-600">Imobiliária</p>
 
           <div>
-            <label className="mb-1 block text-sm text-slate-500">Nome da imobiliaria</label>
+            <label className="mb-1 block text-sm text-slate-500">Nome da imobiliária</label>
             <input
               type="text"
               required
@@ -196,7 +196,7 @@ export function ImobiliariaSignupForm() {
 
           <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>Seu cadastro passara por aprovacao da nossa equipe antes de voce poder acessar.</p>
+            <p>Seu cadastro passará por aprovação da nossa equipe antes de você poder acessar.</p>
           </div>
 
           <div className="flex gap-3">

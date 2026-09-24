@@ -67,7 +67,7 @@ export function UnidadesLoteGrid({
 
       {rows.length === 0 ? (
         <p className="px-6 py-10 text-center text-sm text-slate-400">
-          Nenhuma unidade ainda. Gere a partir do padrao acima ou adicione uma linha manual.
+          Nenhuma unidade ainda. Gere a partir do padrão acima ou adicione uma linha manual.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -77,9 +77,9 @@ export function UnidadesLoteGrid({
                 <th className="px-3 py-3 font-medium">Identificador</th>
                 <th className="px-3 py-3 font-medium">Bloco</th>
                 <th className="px-3 py-3 font-medium">Andar</th>
-                <th className="px-3 py-3 font-medium">Posicao</th>
+                <th className="px-3 py-3 font-medium">Posição</th>
                 <th className="px-3 py-3 font-medium">Tipologia</th>
-                <th className="px-3 py-3 font-medium">Area (m2)</th>
+                <th className="px-3 py-3 font-medium">Área (m2)</th>
                 <th className="px-3 py-3 font-medium">Dorm.</th>
                 <th className="px-3 py-3 font-medium">Enquadramento</th>
                 <th className="px-3 py-3 text-center font-medium">PCD</th>
@@ -114,7 +114,7 @@ export function UnidadesLoteGrid({
                     />
                     {row.identificadorJaExiste && (
                       <p className="mt-1 flex items-center gap-1 text-xs text-red-600">
-                        <AlertTriangle className="h-3 w-3" /> Ja existe
+                        <AlertTriangle className="h-3 w-3" /> Já existe
                       </p>
                     )}
                   </td>

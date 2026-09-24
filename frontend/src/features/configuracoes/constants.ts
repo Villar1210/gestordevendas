@@ -5,13 +5,13 @@
 // aba de /dashboard/rh/aprovacoes) para o Administrador clicar e inserir
 // na posicao do cursor.
 export const CONTRATO_TEMPLATE_PLACEHOLDERS: { token: string; label: string }[] = [
-  { token: "{{NOME_TENANT}}", label: "Razao social da empresa (CONTRATANTE)" },
+  { token: "{{NOME_TENANT}}", label: "Razão social da empresa (CONTRATANTE)" },
   { token: "{{CNPJ_TENANT}}", label: "CNPJ da empresa" },
-  { token: "{{ENDERECO_TENANT}}", label: "Endereco da empresa" },
+  { token: "{{ENDERECO_TENANT}}", label: "Endereço da empresa" },
   { token: "{{NOME}}", label: "Nome do corretor/parceiro (CONTRATADO)" },
   { token: "{{CPF}}", label: "CPF do corretor/parceiro" },
-  { token: "{{CRECI}}", label: "CRECI (ou CNPJ, se pessoa juridica)" },
-  { token: "{{ENDERECO}}", label: "Endereco do corretor/parceiro" },
+  { token: "{{CRECI}}", label: "CRECI (ou CNPJ, se pessoa jurídica)" },
+  { token: "{{ENDERECO}}", label: "Endereço do corretor/parceiro" },
   { token: "{{CEP}}", label: "CEP do corretor/parceiro" },
   { token: "{{DATA_ATUAL}}", label: "Data de hoje" },
 ];
@@ -60,7 +60,7 @@ _____________________________
 // valor), so que com valores de exemplo fixos em vez dos dados reais de
 // um cadastro.
 const DADOS_FICTICIOS_PREVIEW: Record<string, string> = {
-  "{{NOME_TENANT}}": "Imobiliaria Exemplo Ltda",
+  "{{NOME_TENANT}}": "Imobiliária Exemplo Ltda",
   "{{CNPJ_TENANT}}": "12.345.678/0001-90",
   "{{ENDERECO_TENANT}}": "Rua Exemplo, 123, Centro, CEP 12345-000",
   "{{NOME}}": "João da Silva",
@@ -121,7 +121,7 @@ export const EMAIL_TEMPLATE_PADRAO: Record<string, { assunto: string; corpo: str
 const DADOS_FICTICIOS_EMAIL_PREVIEW: Record<string, string> = {
   "{{NOME}}": "João da Silva",
   "{{EMAIL}}": "joao.silva@exemplo.com",
-  "{{EMPRESA}}": "Imobiliaria Exemplo Ltda",
+  "{{EMPRESA}}": "Imobiliária Exemplo Ltda",
   "{{SENHA_TEMPORARIA}}": "a1b2c3d4e5f6",
   "{{CARGO}}": "corretor",
   "{{PERFIL}}": "Corretor",

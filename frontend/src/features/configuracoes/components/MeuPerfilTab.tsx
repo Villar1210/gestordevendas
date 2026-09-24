@@ -39,7 +39,7 @@ export function MeuPerfilTab() {
         setEmail(me.email);
       })
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar seu perfil.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar seu perfil.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -68,7 +68,7 @@ export function MeuPerfilTab() {
       setConfirmNewPassword("");
       setSavedAt(Date.now());
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar seu perfil.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível salvar seu perfil.");
     } finally {
       setSaving(false);
     }

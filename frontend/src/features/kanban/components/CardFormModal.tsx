@@ -10,7 +10,7 @@ import { useKanbanStore } from "../store/useKanbanStore";
 import { useKanbanIntegration } from "../hooks/useKanbanIntegration";
 
 const TEMPERATURE_OPTIONS = [
-  { value: "", label: "Nao definida" },
+  { value: "", label: "Não definida" },
   { value: "quente", label: "🔥 Quente" },
   { value: "morno", label: "☀️ Morno" },
   { value: "frio", label: "❄️ Frio" },
@@ -106,7 +106,7 @@ export function CardFormModal() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-slate-500">Titulo</label>
+            <label className="mb-1 block text-sm text-slate-500">Título</label>
             <input
               type="text"
               required

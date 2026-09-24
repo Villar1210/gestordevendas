@@ -39,7 +39,7 @@ export function EmailTemplatesTab() {
         }
       })
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os templates de e-mail.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar os templates de e-mail.");
       })
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,7 +86,7 @@ export function EmailTemplatesTab() {
       setTemplates((prev) => prev.map((t) => (t.tipo === tipoSelecionado ? atualizado : t)));
       alert("Template de e-mail salvo com sucesso.");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o template de e-mail.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível salvar o template de e-mail.");
     } finally {
       setIsSaving(false);
     }

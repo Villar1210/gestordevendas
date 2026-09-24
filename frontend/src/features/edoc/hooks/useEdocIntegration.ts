@@ -113,7 +113,7 @@ export function useEdocIntegration() {
         closeCreateModal();
         return result.envelope;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o rascunho.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível salvar o rascunho.");
         return null;
       }
     },
@@ -148,7 +148,7 @@ export function useEdocIntegration() {
         closeCreateModal();
         return sent;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o envelope.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o envelope.");
         return null;
       }
     },
@@ -160,7 +160,7 @@ export function useEdocIntegration() {
       try {
         return await apiRequest<EnvelopeForEdit>(`/edoc/envelopes/${envelopeId}/edit`);
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o rascunho.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar o rascunho.");
         return null;
       }
     },
@@ -173,7 +173,7 @@ export function useEdocIntegration() {
         `/edoc/envelopes/${envelopeId}`,
       );
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o envelope.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar o envelope.");
       return null;
     }
   }, []);
@@ -187,7 +187,7 @@ export function useEdocIntegration() {
         updateEnvelopeInPlace(updated);
         return updated;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel cancelar o envelope.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível cancelar o envelope.");
         return null;
       }
     },

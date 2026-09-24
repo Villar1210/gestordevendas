@@ -291,7 +291,7 @@ export function ImovelDetailPanel() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`${API_BASE_URL}${photos[carouselIndex]?.url}`}
-                    alt="Foto do imovel"
+                    alt="Foto do imóvel"
                     className="h-full w-full object-cover opacity-95"
                   />
                   {photos.length > 1 && (
@@ -363,21 +363,21 @@ export function ImovelDetailPanel() {
                   {imovel.rentPrice && (
                     <div className={imovel.price ? "mt-2" : ""}>
                       <p className="text-xs text-slate-500">Valor de aluguel</p>
-                      <p className="text-xl font-semibold text-slate-700">{currencyBRL.format(imovel.rentPrice)}<span className="text-sm font-normal text-slate-400">/mes</span></p>
+                      <p className="text-xl font-semibold text-slate-700">{currencyBRL.format(imovel.rentPrice)}<span className="text-sm font-normal text-slate-400">/mês</span></p>
                     </div>
                   )}
                   {!imovel.price && !imovel.rentPrice && (
-                    <p className="text-sm text-slate-400">Preco a consultar</p>
+                    <p className="text-sm text-slate-400">Preço a consultar</p>
                   )}
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-                    {imovel.valorCondominio && <span>Cond: {currencyBRL.format(imovel.valorCondominio)}/mes</span>}
+                    {imovel.valorCondominio && <span>Cond: {currencyBRL.format(imovel.valorCondominio)}/mês</span>}
                     {imovel.iptu && <span>IPTU: {currencyBRL.format(imovel.iptu)}/ano</span>}
                   </div>
                 </div>
 
                 {/* Ficha tecnica */}
                 <div>
-                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Ficha tecnica</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Ficha técnica</h3>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {imovel.bedrooms != null && (
                       <div className="flex flex-col items-center rounded-lg border border-slate-100 bg-white py-3 text-center shadow-sm">
@@ -390,7 +390,7 @@ export function ImovelDetailPanel() {
                       <div className="flex flex-col items-center rounded-lg border border-slate-100 bg-white py-3 text-center shadow-sm">
                         <Bed className="mb-1 h-5 w-5 text-purple-500" />
                         <span className="text-lg font-bold text-slate-800">{imovel.suites}</span>
-                        <span className="text-xs text-slate-400">Suites</span>
+                        <span className="text-xs text-slate-400">Suítes</span>
                       </div>
                     )}
                     {imovel.bathrooms != null && (
@@ -411,7 +411,7 @@ export function ImovelDetailPanel() {
                       <div className="flex flex-col items-center rounded-lg border border-slate-100 bg-white py-3 text-center shadow-sm">
                         <Maximize2 className="mb-1 h-5 w-5 text-blue-600" />
                         <span className="text-lg font-bold text-slate-800">{imovel.area}</span>
-                        <span className="text-xs text-slate-400">m² util</span>
+                        <span className="text-xs text-slate-400">m² útil</span>
                       </div>
                     )}
                     {imovel.areaTotal != null && imovel.areaTotal > 0 && (
@@ -451,7 +451,7 @@ export function ImovelDetailPanel() {
                 {/* Descricao */}
                 {imovel.description && (
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Descricao</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Descrição</h3>
                     <p className="text-sm leading-relaxed text-slate-600 whitespace-pre-line">{imovel.description}</p>
                   </div>
                 )}
@@ -459,7 +459,7 @@ export function ImovelDetailPanel() {
                 {/* Tags */}
                 {imovel.tags && (
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Caracteristicas</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Características</h3>
                     <div className="flex flex-wrap gap-2">
                       {imovel.tags.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => (
                         <span key={tag} className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600">
@@ -488,7 +488,7 @@ export function ImovelDetailPanel() {
                 {/* Mapa placeholder */}
                 {imovel.latitude && imovel.longitude && (
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Localizacao</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Localização</h3>
                     <a
                       href={`https://www.google.com/maps?q=${imovel.latitude},${imovel.longitude}`}
                       target="_blank"
@@ -503,7 +503,7 @@ export function ImovelDetailPanel() {
                 {/* Proprietario */}
                 {(imovel.proprietarioNome || imovel.proprietarioTelefone) && (
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Proprietario</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-slate-700">Proprietário</h3>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 space-y-1">
                       {imovel.proprietarioNome && <p className="font-medium">{imovel.proprietarioNome}</p>}
                       {imovel.proprietarioTelefone && <p className="text-slate-500">{imovel.proprietarioTelefone}</p>}
@@ -523,7 +523,7 @@ export function ImovelDetailPanel() {
                     {photos.map((photo, index) => (
                       <div key={photo.id} className="group relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={`${API_BASE_URL}${photo.url}`} alt="Foto do imovel" className="h-full w-full object-cover" />
+                        <img src={`${API_BASE_URL}${photo.url}`} alt="Foto do imóvel" className="h-full w-full object-cover" />
                         <button type="button" onClick={() => handleRemovePhoto(photo.id)} className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-1 text-white group-hover:block" aria-label="Remover foto">
                           <X className="h-3 w-3" />
                         </button>
@@ -546,15 +546,15 @@ export function ImovelDetailPanel() {
                 </section>
 
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Informacoes Basicas</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Informações Básicas</h3>
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Codigo interno</label>
+                        <label className="mb-1 block text-sm text-slate-500">Código interno</label>
                         <input type="text" placeholder="ex: AP-101" value={codigoInterno} onChange={(e) => setCodigoInterno(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Titulo</label>
+                        <label className="mb-1 block text-sm text-slate-500">Título</label>
                         <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                     </div>
@@ -568,7 +568,7 @@ export function ImovelDetailPanel() {
                       <div>
                         <label className="mb-1 block text-sm text-slate-500">Uso</label>
                         <select value={uso} onChange={(e) => setUso(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
-                          <option value="">Nao definido</option>
+                          <option value="">Não definido</option>
                           {USO_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
                       </div>
@@ -580,14 +580,14 @@ export function ImovelDetailPanel() {
                       </div>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm text-slate-500">Tags (separadas por virgula)</label>
+                      <label className="mb-1 block text-sm text-slate-500">Tags (separadas por vírgula)</label>
                       <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="ex: piscina, vista mar, mobiliado" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Situacao e Chaves</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Situação e Chaves</h3>
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -597,7 +597,7 @@ export function ImovelDetailPanel() {
                         </select>
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Disponivel a partir de</label>
+                        <label className="mb-1 block text-sm text-slate-500">Disponível a partir de</label>
                         <input type="date" value={disponivelApartirDe} onChange={(e) => setDisponivelApartirDe(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                     </div>
@@ -605,7 +605,7 @@ export function ImovelDetailPanel() {
                       <div className="flex-1">
                         <label className="mb-1 block text-sm text-slate-500">Local das chaves</label>
                         <select value={localChaves} onChange={(e) => setLocalChaves(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
-                          <option value="">Nao definido</option>
+                          <option value="">Não definido</option>
                           {LOCAL_CHAVES_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
                       </div>
@@ -618,7 +618,7 @@ export function ImovelDetailPanel() {
                 </section>
 
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Localizacao</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Localização</h3>
                   <div className="space-y-3">
                     <div className="flex gap-3">
                       <div className="flex-1">
@@ -626,7 +626,7 @@ export function ImovelDetailPanel() {
                         <input type="text" value={rua} onChange={(e) => setRua(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                       <div className="w-24">
-                        <label className="mb-1 block text-sm text-slate-500">Numero</label>
+                        <label className="mb-1 block text-sm text-slate-500">Número</label>
                         <input type="text" value={numero} onChange={(e) => setNumero(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                     </div>
@@ -658,7 +658,7 @@ export function ImovelDetailPanel() {
                 </section>
 
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Proprietario</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Proprietário</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1 block text-sm text-slate-500">Nome</label>
@@ -675,11 +675,11 @@ export function ImovelDetailPanel() {
                   <h3 className="mb-3 text-sm font-semibold text-slate-700">Valores</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1 block text-sm text-slate-500">Preco de venda (R$)</label>
+                      <label className="mb-1 block text-sm text-slate-500">Preço de venda (R$)</label>
                       <input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm text-slate-500">Preco de aluguel (R$)</label>
+                      <label className="mb-1 block text-sm text-slate-500">Preço de aluguel (R$)</label>
                       <input type="number" step="0.01" min="0" value={rentPrice} onChange={(e) => setRentPrice(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                     </div>
                     <div>
@@ -687,26 +687,26 @@ export function ImovelDetailPanel() {
                       <input type="number" step="0.01" min="0" value={iptu} onChange={(e) => setIptu(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm text-slate-500">Condominio (R$/mes)</label>
+                      <label className="mb-1 block text-sm text-slate-500">Condomínio (R$/mês)</label>
                       <input type="number" step="0.01" min="0" value={valorCondominio} onChange={(e) => setValorCondominio(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Caracteristicas</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-slate-700">Características</h3>
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Area util (m²)</label>
+                        <label className="mb-1 block text-sm text-slate-500">Área útil (m²)</label>
                         <input type="number" step="0.01" min="0" value={area} onChange={(e) => setArea(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Area total (m²)</label>
+                        <label className="mb-1 block text-sm text-slate-500">Área total (m²)</label>
                         <input type="number" step="0.01" min="0" value={areaTotal} onChange={(e) => setAreaTotal(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Area externa (m²)</label>
+                        <label className="mb-1 block text-sm text-slate-500">Área externa (m²)</label>
                         <input type="number" step="0.01" min="0" value={areaExterna} onChange={(e) => setAreaExterna(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                     </div>
@@ -716,7 +716,7 @@ export function ImovelDetailPanel() {
                         <input type="number" min="0" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm text-slate-500">Suites</label>
+                        <label className="mb-1 block text-sm text-slate-500">Suítes</label>
                         <input type="number" min="0" value={suites} onChange={(e) => setSuites(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                       </div>
                       <div>
@@ -755,7 +755,7 @@ export function ImovelDetailPanel() {
                       <input type="url" value={linkTourVirtual} onChange={(e) => setLinkTourVirtual(e.target.value)} placeholder="https://..." className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm text-slate-500">Descricao</label>
+                      <label className="mb-1 block text-sm text-slate-500">Descrição</label>
                       <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
                     </div>
                   </div>

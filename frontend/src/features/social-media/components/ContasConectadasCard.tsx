@@ -46,7 +46,7 @@ export function ContasConectadasCard() {
       ) : contas.length === 0 ? (
         <p className="text-sm text-slate-500">
           Nenhuma conta conectada ainda. Clique em &quot;Conectar Instagram/Facebook&quot; para vincular
-          uma Pagina do Facebook (e a conta do Instagram Business ligada a ela, se houver).
+          uma Página do Facebook (e a conta do Instagram Business ligada a ela, se houver).
         </p>
       ) : (
         <div className="divide-y divide-slate-100">

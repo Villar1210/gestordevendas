@@ -60,7 +60,7 @@ export function ImportarPlanilhaForm({
       <h2 className="mb-4 text-sm font-semibold text-slate-800">Importar de planilha</h2>
       <p className="mb-4 text-sm text-slate-500">
         Envie um arquivo .csv ou .xlsx exportado de outra fonte (ex: planilha da incorporadora).
-        As unidades serao extraidas automaticamente para o grid abaixo.
+        As unidades serão extraídas automaticamente para o grid abaixo.
       </p>
 
       {!file ? (

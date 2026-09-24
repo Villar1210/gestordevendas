@@ -60,7 +60,7 @@ export function QuickCardModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">Novo Negocio</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Novo Negócio</h2>
           <button
             onClick={closeQuickCardModal}
             className="text-slate-400 hover:text-slate-600"
@@ -94,7 +94,7 @@ export function QuickCardModal() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-slate-500">Imovel de Interesse</label>
+            <label className="mb-1 block text-sm text-slate-500">Imóvel de Interesse</label>
             <input
               type="text"
               value={imovelDeInteresse}

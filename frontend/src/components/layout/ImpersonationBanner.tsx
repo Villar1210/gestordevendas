@@ -45,7 +45,7 @@ export function ImpersonationBanner() {
   return (
     <div className="flex items-center justify-between border-b border-amber-300 bg-amber-100 px-6 py-2 text-sm text-amber-800">
       <span>
-        Modo simulacao: voce esta atuando como Administrador de{" "}
+        Modo simulação: você está atuando como Administrador de{" "}
         <strong>{tenantNome ?? "um tenant"}</strong>.
       </span>
       <button
@@ -53,7 +53,7 @@ export function ImpersonationBanner() {
         className="flex items-center gap-1.5 rounded-lg px-3 py-1 text-sm font-medium text-amber-800 transition hover:bg-amber-200"
       >
         <LogOut className="h-3.5 w-3.5" />
-        Sair da simulacao
+        Sair da simulação
       </button>
     </div>
   );

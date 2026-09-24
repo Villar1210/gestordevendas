@@ -33,7 +33,7 @@ export function ContratoTemplateTab() {
         setCorpo(template.corpo);
       })
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o template de contrato.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar o template de contrato.");
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -74,7 +74,7 @@ export function ContratoTemplateTab() {
       });
       alert("Template de contrato salvo com sucesso.");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o template de contrato.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível salvar o template de contrato.");
     } finally {
       setIsSaving(false);
     }

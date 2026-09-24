@@ -56,7 +56,7 @@ export default function AprovacoesPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-slate-800">Aprovacoes</h1>
+        <h1 className="text-lg font-semibold text-slate-800">Aprovações</h1>
         <div className="mt-3 flex rounded-lg border border-slate-200 p-0.5 w-fit">
           <button
             onClick={() => handleTabChange("pendentes")}
@@ -101,7 +101,7 @@ export default function AprovacoesPage() {
           ) : pendentes.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-white py-24 text-slate-400">
               <UserCheck className="h-8 w-8" />
-              <p className="text-sm">Nenhum cadastro pendente de aprovacao.</p>
+              <p className="text-sm">Nenhum cadastro pendente de aprovação.</p>
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">

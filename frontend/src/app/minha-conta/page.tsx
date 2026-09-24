@@ -90,9 +90,9 @@ const CONTRATO_STATUS_BADGE: Record<string, string> = {
 // (renomeada ou criada manualmente pelo tenant) cai no fallback (nome cru).
 const STAGE_FRIENDLY_LABELS: Record<string, string> = {
   "Em Atendimento": "Em atendimento",
-  Qualificacao: "Em qualificacao",
-  "Analise de Credito": "Em analise de credito",
-  Negociacao: "Em negociacao",
+  Qualificacao: "Em qualificação",
+  "Analise de Credito": "Em análise de crédito",
+  Negociacao: "Em negociação",
   Fechamento: "Fechamento",
 };
 
@@ -168,7 +168,7 @@ export default function MinhaContaPage() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <span className="text-lg font-semibold text-slate-800">gestordevendas</span>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-500">Ola, {user.name}</span>
+          <span className="text-sm text-slate-500">Olá, {user.name}</span>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-800"
@@ -184,10 +184,10 @@ export default function MinhaContaPage() {
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
               <Home className="h-5 w-5 text-blue-600" />
-              Meus Imoveis
+              Meus Imóveis
             </h2>
             {meusImoveis.length === 0 ? (
-              <EmptyState message="Voce ainda nao tem imoveis cadastrados." />
+              <EmptyState message="Você ainda não tem imóveis cadastrados." />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 {meusImoveis.map((item) => (
@@ -240,7 +240,7 @@ export default function MinhaContaPage() {
               Meu Atendimento
             </h2>
             {meuAtendimento.length === 0 ? (
-              <EmptyState message="Voce ainda nao tem nenhum atendimento em andamento." />
+              <EmptyState message="Você ainda não tem nenhum atendimento em andamento." />
             ) : (
               <div className="space-y-3">
                 {meuAtendimento.map((item) => (
@@ -252,8 +252,8 @@ export default function MinhaContaPage() {
                     <p className="text-sm text-blue-700">{getStageFriendlyLabel(item.stageName)}</p>
                     <p className="mt-1 text-xs text-slate-500">
                       {item.ownerName
-                        ? `Corretor responsavel: ${item.ownerName}`
-                        : "Ainda sem corretor responsavel definido."}
+                        ? `Corretor responsável: ${item.ownerName}`
+                        : "Ainda sem corretor responsável definido."}
                     </p>
                   </div>
                 ))}
@@ -268,7 +268,7 @@ export default function MinhaContaPage() {
             Assinaturas Pendentes
           </h2>
           {assinaturasPendentes.length === 0 ? (
-            <EmptyState message="Voce nao tem nenhuma assinatura pendente no momento." />
+            <EmptyState message="Você não tem nenhuma assinatura pendente no momento." />
           ) : (
             <div className="space-y-3">
               {assinaturasPendentes.map((item) => (
@@ -297,7 +297,7 @@ export default function MinhaContaPage() {
             Meus Documentos
           </h2>
           {documentosAssinados.length === 0 ? (
-            <EmptyState message="Voce ainda nao tem documentos assinados." />
+            <EmptyState message="Você ainda não tem documentos assinados." />
           ) : (
             <div className="space-y-3">
               {documentosAssinados.map((item) => (

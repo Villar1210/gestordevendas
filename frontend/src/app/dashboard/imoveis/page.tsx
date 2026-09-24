@@ -94,7 +94,7 @@ export default function ImoveisDashboardPage() {
     <div className="min-h-screen bg-slate-50">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold text-slate-800">Imoveis</h1>
+          <h1 className="text-lg font-semibold text-slate-800">Imóveis</h1>
           <div className="flex rounded-lg border border-slate-200 p-0.5">
             <button
               onClick={() => setActiveView("catalogo")}
@@ -104,7 +104,7 @@ export default function ImoveisDashboardPage() {
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Catalogo
+              Catálogo
             </button>
             <button
               onClick={() => setActiveView("espelho")}
@@ -124,7 +124,7 @@ export default function ImoveisDashboardPage() {
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Proprietarios
+              Proprietários
             </button>
             <button
               onClick={() => setActiveView("contratos")}
@@ -173,7 +173,7 @@ export default function ImoveisDashboardPage() {
               onClick={openImovelFormModal}
               className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
             >
-              <Plus className="h-4 w-4" /> Novo Imovel
+              <Plus className="h-4 w-4" /> Novo Imóvel
             </button>
           </div>
         )}
@@ -204,7 +204,7 @@ export default function ImoveisDashboardPage() {
                 href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}`}
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
-                <ClipboardCheck className="h-4 w-4" /> Revisao e Publicacao
+                <ClipboardCheck className="h-4 w-4" /> Revisão e Publicação
               </Link>
             </div>
           )}
@@ -212,7 +212,7 @@ export default function ImoveisDashboardPage() {
           <div className="flex items-center justify-between px-6 pt-3 pb-1">
             <p className="text-sm text-slate-500">
               {filteredImoveis.length}{" "}
-              {filteredImoveis.length !== 1 ? "imoveis encontrados" : "imovel encontrado"}
+              {filteredImoveis.length !== 1 ? "imóveis encontrados" : "imóvel encontrado"}
             </p>
             <div className="flex rounded-lg border border-slate-200 p-0.5">
               <button
@@ -241,7 +241,7 @@ export default function ImoveisDashboardPage() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
               <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-              <p className="text-sm">Carregando imoveis...</p>
+              <p className="text-sm">Carregando imóveis...</p>
             </div>
           ) : (
             <div className="px-6 py-4">
@@ -252,7 +252,7 @@ export default function ImoveisDashboardPage() {
                   ))}
                   {filteredImoveis.length === 0 && (
                     <p className="col-span-full py-10 text-center text-sm text-slate-400">
-                      Nenhum imovel encontrado.
+                      Nenhum imóvel encontrado.
                     </p>
                   )}
                 </div>

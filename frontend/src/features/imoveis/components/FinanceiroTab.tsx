@@ -94,8 +94,8 @@ export function FinanceiroTab() {
       if (result) {
         setToast({
           message: result.criados > 0
-            ? `${result.criados} cobranca(s) gerada(s) com sucesso.`
-            : "Nenhuma cobranca nova — lancamentos do mes-alvo ja existem.",
+            ? `${result.criados} cobrança(s) gerada(s) com sucesso.`
+            : "Nenhuma cobrança nova — lançamentos do mês-alvo já existem.",
           type: result.criados > 0 ? "success" : "error",
         });
       }
@@ -149,7 +149,7 @@ export function FinanceiroTab() {
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
-            <Wallet className="h-4 w-4 text-blue-600" /> Recebido este mes
+            <Wallet className="h-4 w-4 text-blue-600" /> Recebido este mês
           </div>
           <p className="text-xl font-semibold text-slate-800">{currencyFormatter.format(totalRecebidoNoMes)}</p>
         </div>
@@ -174,10 +174,10 @@ export function FinanceiroTab() {
         <div className="flex items-center gap-2">
           <button onClick={handleGerarCobrancasClick} disabled={gerando} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60">
             <RefreshCw className={`h-4 w-4 ${gerando ? "animate-spin" : ""}`} />
-            Gerar cobrancas do mes
+            Gerar cobranças do mês
           </button>
           <button onClick={openLancamentoFormModal} className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
-            <Plus className="h-4 w-4" /> Novo Lancamento
+            <Plus className="h-4 w-4" /> Novo Lançamento
           </button>
         </div>
       </div>
@@ -186,7 +186,7 @@ export function FinanceiroTab() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
-              <th className="px-4 py-3 font-medium">Imovel/Contrato</th>
+              <th className="px-4 py-3 font-medium">Imóvel/Contrato</th>
               <th className="px-4 py-3 font-medium">Tipo</th>
               <th className="px-4 py-3 font-medium">Categoria</th>
               <th className="px-4 py-3 font-medium">Valor</th>
@@ -266,11 +266,11 @@ export function FinanceiroTab() {
               <Wallet className="h-6 w-6 text-slate-400" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-600">Nenhum lancamento encontrado</p>
-              <p className="text-xs text-slate-400">Ajuste os filtros ou crie um novo lancamento.</p>
+              <p className="text-sm font-medium text-slate-600">Nenhum lançamento encontrado</p>
+              <p className="text-xs text-slate-400">Ajuste os filtros ou crie um novo lançamento.</p>
             </div>
             <button onClick={openLancamentoFormModal} className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
-              <Plus className="h-4 w-4" /> Novo Lancamento
+              <Plus className="h-4 w-4" /> Novo Lançamento
             </button>
           </div>
         )}

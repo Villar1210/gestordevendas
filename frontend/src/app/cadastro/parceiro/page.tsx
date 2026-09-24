@@ -9,13 +9,13 @@ const OPCOES = [
     href: "/cadastro/parceiro/corretor",
     icon: UserSquare2,
     title: "Corretor Parceiro",
-    description: "Sou corretor autonomo de outra imobiliaria e quero indicar clientes.",
+    description: "Sou corretor autônomo de outra imobiliária e quero indicar clientes.",
   },
   {
     href: "/cadastro/parceiro/imobiliaria",
     icon: Building2,
-    title: "Imobiliaria Parceira",
-    description: "Represento uma imobiliaria externa (CNPJ/CRECI-J).",
+    title: "Imobiliária Parceira",
+    description: "Represento uma imobiliária externa (CNPJ/CRECI-J).",
   },
 ];
 
@@ -26,7 +26,7 @@ export default function CadastroParceiroPage() {
         <div className="mb-8 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Gestor de Vendas" className="mx-auto mb-4 w-[200px]" />
-          <p className="text-sm text-slate-500">Voce e...</p>
+          <p className="text-sm text-slate-500">Você é...</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

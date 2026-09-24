@@ -8,7 +8,7 @@ export default function CadastroParceiroCorretorPage() {
     <CorretorSignupForm
       tipoPerfil="corretor_parceiro"
       titulo="Cadastro de Corretor Parceiro"
-      subtitulo="Corretor autonomo de outra imobiliaria."
+      subtitulo="Corretor autônomo de outra imobiliária."
       backHref="/cadastro/parceiro"
     />
   );

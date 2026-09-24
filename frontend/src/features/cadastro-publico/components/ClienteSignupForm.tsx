@@ -32,7 +32,7 @@ export function ClienteSignupForm() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("As senhas nao coincidem.");
+      setError("As senhas não coincidem.");
       return;
     }
 
@@ -66,7 +66,7 @@ export function ClienteSignupForm() {
         <img src="/logo.png" alt="Gestor de Vendas" className="mx-auto mb-4 w-[200px]" />
         <h1 className="mb-1 text-center text-xl font-semibold text-slate-800">Cadastro de Cliente</h1>
         <p className="mb-6 text-center text-sm text-slate-500">
-          Crie sua conta para acompanhar imoveis de interesse.
+          Crie sua conta para acompanhar imóveis de interesse.
         </p>
 
         {error && (
@@ -131,7 +131,7 @@ export function ClienteSignupForm() {
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-sm text-slate-500">Endereco</label>
+              <label className="mb-1 block text-sm text-slate-500">Endereço</label>
               <input
                 type="text"
                 value={endereco}
@@ -142,14 +142,14 @@ export function ClienteSignupForm() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-slate-500">Voce e</label>
+            <label className="mb-1 block text-sm text-slate-500">Você é</label>
             <select
               value={tipoCliente}
               onChange={(e) => setTipoCliente(e.target.value)}
               className={inputClass}
             >
-              <option value="comprador">Comprador - estou buscando um imovel</option>
-              <option value="proprietario">Proprietario - quero anunciar meu imovel</option>
+              <option value="comprador">Comprador - estou buscando um imóvel</option>
+              <option value="proprietario">Proprietário - quero anunciar meu imóvel</option>
               <option value="ambos">Ambos</option>
             </select>
           </div>

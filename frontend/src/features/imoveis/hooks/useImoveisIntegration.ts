@@ -357,7 +357,7 @@ export function useImoveisIntegration() {
     try {
       return await apiRequest<Imovel[]>(`/imoveis?empreendimentoId=${empreendimentoId}`);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar as unidades.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar as unidades.");
       return [];
     }
   }, []);
@@ -366,7 +366,7 @@ export function useImoveisIntegration() {
     try {
       return await apiRequest<Imovel>(`/imoveis/${imovelId}`);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o imovel.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar o imóvel.");
       return null;
     }
   }, []);
@@ -382,7 +382,7 @@ export function useImoveisIntegration() {
         closeImovelFormModal();
         return imovel;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o imovel.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o imóvel.");
         return null;
       }
     },
@@ -399,7 +399,7 @@ export function useImoveisIntegration() {
         updateImovelInPlace(imovel);
         return imovel;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o imovel.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível salvar o imóvel.");
         return null;
       }
     },
@@ -415,7 +415,7 @@ export function useImoveisIntegration() {
           { method: "POST", body: JSON.stringify(padrao) },
         );
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel gerar as unidades.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível gerar as unidades.");
         return null;
       }
     },
@@ -457,7 +457,7 @@ export function useImoveisIntegration() {
         );
         return result.produtos;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel ler a planilha.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível ler a planilha.");
         return null;
       }
     },
@@ -478,7 +478,7 @@ export function useImoveisIntegration() {
           { method: "POST", body: formData },
         );
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel importar a planilha.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível importar a planilha.");
         return null;
       }
     },
@@ -496,7 +496,7 @@ export function useImoveisIntegration() {
         closeEmpreendimentoFormModal();
         return empreendimento;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o empreendimento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o empreendimento.");
         return null;
       }
     },
@@ -522,7 +522,7 @@ export function useImoveisIntegration() {
         updateEmpreendimentoInPlace(empreendimento);
         return empreendimento;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel publicar o empreendimento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível publicar o empreendimento.");
         return null;
       }
     },
@@ -540,7 +540,7 @@ export function useImoveisIntegration() {
         return empreendimento;
       } catch (err) {
         alert(
-          err instanceof ApiError ? err.message : "Nao foi possivel despublicar o empreendimento.",
+          err instanceof ApiError ? err.message : "Não foi possível despublicar o empreendimento.",
         );
         return null;
       }
@@ -558,7 +558,7 @@ export function useImoveisIntegration() {
         updateEmpreendimentoInPlace(result.empreendimento);
         return result;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar a ficha tecnica.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível salvar a ficha técnica.");
         return null;
       }
     },
@@ -574,7 +574,7 @@ export function useImoveisIntegration() {
         body: formData,
       });
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel enviar a foto.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível enviar a foto.");
       return null;
     }
   }, []);
@@ -584,7 +584,7 @@ export function useImoveisIntegration() {
       await apiRequest(`/imoveis/${imovelId}/photos/${photoId}`, { method: "DELETE" });
       return true;
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel remover a foto.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível remover a foto.");
       return false;
     }
   }, []);
@@ -598,7 +598,7 @@ export function useImoveisIntegration() {
         body: JSON.stringify({ photoIds }),
       });
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel reordenar as fotos.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível reordenar as fotos.");
       return null;
     }
   }, []);
@@ -616,7 +616,7 @@ export function useImoveisIntegration() {
           body: formData,
         });
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel enviar a foto.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível enviar a foto.");
         return null;
       }
     },
@@ -631,7 +631,7 @@ export function useImoveisIntegration() {
         });
         return true;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel remover a foto.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível remover a foto.");
         return false;
       }
     },
@@ -648,7 +648,7 @@ export function useImoveisIntegration() {
           { method: "PATCH", body: JSON.stringify({ categoria, photoIds }) },
         );
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel reordenar as fotos.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível reordenar as fotos.");
         return null;
       }
     },
@@ -688,7 +688,7 @@ export function useImoveisIntegration() {
         closeProprietarioFormModal();
         return proprietario;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o proprietario.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o proprietário.");
         return null;
       }
     },
@@ -705,7 +705,7 @@ export function useImoveisIntegration() {
         updateProprietarioInPlace(proprietario);
         return proprietario;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o proprietario.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível salvar o proprietário.");
         return null;
       }
     },
@@ -723,7 +723,7 @@ export function useImoveisIntegration() {
         return inquilinoComprador;
       } catch (err) {
         alert(
-          err instanceof ApiError ? err.message : "Nao foi possivel criar o inquilino/comprador.",
+          err instanceof ApiError ? err.message : "Não foi possível criar o inquilino/comprador.",
         );
         return null;
       }
@@ -742,7 +742,7 @@ export function useImoveisIntegration() {
         return inquilinoComprador;
       } catch (err) {
         alert(
-          err instanceof ApiError ? err.message : "Nao foi possivel salvar o inquilino/comprador.",
+          err instanceof ApiError ? err.message : "Não foi possível salvar o inquilino/comprador.",
         );
         return null;
       }
@@ -756,7 +756,7 @@ export function useImoveisIntegration() {
         `/inquilinos-compradores/${inquilinoId}/documentos`,
       );
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os documentos.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar os documentos.");
       return [];
     }
   }, []);
@@ -772,7 +772,7 @@ export function useImoveisIntegration() {
           { method: "POST", body: formData },
         );
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel enviar o documento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível enviar o documento.");
         return null;
       }
     },
@@ -787,7 +787,7 @@ export function useImoveisIntegration() {
         });
         return true;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel remover o documento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível remover o documento.");
         return false;
       }
     },
@@ -815,7 +815,7 @@ export function useImoveisIntegration() {
         if (input.inquilinoComprador) await loadInquilinosCompradores();
         return contrato;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o contrato.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o contrato.");
         return null;
       }
     },
@@ -842,7 +842,7 @@ export function useImoveisIntegration() {
         if (imovel) updateImovelInPlace(imovel);
         return contrato;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel encerrar o contrato.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível encerrar o contrato.");
         return null;
       }
     },
@@ -875,7 +875,7 @@ export function useImoveisIntegration() {
         closeLancamentoFormModal();
         return lancamento;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o lancamento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o lançamento.");
         return null;
       }
     },
@@ -892,7 +892,7 @@ export function useImoveisIntegration() {
         updateLancamentoInPlace(lancamento);
         return lancamento;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel marcar como pago.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível marcar como pago.");
         return null;
       }
     },
@@ -907,7 +907,7 @@ export function useImoveisIntegration() {
       await loadLancamentos();
       return result;
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel gerar as cobrancas do mes.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível gerar as cobranças do mês.");
       return null;
     }
   }, [loadLancamentos]);

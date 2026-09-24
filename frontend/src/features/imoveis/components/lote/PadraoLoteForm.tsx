@@ -65,22 +65,22 @@ export function PadraoLoteForm({ onGerar, isGenerating }: PadraoLoteFormProps) {
       return;
     }
     if (inicial > final) {
-      setValidationError("O andar inicial nao pode ser maior que o andar final.");
+      setValidationError("O andar inicial não pode ser maior que o andar final.");
       return;
     }
     if (posicoes.length === 0) {
-      setValidationError("Informe ao menos uma posicao por andar.");
+      setValidationError("Informe ao menos uma posição por andar.");
       return;
     }
     const unidadesPorAndar: UnidadePadraoInput[] = [];
     for (const p of posicoes) {
       const posicaoNum = Number(p.posicao);
       if (!p.posicao || Number.isNaN(posicaoNum) || posicaoNum <= 0) {
-        setValidationError("Cada posicao precisa de um numero valido (maior que zero).");
+        setValidationError("Cada posição precisa de um número válido (maior que zero).");
         return;
       }
       if (!p.tipologia.trim()) {
-        setValidationError("Cada posicao precisa de uma tipologia.");
+        setValidationError("Cada posição precisa de uma tipologia.");
         return;
       }
       unidadesPorAndar.push({
@@ -101,7 +101,7 @@ export function PadraoLoteForm({ onGerar, isGenerating }: PadraoLoteFormProps) {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="mb-4 text-sm font-semibold text-slate-800">Padrao estrutural</h2>
+      <h2 className="mb-4 text-sm font-semibold text-slate-800">Padrão estrutural</h2>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
@@ -138,13 +138,13 @@ export function PadraoLoteForm({ onGerar, isGenerating }: PadraoLoteFormProps) {
 
       <div className="mt-5">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-medium text-slate-600">Posicoes por andar</p>
+          <p className="text-sm font-medium text-slate-600">Posições por andar</p>
           <button
             type="button"
             onClick={addPosicao}
             className="flex items-center gap-1 text-sm font-medium text-blue-700 hover:text-blue-800"
           >
-            <Plus className="h-4 w-4" /> Adicionar posicao
+            <Plus className="h-4 w-4" /> Adicionar posição
           </button>
         </div>
 
@@ -153,7 +153,7 @@ export function PadraoLoteForm({ onGerar, isGenerating }: PadraoLoteFormProps) {
             <div key={p.key} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
               <input
                 type="number"
-                placeholder="Posicao"
+                placeholder="Posição"
                 value={p.posicao}
                 onChange={(e) => updatePosicao(p.key, { posicao: e.target.value })}
                 className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
@@ -168,14 +168,14 @@ export function PadraoLoteForm({ onGerar, isGenerating }: PadraoLoteFormProps) {
               <input
                 type="number"
                 step="0.01"
-                placeholder="Area (m2)"
+                placeholder="Área (m2)"
                 value={p.area}
                 onChange={(e) => updatePosicao(p.key, { area: e.target.value })}
                 className="w-32 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
               <input
                 type="number"
-                placeholder="Dormitorios"
+                placeholder="Dormitórios"
                 value={p.dormitorios}
                 onChange={(e) => updatePosicao(p.key, { dormitorios: e.target.value })}
                 className="w-28 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
@@ -185,7 +185,7 @@ export function PadraoLoteForm({ onGerar, isGenerating }: PadraoLoteFormProps) {
                 onClick={() => removePosicao(p.key)}
                 disabled={posicoes.length === 1}
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-30"
-                aria-label="Remover posicao"
+                aria-label="Remover posição"
               >
                 <Trash2 className="h-4 w-4" />
               </button>

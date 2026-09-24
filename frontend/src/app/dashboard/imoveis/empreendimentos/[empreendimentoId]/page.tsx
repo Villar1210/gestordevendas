@@ -139,7 +139,7 @@ export default function EmpreendimentoDetailPage({
       if (err instanceof ApiError && err.status === 404) {
         setNotFound(true);
       } else {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o empreendimento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar o empreendimento.");
       }
     } finally {
       setIsLoading(false);
@@ -172,7 +172,7 @@ export default function EmpreendimentoDetailPage({
   async function handleDespublicarClick() {
     if (!empreendimento) return;
     const confirmado = window.confirm(
-      `Despublicar "${empreendimento.name}"? Ele volta a ficar como pendente de revisao.`,
+      `Despublicar "${empreendimento.name}"? Ele volta a ficar como pendente de revisão.`,
     );
     if (!confirmado) return;
 
@@ -320,9 +320,9 @@ export default function EmpreendimentoDetailPage({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-50 text-slate-400">
         <Building2 className="h-8 w-8" />
-        <p className="text-sm">Empreendimento nao encontrado.</p>
+        <p className="text-sm">Empreendimento não encontrado.</p>
         <Link href="/dashboard/imoveis" className="text-sm text-blue-700 hover:text-blue-800">
-          Voltar para Imoveis
+          Voltar para Imóveis
         </Link>
       </div>
     );
@@ -380,7 +380,7 @@ export default function EmpreendimentoDetailPage({
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">
-                  <Clock className="h-4 w-4" /> Pendente de revisao
+                  <Clock className="h-4 w-4" /> Pendente de revisão
                 </span>
               )}
               <span className="text-sm text-slate-500">
@@ -425,7 +425,7 @@ export default function EmpreendimentoDetailPage({
             CLAUDE.md. */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-800">Ficha Tecnica (extraida via IA)</h2>
+            <h2 className="text-sm font-semibold text-slate-800">Ficha Técnica (extraída via IA)</h2>
             {temFichaTecnica && !isEditingFicha && (
               <button
                 onClick={handleIniciarEdicaoFicha}
@@ -438,20 +438,20 @@ export default function EmpreendimentoDetailPage({
 
           {!temFichaTecnica ? (
             <p className="text-sm text-slate-400">
-              Nenhuma ficha tecnica importada via IA ainda. A importacao de PDF acontece via
-              API (POST /empreendimentos/:id/importar-pdf + confirmar-ficha-tecnica) - a tela
-              de upload ainda nao foi construida.
+              Nenhuma ficha técnica importada via IA ainda. A importação de PDF acontece via
+              API (POST /empreendimentos/:id/importar-pdf + confirmar-ficha-técnica) - a tela
+              de upload ainda não foi construída.
             </p>
           ) : !isEditingFicha || !fichaForm ? (
             <div className="grid gap-4 sm:grid-cols-3">
-              <FichaCampo label="Area do terreno (m2)" valor={empreendimento.areaTerreno} />
+              <FichaCampo label="Área do terreno (m2)" valor={empreendimento.areaTerreno} />
               <FichaCampo label="Total de unidades (declarado)" valor={empreendimento.totalUnidades} />
-              <FichaCampo label="Numero de torres" valor={empreendimento.numeroTorres} />
+              <FichaCampo label="Número de torres" valor={empreendimento.numeroTorres} />
               <FichaCampo label="Unidades por andar" valor={empreendimento.unidadesPorAndar} />
               <FichaCampo label="Gabarito (pavimentos)" valor={empreendimento.gabarito} />
               <FichaCampo label="Vagas de garagem" valor={empreendimento.vagas} />
               <div className="sm:col-span-3">
-                <p className="text-xs font-medium text-slate-500">Descricao</p>
+                <p className="text-xs font-medium text-slate-500">Descrição</p>
                 <p className="text-sm text-slate-700">{empreendimento.description || "-"}</p>
               </div>
               <div className="sm:col-span-3">
@@ -479,8 +479,8 @@ export default function EmpreendimentoDetailPage({
                       <thead>
                         <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
                           <th className="px-3 py-2 font-medium">Nome</th>
-                          <th className="px-3 py-2 font-medium">Area privativa</th>
-                          <th className="px-3 py-2 font-medium">Dormitorios</th>
+                          <th className="px-3 py-2 font-medium">Área privativa</th>
+                          <th className="px-3 py-2 font-medium">Dormitórios</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -505,7 +505,7 @@ export default function EmpreendimentoDetailPage({
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-3">
                 <NumeroInput
-                  label="Area do terreno (m2)"
+                  label="Área do terreno (m2)"
                   value={fichaForm.areaTerreno}
                   onChange={(v) => updateFichaField("areaTerreno", v)}
                 />
@@ -515,7 +515,7 @@ export default function EmpreendimentoDetailPage({
                   onChange={(v) => updateFichaField("totalUnidades", v)}
                 />
                 <NumeroInput
-                  label="Numero de torres"
+                  label="Número de torres"
                   value={fichaForm.numeroTorres}
                   onChange={(v) => updateFichaField("numeroTorres", v)}
                 />
@@ -537,7 +537,7 @@ export default function EmpreendimentoDetailPage({
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Descricao</label>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Descrição</label>
                 <textarea
                   value={fichaForm.descricao}
                   onChange={(e) => updateFichaField("descricao", e.target.value)}
@@ -586,7 +586,7 @@ export default function EmpreendimentoDetailPage({
                         className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                       />
                       <input
-                        placeholder="Area (m2)"
+                        placeholder="Área (m2)"
                         type="number"
                         value={tipologia.areaPrivativa}
                         onChange={(e) =>

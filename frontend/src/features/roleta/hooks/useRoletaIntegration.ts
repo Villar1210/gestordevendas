@@ -36,7 +36,7 @@ export function useRoletaIntegration() {
         setConfig(config);
         return config;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar a configuracao.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível salvar a configuração.");
         return null;
       } finally {
         setSaving(false);

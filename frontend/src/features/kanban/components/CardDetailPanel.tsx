@@ -13,13 +13,13 @@ const TABS: Tab[] = ["atividades", "anotacoes", "dados", "documentos"];
 
 const TAB_LABELS: Record<Tab, string> = {
   atividades: "Atividades",
-  anotacoes: "Anotacoes",
+  anotacoes: "Anotações",
   dados: "Dados do Cliente",
   documentos: "Documentos",
 };
 
 const TEMPERATURE_OPTIONS = [
-  { value: "", label: "Nao definida" },
+  { value: "", label: "Não definida" },
   { value: "quente", label: "🔥 Quente" },
   { value: "morno", label: "☀️ Morno" },
   { value: "frio", label: "❄️ Frio" },
@@ -329,7 +329,7 @@ export function CardDetailPanel() {
                 <textarea
                   value={noteBody}
                   onChange={(e) => setNoteBody(e.target.value)}
-                  placeholder="Escreva uma anotacao..."
+                  placeholder="Escreva uma anotação..."
                   rows={2}
                   className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
@@ -344,7 +344,7 @@ export function CardDetailPanel() {
 
               <div className="space-y-3">
                 {notes.length === 0 && (
-                  <p className="text-sm text-slate-400">Nenhuma anotacao ainda.</p>
+                  <p className="text-sm text-slate-400">Nenhuma anotação ainda.</p>
                 )}
                 {notes.map((note) => (
                   <div key={note.id} className="rounded-lg border border-slate-200 p-3">
@@ -422,7 +422,7 @@ export function CardDetailPanel() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-slate-500">Endereco</label>
+                <label className="mb-1 block text-sm text-slate-500">Endereço</label>
                 <input
                   type="text"
                   value={endereco}
@@ -433,7 +433,7 @@ export function CardDetailPanel() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-sm text-slate-500">Numero</label>
+                  <label className="mb-1 block text-sm text-slate-500">Número</label>
                   <input
                     type="text"
                     value={numero}

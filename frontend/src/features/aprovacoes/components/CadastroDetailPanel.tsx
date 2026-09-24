@@ -89,9 +89,9 @@ export function CadastroDetailPanel() {
           <Field label="Telefone" value={cadastro.telefone} />
           <Field label="CPF" value={cadastro.cpf} />
           <Field label="CEP" value={cadastro.cep} />
-          <Field label="Endereco" value={cadastro.endereco} />
+          <Field label="Endereço" value={cadastro.endereco} />
           <Field label="CRECI" value={cadastro.creci} />
-          <Field label="Nome da imobiliaria" value={cadastro.nomeImobiliaria} />
+          <Field label="Nome da imobiliária" value={cadastro.nomeImobiliaria} />
           <Field label="CNPJ" value={cadastro.cnpj} />
           <Field label="CRECI-J" value={cadastro.creciJ} />
           <Field label="Cargo na empresa" value={cadastro.cargoNaEmpresa} />
@@ -105,13 +105,13 @@ export function CadastroDetailPanel() {
             <p className="text-sm font-medium text-blue-700">Hierarquia (ao aprovar)</p>
 
             <div>
-              <label className="mb-1 block text-xs text-slate-500">Cargo hierarquico</label>
+              <label className="mb-1 block text-xs text-slate-500">Cargo hierárquico</label>
               <select
                 value={cargoHierarquico}
                 onChange={(e) => setCargoHierarquico(e.target.value)}
                 className={selectClass}
               >
-                <option value="">Nao definir agora</option>
+                <option value="">Não definir agora</option>
                 {CARGO_HIERARQUICO_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}

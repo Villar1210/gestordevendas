@@ -138,19 +138,19 @@ export function FieldPositionEditor({
           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           disabled={currentPage <= 1}
           className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:opacity-30"
-          aria-label="Pagina anterior"
+          aria-label="Página anterior"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-sm text-slate-600">
-          Pagina {currentPage} de {numPages || "..."}
+          Página {currentPage} de {numPages || "..."}
         </span>
         <button
           type="button"
           onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
           disabled={currentPage >= numPages}
           className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 disabled:opacity-30"
-          aria-label="Proxima pagina"
+          aria-label="Próxima página"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -241,7 +241,7 @@ export function FieldPositionEditor({
               <div className="flex flex-wrap items-center gap-3">
                 {assinaturaField && (
                   <label className="flex items-center gap-2 text-xs text-slate-500">
-                    Assinatura na pagina:
+                    Assinatura na página:
                     <select
                       value={assinaturaField.pageNumber}
                       onChange={(e) => setAssinaturaPage(recipientIndex, Number(e.target.value))}
@@ -259,7 +259,7 @@ export function FieldPositionEditor({
                 {recipient.role !== "testemunha" &&
                   (rubricaCount > 0 ? (
                     <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span>Rubrica em todas as {rubricaCount} paginas</span>
+                      <span>Rubrica em todas as {rubricaCount} páginas</span>
                       <button
                         type="button"
                         onClick={() => removeRubrica(recipientIndex)}
@@ -275,7 +275,7 @@ export function FieldPositionEditor({
                       disabled={!numPages}
                       className={`flex items-center gap-1 text-xs font-medium disabled:opacity-40 ${role.buttonClassName}`}
                     >
-                      <Plus className="h-3.5 w-3.5" /> Adicionar Rubrica (todas as paginas)
+                      <Plus className="h-3.5 w-3.5" /> Adicionar Rubrica (todas as páginas)
                     </button>
                   ))}
               </div>

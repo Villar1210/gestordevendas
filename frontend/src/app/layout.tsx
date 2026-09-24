@@ -9,7 +9,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "gestordevendas",
-  description: "CRM Imobiliario e Importacao",
+  description: "CRM Imobiliário e Importação",
 };
 
 export default function RootLayout({

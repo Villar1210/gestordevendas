@@ -36,7 +36,7 @@ export function useEquipeIntegration() {
         closeCorretorFormModal();
         return corretor;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o corretor.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o corretor.");
         return null;
       }
     },

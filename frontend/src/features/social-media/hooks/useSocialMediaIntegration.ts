@@ -27,21 +27,21 @@ export function useSocialMediaIntegration() {
       const { url } = await apiRequest<{ url: string }>("/social/conectar/iniciar");
       window.location.href = url;
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel iniciar a conexao.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível iniciar a conexão.");
       setConectando(false);
     }
   }, [setConectando]);
 
   const handleDesconectar = useCallback(
     async (id: string) => {
-      if (!window.confirm("Desconectar esta conta? Voce precisara autorizar novamente para reconecta-la.")) {
+      if (!window.confirm("Desconectar esta conta? Você precisará autorizar novamente para reconectá-la.")) {
         return;
       }
       try {
         await apiRequest(`/social/contas/${id}`, { method: "DELETE" });
         await loadContas();
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel desconectar a conta.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível desconectar a conta.");
       }
     },
     [loadContas],

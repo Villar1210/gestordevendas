@@ -63,7 +63,7 @@ export function ImovelFormModal() {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Novo Imovel"
+      aria-label="Novo Imóvel"
       onClick={closeImovelFormModal}
     >
       <div
@@ -71,7 +71,7 @@ export function ImovelFormModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">Novo Imovel</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Novo Imóvel</h2>
           <button
             onClick={closeImovelFormModal}
             className="text-slate-400 hover:text-slate-600"
@@ -99,7 +99,7 @@ export function ImovelFormModal() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-slate-500">Titulo</label>
+            <label className="mb-1 block text-sm text-slate-500">Título</label>
             <input
               type="text"
               required
@@ -143,7 +143,7 @@ export function ImovelFormModal() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-slate-500">Preco de venda (R$)</label>
+              <label className="mb-1 block text-sm text-slate-500">Preço de venda (R$)</label>
               <input
                 type="number"
                 step="0.01"
@@ -154,7 +154,7 @@ export function ImovelFormModal() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-500">Aluguel (R$/mes)</label>
+              <label className="mb-1 block text-sm text-slate-500">Aluguel (R$/mês)</label>
               <input
                 type="number"
                 step="0.01"

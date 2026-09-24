@@ -146,7 +146,7 @@ export function AtendimentoChatPanel({
             <Headset className="h-7 w-7 text-blue-500" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-600">Selecione um atendimento para comecar</p>
+            <p className="text-sm font-medium text-slate-600">Selecione um atendimento para começar</p>
             <p className="mt-0.5 text-xs text-slate-400">
               As conversas do WhatsApp aparecem na lista a esquerda.
             </p>
@@ -280,7 +280,7 @@ export function AtendimentoChatPanel({
           </HeaderAction>
           <HeaderAction
             tone="muted"
-            label="Historico"
+            label="Histórico"
             active={showHistory}
             onClick={() => setShowHistory((v) => !v)}
           >
@@ -389,7 +389,7 @@ export function AtendimentoChatPanel({
               <p className="text-sm font-medium text-slate-700">Adicionar nota interna</p>
               <textarea
                 rows={3}
-                placeholder="Nota visivel so para a equipe"
+                placeholder="Nota visível só para a equipe"
                 value={notaTexto}
                 onChange={(e) => setNotaTexto(e.target.value)}
                 className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
@@ -510,14 +510,14 @@ export function AtendimentoChatPanel({
 
         {noteMode && (
           <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-700">
-            <StickyNote className="h-3 w-3" /> Nota privada — nao sera enviada ao contato
+            <StickyNote className="h-3 w-3" /> Nota privada — não será enviada ao contato
           </div>
         )}
 
         <div className="flex items-center gap-1.5 p-3">
           <button
             type="button"
-            title={noteMode ? "Nota privada ATIVA (clique para desativar)" : "Nota privada (nao enviada ao contato)"}
+            title={noteMode ? "Nota privada ATIVA (clique para desativar)" : "Nota privada (não enviada ao contato)"}
             onClick={() => setNoteMode((v) => !v)}
             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
               noteMode ? "bg-amber-100 text-amber-700" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
@@ -558,18 +558,18 @@ export function AtendimentoChatPanel({
               <div className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
                 <AttachItem
                   icon={<ImageIcon className="h-4 w-4" />}
-                  label="Imagem / Video"
-                  tooltip="Em breve - upload de midia ainda nao suportado pelo backend"
+                  label="Imagem / Vídeo"
+                  tooltip="Em breve - upload de mídia ainda não suportado pelo backend"
                 />
                 <AttachItem
                   icon={<FileText className="h-4 w-4" />}
                   label="Documento"
-                  tooltip="Em breve - upload de midia ainda nao suportado pelo backend"
+                  tooltip="Em breve - upload de mídia ainda não suportado pelo backend"
                 />
                 <AttachItem
                   icon={<Contact2 className="h-4 w-4" />}
                   label="Contato"
-                  tooltip="Em breve - envio de contato ainda nao suportado pelo backend"
+                  tooltip="Em breve - envio de contato ainda não suportado pelo backend"
                 />
               </div>
             )}
@@ -577,9 +577,9 @@ export function AtendimentoChatPanel({
 
           <button
             type="button"
-            title="Gravar audio (em breve - sem endpoint de midia no backend)"
+            title="Gravar áudio (em breve - sem endpoint de mídia no backend)"
             disabled
-            aria-label="Gravar audio"
+            aria-label="Gravar áudio"
             className="flex h-9 w-9 shrink-0 cursor-not-allowed items-center justify-center rounded-lg text-slate-300"
           >
             <Mic className="h-4 w-4" />
@@ -590,7 +590,7 @@ export function AtendimentoChatPanel({
             type="text"
             placeholder={
               noteMode
-                ? "Nota privada (visivel so para a equipe)"
+                ? "Nota privada (visível só para a equipe)"
                 : isFechado
                   ? "Atendimento fechado"
                   : "Digite uma mensagem..."
@@ -630,7 +630,7 @@ export function AtendimentoChatPanel({
           <aside className="absolute right-0 top-0 z-20 flex h-full w-80 flex-col border-l border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <History className="h-4 w-4" /> Historico do numero
+                <History className="h-4 w-4" /> Histórico do número
               </div>
               <button
                 onClick={() => setShowHistory(false)}
@@ -642,7 +642,7 @@ export function AtendimentoChatPanel({
             </div>
             <div className="flex-1 overflow-y-auto p-3">
               {historico.length === 0 ? (
-                <p className="text-xs text-slate-400">Nenhum atendimento anterior deste numero.</p>
+                <p className="text-xs text-slate-400">Nenhum atendimento anterior deste número.</p>
               ) : (
                 <ul className="space-y-2">
                   {historico.map((h) => {

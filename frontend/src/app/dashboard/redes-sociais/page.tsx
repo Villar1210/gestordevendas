@@ -16,9 +16,9 @@ import { ContasConectadasCard } from "@/features/social-media/components/ContasC
 // SocialController.callback). Espelhado aqui so para exibicao amigavel;
 // os valores de "motivo" sao os mesmos que o backend gera.
 const MOTIVO_LABELS: Record<string, string> = {
-  parametros_ausentes: "A Meta nao retornou os parametros esperados.",
-  state_invalido: "A sessao de conexao expirou ou e invalida. Tente novamente.",
-  falha_conexao: "Nao foi possivel concluir a conexao com a Meta. Tente novamente.",
+  parametros_ausentes: "A Meta não retornou os parâmetros esperados.",
+  state_invalido: "A sessão de conexão expirou ou é inválida. Tente novamente.",
+  falha_conexao: "Não foi possível concluir a conexão com a Meta. Tente novamente.",
 };
 
 export default function RedesSociaisPage() {
@@ -52,12 +52,12 @@ export default function RedesSociaisPage() {
       const contas = params.get("contas") ?? "0";
       setFeedback({ tipo: "sucesso", mensagem: `${contas} conta(s) conectada(s) com sucesso.` });
     } else if (social === "cancelado") {
-      setFeedback({ tipo: "info", mensagem: "Conexao cancelada." });
+      setFeedback({ tipo: "info", mensagem: "Conexão cancelada." });
     } else if (social === "erro") {
       const motivo = params.get("motivo") ?? "";
       setFeedback({
         tipo: "erro",
-        mensagem: MOTIVO_LABELS[motivo] ?? "Nao foi possivel concluir a conexao.",
+        mensagem: MOTIVO_LABELS[motivo] ?? "Não foi possível concluir a conexão.",
       });
     }
 
@@ -79,7 +79,7 @@ export default function RedesSociaisPage() {
         </div>
         <h1 className="text-xl font-semibold text-slate-800">Redes Sociais</h1>
         <p className="max-w-md text-sm text-slate-500">
-          Este recurso e restrito ao Administrador.
+          Este recurso é restrito ao Administrador.
         </p>
       </div>
     );

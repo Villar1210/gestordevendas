@@ -58,7 +58,7 @@ export function KanbanColumn({
 
   function handleDeleteClick() {
     if (isProtected) return;
-    if (window.confirm(`Excluir a coluna "${stage.name}"? Essa acao nao pode ser desfeita.`)) {
+    if (window.confirm(`Excluir a coluna "${stage.name}"? Essa ação não pode ser desfeita.`)) {
       handleDeleteStage(stage.id);
     }
   }

@@ -23,8 +23,8 @@ export const USO_OPTIONS = [
 ];
 
 export const LOCAL_CHAVES_OPTIONS = [
-  { value: "imobiliaria", label: "Imobiliaria" },
-  { value: "proprietario", label: "Proprietario" },
+  { value: "imobiliaria", label: "Imobiliária" },
+  { value: "proprietario", label: "Proprietário" },
   { value: "outro", label: "Outro" },
 ];
 
@@ -42,7 +42,7 @@ export interface StatusOption {
 export const STATUS_OPTIONS: StatusOption[] = [
   {
     value: "disponivel",
-    label: "Disponivel",
+    label: "Disponível",
     badgeClassName: "bg-green-100 text-green-700",
     solidClassName: "bg-green-600",
   },
@@ -54,7 +54,7 @@ export const STATUS_OPTIONS: StatusOption[] = [
   },
   {
     value: "em_negociacao",
-    label: "Em Negociacao",
+    label: "Em Negociação",
     badgeClassName: "bg-blue-100 text-blue-700",
     solidClassName: "bg-blue-600",
   },
@@ -72,7 +72,7 @@ export const STATUS_OPTIONS: StatusOption[] = [
   },
   {
     value: "em_analise",
-    label: "Em Analise",
+    label: "Em Análise",
     badgeClassName: "bg-purple-100 text-purple-700",
     solidClassName: "bg-purple-600",
   },
@@ -139,8 +139,8 @@ export const TIPO_LANCAMENTO_OPTIONS = [
 export const CATEGORIA_LANCAMENTO_OPTIONS = [
   { value: "aluguel", label: "Aluguel" },
   { value: "venda", label: "Venda" },
-  { value: "taxa_administracao", label: "Taxa de Administracao" },
-  { value: "manutencao", label: "Manutencao" },
+  { value: "taxa_administracao", label: "Taxa de Administração" },
+  { value: "manutencao", label: "Manutenção" },
   { value: "outro", label: "Outro" },
 ];
 
@@ -177,8 +177,8 @@ export interface StatusAnaliseCreditoOption {
 }
 
 export const STATUS_ANALISE_CREDITO_OPTIONS: StatusAnaliseCreditoOption[] = [
-  { value: "nao_iniciada", label: "Nao Iniciada", badgeClassName: "bg-slate-100 text-slate-700" },
-  { value: "em_analise", label: "Em Analise", badgeClassName: "bg-amber-100 text-amber-700" },
+  { value: "nao_iniciada", label: "Não Iniciada", badgeClassName: "bg-slate-100 text-slate-700" },
+  { value: "em_analise", label: "Em Análise", badgeClassName: "bg-amber-100 text-amber-700" },
   { value: "aprovado", label: "Aprovado", badgeClassName: "bg-green-100 text-green-700" },
   { value: "reprovado", label: "Reprovado", badgeClassName: "bg-red-100 text-red-700" },
 ];
@@ -193,7 +193,7 @@ export function getStatusAnaliseCreditoOption(status: string): StatusAnaliseCred
 export const TIPO_DOCUMENTO_OPTIONS = [
   { value: "rg_cpf", label: "RG/CPF" },
   { value: "comprovante_renda", label: "Comprovante de Renda" },
-  { value: "comprovante_residencia", label: "Comprovante de Residencia" },
+  { value: "comprovante_residencia", label: "Comprovante de Residência" },
   { value: "outro", label: "Outro" },
 ];
 
@@ -219,7 +219,7 @@ export function getOrigemImportacaoLabel(origemImportacao: string | null): strin
 // EMPREENDIMENTO_PHOTO_CATEGORIAS do backend (empreendimento-repository.interface.ts).
 export const EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS = [
   { value: "planta", label: "Planta do Empreendimento" },
-  { value: "area_comum", label: "Area Comum" },
+  { value: "area_comum", label: "Área Comum" },
 ];
 
 export function getEmpreendimentoPhotoCategoriaLabel(categoria: string): string {

@@ -63,7 +63,7 @@ export function useMeuDashboardIntegration() {
         await apiRequest(`/activities/${activityId}/toggle-done`, { method: "PATCH" });
         setAtividadeDone(activityId, true);
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel atualizar a atividade.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível atualizar a atividade.");
       }
     },
     [setAtividadeDone],

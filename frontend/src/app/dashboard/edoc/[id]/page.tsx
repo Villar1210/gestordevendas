@@ -61,7 +61,7 @@ export default function EnvelopeDetailPage({ params }: { params: Promise<{ id: s
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-50 text-slate-400">
         <FileSignature className="h-8 w-8" />
-        <p className="text-sm">Envelope nao encontrado.</p>
+        <p className="text-sm">Envelope não encontrado.</p>
       </div>
     );
   }
@@ -149,7 +149,7 @@ export default function EnvelopeDetailPage({ params }: { params: Promise<{ id: s
 
         {envelope.status === "concluido" && !envelope.signedDocumentUrl && (
           <p className="mt-4 text-sm text-slate-400">
-            O documento foi concluido, mas o PDF final ainda esta sendo gerado. Atualize a pagina
+            O documento foi concluído, mas o PDF final ainda está sendo gerado. Atualize a página
             em instantes.
           </p>
         )}

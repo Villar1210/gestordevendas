@@ -67,7 +67,7 @@ export default function SuperUsuarioPage() {
     apiRequest<TenantSummary[]>("/super-usuario/tenants")
       .then(setTenants)
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os tenants.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar os tenants.");
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -76,7 +76,7 @@ export default function SuperUsuarioPage() {
     apiRequest<AcessoPlataformaLog[]>("/super-usuario/meus-acessos")
       .then(setHistorico)
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o historico.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar o histórico.");
       })
       .finally(() => setHistoricoLoaded(true));
   }
@@ -116,7 +116,7 @@ export default function SuperUsuarioPage() {
       window.localStorage.setItem(IMPERSONANDO_TENANT_NOME_STORAGE_KEY, result.tenantNome);
       router.push("/dashboard/kanban");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel entrar neste tenant.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível entrar neste tenant.");
       setEntrandoTenantId(null);
     }
   }
@@ -127,7 +127,7 @@ export default function SuperUsuarioPage() {
     <div className="min-h-screen bg-slate-50">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex items-center gap-4">
-          <span className="text-lg font-semibold text-slate-800">Gestao de Tenants</span>
+          <span className="text-lg font-semibold text-slate-800">Gestão de Tenants</span>
           <div className="flex rounded-lg border border-slate-200 p-0.5">
             <button
               onClick={() => handleSelectView("tenants")}
@@ -180,7 +180,7 @@ export default function SuperUsuarioPage() {
                     <th className="px-4 py-3 font-medium">Nome</th>
                     <th className="px-4 py-3 font-medium">CNPJ</th>
                     <th className="px-4 py-3 font-medium">Criado em</th>
-                    <th className="px-4 py-3 font-medium">Usuarios</th>
+                    <th className="px-4 py-3 font-medium">Usuários</th>
                     <th className="px-4 py-3 font-medium"></th>
                   </tr>
                 </thead>
@@ -212,7 +212,7 @@ export default function SuperUsuarioPage() {
         ) : !historicoLoaded ? (
           <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-            <p className="text-sm">Carregando historico...</p>
+            <p className="text-sm">Carregando histórico...</p>
           </div>
         ) : historico.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-white py-24 text-slate-400">
@@ -246,9 +246,9 @@ export default function SuperUsuarioPage() {
       {confirmandoTenant && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-            <h2 className="mb-2 text-sm font-semibold text-slate-800">Confirmar impersonacao</h2>
+            <h2 className="mb-2 text-sm font-semibold text-slate-800">Confirmar impersonação</h2>
             <p className="mb-4 text-sm text-slate-500">
-              Voce esta prestes a entrar como Administrador de{" "}
+              Você está prestes a entrar como Administrador de{" "}
               <strong>{confirmandoTenant.name}</strong>. Pra confirmar, digite o nome exato do
               tenant abaixo.
             </p>

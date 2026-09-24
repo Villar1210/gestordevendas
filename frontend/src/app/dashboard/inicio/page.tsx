@@ -57,7 +57,7 @@ export default function DashboardInicioPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-slate-800">Inicio</h1>
+        <h1 className="text-lg font-semibold text-slate-800">Início</h1>
         <div className="flex gap-2">
           <Link
             href="/dashboard/whatsapp"
@@ -88,7 +88,7 @@ export default function DashboardInicioPage() {
             </h2>
             {leadsPorEstagio.length === 0 ? (
               <p className="text-sm text-slate-400">
-                Voce ainda nao tem nenhum lead atribuido. Assuma um na Caixa de Entrada do Kanban.
+                Você ainda não tem nenhum lead atribuído. Assuma um na Caixa de Entrada do Kanban.
               </p>
             ) : (
               <div className="flex flex-wrap gap-3">
@@ -153,7 +153,7 @@ export default function DashboardInicioPage() {
           {/* Ultimos leads recebidos */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Inbox className="h-4 w-4 text-slate-400" /> Ultimos leads recebidos
+              <Inbox className="h-4 w-4 text-slate-400" /> Últimos leads recebidos
             </h2>
             {ultimosLeads.length === 0 ? (
               <p className="text-sm text-slate-400">Nenhum lead recebido ainda.</p>

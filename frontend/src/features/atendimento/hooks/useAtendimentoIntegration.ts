@@ -86,7 +86,7 @@ export function useAtendimentoIntegration() {
         return result;
       } catch (err) {
         if (!silent) {
-          alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar o atendimento.");
+          alert(err instanceof ApiError ? err.message : "Não foi possível carregar o atendimento.");
         }
         return null;
       } finally {
@@ -105,7 +105,7 @@ export function useAtendimentoIntegration() {
         updateAtendimentoInPlace(updated);
         return updated;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel assumir o atendimento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível assumir o atendimento.");
         return null;
       }
     },
@@ -122,7 +122,7 @@ export function useAtendimentoIntegration() {
         updateAtendimentoInPlace(updated);
         return updated;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel transferir o atendimento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível transferir o atendimento.");
         return null;
       }
     },
@@ -138,7 +138,7 @@ export function useAtendimentoIntegration() {
         updateAtendimentoInPlace(updated);
         return updated;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel devolver o atendimento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível devolver o atendimento.");
         return null;
       }
     },
@@ -155,7 +155,7 @@ export function useAtendimentoIntegration() {
         updateAtendimentoInPlace(updated);
         return updated;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel fechar o atendimento.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível fechar o atendimento.");
         return null;
       }
     },
@@ -170,7 +170,7 @@ export function useAtendimentoIntegration() {
       });
       return true;
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel adicionar a nota.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível adicionar a nota.");
       return false;
     }
   }, []);
@@ -183,7 +183,7 @@ export function useAtendimentoIntegration() {
       });
       return true;
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel enviar a mensagem.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível enviar a mensagem.");
       return false;
     }
   }, []);
@@ -198,7 +198,7 @@ export function useAtendimentoIntegration() {
         await loadFilas();
         return fila;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar a fila.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar a fila.");
         return null;
       }
     },
@@ -215,7 +215,7 @@ export function useAtendimentoIntegration() {
         await loadFilas();
         return true;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel vincular o usuario.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível vincular o usuário.");
         return false;
       }
     },
@@ -229,7 +229,7 @@ export function useAtendimentoIntegration() {
         await loadFilas();
         return true;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel desvincular o usuario.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível desvincular o usuário.");
         return false;
       }
     },
@@ -243,7 +243,7 @@ export function useAtendimentoIntegration() {
         await loadFilas();
         return true;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel excluir a fila.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível excluir a fila.");
         return false;
       }
     },

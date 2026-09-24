@@ -15,7 +15,7 @@ export const STATUS_OPTIONS: StatusOption[] = [
     label: "Aguardando Assinaturas",
     badgeClassName: "bg-amber-100 text-amber-700",
   },
-  { value: "concluido", label: "Concluido", badgeClassName: "bg-green-100 text-green-700" },
+  { value: "concluido", label: "Concluído", badgeClassName: "bg-green-100 text-green-700" },
   { value: "cancelado", label: "Cancelado", badgeClassName: "bg-red-100 text-red-700" },
 ];
 
@@ -42,7 +42,7 @@ export interface RoleOption {
 export const ROLE_OPTIONS: RoleOption[] = [
   {
     value: "destinatario",
-    label: "Destinatario",
+    label: "Destinatário",
     description: "Assina o documento",
     badgeClassName: "bg-blue-100 text-blue-700",
     cardBorderClassName: "border-blue-200 bg-blue-50/50",
@@ -54,7 +54,7 @@ export const ROLE_OPTIONS: RoleOption[] = [
   {
     value: "remetente",
     label: "Remetente",
-    description: "Assina apos destinatarios",
+    description: "Assina após destinatários",
     badgeClassName: "bg-green-100 text-green-700",
     cardBorderClassName: "border-green-200 bg-green-50/50",
     buttonClassName: "text-green-600 hover:underline",
@@ -65,7 +65,7 @@ export const ROLE_OPTIONS: RoleOption[] = [
   {
     value: "testemunha",
     label: "Testemunha",
-    description: "Assina por ultimo",
+    description: "Assina por último",
     badgeClassName: "bg-amber-100 text-amber-700",
     cardBorderClassName: "border-amber-200 bg-amber-50/50",
     buttonClassName: "text-amber-600 hover:underline",

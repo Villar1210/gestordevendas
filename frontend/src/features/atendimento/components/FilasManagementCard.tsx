@@ -72,7 +72,7 @@ export function FilasManagementCard() {
   }
 
   async function handleDelete(filaId: string, nome: string) {
-    if (!confirm(`Excluir a fila "${nome}"? Atendimentos vinculados voltam para "Nao Classificados".`))
+    if (!confirm(`Excluir a fila "${nome}"? Atendimentos vinculados voltam para "Não Classificados".`))
       return;
     setDeletingId(filaId);
     try {
@@ -116,8 +116,8 @@ export function FilasManagementCard() {
 
       {filas.length === 0 ? (
         <p className="py-6 text-center text-sm text-slate-400">
-          Nenhuma fila ainda - sera criada automaticamente (Suporte, Financeiro, Duvidas Gerais,
-          Atendimento Prioritario) assim que o primeiro atendimento chegar.
+          Nenhuma fila ainda - será criada automaticamente (Suporte, Financeiro, Dúvidas Gerais,
+          Atendimento Prioritário) assim que o primeiro atendimento chegar.
         </p>
       ) : (
         <>

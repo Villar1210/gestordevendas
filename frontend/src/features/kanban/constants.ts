@@ -14,9 +14,9 @@ export function isProtectedStageName(name: string): boolean {
 // opcoes do modal (MotivoRepiqueModal.tsx). O backend valida de novo
 // (defesa em profundidade), isso aqui e so UX.
 export const MOTIVO_REPIQUE_OPTIONS: { value: string; label: string }[] = [
-  { value: "SEM_RESPOSTA_90_DIAS", label: "Sem resposta ha 90+ dias" },
-  { value: "RESTRICAO_CPF", label: "Restricao no CPF" },
-  { value: "PRECO", label: "Preco (fora do orcamento do lead)" },
+  { value: "SEM_RESPOSTA_90_DIAS", label: "Sem resposta há 90+ dias" },
+  { value: "RESTRICAO_CPF", label: "Restrição no CPF" },
+  { value: "PRECO", label: "Preço (fora do orçamento do lead)" },
   { value: "SEM_PERFIL", label: "Sem perfil para financiamento" },
   { value: "OUTRO", label: "Outro motivo" },
 ];

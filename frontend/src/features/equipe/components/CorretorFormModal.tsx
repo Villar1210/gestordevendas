@@ -87,8 +87,8 @@ export function CorretorFormModal() {
           <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
             <Mail className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              Uma senha temporaria sera gerada automaticamente e enviada para este e-mail. O
-              corretor podera troca-la apos o primeiro login.
+              Uma senha temporária será gerada automaticamente e enviada para este e-mail. O
+              corretor poderá trocá-la após o primeiro login.
             </p>
           </div>
 

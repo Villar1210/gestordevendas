@@ -51,7 +51,7 @@ export function PermissoesCargosTab() {
   useEffect(() => {
     loadAll()
       .catch((err) => {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar a gestao de cargos.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível carregar a gestão de cargos.");
       })
       .finally(() => setIsLoading(false));
   }, [loadAll]);
@@ -75,7 +75,7 @@ export function PermissoesCargosTab() {
       // ser candidato a superior de outra pessoa, ou deixado de ser).
       await loadAll();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o cargo.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível salvar o cargo.");
     } finally {
       setSavingId(null);
     }

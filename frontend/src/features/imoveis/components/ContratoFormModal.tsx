@@ -125,14 +125,14 @@ export function ContratoFormModal() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-slate-500">Imovel</label>
+            <label className="mb-1 block text-sm text-slate-500">Imóvel</label>
             <select
               required
               value={imovelId}
               onChange={(e) => setImovelId(e.target.value)}
               className={inputClass}
             >
-              <option value="">Selecione um imovel disponivel/vago</option>
+              <option value="">Selecione um imóvel disponível/vago</option>
               {imoveisDisponiveis.map((imovel) => (
                 <option key={imovel.id} value={imovel.id}>
                   {imovel.title}
@@ -141,14 +141,14 @@ export function ContratoFormModal() {
             </select>
             {imoveisDisponiveis.length === 0 && (
               <p className="mt-1 text-xs text-blue-600">
-                Nenhum imovel disponivel/vago no momento.
+                Nenhum imóvel disponível/vago no momento.
               </p>
             )}
           </div>
 
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm text-slate-500">Proprietario</label>
+              <label className="text-sm text-slate-500">Proprietário</label>
               <button
                 type="button"
                 onClick={() => setNovoProprietario((v) => !v)}
@@ -162,7 +162,7 @@ export function ContratoFormModal() {
                 <input
                   type="text"
                   required
-                  placeholder="Nome do proprietario"
+                  placeholder="Nome do proprietário"
                   value={proprietarioNome}
                   onChange={(e) => setProprietarioNome(e.target.value)}
                   className={inputClass}
@@ -192,7 +192,7 @@ export function ContratoFormModal() {
                 onChange={(e) => setProprietarioId(e.target.value)}
                 className={inputClass}
               >
-                <option value="">Selecione um proprietario</option>
+                <option value="">Selecione um proprietário</option>
                 {proprietarios.map((proprietario) => (
                   <option key={proprietario.id} value={proprietario.id}>
                     {proprietario.nome}
@@ -266,7 +266,7 @@ export function ContratoFormModal() {
                 onChange={(e) => setTipo(e.target.value)}
                 className={inputClass}
               >
-                <option value="locacao">Locacao</option>
+                <option value="locacao">Locação</option>
                 <option value="venda">Venda</option>
               </select>
             </div>
@@ -286,7 +286,7 @@ export function ContratoFormModal() {
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-sm text-slate-500">Data de inicio</label>
+              <label className="mb-1 block text-sm text-slate-500">Data de início</label>
               <input
                 type="date"
                 required

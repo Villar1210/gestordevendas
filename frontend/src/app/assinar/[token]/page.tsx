@@ -55,7 +55,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
         setTypedName(result.recipient.name);
       })
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : "Nao foi possivel carregar o documento.");
+        setError(err instanceof ApiError ? err.message : "Não foi possível carregar o documento.");
       })
       .finally(() => setLoading(false));
   }, [token]);
@@ -126,7 +126,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
       });
       setSigned(true);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel assinar o documento.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível assinar o documento.");
     } finally {
       setSigning(false);
     }
@@ -145,7 +145,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
-          <h1 className="mb-2 text-xl font-semibold text-slate-800">Link indisponivel</h1>
+          <h1 className="mb-2 text-xl font-semibold text-slate-800">Link indisponível</h1>
           <p className="text-sm text-slate-500">{error}</p>
         </div>
       </div>
@@ -181,7 +181,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
 
         {alreadySigned ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 p-6 text-center text-sm text-green-700">
-            Voce ja assinou este documento.
+            Você já assinou este documento.
           </div>
         ) : (
           <>
@@ -195,9 +195,9 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
                   <Target className="h-4 w-4" />
                   <p>
                     {data.fields[currentFieldIndex]?.tipo === "rubrica" ? "Rubrica" : "Assinatura"}{" "}
-                    - e aqui que ela vai aparecer no documento (destacado{" "}
+                    - é aqui que ela vai aparecer no documento (destacado{" "}
                     {data.fields[currentFieldIndex]
-                      ? `na pagina ${data.fields[currentFieldIndex].pageNumber}`
+                      ? `na página ${data.fields[currentFieldIndex].pageNumber}`
                       : "acima"}
                     ).
                   </p>
@@ -223,7 +223,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
                       }
                       disabled={currentFieldIndex === data.fields.length - 1}
                       className="rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50 disabled:opacity-30"
-                      aria-label="Proximo campo"
+                      aria-label="Próximo campo"
                     >
                       <ChevronRight className="h-3.5 w-3.5" />
                     </button>
@@ -232,7 +232,7 @@ export default function AssinarPage({ params }: { params: Promise<{ token: strin
               </div>
 
               <p className="mb-3 text-xs text-slate-400">
-                Sua assinatura sera desenhada ou digitada uma unica vez e aplicada automaticamente
+                Sua assinatura será desenhada ou digitada uma única vez e aplicada automaticamente
                 em todos os {data.fields.length} campo{data.fields.length > 1 ? "s" : ""} acima.
               </p>
 

@@ -14,7 +14,7 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 
 const TIPO_LABELS: Record<string, string> = {
   venda: "Venda",
-  locacao: "Locacao",
+  locacao: "Locação",
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -41,7 +41,7 @@ export function ContratosTab() {
   }, []);
 
   async function handleEncerrarClick(contratoId: string, imovelId: string) {
-    if (!confirm("Encerrar este contrato? O imovel volta a ficar disponivel.")) return;
+    if (!confirm("Encerrar este contrato? O imóvel volta a ficar disponível.")) return;
     await handleEncerrarContrato(contratoId, imovelId);
   }
 
@@ -60,8 +60,8 @@ export function ContratosTab() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase text-slate-400">
-              <th className="px-4 py-3 font-medium">Imovel</th>
-              <th className="px-4 py-3 font-medium">Proprietario</th>
+              <th className="px-4 py-3 font-medium">Imóvel</th>
+              <th className="px-4 py-3 font-medium">Proprietário</th>
               <th className="px-4 py-3 font-medium">Inquilino/Comprador</th>
               <th className="px-4 py-3 font-medium">Tipo</th>
               <th className="px-4 py-3 font-medium">Valor</th>

@@ -122,7 +122,7 @@ export function useKanbanIntegration() {
         });
       } catch (err) {
         rollback();
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel mover o card.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível mover o card.");
       }
     },
     [moveCardOptimistic],
@@ -138,7 +138,7 @@ export function useKanbanIntegration() {
         });
       } catch (err) {
         rollback();
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel mover a coluna.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível mover a coluna.");
       }
     },
     [moveStageOptimistic],
@@ -154,7 +154,7 @@ export function useKanbanIntegration() {
         addStage({ ...stage, cards: [] });
         return stage;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar a coluna.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar a coluna.");
         return null;
       }
     },
@@ -171,7 +171,7 @@ export function useKanbanIntegration() {
         });
       } catch (err) {
         rollback();
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel renomear a coluna.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível renomear a coluna.");
       }
     },
     [renameStageOptimistic],
@@ -184,7 +184,7 @@ export function useKanbanIntegration() {
         await apiRequest(`/stages/${stageId}`, { method: "DELETE" });
       } catch (err) {
         rollback();
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel excluir a coluna.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível excluir a coluna.");
       }
     },
     [removeStageOptimistic],
@@ -196,7 +196,7 @@ export function useKanbanIntegration() {
       setPipelines(pipelines);
       return pipelines;
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar os funis.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar os funis.");
       return [];
     }
   }, [setPipelines]);
@@ -211,7 +211,7 @@ export function useKanbanIntegration() {
         addPipeline(pipeline);
         return pipeline;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o funil.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o funil.");
         return null;
       }
     },
@@ -229,7 +229,7 @@ export function useKanbanIntegration() {
         closeCardModal();
         closeQuickCardModal();
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o card.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível criar o card.");
       }
     },
     [addCard, closeCardModal, closeQuickCardModal],
@@ -245,7 +245,7 @@ export function useKanbanIntegration() {
         updateCardInPlace(card);
         return card;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel salvar o card.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível salvar o card.");
         return null;
       }
     },
@@ -260,7 +260,7 @@ export function useKanbanIntegration() {
           body: JSON.stringify(input),
         });
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel agendar a atividade.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível agendar a atividade.");
         return null;
       }
     },
@@ -271,7 +271,7 @@ export function useKanbanIntegration() {
     try {
       return await apiRequest<Activity[]>(`/cards/${cardId}/activities`);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar as atividades.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar as atividades.");
       return [];
     }
   }, []);
@@ -282,7 +282,7 @@ export function useKanbanIntegration() {
         method: "PATCH",
       });
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel atualizar a atividade.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível atualizar a atividade.");
       return null;
     }
   }, []);
@@ -294,7 +294,7 @@ export function useKanbanIntegration() {
         body: JSON.stringify({ body }),
       });
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel adicionar a nota.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível adicionar a nota.");
       return null;
     }
   }, []);
@@ -303,7 +303,7 @@ export function useKanbanIntegration() {
     try {
       return await apiRequest<Note[]>(`/cards/${cardId}/notes`);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar as notas.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar as notas.");
       return [];
     }
   }, []);
@@ -315,7 +315,7 @@ export function useKanbanIntegration() {
         body: JSON.stringify(input),
       });
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel criar o lead.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível criar o lead.");
       return null;
     }
   }, []);
@@ -324,7 +324,7 @@ export function useKanbanIntegration() {
     try {
       return await apiRequest<Card[]>(`/pipelines/${pipelineId}/inbox`);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel carregar a Caixa de Entrada.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar a Caixa de Entrada.");
       return [];
     }
   }, []);
@@ -336,7 +336,7 @@ export function useKanbanIntegration() {
         addCard(card);
         return card;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel assumir o lead.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível assumir o lead.");
         return null;
       }
     },
@@ -352,7 +352,7 @@ export function useKanbanIntegration() {
         addCard(card);
         return card;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel confirmar a atribuicao.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível confirmar a atribuição.");
         return null;
       }
     },
@@ -368,7 +368,7 @@ export function useKanbanIntegration() {
         updateCardInPlace(card);
         return card;
       } catch (err) {
-        alert(err instanceof ApiError ? err.message : "Nao foi possivel aceitar o lead.");
+        alert(err instanceof ApiError ? err.message : "Não foi possível aceitar o lead.");
         return null;
       }
     },
@@ -381,7 +381,7 @@ export function useKanbanIntegration() {
         method: "POST",
       });
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Nao foi possivel disparar a campanha de Repique.");
+      alert(err instanceof ApiError ? err.message : "Não foi possível disparar a campanha de Repique.");
       return null;
     }
   }, []);
