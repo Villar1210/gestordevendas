@@ -3,7 +3,7 @@
 
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
-import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
+import { useImoveisStore, type FinalidadeFilter } from "@/features/imoveis/store/useImoveisStore";
 import { TIPO_OPTIONS, FINALIDADE_OPTIONS, STATUS_OPTIONS } from "@/features/imoveis/constants";
 
 interface ImoveisFiltersProps {
@@ -77,7 +77,7 @@ export function ImoveisFilters({
 
         <select
           value={finalidadeFilter}
-          onChange={(e) => setFinalidadeFilter(e.target.value)}
+          onChange={(e) => setFinalidadeFilter(e.target.value as FinalidadeFilter)}
           className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">Todas finalidades</option>
@@ -151,7 +151,7 @@ export function ImoveisFilters({
           >
             <option value="all">Todos os empreendimentos</option>
             {empreendimentos.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.nome}</option>
+              <option key={emp.id} value={emp.id}>{emp.name}</option>
             ))}
           </select>
 

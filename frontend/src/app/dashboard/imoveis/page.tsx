@@ -76,15 +76,15 @@ export default function ImoveisDashboardPage() {
       if (tipoFilter !== "all" && imovel.tipo !== tipoFilter) return false;
       if (bedroomsFilter !== "all") {
         const min = parseInt(bedroomsFilter, 10);
-        if ((imovel.quartos ?? 0) < min) return false;
+        if ((imovel.bedrooms ?? 0) < min) return false;
       }
       if (minPrice !== "") {
         const min = parseFloat(minPrice);
-        if (!isNaN(min) && (imovel.valor ?? 0) < min) return false;
+        if (!isNaN(min) && (imovel.price ?? imovel.rentPrice ?? 0) < min) return false;
       }
       if (maxPrice !== "") {
         const max = parseFloat(maxPrice);
-        if (!isNaN(max) && (imovel.valor ?? 0) > max) return false;
+        if (!isNaN(max) && (imovel.price ?? imovel.rentPrice ?? 0) > max) return false;
       }
       return true;
     });
