@@ -16,10 +16,46 @@ export class ApiError extends Error {
   }
 }
 
+// Cache curto do GET /auth/me. Cada pagina do dashboard chamava /auth/me
+// de 3 a 5 vezes ao abrir (Sidebar, Topbar, banner, a propria pagina...).
+// Com o cache, chamadas simultaneas ou proximas reaproveitam a mesma resposta.
+const ME_ENDPOINT = "/auth/me";
+const ME_CACHE_TTL_MS = 30_000;
+// Guarda tambem o token: login, troca de conta ou impersonacao geram outro
+// token e, portanto, nunca reaproveitam o /auth/me do usuario anterior.
+let meCache: { promise: Promise<unknown>; expiresAt: number; token: string | null } | null = null;
+
+function invalidateMeCache(): void {
+  meCache = null;
+}
+
 export async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
+  if (endpoint === ME_ENDPOINT && typeof window !== "undefined") {
+    if (method !== "GET") {
+      // PATCH /auth/me (perfil/senha) altera os dados: descarta o cache
+      // antes e depois, para nenhuma leitura concorrente guardar dado velho.
+      invalidateMeCache();
+      return rawApiRequest<T>(endpoint, options).finally(invalidateMeCache);
+    } else {
+      const currentToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (meCache && meCache.expiresAt > Date.now() && meCache.token === currentToken) {
+        return meCache.promise as Promise<T>;
+      }
+      const promise = rawApiRequest<T>(endpoint, options);
+      meCache = { promise, expiresAt: Date.now() + ME_CACHE_TTL_MS, token: currentToken };
+      // Falha nao fica em cache: a proxima chamada tenta de novo.
+      promise.catch(() => invalidateMeCache());
+      return promise;
+    }
+  }
+  return rawApiRequest<T>(endpoint, options);
+}
+
+async function rawApiRequest<T>(endpoint: string, options: RequestInit): Promise<T> {
   const token =
     typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_STORAGE_KEY) : null;
 
@@ -58,6 +94,7 @@ export async function apiRequest<T = unknown>(
 
 // Remove todos os dados de sessao do localStorage.
 function clearLocalSession(): void {
+  invalidateMeCache();
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
   window.localStorage.removeItem(STATUS_DISPONIBILIDADE_STORAGE_KEY);
   window.localStorage.removeItem(IMPERSONANDO_TENANT_NOME_STORAGE_KEY);

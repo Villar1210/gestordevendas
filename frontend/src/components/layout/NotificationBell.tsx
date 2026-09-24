@@ -15,7 +15,9 @@ interface Notification {
   createdAt: string;
 }
 
-const POLL_INTERVAL_MS = 5000; // mesmo padrao ja usado em /dashboard/atendimento
+// Antes era 5s: cada aba aberta fazia 12 consultas por minuto, e cada uma
+// ainda passa pela validacao do token no banco. 30s e suficiente para um sino.
+const POLL_INTERVAL_MS = 30_000;
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
@@ -33,8 +35,18 @@ export function NotificationBell() {
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    // Nao consulta com a aba em segundo plano; ao voltar, atualiza na hora.
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") loadNotifications();
+    }, POLL_INTERVAL_MS);
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") loadNotifications();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
