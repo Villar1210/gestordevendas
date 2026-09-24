@@ -2,8 +2,10 @@ module.exports = {
   apps: [
     {
       name: 'gestordevendas',
-      script: '/var/www/gestordevendas/node_modules/.bin/ts-node',
-      args: '-T src/main.ts',
+      // Roda o codigo ja compilado (npm run build -> dist/). Antes rodava
+      // ts-node direto do src/, que compila tudo em memoria a cada restart,
+      // usa bem mais RAM e deixa o servidor mais lento.
+      script: 'dist/main.js',
       cwd: '/var/www/gestordevendas',
       env: {
         NODE_ENV: 'production',
