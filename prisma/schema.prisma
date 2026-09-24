@@ -288,6 +288,9 @@ model Notification {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // GET /notificacoes filtra por (tenantId, userId) e ordena por createdAt,
+  // a cada poll do sino. Sem indice era varredura da tabela inteira.
+  @@index([tenantId, userId, createdAt])
   @@map("notifications")
 }
 
@@ -1009,6 +1012,8 @@ model Imovel {
   contratos      Contrato[]
 
   @@unique([tenantId, identificadorExterno])
+  // GET /imoveis lista por tenant ordenado por data de criacao.
+  @@index([tenantId, createdAt])
   @@map("imoveis")
 }
 
@@ -1024,6 +1029,8 @@ model ImovelPhoto {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   imovel Imovel @relation(fields: [imovelId], references: [id], onDelete: Cascade)
 
+  // A foto de capa do catalogo busca a 1a foto de cada imovel por imovelId.
+  @@index([imovelId, order])
   @@map("imovel_photos")
 }
 
