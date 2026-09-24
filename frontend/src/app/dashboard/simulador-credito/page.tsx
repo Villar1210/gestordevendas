@@ -25,20 +25,27 @@ function fmtPct(v: number) {
   return (v * 100).toFixed(2).replace(".", ",") + "% a.a.";
 }
 
+// Máscara em reais: "4000" vira "4.000" e "4000,5" vira "4.000,5".
+// Antes a máscara tratava os dígitos como centavos ("4000" virava R$ 40,00).
 function formatarRenda(valor: string): string {
-  const numeros = valor.replace(/\D/g, "");
-  if (!numeros) return "";
-  const numero = parseInt(numeros, 10) / 100;
-  return numero.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const limpo = valor.replace(/[^\d,]/g, "");
+  if (!limpo) return "";
+  const [inteiroBruto, ...resto] = limpo.split(",");
+  const inteiro = inteiroBruto.replace(/^0+(?=\d)/, "");
+  const inteiroFormatado = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  if (resto.length === 0) return inteiroFormatado;
+  const centavos = resto.join("").slice(0, 2);
+  return `${inteiroFormatado || "0"},${centavos}`;
 }
 
 function parsearRenda(valorFormatado: string): number {
   const limpo = valorFormatado.replace(/\./g, "").replace(",", ".");
   return parseFloat(limpo) || 0;
 }
+
+const RENDA_MINIMA = 1700;
+const IDADE_MINIMA = 21;
+const IDADE_MAXIMA = 80;
 
 export default function SimuladorCreditoPage() {
   const [rendaDisplay, setRendaDisplay] = useState("");
@@ -52,9 +59,18 @@ export default function SimuladorCreditoPage() {
     e.preventDefault();
     setError(null);
     setResult(null);
+    const renda = parsearRenda(rendaDisplay);
+    const idadeNumero = parseInt(idade, 10);
+    if (renda < RENDA_MINIMA) {
+      setError("A renda familiar mínima para simular é R$ 1.700,00.");
+      return;
+    }
+    if (isNaN(idadeNumero) || idadeNumero < IDADE_MINIMA || idadeNumero > IDADE_MAXIMA) {
+      setError(`A idade precisa estar entre ${IDADE_MINIMA} e ${IDADE_MAXIMA} anos.`);
+      return;
+    }
     setLoading(true);
     try {
-      const renda = parsearRenda(rendaDisplay);
       const params = new URLSearchParams({
         renda: String(renda),
         idade,
@@ -99,7 +115,7 @@ export default function SimuladorCreditoPage() {
                   onChange={(e) => {
                     setRendaDisplay(formatarRenda(e.target.value));
                   }}
-                  placeholder="0,00"
+                  placeholder="Ex: 4.000"
                   className="w-full rounded-lg border border-slate-200 py-2 pl-8 pr-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
               </div>
@@ -112,8 +128,8 @@ export default function SimuladorCreditoPage() {
               <input
                 type="number"
                 inputMode="numeric"
-                min={18}
-                max={99}
+                min={IDADE_MINIMA}
+                max={IDADE_MAXIMA}
                 required
                 value={idade}
                 onChange={(e) => {
