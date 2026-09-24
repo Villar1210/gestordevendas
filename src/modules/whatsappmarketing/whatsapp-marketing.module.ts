@@ -1,5 +1,6 @@
 // src/modules/whatsappmarketing/whatsapp-marketing.module.ts
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { WhatsAppController } from './infra/http/whatsapp.controller';
 import { CreateWhatsAppSessionUseCase } from './application/use-cases/create-whatsapp-session.use-case';
 import { SendWhatsAppMessageUseCase } from './application/use-cases/send-whatsapp-message.use-case';
@@ -10,9 +11,11 @@ import { GetMyWhatsAppSessionUseCase } from './application/use-cases/get-my-what
 import { PrismaWhatsAppSessionRepository } from './infra/database/prisma-whatsapp-session.repository';
 import { PrismaWhatsAppMessageRepository } from './infra/database/prisma-whatsapp-message.repository';
 import { BaileysWhatsAppProvider } from './infra/providers/baileys-whatsapp-provider';
+import { ChatwootWhatsappService } from '../vivi-integration/services/chatwoot-whatsapp.service';
 import { PrismaService } from '../../config/prisma.service';
 
 @Module({
+  imports: [ConfigModule],
   controllers: [WhatsAppController],
   providers: [
     PrismaService,
@@ -22,15 +25,14 @@ import { PrismaService } from '../../config/prisma.service';
     GetWhatsAppQrCodeUseCase,
     GetWhatsAppSessionStatusUseCase,
     GetMyWhatsAppSessionUseCase,
-    // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
-    // aqui entregamos a implementacao concreta (Prisma / Baileys).
     { provide: 'IWhatsAppSessionRepository', useClass: PrismaWhatsAppSessionRepository },
     { provide: 'IWhatsAppMessageRepository', useClass: PrismaWhatsAppMessageRepository },
     { provide: 'IWhatsAppProvider', useClass: BaileysWhatsAppProvider },
+    // Sender Chatwoot Cloud API — injetado opcionalmente no SendWhatsAppMessageUseCase
+    // para redirecionar mensagens da sessão virtual VIVI (CHATWOOT_VIRTUAL_SESSION_ID).
+    ChatwootWhatsappService,
+    { provide: 'IChatwootOutboundSender', useExisting: ChatwootWhatsappService },
   ],
-  // Exportados para o modulo vivi_sdr: o listener de eventos precisa checar
-  // isAiEnabled/ler historico, e o caso de uso de resposta precisa enviar
-  // a mensagem de volta ao lead.
   exports: [
     SendWhatsAppMessageUseCase,
     'IWhatsAppSessionRepository',

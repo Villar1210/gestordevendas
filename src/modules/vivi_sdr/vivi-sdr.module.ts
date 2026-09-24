@@ -1,5 +1,6 @@
 // src/modules/vivi_sdr/vivi-sdr.module.ts
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { WhatsAppMarketingModule } from '../whatsappmarketing/whatsapp-marketing.module';
 import { VendasKanbanModule } from '../vendas_kanban/vendas-kanban.module';
 import { AtendimentoModule } from '../atendimento/atendimento.module';
@@ -11,6 +12,7 @@ import { CanaisModule } from '../../shared/canais.module';
 import { ViviSessionController } from './infra/http/vivi-session.controller';
 import { ViviConversationController } from './infra/http/vivi-conversation.controller';
 import { ViviConfigController } from './infra/http/vivi-config.controller';
+import { ChatwootWebhookController } from './infra/http/chatwoot-webhook.controller';
 import { EnableViviOnSessionUseCase } from './application/use-cases/enable-vivi-on-session.use-case';
 import { DisableViviOnSessionUseCase } from './application/use-cases/disable-vivi-on-session.use-case';
 import { ListViviConversationsUseCase } from './application/use-cases/list-vivi-conversations.use-case';
@@ -59,6 +61,7 @@ import { PrismaService } from '../../config/prisma.service';
   // fallback Administrador (findAllByTenantAndRole) na mensagem de
   // confirmacao de visita - mesmo padrao ja usado pelo portal_cliente.
   imports: [
+    ConfigModule,
     WhatsAppMarketingModule,
     VendasKanbanModule,
     AtendimentoModule,
@@ -68,8 +71,8 @@ import { PrismaService } from '../../config/prisma.service';
     AuthModule,
     CanaisModule,
   ],
-  controllers: [ViviSessionController, ViviConversationController, ViviConfigController],
-  exports: [AgendarVisitaUseCase],
+  controllers: [ViviSessionController, ViviConversationController, ViviConfigController, ChatwootWebhookController],
+  exports: [AgendarVisitaUseCase, ProcessIncomingMessageUseCase],
   providers: [
     PrismaService,
     EnableViviOnSessionUseCase,

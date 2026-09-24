@@ -113,6 +113,7 @@ import { CanaisModule } from '../../shared/canais.module';
   // de "assumir o lead") e os repositorios de Card/Stage.
   exports: [
     CreateQuickCardUseCase,
+    MoveCardUseCase,
     CreateNoteUseCase,
     ClaimCardUseCase,
     CreateActivityUseCase,
