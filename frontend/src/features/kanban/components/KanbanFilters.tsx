@@ -49,6 +49,7 @@ export function KanbanFilters() {
         <option value="manual">Manual</option>
         <option value="webhook">Webhook</option>
         <option value="roleta_online">Roleta Online</option>
+        <option value="captura_auto_vivi">Captura Automática (VIVI)</option>
       </select>
     </div>
   );

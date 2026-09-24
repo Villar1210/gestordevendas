@@ -61,7 +61,7 @@ export interface Pipeline {
 }
 
 export type TemperatureFilter = "all" | "quente" | "morno" | "frio";
-export type OrigemFilter = "all" | "manual" | "webhook" | "roleta_online";
+export type OrigemFilter = "all" | "manual" | "webhook" | "roleta_online" | "captura_auto_vivi";
 export type KanbanView = "kanban" | "inbox";
 
 interface CardModalState {
