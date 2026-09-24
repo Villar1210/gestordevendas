@@ -112,7 +112,8 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         id="menu-principal"
         aria-label="Menu principal"
         className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:z-auto md:w-60 md:translate-x-0 ${
-          open ? "translate-x-0 shadow-xl" : "-translate-x-full"
+          // Fechada no celular: "invisible" tira o menu da ordem do Tab.
+          open ? "visible translate-x-0 shadow-xl" : "invisible -translate-x-full md:visible"
         }`}
       >
         <div className="flex items-center justify-between px-6 py-5">

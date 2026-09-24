@@ -48,7 +48,9 @@ export async function apiRequest<T = unknown>(
       const promise = rawApiRequest<T>(endpoint, options);
       meCache = { promise, expiresAt: Date.now() + ME_CACHE_TTL_MS, token: currentToken };
       // Falha nao fica em cache: a proxima chamada tenta de novo.
-      promise.catch(() => invalidateMeCache());
+      promise.catch(() => {
+        if (meCache?.promise === promise) invalidateMeCache();
+      });
       return promise;
     }
   }

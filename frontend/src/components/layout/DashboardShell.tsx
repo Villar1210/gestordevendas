@@ -17,7 +17,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <Sidebar open={menuAberto} onClose={() => setMenuAberto(false)} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <ImpersonationBanner />
-        <Topbar onOpenMenu={() => setMenuAberto(true)} />
+        <Topbar onOpenMenu={() => setMenuAberto(true)} menuAberto={menuAberto} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>

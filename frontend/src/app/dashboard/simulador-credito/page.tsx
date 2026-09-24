@@ -38,6 +38,25 @@ function formatarRenda(valor: string): string {
   return `${inteiroFormatado || "0"},${centavos}`;
 }
 
+// Em muitos teclados de celular a unica tecla decimal e o ponto. Trata como
+// virgula decimal: (1) o ponto que o usuario acabou de digitar no fim, e
+// (2) um valor colado/digitado no formato "3500.50" (um ponto, 1-2 casas,
+// sem virgula). Ao apagar caracteres a regra nao se aplica, para "4.000"
+// virar "400" e nao "4,00".
+function normalizarDigitacaoRenda(novo: string, anterior: string): string {
+  const apagando = novo.length < anterior.length;
+  if (!apagando && !novo.includes(",")) {
+    if (novo.endsWith(".") && novo.slice(0, -1) === anterior) {
+      return formatarRenda(`${anterior},`);
+    }
+    const decimalComPonto = novo.replace(/[^\d.]/g, "").match(/^(\d+)\.(\d{1,2})$/);
+    if (decimalComPonto && novo.split(".").length === 2 && anterior.indexOf(".") === -1) {
+      return formatarRenda(`${decimalComPonto[1]},${decimalComPonto[2]}`);
+    }
+  }
+  return formatarRenda(novo);
+}
+
 function parsearRenda(valorFormatado: string): number {
   const limpo = valorFormatado.replace(/\./g, "").replace(",", ".");
   return parseFloat(limpo) || 0;
@@ -109,11 +128,11 @@ export default function SimuladorCreditoPage() {
                 </span>
                 <input
                   type="text"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   required
                   value={rendaDisplay}
                   onChange={(e) => {
-                    setRendaDisplay(formatarRenda(e.target.value));
+                    setRendaDisplay(normalizarDigitacaoRenda(e.target.value, rendaDisplay));
                   }}
                   placeholder="Ex: 4.000"
                   className="w-full rounded-lg border border-slate-200 py-2 pl-8 pr-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"

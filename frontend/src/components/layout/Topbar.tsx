@@ -20,9 +20,10 @@ interface Me {
 interface TopbarProps {
   // Abre o menu lateral no celular (botao so aparece abaixo de md).
   onOpenMenu?: () => void;
+  menuAberto?: boolean;
 }
 
-export function Topbar({ onOpenMenu }: TopbarProps) {
+export function Topbar({ onOpenMenu, menuAberto = false }: TopbarProps) {
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState("offline");
 
@@ -62,6 +63,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
         onClick={onOpenMenu}
         aria-label="Abrir menu"
         aria-controls="menu-principal"
+        aria-expanded={menuAberto}
         className="mr-auto rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:hidden"
       >
         <Menu className="h-5 w-5" />
