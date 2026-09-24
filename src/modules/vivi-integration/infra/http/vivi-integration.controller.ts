@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -17,6 +18,8 @@ import { ConfigService } from '@nestjs/config';
 import { FollowUpService } from '../../../follow-up/follow-up.service';
 import { MoverCardViviDto } from './dto/mover-card.dto';
 import { MoverCardViviUseCase } from '../../application/use-cases/mover-card-vivi.use-case';
+import { SimularCreditoDto } from './dto/simular-credito.dto';
+import { SimularCreditoUseCase } from '../../application/use-cases/simular-credito.use-case';
 
 @Controller('vivi')
 @UseGuards(ViviApiKeyGuard)
@@ -30,6 +33,7 @@ export class ViviIntegrationController {
     private readonly config: ConfigService,
     private readonly followUpService: FollowUpService,
     private readonly moverCardViviUseCase: MoverCardViviUseCase,
+    private readonly simularCreditoUseCase: SimularCreditoUseCase,
   ) {}
 
   @Get('empreendimentos')
@@ -141,6 +145,17 @@ export class ViviIntegrationController {
       motivoRepique: dto.motivoRepique,
     });
   }
+  @Get('simular-credito')
+  @HttpCode(HttpStatus.OK)
+  async simularCredito(@Query() dto: SimularCreditoDto) {
+    return this.simularCreditoUseCase.execute({
+      renda: Number(dto.renda),
+      idade: Number(dto.idade),
+      temDependente: dto.temDependente === true || (dto.temDependente as any) === 'true',
+    });
+  }
+
+
 
   @Get('trigger-followup-test')
   async triggerFollowupTest() {
