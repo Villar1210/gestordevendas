@@ -123,6 +123,11 @@ export class UpdateImovelDto {
   @IsBoolean()
   exclusividade?: boolean;
 
+  // Site imobiliario publico.
+  @IsOptional()
+  @IsBoolean()
+  publicado?: boolean;
+
   @IsOptional()
   @IsString()
   proprietarioNome?: string | null;

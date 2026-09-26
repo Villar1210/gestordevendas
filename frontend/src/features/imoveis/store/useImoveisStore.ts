@@ -34,6 +34,7 @@ export interface Imovel {
   disponivelApartirDe: string | null;
   localChaves: string | null;
   exclusividade: boolean;
+  publicado: boolean;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
   suites: number | null;

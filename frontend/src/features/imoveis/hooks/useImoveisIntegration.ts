@@ -49,6 +49,7 @@ export interface CreateImovelInput {
   disponivelApartirDe?: string;
   localChaves?: string;
   exclusividade?: boolean;
+  publicado?: boolean;
   proprietarioNome?: string;
   proprietarioTelefone?: string;
   suites?: number;

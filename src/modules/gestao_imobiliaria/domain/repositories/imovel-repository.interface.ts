@@ -29,6 +29,8 @@ export interface ImovelRecord {
   disponivelApartirDe: Date | null;
   localChaves: string | null;
   exclusividade: boolean;
+  // Site imobiliario publico: aparece na vitrine quando true.
+  publicado: boolean;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
   // Cadastro em lote (Fatia 2) - ver domain/services/gerar-lote-imoveis.ts.
@@ -105,6 +107,7 @@ export interface ImovelWritableFields {
   disponivelApartirDe?: Date | null;
   localChaves?: string | null;
   exclusividade?: boolean;
+  publicado?: boolean;
   proprietarioNome?: string | null;
   proprietarioTelefone?: string | null;
   // Cadastro em lote (Fatia 2) - ver domain/services/gerar-lote-imoveis.ts.

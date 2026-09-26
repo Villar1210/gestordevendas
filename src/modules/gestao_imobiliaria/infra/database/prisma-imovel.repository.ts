@@ -146,6 +146,7 @@ type PrismaImovelRow = {
   disponivelApartirDe: Date | null;
   localChaves: string | null;
   exclusividade: boolean;
+  publicado: boolean;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
   tipoItem: string;
@@ -208,6 +209,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       disponivelApartirDe: row.disponivelApartirDe,
       localChaves: row.localChaves,
       exclusividade: row.exclusividade,
+      publicado: row.publicado,
       proprietarioNome: row.proprietarioNome,
       proprietarioTelefone: row.proprietarioTelefone,
       tipoItem: fromPrismaTipoItem(row.tipoItem),
@@ -365,6 +367,7 @@ export class PrismaImovelRepository implements IImovelRepository {
           : {}),
         ...(input.localChaves !== undefined ? { localChaves: input.localChaves } : {}),
         ...(input.exclusividade !== undefined ? { exclusividade: input.exclusividade } : {}),
+        ...(input.publicado !== undefined ? { publicado: input.publicado } : {}),
         ...(input.proprietarioNome !== undefined
           ? { proprietarioNome: input.proprietarioNome }
           : {}),

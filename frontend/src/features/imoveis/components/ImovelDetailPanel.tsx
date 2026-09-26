@@ -59,6 +59,7 @@ export function ImovelDetailPanel() {
   const [disponivelApartirDe, setDisponivelApartirDe] = useState("");
   const [localChaves, setLocalChaves] = useState("");
   const [exclusividade, setExclusividade] = useState(false);
+  const [publicado, setPublicado] = useState(false);
   const [rua, setRua] = useState("");
   const [numero, setNumero] = useState("");
   const [complemento, setComplemento] = useState("");
@@ -104,6 +105,7 @@ export function ImovelDetailPanel() {
     setDisponivelApartirDe(toDateInputValue(imovel.disponivelApartirDe));
     setLocalChaves(imovel.localChaves ?? "");
     setExclusividade(imovel.exclusividade);
+    setPublicado(imovel.publicado ?? false);
     setRua(imovel.rua ?? "");
     setNumero(imovel.numero ?? "");
     setComplemento(imovel.complemento ?? "");
@@ -205,6 +207,7 @@ export function ImovelDetailPanel() {
         disponivelApartirDe: disponivelApartirDe || undefined,
         localChaves: localChaves || undefined,
         exclusividade,
+        publicado,
         rua: rua.trim() || undefined,
         numero: numero.trim() || undefined,
         complemento: complemento.trim() || undefined,
@@ -612,6 +615,10 @@ export function ImovelDetailPanel() {
                       <label className="flex items-center gap-2 pb-2 text-sm text-slate-600">
                         <input type="checkbox" checked={exclusividade} onChange={(e) => setExclusividade(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
                         Exclusividade
+                      </label>
+                      <label className="flex items-center gap-2 pb-2 text-sm text-slate-600" title="Mostra este imóvel no site imobiliário (só se estiver Disponível)">
+                        <input type="checkbox" checked={publicado} onChange={(e) => setPublicado(e.target.checked)} data-testid="imovel-publicado" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
+                        Publicar no site
                       </label>
                     </div>
                   </div>
