@@ -7,6 +7,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -40,6 +41,11 @@ async function bootstrap() {
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
+
+  // Compressao gzip das respostas (JSON da API). GET /imoveis devolvia
+  // ~440 KB sem compressao; com gzip cai para ~10% disso. Respostas
+  // menores que 1 KB nao sao comprimidas (nao compensa).
+  app.use(compression({ threshold: 1024 }));
 
   // Habilita CORS apenas para o dominio do frontend definido no .env
   app.enableCors({
