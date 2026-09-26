@@ -21,6 +21,10 @@ function num(value: Prisma.Decimal | number | null | undefined): number | null {
   return typeof value === 'number' ? value : value.toNumber();
 }
 
+function aproximar(coord: number | null): number | null {
+  return coord === null ? null : Math.round(coord * 1000) / 1000;
+}
+
 const IMOVEL_RESUMO_SELECT = {
   id: true,
   title: true,
@@ -161,8 +165,10 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
       iptu: num(row.iptu),
       aceitaFinanciamento: row.aceitaFinanciamento,
       aceitaPermuta: row.aceitaPermuta,
-      latitude: row.latitude,
-      longitude: row.longitude,
+      // Localizacao APROXIMADA (~100 m): suficiente para o visitante ver
+      // a regiao, sem expor a porta exata do imovel/proprietario.
+      latitude: aproximar(row.latitude),
+      longitude: aproximar(row.longitude),
       linkTourVirtual: row.linkTourVirtual,
       fotos: row.photos.map((p) => p.url),
     };
