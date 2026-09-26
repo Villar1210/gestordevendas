@@ -334,6 +334,18 @@ export class PrismaImovelRepository implements IImovelRepository {
     return rows.map((row) => this.toRecord(row));
   }
 
+  async setPublicadoPorEmpreendimento(
+    tenantId: string,
+    empreendimentoId: string,
+    publicado: boolean,
+  ): Promise<number> {
+    const { count } = await this.prisma.imovel.updateMany({
+      where: { tenantId, empreendimentoId, publicado: !publicado },
+      data: { publicado },
+    });
+    return count;
+  }
+
   async update(id: string, input: ImovelWritableFields): Promise<ImovelRecord> {
     const row = await this.prisma.imovel.update({
       where: { id },

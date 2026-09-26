@@ -20,6 +20,8 @@ interface ImovelListTableProps {
 
 export function ImovelListTable({ imoveis }: ImovelListTableProps) {
   const openImovelDetailPanel = useImoveisStore((state) => state.openImovelDetailPanel);
+  const empreendimentos = useImoveisStore((state) => state.empreendimentos);
+  const nomes = new Map(empreendimentos.map((e) => [e.id, e.name]));
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -30,6 +32,7 @@ export function ImovelListTable({ imoveis }: ImovelListTableProps) {
             <th className="px-4 py-3 font-medium">Tipo</th>
             <th className="px-4 py-3 font-medium">Proprietário</th>
             <th className="px-4 py-3 font-medium">Situação</th>
+            <th className="px-4 py-3 font-medium">Site</th>
             <th className="px-4 py-3 font-medium">Finalidade</th>
             <th className="px-4 py-3 font-medium">Valor</th>
             <th className="px-4 py-3 font-medium">Tags</th>
@@ -46,9 +49,14 @@ export function ImovelListTable({ imoveis }: ImovelListTableProps) {
               >
                 <td className="px-4 py-3">
                   <p className="font-medium text-slate-800">{imovel.title}</p>
-                  {imovel.codigoInterno && (
-                    <p className="text-xs text-slate-400">Cod. {imovel.codigoInterno}</p>
-                  )}
+                  <p className="text-xs text-slate-400">
+                    {[
+                      imovel.empreendimentoId ? nomes.get(imovel.empreendimentoId) : null,
+                      imovel.codigoInterno ? `Cód. ${imovel.codigoInterno}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
                 </td>
                 <td className="px-4 py-3 text-slate-600">{getTipoLabel(imovel.tipo)}</td>
                 <td className="px-4 py-3 text-slate-600">{imovel.proprietarioNome ?? "-"}</td>
@@ -58,6 +66,13 @@ export function ImovelListTable({ imoveis }: ImovelListTableProps) {
                   >
                     {statusOption.label}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {imovel.publicado ? (
+                    <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">No site</span>
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-slate-600">
                   {getFinalidadeLabel(imovel.finalidade)}

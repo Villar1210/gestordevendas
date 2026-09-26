@@ -513,6 +513,30 @@ export function useImoveisIntegration() {
     return apiRequest<EmpreendimentoDetail>(`/empreendimentos/${empreendimentoId}`);
   }, []);
 
+  // "Publicar no site" em massa (todas as unidades do empreendimento).
+  // Devolve quantas unidades mudaram, ou null se falhou (erro ja avisado).
+  const handlePublicarUnidadesNoSite = useCallback(
+    async (empreendimentoId: string, publicado: boolean): Promise<number | null> => {
+      try {
+        const r = await apiRequest<{ atualizadas: number }>(
+          `/empreendimentos/${empreendimentoId}/unidades/site`,
+          { method: "PATCH", body: JSON.stringify({ publicado }) },
+        );
+        return r.atualizadas;
+      } catch (err) {
+        alert(
+          err instanceof ApiError && err.status === 403
+            ? "Só o Administrador pode publicar ou retirar unidades do site em massa."
+            : err instanceof ApiError
+              ? err.message
+              : "Não foi possível atualizar as unidades.",
+        );
+        return null;
+      }
+    },
+    [],
+  );
+
   const handlePublicarEmpreendimento = useCallback(
     async (empreendimentoId: string) => {
       try {
@@ -914,6 +938,7 @@ export function useImoveisIntegration() {
   }, [loadLancamentos]);
 
   return {
+    handlePublicarUnidadesNoSite,
     loadImoveis,
     loadEmpreendimentos,
     loadEmpreendimentosPublicados,

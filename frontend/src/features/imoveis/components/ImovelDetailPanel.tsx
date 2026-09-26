@@ -15,6 +15,7 @@ import {
   getFinalidadeLabel,
   getTipoLabel,
   getStatusOption,
+  formatArea,
 } from "../constants";
 
 function formatDateOnly(date: Date): string {
@@ -413,14 +414,14 @@ export function ImovelDetailPanel() {
                     {imovel.area != null && (
                       <div className="flex flex-col items-center rounded-lg border border-slate-100 bg-white py-3 text-center shadow-sm">
                         <Maximize2 className="mb-1 h-5 w-5 text-blue-600" />
-                        <span className="text-lg font-bold text-slate-800">{imovel.area}</span>
+                        <span className="text-lg font-bold text-slate-800">{formatArea(imovel.area)?.replace(" m²", "")}</span>
                         <span className="text-xs text-slate-400">m² útil</span>
                       </div>
                     )}
                     {imovel.areaTotal != null && imovel.areaTotal > 0 && (
                       <div className="flex flex-col items-center rounded-lg border border-slate-100 bg-white py-3 text-center shadow-sm">
                         <Maximize2 className="mb-1 h-5 w-5 text-slate-400" />
-                        <span className="text-lg font-bold text-slate-800">{imovel.areaTotal}</span>
+                        <span className="text-lg font-bold text-slate-800">{formatArea(imovel.areaTotal)?.replace(" m²", "")}</span>
                         <span className="text-xs text-slate-400">m² total</span>
                       </div>
                     )}

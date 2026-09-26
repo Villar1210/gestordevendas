@@ -14,6 +14,7 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
@@ -40,6 +41,8 @@ import { ConfirmarFichaTecnicaUseCase } from '../../application/use-cases/confir
 import { GetEmpreendimentoDetailUseCase } from '../../application/use-cases/get-empreendimento-detail.use-case';
 import { PublicarEmpreendimentoUseCase } from '../../application/use-cases/publicar-empreendimento.use-case';
 import { DespublicarEmpreendimentoUseCase } from '../../application/use-cases/despublicar-empreendimento.use-case';
+import { PublicarUnidadesNoSiteUseCase } from '../../application/use-cases/publicar-unidades-no-site.use-case';
+import { PublicarUnidadesSiteDto } from './dtos/publicar-unidades-site.dto';
 import { UploadEmpreendimentoPhotoUseCase } from '../../application/use-cases/upload-empreendimento-photo.use-case';
 import { DeleteEmpreendimentoPhotoUseCase } from '../../application/use-cases/delete-empreendimento-photo.use-case';
 import { ReorderEmpreendimentoPhotosUseCase } from '../../application/use-cases/reorder-empreendimento-photos.use-case';
@@ -61,6 +64,7 @@ export class EmpreendimentoController {
     private readonly getEmpreendimentoDetailUseCase: GetEmpreendimentoDetailUseCase,
     private readonly publicarEmpreendimentoUseCase: PublicarEmpreendimentoUseCase,
     private readonly despublicarEmpreendimentoUseCase: DespublicarEmpreendimentoUseCase,
+    private readonly publicarUnidadesNoSiteUseCase: PublicarUnidadesNoSiteUseCase,
     private readonly uploadEmpreendimentoPhotoUseCase: UploadEmpreendimentoPhotoUseCase,
     private readonly deleteEmpreendimentoPhotoUseCase: DeleteEmpreendimentoPhotoUseCase,
     private readonly reorderEmpreendimentoPhotosUseCase: ReorderEmpreendimentoPhotosUseCase,
@@ -126,6 +130,23 @@ export class EmpreendimentoController {
     return this.despublicarEmpreendimentoUseCase.execute({
       tenantId: req.user!.tenantId,
       empreendimentoId: id,
+    });
+  }
+
+  // PATCH /empreendimentos/:id/unidades/site - liga/desliga "Publicar no
+  // site" em todas as unidades de uma vez. So Administrador: expoe (ou
+  // retira) centenas de imoveis da internet numa acao so.
+  @Patch(':id/unidades/site')
+  @Roles('Administrador')
+  async publicarUnidadesNoSite(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: PublicarUnidadesSiteDto,
+    @Req() req: Request,
+  ) {
+    return this.publicarUnidadesNoSiteUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId: id,
+      publicado: dto.publicado,
     });
   }
 

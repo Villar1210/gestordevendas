@@ -228,3 +228,9 @@ export function getEmpreendimentoPhotoCategoriaLabel(categoria: string): string 
     categoria
   );
 }
+
+// Area no padrao brasileiro: 33,53 m² (nao 33.53).
+const areaFormatter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+export function formatArea(valor: number | null | undefined): string | null {
+  return valor == null ? null : `${areaFormatter.format(valor)} m²`;
+}

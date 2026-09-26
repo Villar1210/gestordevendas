@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Plus, LayoutGrid, ClipboardCheck } from "lucide-react";
+import { Loader2, Plus, LayoutGrid, ClipboardCheck, Globe } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
 import { useImoveisIntegration } from "@/features/imoveis/hooks/useImoveisIntegration";
@@ -19,6 +19,21 @@ import { ContratosTab } from "@/features/imoveis/components/ContratosTab";
 import { FinanceiroTab } from "@/features/imoveis/components/FinanceiroTab";
 import { InquilinosTab } from "@/features/imoveis/components/InquilinosTab";
 
+type Aba = { id: "catalogo" | "espelho" | "proprietarios" | "contratos" | "inquilinos" | "financeiro"; label: string; soAdmin?: boolean };
+
+const ABAS: Aba[] = [
+  { id: "catalogo", label: "Catálogo" },
+  { id: "espelho", label: "Espelho de Vendas" },
+  { id: "proprietarios", label: "Proprietários" },
+  { id: "contratos", label: "Contratos" },
+  { id: "inquilinos", label: "Inquilinos" },
+  { id: "financeiro", label: "Financeiro", soAdmin: true },
+];
+
+// Cards desenhados por vez: com centenas de unidades, desenhar tudo de uma
+// vez deixa a tela lenta (principalmente no celular).
+const LOTE_CARDS = 48;
+
 export default function ImoveisDashboardPage() {
   const imoveis = useImoveisStore((state) => state.imoveis);
   const isLoading = useImoveisStore((state) => state.isLoading);
@@ -32,11 +47,15 @@ export default function ImoveisDashboardPage() {
   const empreendimentoFilter = useImoveisStore((state) => state.empreendimentoFilter);
   const setEmpreendimentoFilter = useImoveisStore((state) => state.setEmpreendimentoFilter);
   const openImovelFormModal = useImoveisStore((state) => state.openImovelFormModal);
+  const empreendimentos = useImoveisStore((state) => state.empreendimentos);
   const openEmpreendimentoFormModal = useImoveisStore(
     (state) => state.openEmpreendimentoFormModal,
   );
 
-  const { loadImoveis, loadEmpreendimentos } = useImoveisIntegration();
+  const { loadImoveis, loadEmpreendimentos, handlePublicarUnidadesNoSite } = useImoveisIntegration();
+  const [visiveis, setVisiveis] = useState(LOTE_CARDS);
+  const [publicando, setPublicando] = useState(false);
+  const [avisoSite, setAvisoSite] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const hasCheckedRole = useRef(false);
 
@@ -90,88 +109,86 @@ export default function ImoveisDashboardPage() {
     });
   }, [imoveis, tipoFilter, bedroomsFilter, minPrice, maxPrice]);
 
+  // Filtro mudou: volta a mostrar so o primeiro lote.
+  useEffect(() => {
+    setVisiveis(LOTE_CARDS);
+  }, [imoveis, tipoFilter, bedroomsFilter, minPrice, maxPrice]);
+
+  useEffect(() => {
+    setAvisoSite(null);
+  }, [empreendimentoFilter]);
+
+  // A acao em massa vale para TODAS as unidades do empreendimento. Com outro
+  // filtro ativo, a lista carregada e so uma parte - os numeros mostrados
+  // (e a pergunta de confirmacao) ficariam errados.
+  const outrosFiltrosAtivos = busca.trim() !== "" || finalidadeFilter !== "all" || statusFilter !== "all";
+  const noSite = imoveis.filter((i) => i.publicado).length;
+  const nomeEmpreendimentoFiltrado =
+    empreendimentoFilter !== "all"
+      ? empreendimentos.find((e) => e.id === empreendimentoFilter)?.name ?? "este empreendimento"
+      : null;
+
+  async function alternarSiteEmMassa(publicar: boolean) {
+    if (empreendimentoFilter === "all") return;
+    const pergunta = publicar
+      ? `Publicar no site TODAS as ${imoveis.length} unidades de ${nomeEmpreendimentoFiltrado}?\n\nSó as que estiverem "Disponível" aparecem para o público.`
+      : `Retirar do site todas as unidades de ${nomeEmpreendimentoFiltrado}?`;
+    if (!window.confirm(pergunta)) return;
+    setPublicando(true);
+    const atualizadas = await handlePublicarUnidadesNoSite(empreendimentoFilter, publicar);
+    setPublicando(false);
+    if (atualizadas === null) return;
+    await loadImoveis({
+      busca,
+      finalidade: finalidadeFilter,
+      status: statusFilter,
+      empreendimentoId: empreendimentoFilter,
+    });
+    const u = atualizadas === 1 ? "unidade" : "unidades";
+    setAvisoSite(
+      atualizadas === 0
+        ? "Nenhuma unidade precisou ser alterada."
+        : publicar
+          ? `${atualizadas} ${u} ${atualizadas === 1 ? "publicada" : "publicadas"} no site. Só as disponíveis aparecem para o público.`
+          : `${atualizadas} ${u} ${atualizadas === 1 ? "retirada" : "retiradas"} do site.`,
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           <h1 className="text-lg font-semibold text-slate-800">Imóveis</h1>
-          <div className="flex rounded-lg border border-slate-200 p-0.5">
-            <button
-              onClick={() => setActiveView("catalogo")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                activeView === "catalogo"
-                  ? "bg-blue-700 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Catálogo
-            </button>
-            <button
-              onClick={() => setActiveView("espelho")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                activeView === "espelho"
-                  ? "bg-blue-700 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Espelho de Vendas
-            </button>
-            <button
-              onClick={() => setActiveView("proprietarios")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                activeView === "proprietarios"
-                  ? "bg-blue-700 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Proprietários
-            </button>
-            <button
-              onClick={() => setActiveView("contratos")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                activeView === "contratos"
-                  ? "bg-blue-700 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Contratos
-            </button>
-            <button
-              onClick={() => setActiveView("inquilinos")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                activeView === "inquilinos"
-                  ? "bg-blue-700 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Inquilinos
-            </button>
-            {role === "Administrador" && (
-              <button
-                onClick={() => setActiveView("financeiro")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  activeView === "financeiro"
-                    ? "bg-blue-700 text-white"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                Financeiro
-              </button>
-            )}
-          </div>
+          {/* Abas numa linha so; em tela estreita rolam de lado em vez de quebrar o texto */}
+          <nav aria-label="Seções de imóveis" className="min-w-0 overflow-x-auto">
+            <div className="flex w-max rounded-lg border border-slate-200 p-0.5">
+              {ABAS.filter((aba) => !aba.soAdmin || role === "Administrador").map((aba) => (
+                <button
+                  key={aba.id}
+                  onClick={() => setActiveView(aba.id)}
+                  aria-current={activeView === aba.id ? "page" : undefined}
+                  className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                    activeView === aba.id ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {aba.label}
+                </button>
+              ))}
+            </div>
+          </nav>
         </div>
 
         {(activeView === "catalogo" || activeView === "espelho") && (
           <div className="flex items-center gap-2">
             <button
               onClick={openEmpreendimentoFormModal}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               <Plus className="h-4 w-4" /> Novo Empreendimento
             </button>
             <button
               onClick={openImovelFormModal}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
             >
               <Plus className="h-4 w-4" /> Novo Imóvel
             </button>
@@ -193,7 +210,7 @@ export default function ImoveisDashboardPage() {
           />
 
           {empreendimentoFilter !== "all" && (
-            <div className="flex items-center gap-2 px-6 pt-3">
+            <div className="flex flex-wrap items-center gap-2 px-6 pt-3">
               <Link
                 href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}/lote`}
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
@@ -206,13 +223,51 @@ export default function ImoveisDashboardPage() {
               >
                 <ClipboardCheck className="h-4 w-4" /> Revisão e Publicação
               </Link>
+              {role === "Administrador" && imoveis.length > 0 && outrosFiltrosAtivos && (
+                <p className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <Globe className="h-4 w-4" aria-hidden /> Para publicar todas no site, limpe os outros filtros.
+                </p>
+              )}
+              {role === "Administrador" && imoveis.length > 0 && !outrosFiltrosAtivos && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm text-sky-800">
+                  <Globe className="h-4 w-4" aria-hidden />
+                  <span>
+                    {noSite} de {imoveis.length} no site
+                  </span>
+                  {noSite < imoveis.length && (
+                    <button
+                      onClick={() => alternarSiteEmMassa(true)}
+                      disabled={publicando}
+                      className="rounded-md bg-blue-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+                    >
+                      Publicar todas
+                    </button>
+                  )}
+                  {noSite > 0 && (
+                    <button
+                      onClick={() => alternarSiteEmMassa(false)}
+                      disabled={publicando}
+                      className="rounded-md border border-sky-300 bg-white px-2.5 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:opacity-60"
+                    >
+                      Retirar todas
+                    </button>
+                  )}
+                  {publicando && <Loader2 className="h-4 w-4 animate-spin" aria-label="Salvando" />}
+                </div>
+              )}
+              {avisoSite && (
+                <p role="status" className="text-sm text-emerald-700">
+                  {avisoSite}
+                </p>
+              )}
             </div>
           )}
 
           <div className="flex items-center justify-between px-6 pt-3 pb-1">
-            <p className="text-sm text-slate-500">
-              {filteredImoveis.length}{" "}
-              {filteredImoveis.length !== 1 ? "imóveis encontrados" : "imóvel encontrado"}
+            <p className="text-sm text-slate-500" aria-live="polite">
+              {isLoading
+                ? "Carregando..."
+                : `${filteredImoveis.length} ${filteredImoveis.length !== 1 ? "imóveis encontrados" : "imóvel encontrado"}`}
             </p>
             <div className="flex rounded-lg border border-slate-200 p-0.5">
               <button
@@ -247,9 +302,23 @@ export default function ImoveisDashboardPage() {
             <div className="px-6 py-4">
               {catalogLayout === "cards" ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {filteredImoveis.map((imovel) => (
+                  {filteredImoveis.slice(0, visiveis).map((imovel) => (
                     <ImovelCard key={imovel.id} imovel={imovel} />
                   ))}
+                  {filteredImoveis.length > visiveis && (
+                    <div className="col-span-full flex flex-col items-center gap-1 py-4">
+                      <button
+                        onClick={() => setVisiveis((v) => v + LOTE_CARDS)}
+                        className="rounded-lg border border-slate-200 bg-white px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        Mostrar mais {Math.min(LOTE_CARDS, filteredImoveis.length - visiveis)}
+                      </button>
+                      <p className="text-xs text-slate-400">
+                        Mostrando {visiveis} de {filteredImoveis.length}. Para achar uma unidade, use a busca ou filtre por
+                        empreendimento.
+                      </p>
+                    </div>
+                  )}
                   {filteredImoveis.length === 0 && (
                     <p className="col-span-full py-10 text-center text-sm text-slate-400">
                       Nenhum imóvel encontrado.

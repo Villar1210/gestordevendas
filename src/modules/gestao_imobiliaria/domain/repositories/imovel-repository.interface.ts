@@ -158,6 +158,13 @@ export interface IImovelRepository {
   ): Promise<ImovelRecord[]>;
   update(id: string, input: ImovelWritableFields): Promise<ImovelRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<ImovelRecord | null>;
+  // Marca/desmarca "Publicar no site" em TODAS as unidades de um
+  // empreendimento do tenant, numa unica consulta. Retorna quantas mudaram.
+  setPublicadoPorEmpreendimento(
+    tenantId: string,
+    empreendimentoId: string,
+    publicado: boolean,
+  ): Promise<number>;
   findAllByTenant(tenantId: string, filters?: ImovelFilters): Promise<ImovelRecord[]>;
   // Dos identificadores informados, devolve so os que ja existem no banco
   // para esse tenant - usado tanto para o aviso do gerar-lote (nao bloqueia)
