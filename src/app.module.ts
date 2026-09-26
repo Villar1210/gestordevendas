@@ -10,6 +10,7 @@ import { WhatsAppMarketingModule } from './modules/whatsappmarketing/whatsapp-ma
 import { VendasKanbanModule } from './modules/vendas_kanban/vendas-kanban.module';
 import { GestaoImobiliariaModule } from './modules/gestao_imobiliaria/gestao-imobiliaria.module';
 import { ViviSdrModule } from './modules/vivi_sdr/vivi-sdr.module';
+import { SitePublicoModule } from './modules/site_publico/site-publico.module';
 import { RhModule } from './modules/rh/rh.module';
 import { RoletaOnlineModule } from './modules/roleta_online/roleta-online.module';
 import { EdocModule } from './modules/edoc/edoc.module';
@@ -56,6 +57,7 @@ import { validateEnv } from './config/env.validation';
     VendasKanbanModule,
     GestaoImobiliariaModule,
     ViviSdrModule,
+    SitePublicoModule,
     RhModule,
     RoletaOnlineModule,
     EdocModule,
