@@ -20,6 +20,7 @@ const ORIGEM_STYLES: Record<string, string> = {
   webhook: "bg-blue-100 text-blue-700",
   roleta_online: "bg-purple-100 text-purple-700",
   captura_auto_vivi: "bg-teal-100 text-teal-700",
+  site: "bg-amber-100 text-amber-700",
 };
 
 const ORIGEM_LABELS: Record<string, string> = {
@@ -27,6 +28,7 @@ const ORIGEM_LABELS: Record<string, string> = {
   webhook: "Webhook",
   roleta_online: "Roleta Online",
   captura_auto_vivi: "Captura Automática (VIVI)",
+  site: "Site",
 };
 
 const TEMPERATURA_STYLES: Record<string, string> = {
