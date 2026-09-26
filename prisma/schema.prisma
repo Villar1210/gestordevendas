@@ -17,6 +17,13 @@ model Tenant {
   name      String   @db.VarChar(100)
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Site imobiliario publico (Sprint 3): slug = identificador da empresa na
+  // vitrine (ex: "direcional"); dominio = dominio proprio da empresa
+  // (ex: "imoveis.direcional.com.br"), sem "www." e sem protocolo. Ambos
+  // opcionais e unicos entre todas as empresas.
+  slug    String? @unique @db.VarChar(60)
+  dominio String? @unique @db.VarChar(255)
+
   // Dados da empresa (razao social = "name" acima, ja usado desde o
   // cadastro inicial) para qualificar o CONTRATANTE no contrato de
   // prestacao de servico (modulo rh, ver GerarContratoPrestacaoServicoUseCase)
@@ -1001,6 +1008,9 @@ model Imovel {
   longitude            Float?
   linkTourVirtual      String?             @map("link_tour_virtual") @db.VarChar(500)
   areaExterna          Float?              @map("area_externa")
+  // Site imobiliario publico: so imoveis com publicado=true aparecem na
+  // vitrine (mesmo padrao ja usado em Empreendimento.publicado).
+  publicado            Boolean             @default(false)
   customFields         Json                @default("{}") @map("custom_fields")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
@@ -1013,6 +1023,7 @@ model Imovel {
 
   @@unique([tenantId, identificadorExterno])
   // GET /imoveis lista por tenant ordenado por data de criacao.
+  @@index([tenantId, publicado])
   @@index([tenantId, createdAt])
   @@map("imoveis")
 }
