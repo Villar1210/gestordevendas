@@ -32,6 +32,8 @@ function getJwtSecret(): string {
   return secret;
 }
 
+import { LoginAttemptsService } from './application/services/login-attempts.service';
+
 @Module({
   imports: [
     PassportModule,
@@ -54,6 +56,7 @@ function getJwtSecret(): string {
     UpdateMyProfileUseCase,
     LogoutUseCase,
     GetSubordinadosRecursivosUseCase,
+    LoginAttemptsService,
     JwtStrategy,
     { provide: 'IUserRepository', useClass: PrismaUserRepository },
     { provide: 'ITenantOnboardingRepository', useClass: PrismaUserRepository },

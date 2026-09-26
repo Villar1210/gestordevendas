@@ -1,11 +1,12 @@
 // src/modules/auth/application/use-cases/authenticate-user.use-case.ts
-import { Injectable, Inject, Logger, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Inject, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { IUserRepository } from '../../domain/repositories/user-repository.interface';
 import { ITwoFactorCodeRepository } from '../../domain/repositories/two-factor-code-repository.interface';
 import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
+import { LoginAttemptsService } from '../services/login-attempts.service';
 
 interface AuthenticateInput {
   email: string;
@@ -26,9 +27,20 @@ export class AuthenticateUserUseCase {
     private readonly twoFactorCodeRepository: ITwoFactorCodeRepository,
     @Inject('IEmailSender') private readonly emailSender: IEmailSender,
     private readonly jwtService: JwtService,
+    private readonly loginAttempts: LoginAttemptsService,
   ) {}
 
   async execute(input: AuthenticateInput) {
+    // Bloqueio por conta (e-mail), nao por IP: quem erra a senha 5 vezes
+    // bloqueia so a propria conta por 15 minutos.
+    const minutos = this.loginAttempts.minutosBloqueado(input.email);
+    if (minutos > 0) {
+      throw new HttpException(
+        `Muitas tentativas com senha errada para esta conta. Tente novamente em ${minutos} minuto${minutos > 1 ? 's' : ''} ou use "Esqueci minha senha".`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const user = await this.userRepository.findByEmail(input.email);
 
     if (!user) {
@@ -41,6 +53,9 @@ export class AuthenticateUserUseCase {
       this.logFailedAttempt(input.email, input.ip);
       throw new UnauthorizedException('E-mail ou senha incorretos.');
     }
+
+    // Senha certa: zera o contador de erros desta conta.
+    this.loginAttempts.limparLogin(input.email);
 
     if (user.statusCadastro === 'pendente_aprovacao') {
       throw new UnauthorizedException(
@@ -106,6 +121,7 @@ export class AuthenticateUserUseCase {
   }
 
   private logFailedAttempt(email: string, ip?: string): void {
+    this.loginAttempts.registrarFalhaLogin(email);
     this.logger.warn(`Tentativa de login falhou - email: ${email}, ip: ${ip ?? 'desconhecido'}`);
   }
 }

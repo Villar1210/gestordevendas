@@ -64,7 +64,10 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  // Limite por IP folgado (30 a cada 15 min) - varios corretores dividem o
+  // mesmo Wi-Fi no plantao. O bloqueio fino (5 erros) e por conta, ver
+  // LoginAttemptsService.
+  @Throttle({ default: { limit: 30, ttl: 900_000 } })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authenticateUserUseCase.execute({ ...dto, ip: req.ip });
   }
@@ -100,6 +103,7 @@ export class AuthController {
 
   @Post('2fa/verify')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 900_000 } })
   async verifyTwoFactorCode(@Body() dto: VerifyTwoFactorCodeDto) {
     return this.verifyTwoFactorCodeUseCase.execute(dto);
   }

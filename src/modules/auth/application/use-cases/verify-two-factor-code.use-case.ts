@@ -3,6 +3,7 @@ import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { IUserRepository } from '../../domain/repositories/user-repository.interface';
 import { ITwoFactorCodeRepository } from '../../domain/repositories/two-factor-code-repository.interface';
+import { LoginAttemptsService } from '../services/login-attempts.service';
 
 interface VerifyTwoFactorCodeInput {
   challengeId: string;
@@ -16,6 +17,7 @@ export class VerifyTwoFactorCodeUseCase {
     private readonly twoFactorCodeRepository: ITwoFactorCodeRepository,
     @Inject('IUserRepository') private readonly userRepository: IUserRepository,
     private readonly jwtService: JwtService,
+    private readonly loginAttempts: LoginAttemptsService,
   ) {}
 
   async execute(input: VerifyTwoFactorCodeInput) {
@@ -27,8 +29,19 @@ export class VerifyTwoFactorCodeUseCase {
       record.expiresAt < new Date() ||
       record.code !== input.code
     ) {
-      throw new UnauthorizedException('Codigo invalido ou expirado.');
+      // Codigo errado: conta a tentativa. Na 5a, o codigo e invalidado e a
+      // pessoa precisa pedir um novo (evita "chutar" os 6 digitos).
+      if (record && !record.used && record.code !== input.code) {
+        const esgotou = this.loginAttempts.registrarFalhaCodigo(record.id);
+        if (esgotou) {
+          await this.twoFactorCodeRepository.markAsUsed(record.id);
+          this.loginAttempts.limparCodigo(record.id);
+          throw new UnauthorizedException('Código bloqueado após várias tentativas. Clique em "Reenviar código".');
+        }
+      }
+      throw new UnauthorizedException('Código inválido ou expirado.');
     }
+    this.loginAttempts.limparCodigo(record.id);
 
     const user = await this.userRepository.findById(record.userId);
     if (!user) {

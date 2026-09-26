@@ -3,7 +3,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { AppThrottlerGuard } from './shared/infra/http/guards/app-throttler.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './modules/auth/auth.module';
 import { WhatsAppMarketingModule } from './modules/whatsappmarketing/whatsapp-marketing.module';
@@ -75,7 +76,7 @@ import { validateEnv } from './config/env.validation';
     // ainda; existe pronta para features futuras (ex: Repique).
     CanaisModule,
   ],
-  providers: [PrismaService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [PrismaService, { provide: APP_GUARD, useClass: AppThrottlerGuard }],
   exports: [PrismaService],
 })
 export class AppModule {}
