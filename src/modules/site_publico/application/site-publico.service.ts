@@ -20,6 +20,8 @@ import {
 } from '../domain/site-publico.types';
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,58}[a-z0-9]$/;
+// Nomes que colidem com rotas da API publica ou da plataforma.
+export const SLUGS_RESERVADOS = ['resolver', 'api', 'www', 'admin', 'public', 'dashboard', 'login'];
 export const ORIGEM_SITE = 'site';
 
 // "https://WWW.Exemplo.com.br:443/x" -> "exemplo.com.br"
@@ -53,7 +55,8 @@ export class SitePublicoService {
   ) {}
 
   private async tenantPorSlug(slug: string): Promise<SiteTenant> {
-    const tenant = SLUG_REGEX.test(slug) ? await this.repo.findTenantBySlug(slug) : null;
+    const tenant =
+      SLUG_REGEX.test(slug) && !SLUGS_RESERVADOS.includes(slug) ? await this.repo.findTenantBySlug(slug) : null;
     if (!tenant) throw new NotFoundException('Site não encontrado.');
     return tenant;
   }

@@ -71,6 +71,7 @@ function buildImovel(overrides: Partial<ImovelRecord> = {}): ImovelRecord {
     disponivelApartirDe: null,
     localChaves: null,
     exclusividade: false,
+    publicado: false,
     proprietarioNome: null,
     proprietarioTelefone: null,
     tipoItem: 'unidade',

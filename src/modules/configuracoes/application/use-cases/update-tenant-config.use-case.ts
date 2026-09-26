@@ -9,6 +9,7 @@ import {
 // Formatos aceitos para o site imobiliario publico.
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,58}[a-z0-9]$/;
 const DOMINIO_REGEX = /^(?=.{4,255}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+const SLUGS_RESERVADOS = ['resolver', 'api', 'www', 'admin', 'public', 'dashboard', 'login'];
 const DOMINIOS_RESERVADOS = ['ivillar.com.br', 'gestordevendas.ivillar.com.br'];
 
 // "https://WWW.Exemplo.com.br/" -> "exemplo.com.br"; "" -> null
@@ -55,6 +56,9 @@ export class UpdateTenantConfigUseCase {
     let slug: string | null | undefined;
     if (input.siteSlug !== undefined) {
       slug = input.siteSlug.trim().toLowerCase() || null;
+      if (slug !== null && SLUGS_RESERVADOS.includes(slug)) {
+        throw new BadRequestException('Este endereço de site é reservado pela plataforma. Escolha outro.');
+      }
       if (slug !== null && !SLUG_REGEX.test(slug)) {
         throw new BadRequestException(
           'Endereço do site inválido: use de 2 a 60 letras minúsculas, números ou hífen, sem hífen no início ou no fim.',

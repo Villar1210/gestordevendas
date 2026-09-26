@@ -4,11 +4,12 @@ export class RegistrarLeadSiteDto {
   @IsString()
   @MinLength(2, { message: 'Informe seu nome.' })
   @MaxLength(120)
+  @Matches(/\p{L}.*\p{L}/u, { message: 'Informe seu nome.' })
   nome!: string;
 
   // Aceita com ou sem mascara; o use case guarda so os digitos.
   @IsString()
-  @Matches(/^[\d\s()+-]{10,20}$/, { message: 'Informe um telefone válido com DDD.' })
+  @Matches(/^(?=(?:\D*\d){10,13}\D*$)[\d\s()+-]{10,20}$/, { message: 'Informe um telefone válido com DDD.' })
   telefone!: string;
 
   @IsOptional()

@@ -37,7 +37,7 @@ const IMOVEL_RESUMO_SELECT = {
   cidade: true,
   uf: true,
   empreendimentoId: true,
-  empreendimento: { select: { name: true } },
+  empreendimento: { select: { name: true, publicado: true } },
   photos: { select: { url: true }, orderBy: { order: 'asc' }, take: 1 },
 } satisfies Prisma.ImovelSelect;
 
@@ -60,8 +60,10 @@ function toImovelResumo(row: ImovelResumoRow): ImovelPublicoResumo {
     cidade: row.cidade,
     uf: row.uf,
     fotoCapa: row.photos[0]?.url ?? null,
-    empreendimentoId: row.empreendimentoId,
-    empreendimentoNome: row.empreendimento?.name ?? null,
+    // Empreendimento ainda nao publicado (ex: lancamento em sigilo) nao
+    // aparece nem pelo nome nem pelo id.
+    empreendimentoId: row.empreendimento?.publicado ? row.empreendimentoId : null,
+    empreendimentoNome: row.empreendimento?.publicado ? row.empreendimento.name : null,
   };
 }
 
@@ -102,14 +104,16 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
     if (f.precoMax !== undefined) and.push({ price: { lte: f.precoMax } });
     if (f.cidade) and.push({ cidade: { equals: f.cidade, mode: 'insensitive' } });
     if (f.bairro) and.push({ bairro: { equals: f.bairro, mode: 'insensitive' } });
-    if (f.empreendimentoId) and.push({ empreendimentoId: f.empreendimentoId });
+    if (f.empreendimentoId) {
+      and.push({ empreendimentoId: f.empreendimentoId, empreendimento: { publicado: true } });
+    }
     if (f.busca) {
       and.push({
         OR: [
           { title: { contains: f.busca, mode: 'insensitive' } },
           { bairro: { contains: f.busca, mode: 'insensitive' } },
           { cidade: { contains: f.busca, mode: 'insensitive' } },
-          { empreendimento: { name: { contains: f.busca, mode: 'insensitive' } } },
+          { empreendimento: { publicado: true, name: { contains: f.busca, mode: 'insensitive' } } },
         ],
       });
     }
