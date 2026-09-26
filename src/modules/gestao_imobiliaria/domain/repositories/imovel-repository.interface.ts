@@ -60,6 +60,10 @@ export interface ImovelRecord {
   // Preenchido apenas por findAllByTenant (1a foto, para a visao Cards do
   // Catalogo) - null em create/update/findByIdAndTenant.
   coverPhotoUrl: string | null;
+  // Foto do EMPREENDIMENTO (area comum antes de planta), usada como capa
+  // quando a unidade nao tem foto propria - a maioria das unidades de um
+  // lancamento nao tem. Preenchido junto com coverPhotoUrl.
+  empreendimentoFotoUrl?: string | null;
 }
 
 export interface ImovelPhotoRecord {

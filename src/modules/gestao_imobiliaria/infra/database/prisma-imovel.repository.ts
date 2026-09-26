@@ -174,6 +174,22 @@ type PrismaImovelRow = {
   updatedAt: Date;
   // So presente quando a query faz include: { photos: ... } (findAllByTenant)
   photos?: { url: string }[];
+  empreendimento?: { photos: { url: string }[] } | null;
+};
+
+// 1a foto da unidade + 1a foto do empreendimento ("area_comum" vem antes de
+// "planta" na ordem alfabetica - fachada/lazer e melhor capa que planta).
+const INCLUDE_CAPAS = {
+  photos: { take: 1, orderBy: { order: 'asc' as const } },
+  empreendimento: {
+    select: {
+      photos: {
+        take: 1,
+        orderBy: [{ categoria: 'asc' as const }, { order: 'asc' as const }],
+        select: { url: true },
+      },
+    },
+  },
 };
 
 @Injectable()
@@ -236,6 +252,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       coverPhotoUrl: row.photos && row.photos.length > 0 ? row.photos[0].url : null,
+      empreendimentoFotoUrl: row.empreendimento?.photos[0]?.url ?? null,
     };
   }
 
@@ -418,7 +435,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       },
       // Mesmo motivo do findAllByTenant: manter coverPhotoUrl correto tambem
       // apos um PATCH (sem isso, salvar o formulario apos upload zerava a capa).
-      include: { photos: { take: 1, orderBy: { order: 'asc' } } },
+      include: INCLUDE_CAPAS,
     });
     return this.toRecord(row);
   }
@@ -440,7 +457,7 @@ export class PrismaImovelRepository implements IImovelRepository {
           : {}),
       },
       // 1a foto (menor "order") para a foto de capa da visao Cards do Catalogo
-      include: { photos: { take: 1, orderBy: { order: 'asc' } } },
+      include: INCLUDE_CAPAS,
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((row) => this.toRecord(row));

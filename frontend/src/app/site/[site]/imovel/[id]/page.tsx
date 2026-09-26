@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bath, BedDouble, Building2, Car, Check, MapPin, Maximize2, Video } from "lucide-react";
 import { obterImovel, resolverSite } from "@/features/site-publico/server-api";
-import { TIPOS, formatarPreco, localizacao, urlFoto } from "@/features/site-publico/format";
+import { TIPOS, formatarArea, formatarPreco, localizacao, urlFoto } from "@/features/site-publico/format";
 import { Galeria } from "@/features/site-publico/components/Galeria";
 import { LeadForm } from "@/features/site-publico/components/LeadForm";
 
@@ -56,8 +56,8 @@ export default async function ImovelPage({ params }: Props) {
       : null;
 
   const caracteristicas = [
-    imovel.area ? { icone: Maximize2, texto: `${imovel.area} m² úteis` } : null,
-    imovel.areaTotal ? { icone: Maximize2, texto: `${imovel.areaTotal} m² totais` } : null,
+    imovel.area ? { icone: Maximize2, texto: `${formatarArea(imovel.area)} m² úteis` } : null,
+    imovel.areaTotal ? { icone: Maximize2, texto: `${formatarArea(imovel.areaTotal)} m² totais` } : null,
     imovel.quartos ? { icone: BedDouble, texto: `${imovel.quartos} ${imovel.quartos === 1 ? "quarto" : "quartos"}` } : null,
     imovel.suites ? { icone: BedDouble, texto: `${imovel.suites} ${imovel.suites === 1 ? "suíte" : "suítes"}` } : null,
     imovel.banheiros ? { icone: Bath, texto: `${imovel.banheiros} ${imovel.banheiros === 1 ? "banheiro" : "banheiros"}` } : null,

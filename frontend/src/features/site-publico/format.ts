@@ -30,3 +30,9 @@ export const STATUS_OBRA: Record<string, string> = {
 export function localizacao(bairro?: string | null, cidade?: string | null, uf?: string | null) {
   return [bairro, [cidade, uf].filter(Boolean).join("/")].filter(Boolean).join(", ");
 }
+
+// 33,53 (padrao brasileiro, nao 33.53).
+const numero = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+export function formatarArea(valor: number): string {
+  return numero.format(valor);
+}

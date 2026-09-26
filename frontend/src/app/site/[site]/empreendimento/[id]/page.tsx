@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, Clock, MapPin, TrainFront } from "lucide-react";
 import { listarImoveis, obterEmpreendimento, resolverSite } from "@/features/site-publico/server-api";
-import { STATUS_OBRA, TIPOS, formatarPreco, localizacao, urlFoto } from "@/features/site-publico/format";
+import { STATUS_OBRA, TIPOS, formatarArea, formatarPreco, localizacao, urlFoto } from "@/features/site-publico/format";
 import { Galeria } from "@/features/site-publico/components/Galeria";
 import { ImovelCardSite } from "@/features/site-publico/components/ImovelCardSite";
 import { LeadForm } from "@/features/site-publico/components/LeadForm";
@@ -104,7 +104,7 @@ export default async function EmpreendimentoPage({ params }: Props) {
                   <li key={t.nome} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                     <p className="font-medium text-slate-900">{t.nome}</p>
                     <p className="text-sm text-slate-500">
-                      {[t.dormitorios ? `${t.dormitorios} ${t.dormitorios === 1 ? "dormitório" : "dormitórios"}` : null, t.areaPrivativa ? `${t.areaPrivativa} m²` : null]
+                      {[t.dormitorios ? `${t.dormitorios} ${t.dormitorios === 1 ? "dormitório" : "dormitórios"}` : null, t.areaPrivativa ? `${formatarArea(t.areaPrivativa)} m²` : null]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>

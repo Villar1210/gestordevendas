@@ -41,7 +41,18 @@ const IMOVEL_RESUMO_SELECT = {
   cidade: true,
   uf: true,
   empreendimentoId: true,
-  empreendimento: { select: { name: true, publicado: true } },
+  empreendimento: {
+    select: {
+      name: true,
+      publicado: true,
+      // Capa de reserva para unidade sem foto propria (area comum antes de planta).
+      photos: {
+        select: { url: true },
+        orderBy: [{ categoria: 'asc' }, { order: 'asc' }],
+        take: 1,
+      },
+    },
+  },
   photos: { select: { url: true }, orderBy: { order: 'asc' }, take: 1 },
 } satisfies Prisma.ImovelSelect;
 
@@ -63,7 +74,11 @@ function toImovelResumo(row: ImovelResumoRow): ImovelPublicoResumo {
     bairro: row.bairro,
     cidade: row.cidade,
     uf: row.uf,
-    fotoCapa: row.photos[0]?.url ?? null,
+    // Sem foto propria, usa a do empreendimento - so se ele estiver publicado
+    // (lancamento em sigilo nao pode "vazar" pela foto da fachada).
+    fotoCapa:
+      row.photos[0]?.url ??
+      (row.empreendimento?.publicado ? row.empreendimento.photos[0]?.url ?? null : null),
     // Empreendimento ainda nao publicado (ex: lancamento em sigilo) nao
     // aparece nem pelo nome nem pelo id.
     empreendimentoId: row.empreendimento?.publicado ? row.empreendimentoId : null,
@@ -153,9 +168,23 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
         longitude: true,
         linkTourVirtual: true,
         photos: { select: { url: true }, orderBy: { order: 'asc' } },
+        empreendimento: {
+          select: {
+            name: true,
+            publicado: true,
+            photos: {
+              select: { url: true },
+              orderBy: [{ categoria: 'asc' }, { order: 'asc' }],
+            },
+          },
+        },
       },
     });
     if (!row) return null;
+    const fotosUnidade = row.photos.map((p) => p.url);
+    const fotosEmpreendimento = row.empreendimento?.publicado
+      ? row.empreendimento.photos.map((p) => p.url)
+      : [];
     return {
       ...toImovelResumo(row),
       descricao: row.description,
@@ -170,7 +199,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
       latitude: aproximar(row.latitude),
       longitude: aproximar(row.longitude),
       linkTourVirtual: row.linkTourVirtual,
-      fotos: row.photos.map((p) => p.url),
+      fotos: fotosUnidade.length > 0 ? fotosUnidade : fotosEmpreendimento,
     };
   }
 
@@ -187,7 +216,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
         precoMinimo: true,
         precoMaximo: true,
         statusObra: true,
-        photos: { select: { url: true }, orderBy: { order: 'asc' }, take: 1 },
+        photos: { select: { url: true }, orderBy: [{ categoria: 'asc' }, { order: 'asc' }], take: 1 },
       },
       orderBy: { name: 'asc' },
     });
@@ -238,7 +267,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
           select: { nome: true, areaPrivativa: true, dormitorios: true },
           orderBy: { nome: 'asc' },
         },
-        photos: { select: { url: true, categoria: true }, orderBy: { order: 'asc' } },
+        photos: { select: { url: true, categoria: true }, orderBy: [{ categoria: 'asc' }, { order: 'asc' }] },
       },
     });
     if (!r) return null;

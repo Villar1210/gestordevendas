@@ -54,6 +54,8 @@ export interface Imovel {
   photos?: ImovelPhoto[];
   // Preenchido apenas por GET /imoveis (1a foto, para a visao Cards do Catalogo)
   coverPhotoUrl: string | null;
+  // Capa de reserva: foto do empreendimento, quando a unidade nao tem foto.
+  empreendimentoFotoUrl?: string | null;
 }
 
 export interface Empreendimento {

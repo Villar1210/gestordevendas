@@ -1,4 +1,6 @@
+"use client";
 // src/features/imoveis/components/ImovelCard.tsx
+import { useState } from "react";
 import { Home, Bed, Bath, Car, Maximize2, Globe, Building2 } from "lucide-react";
 import { API_BASE_URL } from "@/core/api/client";
 import { Imovel, useImoveisStore } from "../store/useImoveisStore";
@@ -22,7 +24,15 @@ export function ImovelCard({ imovel }: ImovelCardProps) {
       : null,
   );
   const statusOption = getStatusOption(imovel.status);
-  const coverUrl = imovel.coverPhotoUrl ? `${API_BASE_URL}${imovel.coverPhotoUrl}` : null;
+  // Arquivo de foto que nao carrega (apagado do servidor, por exemplo):
+  // tenta a do empreendimento e, se tambem falhar, mostra o icone.
+  const [falhas, setFalhas] = useState(0);
+  const candidatas = [imovel.coverPhotoUrl, imovel.empreendimentoFotoUrl].filter(
+    (u, i, lista): u is string => Boolean(u) && lista.indexOf(u) === i,
+  );
+  const fotoCapa = candidatas[falhas] ?? null;
+  const fotoDaUnidade = fotoCapa !== null && fotoCapa === imovel.coverPhotoUrl;
+  const coverUrl = fotoCapa ? `${API_BASE_URL}${fotoCapa}` : null;
 
   const priceDisplay = imovel.price
     ? currencyFormatter.format(imovel.price)
@@ -46,9 +56,20 @@ export function ImovelCard({ imovel }: ImovelCardProps) {
       <div className={`relative flex w-full flex-none items-center justify-center bg-slate-100 ${coverUrl ? "h-44" : "h-20"}`}>
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverUrl} alt={imovel.title} className="h-full w-full object-cover" />
+          <img
+            src={coverUrl}
+            alt={imovel.title}
+            loading="lazy"
+            onError={() => setFalhas((n) => n + 1)}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <Home className="h-7 w-7 text-slate-300" aria-hidden />
+        )}
+        {coverUrl && !fotoDaUnidade && (
+          <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
+            Foto do empreendimento
+          </span>
         )}
         {/* Badge status */}
         <span

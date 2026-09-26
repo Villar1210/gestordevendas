@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Bath, BedDouble, Car, Home, Maximize2 } from "lucide-react";
 import type { ImovelResumo } from "../types";
-import { TIPOS, formatarPreco, localizacao, urlFoto } from "../format";
+import { TIPOS, formatarArea, formatarPreco, localizacao, urlFoto } from "../format";
 
 export function ImovelCardSite({ imovel, base }: { imovel: ImovelResumo; base: string }) {
   const foto = urlFoto(imovel.fotoCapa);
@@ -45,7 +45,7 @@ export function ImovelCardSite({ imovel, base }: { imovel: ImovelResumo; base: s
             <span className="flex items-center gap-1"><Car className="h-4 w-4" />{imovel.vagas}</span>
           )}
           {imovel.area != null && (
-            <span className="flex items-center gap-1"><Maximize2 className="h-4 w-4" />{imovel.area} m²</span>
+            <span className="flex items-center gap-1"><Maximize2 className="h-4 w-4" />{formatarArea(imovel.area)} m²</span>
           )}
         </div>
         <div className="mt-auto pt-2">
