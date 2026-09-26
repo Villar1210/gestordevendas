@@ -14,6 +14,8 @@ interface TenantConfig {
   complemento: string | null;
   bairro: string | null;
   cep: string | null;
+  slug: string | null;
+  dominio: string | null;
 }
 
 // Formulario simples (1 GET + 1 PATCH) - sem store/hook dedicados de
@@ -30,6 +32,8 @@ export function DadosEmpresaTab() {
   const [complemento, setComplemento] = useState("");
   const [bairro, setBairro] = useState("");
   const [cep, setCep] = useState("");
+  const [siteSlug, setSiteSlug] = useState("");
+  const [siteDominio, setSiteDominio] = useState("");
 
   const hasInitialized = useRef(false);
 
@@ -46,6 +50,8 @@ export function DadosEmpresaTab() {
         setComplemento(config.complemento ?? "");
         setBairro(config.bairro ?? "");
         setCep(config.cep ?? "");
+        setSiteSlug(config.slug ?? "");
+        setSiteDominio(config.dominio ?? "");
       })
       .catch((err) => {
         alert(err instanceof ApiError ? err.message : "Não foi possível carregar os dados da empresa.");
@@ -58,7 +64,7 @@ export function DadosEmpresaTab() {
     try {
       await apiRequest("/configuracoes/empresa", {
         method: "PATCH",
-        body: JSON.stringify({ name, cnpj, endereco, numero, complemento, bairro, cep }),
+        body: JSON.stringify({ name, cnpj, endereco, numero, complemento, bairro, cep, siteSlug, siteDominio }),
       });
       setSavedAt(Date.now());
     } catch (err) {
@@ -163,6 +169,41 @@ export function DadosEmpresaTab() {
             />
           </Field>
         </div>
+      </div>
+
+      <h2 className="mb-1 mt-8 text-sm font-semibold text-slate-800">Site imobiliário</h2>
+      <p className="mb-4 text-xs text-slate-500">
+        Vitrine pública com os imóveis e empreendimentos marcados como publicados. Os contatos feitos
+        pelo site chegam na Caixa de Entrada do Kanban.
+      </p>
+
+      <div className="space-y-4">
+        <Field label="Identificador do site (letras minúsculas, números e hífen)">
+          <input
+            type="text"
+            value={siteSlug}
+            onChange={(e) => setSiteSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+            placeholder="ex: direcional"
+            maxLength={60}
+            data-testid="config-site-slug"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+          />
+        </Field>
+
+        <Field label="Domínio próprio">
+          <input
+            type="text"
+            value={siteDominio}
+            onChange={(e) => setSiteDominio(e.target.value)}
+            placeholder="ex: imoveis.suaempresa.com.br"
+            maxLength={255}
+            data-testid="config-site-dominio"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
+          />
+          <span className="mt-1 block text-xs text-slate-400">
+            O domínio precisa apontar (DNS) para o servidor da plataforma. Deixe em branco se ainda não tiver.
+          </span>
+        </Field>
       </div>
 
       <div className="mt-6 flex items-center gap-3">

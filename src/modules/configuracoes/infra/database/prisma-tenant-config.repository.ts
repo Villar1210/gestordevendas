@@ -1,6 +1,7 @@
 // src/modules/configuracoes/infra/database/prisma-tenant-config.repository.ts
 // Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../config/prisma.service';
 import {
   ITenantConfigRepository,
@@ -19,6 +20,8 @@ const SELECT_FIELDS = {
   cep: true,
   limiteMensagensViviDia: true,
   acaoLimiteVivi: true,
+  slug: true,
+  dominio: true,
 } as const;
 
 @Injectable()
@@ -30,6 +33,14 @@ export class PrismaTenantConfigRepository implements ITenantConfigRepository {
   }
 
   async update(tenantId: string, input: UpdateTenantConfigInput): Promise<TenantConfigRecord> {
-    return this.prisma.tenant.update({ where: { id: tenantId }, data: input, select: SELECT_FIELDS });
+    try {
+      return await this.prisma.tenant.update({ where: { id: tenantId }, data: input, select: SELECT_FIELDS });
+    } catch (error) {
+      // slug e dominio sao unicos entre todas as empresas.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Este endereço de site ou domínio já está em uso por outra empresa.');
+      }
+      throw error;
+    }
   }
 }

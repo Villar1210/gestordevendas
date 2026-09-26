@@ -25,6 +25,9 @@ export interface TenantConfigRecord {
   // para CNPJ/endereco).
   limiteMensagensViviDia: number;
   acaoLimiteVivi: AcaoLimiteVivi;
+  // Site imobiliario publico (modulo site_publico).
+  slug: string | null;
+  dominio: string | null;
 }
 
 export interface UpdateTenantConfigInput {
@@ -37,6 +40,8 @@ export interface UpdateTenantConfigInput {
   cep?: string | null;
   limiteMensagensViviDia?: number;
   acaoLimiteVivi?: AcaoLimiteVivi;
+  slug?: string | null;
+  dominio?: string | null;
 }
 
 export interface ITenantConfigRepository {

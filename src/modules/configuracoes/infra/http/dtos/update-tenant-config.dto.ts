@@ -1,5 +1,5 @@
 // src/modules/configuracoes/infra/http/dtos/update-tenant-config.dto.ts
-import { IsString, IsOptional, IsInt, IsIn, Min, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsIn, Matches, MaxLength, Min, MinLength } from 'class-validator';
 import { AcaoLimiteVivi } from '../../../domain/repositories/tenant-config-repository.interface';
 
 export class UpdateTenantConfigDto {
@@ -31,6 +31,19 @@ export class UpdateTenantConfigDto {
   @IsOptional()
   @IsString()
   cep?: string;
+
+  // Site imobiliario publico. String vazia = remover. Validacao de formato
+  // no use case (depois de normalizar maiusculas, "www." e protocolo).
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  @Matches(/^$|^[a-zA-Z0-9-]+$/, { message: 'O endereço do site só pode ter letras, números e hífen.' })
+  siteSlug?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  siteDominio?: string;
 
   // Controle de volume/custo da VIVI (Fatia B) - ver
   // UpdateTenantConfigUseCase para a validacao de negocio (limite > 0,
