@@ -13,6 +13,11 @@ describe('UpdateTenantConfigUseCase - site imobiliario', () => {
     expect(repo.update).toHaveBeenCalledWith('t1', expect.objectContaining({ slug: 'direcional', dominio: 'imoveis.direcional.com.br' }));
   });
 
+  it('aceita subdominio de ivillar.com.br para site de empresa', async () => {
+    await useCase.execute({ ...base, siteDominio: 'direcional.ivillar.com.br' });
+    expect(repo.update).toHaveBeenCalledWith('t1', expect.objectContaining({ dominio: 'direcional.ivillar.com.br' }));
+  });
+
   it('string vazia remove slug e dominio', async () => {
     await useCase.execute({ ...base, siteSlug: '', siteDominio: '  ' });
     expect(repo.update).toHaveBeenCalledWith('t1', expect.objectContaining({ slug: null, dominio: null }));
@@ -29,7 +34,7 @@ describe('UpdateTenantConfigUseCase - site imobiliario', () => {
     await expect(useCase.execute({ ...base, siteSlug: slug })).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it.each(['localhost', 'nao tem ponto', 'gestordevendas.ivillar.com.br', 'x.ivillar.com.br'])(
+  it.each(['localhost', 'nao tem ponto', 'gestordevendas.ivillar.com.br', 'ivillar.com.br', 'chatwoot.ivillar.com.br'])(
     'rejeita dominio %s',
     async (dominio) => {
       await expect(useCase.execute({ ...base, siteDominio: dominio })).rejects.toBeInstanceOf(BadRequestException);

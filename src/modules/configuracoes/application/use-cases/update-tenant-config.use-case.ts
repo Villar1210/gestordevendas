@@ -10,7 +10,16 @@ import {
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,58}[a-z0-9]$/;
 const DOMINIO_REGEX = /^(?=.{4,255}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
 const SLUGS_RESERVADOS = ['resolver', 'api', 'www', 'admin', 'public', 'dashboard', 'login'];
-const DOMINIOS_RESERVADOS = ['ivillar.com.br', 'gestordevendas.ivillar.com.br'];
+// Enderecos ja usados pela propria plataforma e pelos outros sistemas do
+// servidor. Outros subdominios de ivillar.com.br (ex: direcional.ivillar.com.br)
+// podem ser usados como site de empresa.
+const DOMINIOS_RESERVADOS = [
+  'ivillar.com.br',
+  'gestordevendas.ivillar.com.br',
+  'agents.ivillar.com.br',
+  'chatwoot.ivillar.com.br',
+  'importacao.ivillar.com.br',
+];
 
 // "https://WWW.Exemplo.com.br/" -> "exemplo.com.br"; "" -> null
 function normalizarDominio(valor: string): string | null {
@@ -72,7 +81,7 @@ export class UpdateTenantConfigUseCase {
       if (dominio !== null && !DOMINIO_REGEX.test(dominio)) {
         throw new BadRequestException('Domínio inválido. Exemplo: imoveis.suaempresa.com.br');
       }
-      if (dominio !== null && DOMINIOS_RESERVADOS.some((r) => dominio === r || dominio!.endsWith(`.${r}`))) {
+      if (dominio !== null && DOMINIOS_RESERVADOS.includes(dominio)) {
         throw new BadRequestException('Este domínio pertence à plataforma e não pode ser usado.');
       }
     }
