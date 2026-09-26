@@ -82,17 +82,21 @@ export class AuthController {
     return { message: 'Logout realizado com sucesso.' };
   }
 
+  // Limite proprio (bem abaixo dos 100/min globais): cada pedido pode
+  // disparar um e-mail real.
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
   async forgotPassword(@Body() dto: RequestPasswordResetDto) {
     await this.requestPasswordResetUseCase.execute(dto);
     return {
-      message: 'Se o e-mail informado existir, um link de redefinicao foi enviado.',
+      message: 'Se o e-mail informado tiver cadastro, enviamos um link para redefinir a senha.',
     };
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.resetPasswordUseCase.execute({
       token: dto.token,

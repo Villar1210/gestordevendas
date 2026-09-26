@@ -1,7 +1,7 @@
-// src/modules/auth/infra/http/dtos/request-password-reset.dto.ts
-import { IsEmail } from 'class-validator';
+import { IsEmail, MaxLength } from 'class-validator';
 
 export class RequestPasswordResetDto {
-  @IsEmail({}, { message: 'Insira um e-mail valido.' })
+  @IsEmail({}, { message: 'Informe um e-mail válido.' })
+  @MaxLength(150)
   email!: string;
 }

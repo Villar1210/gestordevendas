@@ -28,14 +28,15 @@ export class PrismaPasswordResetTokenRepository implements IPasswordResetTokenRe
     });
   }
 
-  async findByToken(token: string): Promise<PasswordResetTokenRecord | null> {
-    return this.prisma.passwordResetToken.findUnique({ where: { token } });
+  async findByToken(tokenHash: string): Promise<PasswordResetTokenRecord | null> {
+    return this.prisma.passwordResetToken.findUnique({ where: { token: tokenHash } });
   }
 
-  async markAsUsed(id: string): Promise<void> {
-    await this.prisma.passwordResetToken.update({
-      where: { id },
+  async consumir(id: string): Promise<boolean> {
+    const { count } = await this.prisma.passwordResetToken.updateMany({
+      where: { id, used: false },
       data: { used: true },
     });
+    return count === 1;
   }
 }
