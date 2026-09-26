@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "gestordevendas",
+  title: "Gestor de Vendas",
   description: "CRM Imobiliário e Importação",
 };
 

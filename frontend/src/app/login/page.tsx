@@ -4,6 +4,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import {
   apiRequest,
   ApiError,
@@ -46,6 +47,8 @@ export default function LoginPage() {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
 
   async function goToDashboard(token: string, user: LoginUser) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
@@ -95,9 +98,25 @@ export default function LoginPage() {
     router.push(vaiParaDashboardCorretor ? "/dashboard/inicio" : "/dashboard/kanban");
   }
 
+  // Falha de rede/servidor fora do ar chega como TypeError (fetch nao
+  // conseguiu nem conversar com a API) - mensagem diferente de senha errada.
+  function mensagemDeErro(err: unknown, padrao: string): string {
+    if (err instanceof ApiError) return err.message;
+    if (err instanceof TypeError) {
+      return "Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.";
+    }
+    return padrao;
+  }
+
   async function handleLoginSubmit(event: FormEvent) {
     event.preventDefault();
+    await solicitarLogin();
+  }
+
+  // Usado no login e no "Reenviar código" (um novo login gera um novo codigo).
+  async function solicitarLogin(reenvio = false) {
     setError(null);
+    setInfo(null);
     setLoading(true);
 
     try {
@@ -108,11 +127,13 @@ export default function LoginPage() {
 
       if (result.twoFactorRequired && result.challengeId) {
         setChallengeId(result.challengeId);
+        setCode("");
+        if (reenvio) setInfo("Enviamos um novo código para o seu e-mail.");
       } else if (result.token && result.user) {
-        goToDashboard(result.token, result.user);
+        await goToDashboard(result.token, result.user);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Não foi possível fazer login.");
+      setError(mensagemDeErro(err, "Não foi possível fazer login."));
     } finally {
       setLoading(false);
     }
@@ -123,6 +144,7 @@ export default function LoginPage() {
     if (!challengeId) return;
 
     setError(null);
+    setInfo(null);
     setLoading(true);
 
     try {
@@ -130,9 +152,9 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ challengeId, code }),
       });
-      goToDashboard(result.token, result.user);
+      await goToDashboard(result.token, result.user);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Código inválido.");
+      setError(mensagemDeErro(err, "Código inválido."));
     } finally {
       setLoading(false);
     }
@@ -148,8 +170,13 @@ export default function LoginPage() {
         </p>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
             {error}
+          </div>
+        )}
+        {info && !error && (
+          <div role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            {info}
           </div>
         )}
 
@@ -162,6 +189,7 @@ export default function LoginPage() {
               <input
                 id="email"
                 type="email"
+                autoComplete="username"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -173,14 +201,25 @@ export default function LoginPage() {
               <label htmlFor="password" className="mb-1 block text-sm text-slate-500">
                 Senha
               </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 py-2 pl-3 pr-10 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <label className="flex items-center gap-2 text-sm text-slate-500">
@@ -225,10 +264,13 @@ export default function LoginPage() {
                 id="code"
                 type="text"
                 inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
                 maxLength={6}
                 required
+                autoFocus
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-lg tracking-widest text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
             </div>
@@ -240,6 +282,29 @@ export default function LoginPage() {
             >
               {loading ? "Verificando..." : "Confirmar"}
             </button>
+
+            <div className="flex items-center justify-between text-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  setChallengeId(null);
+                  setCode("");
+                  setError(null);
+                  setInfo(null);
+                }}
+                className="text-slate-500 hover:text-slate-700 hover:underline"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => solicitarLogin(true)}
+                className="text-blue-600 hover:underline disabled:opacity-60"
+              >
+                Reenviar código
+              </button>
+            </div>
           </form>
         )}
       </div>
