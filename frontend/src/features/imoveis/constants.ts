@@ -217,9 +217,21 @@ export function getOrigemImportacaoLabel(origemImportacao: string | null): strin
 
 // EmpreendimentoPhoto.categoria (Fatia 5) - espelha
 // EMPREENDIMENTO_PHOTO_CATEGORIAS do backend (empreendimento-repository.interface.ts).
+// Ordem = ordem de exibicao (a 1a foto de "Fachada" vira a capa).
 export const EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS = [
-  { value: "planta", label: "Planta do Empreendimento" },
-  { value: "area_comum", label: "Área Comum" },
+  { value: "fachada", label: "Fachada" },
+  { value: "area_comum", label: "Área Comum / Lazer" },
+  { value: "decorado", label: "Decorado" },
+  { value: "planta", label: "Planta" },
+  { value: "localizacao", label: "Localização" },
+];
+
+// Categorias de uma pagina do book (PDF da construtora). As 2 ultimas nao
+// viram foto: a ficha tecnica vira dados e "descartar" e ignorada.
+export const BOOK_CATEGORIA_OPTIONS = [
+  ...EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS,
+  { value: "ficha_tecnica", label: "Ficha técnica (dados)" },
+  { value: "descartar", label: "Não usar" },
 ];
 
 export function getEmpreendimentoPhotoCategoriaLabel(categoria: string): string {

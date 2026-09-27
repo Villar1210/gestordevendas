@@ -146,6 +146,10 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
     return this.prisma.empreendimentoPhoto.findFirst({ where: { id: photoId, tenantId } });
   }
 
+  async deleteByIdAndTenant(id: string, tenantId: string): Promise<void> {
+    await this.prisma.empreendimento.deleteMany({ where: { id, tenantId } });
+  }
+
   async deletePhoto(photoId: string): Promise<void> {
     await this.prisma.empreendimentoPhoto.delete({ where: { id: photoId } });
   }

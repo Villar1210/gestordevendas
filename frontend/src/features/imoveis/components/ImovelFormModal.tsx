@@ -7,6 +7,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { X } from "lucide-react";
+import { BookAtalho } from "./book/BookAtalho";
 import { useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 import { FINALIDADE_OPTIONS, TIPO_OPTIONS } from "../constants";
@@ -80,6 +81,8 @@ export function ImovelFormModal() {
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        <BookAtalho onNavegar={closeImovelFormModal} />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

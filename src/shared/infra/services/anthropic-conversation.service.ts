@@ -9,6 +9,9 @@ import {
   ConfirmarExistenciaEmpreendimentoResult,
   FichaTecnicaExtraidaIA,
   TipologiaExtraidaIA,
+  CategoriaPaginaBookIA,
+  ClassificacaoBookIA,
+  PaginaBookParaIA,
 } from '../../domain/services/ai-conversation.interface';
 
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -30,6 +33,20 @@ const FICHA_TECNICA_MAX_TOKENS = 2048;
 // endereco, memorial e a tabela de tipologias/lazer - corta o excedente
 // (ex: anexos juridicos longos) em vez de mandar o PDF inteiro.
 const FICHA_TECNICA_MAX_TEXTO_CHARS = 60000;
+// Classificacao do book: ~40 tokens de resposta por pagina + cabecalho.
+const BOOK_MAX_TOKENS = 6000;
+// Texto de cada pagina enviado junto com a miniatura (o suficiente para
+// legendas como "Piscina adulto" ou "Planta 2 dorms 45m2").
+const BOOK_TEXTO_POR_PAGINA = 700;
+const CATEGORIAS_BOOK: CategoriaPaginaBookIA[] = [
+  'ficha_tecnica',
+  'fachada',
+  'area_comum',
+  'planta',
+  'decorado',
+  'localizacao',
+  'descartar',
+];
 
 // Tools da VIVI. O schema/descricao aqui e o mesmo em qualquer consumidor
 // futuro desta interface - o SIGNIFICADO de negocio de cada tool (o que
@@ -402,6 +419,102 @@ export class AnthropicConversationService implements IAiConversationService {
     // Propositalmente SEM try/catch aqui - JSON invalido deve propagar para
     // o use case reportar o erro ao usuario (ver comentario no metodo acima).
     return this.parseFichaTecnicaJson(textoFinal);
+  }
+
+  async classificarPaginasBook(paginas: PaginaBookParaIA[]): Promise<ClassificacaoBookIA> {
+    const systemPrompt =
+      'Voce recebe as paginas do BOOK (material de apresentacao) de um empreendimento ' +
+      'imobiliario, cada uma com o numero, o texto extraido e (quando houver) a imagem da ' +
+      'pagina. Classifique CADA pagina em exatamente uma categoria:\n' +
+      '- "ficha_tecnica": dados tecnicos (terreno, torres, unidades, vagas, memorial, ' +
+      'lista de itens de lazer em texto, especificacoes).\n' +
+      '- "fachada": perspectiva/imagem da fachada ou do predio por fora.\n' +
+      '- "area_comum": imagens de lazer e areas comuns (piscina, salao, academia, ' +
+      'churrasqueira, playground, portaria, jardins).\n' +
+      '- "planta": planta de apartamento/tipologia ou implantacao do terreno.\n' +
+      '- "decorado": imagem de interior decorado de uma unidade (sala, quarto, cozinha).\n' +
+      '- "localizacao": mapa, localizacao, pontos de interesse, "como chegar".\n' +
+      '- "descartar": capa so com logo, pagina em branco, textos legais, tabela de precos, ' +
+      'condicoes comerciais, contatos, ou qualquer outra coisa.\n' +
+      'Para cada pagina de imagem, escreva uma "legenda" curta em portugues (ate 6 palavras, ' +
+      'ex: "Piscina adulto", "Planta 2 dormitorios 45 m2"); para as demais, null.\n' +
+      'Leia tambem, SOMENTE se estiver escrito no material: nome do empreendimento, ' +
+      'construtora e endereco. NUNCA invente, estime ou complete um dado: se nao estiver ' +
+      'escrito, use null. IGNORE precos e condicoes comerciais.\n\n' +
+      'Responda EXCLUSIVAMENTE com JSON, sem texto antes ou depois, sem markdown:\n' +
+      '{"paginas":[{"numero":1,"categoria":"fachada","legenda":"Fachada"}],' +
+      '"nome":string|null,"construtora":string|null,' +
+      '"endereco":{"rua":string|null,"numero":string|null,"bairro":string|null,' +
+      '"cidade":string|null,"uf":string|null,"cep":string|null}}';
+
+    const content: Anthropic.ContentBlockParam[] = [];
+    for (const pagina of paginas) {
+      const texto = pagina.texto.replace(/\s+/g, ' ').trim().slice(0, BOOK_TEXTO_POR_PAGINA);
+      content.push({
+        type: 'text',
+        text: `--- Pagina ${pagina.numero} ---\nTexto: ${texto || '(sem texto)'}`,
+      });
+      if (pagina.imagemJpegBase64) {
+        content.push({
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/jpeg', data: pagina.imagemJpegBase64 },
+        });
+      }
+    }
+    content.push({ type: 'text', text: `Total de paginas: ${paginas.length}. Classifique todas.` });
+
+    const response = await this.client.messages.create({
+      model: MODEL,
+      max_tokens: BOOK_MAX_TOKENS,
+      system: systemPrompt,
+      messages: [{ role: 'user', content }],
+    });
+
+    const textoFinal = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n')
+      .trim();
+
+    // Sem try/catch: JSON invalido propaga para o use case avisar o usuario.
+    return this.parseClassificacaoBook(textoFinal, paginas.map((p) => p.numero));
+  }
+
+  private parseClassificacaoBook(texto: string, numeros: number[]): ClassificacaoBookIA {
+    const match = texto.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match ? match[0] : texto);
+    const textoOuNull = (valor: unknown): string | null =>
+      typeof valor === 'string' && valor.trim() ? valor.trim().slice(0, 200) : null;
+
+    const porNumero = new Map<number, { categoria: CategoriaPaginaBookIA; legenda: string | null }>();
+    if (Array.isArray(parsed.paginas)) {
+      for (const item of parsed.paginas) {
+        if (typeof item !== 'object' || item === null) continue;
+        const numero = Number(item.numero);
+        const categoria = CATEGORIAS_BOOK.includes(item.categoria) ? item.categoria : 'descartar';
+        if (Number.isInteger(numero)) porNumero.set(numero, { categoria, legenda: textoOuNull(item.legenda) });
+      }
+    }
+
+    const e = typeof parsed.endereco === 'object' && parsed.endereco !== null ? parsed.endereco : {};
+    const uf = textoOuNull(e.uf);
+    return {
+      // Pagina que a IA pulou vira "descartar" - o usuario revisa todas.
+      paginas: numeros.map((numero) => ({
+        numero,
+        ...(porNumero.get(numero) ?? { categoria: 'descartar' as const, legenda: null }),
+      })),
+      nome: textoOuNull(parsed.nome),
+      construtora: textoOuNull(parsed.construtora),
+      endereco: {
+        rua: textoOuNull(e.rua),
+        numero: textoOuNull(e.numero),
+        bairro: textoOuNull(e.bairro),
+        cidade: textoOuNull(e.cidade),
+        uf: uf && /^[A-Za-z]{2}$/.test(uf) ? uf.toUpperCase() : null,
+        cep: textoOuNull(e.cep),
+      },
+    };
   }
 
   private parseFichaTecnicaJson(texto: string): FichaTecnicaExtraidaIA {

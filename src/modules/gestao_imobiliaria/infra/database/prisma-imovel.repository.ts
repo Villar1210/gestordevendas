@@ -1,6 +1,7 @@
 // src/modules/gestao_imobiliaria/infra/database/prisma-imovel.repository.ts
 // Camada de INFRA: traduz o contrato do dominio para comandos reais do Prisma.
 import { Injectable } from '@nestjs/common';
+import { escolherCapa } from '../../domain/services/book-empreendimento';
 import { PrismaService } from '../../../../config/prisma.service';
 import {
   Prisma,
@@ -174,19 +175,19 @@ type PrismaImovelRow = {
   updatedAt: Date;
   // So presente quando a query faz include: { photos: ... } (findAllByTenant)
   photos?: { url: string }[];
-  empreendimento?: { photos: { url: string }[] } | null;
+  empreendimento?: { photos: { url: string; categoria: string; order: number }[] } | null;
 };
 
-// 1a foto da unidade + 1a foto do empreendimento ("area_comum" vem antes de
-// "planta" na ordem alfabetica - fachada/lazer e melhor capa que planta).
+// 1a foto da unidade + as primeiras fotos do empreendimento, para escolher a
+// capa por prioridade (fachada > area comum > decorado > localizacao > planta).
 const INCLUDE_CAPAS = {
   photos: { take: 1, orderBy: { order: 'asc' as const } },
   empreendimento: {
     select: {
       photos: {
-        take: 1,
-        orderBy: [{ categoria: 'asc' as const }, { order: 'asc' as const }],
-        select: { url: true },
+        take: 20,
+        orderBy: { order: 'asc' as const },
+        select: { url: true, categoria: true, order: true },
       },
     },
   },
@@ -252,7 +253,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       coverPhotoUrl: row.photos && row.photos.length > 0 ? row.photos[0].url : null,
-      empreendimentoFotoUrl: row.empreendimento?.photos[0]?.url ?? null,
+      empreendimentoFotoUrl: escolherCapa(row.empreendimento?.photos ?? [])?.url ?? null,
     };
   }
 

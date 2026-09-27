@@ -42,6 +42,9 @@ import { ConfirmarFichaTecnicaUseCase } from './application/use-cases/confirmar-
 import { GetEmpreendimentoDetailUseCase } from './application/use-cases/get-empreendimento-detail.use-case';
 import { PublicarEmpreendimentoUseCase } from './application/use-cases/publicar-empreendimento.use-case';
 import { PublicarUnidadesNoSiteUseCase } from './application/use-cases/publicar-unidades-no-site.use-case';
+import { AnalisarBookEmpreendimentoUseCase } from './application/use-cases/analisar-book-empreendimento.use-case';
+import { ConfirmarBookEmpreendimentoUseCase } from './application/use-cases/confirmar-book-empreendimento.use-case';
+import { DiskBookTemporarioStorage } from './infra/services/disk-book-temporario.storage';
 import { DespublicarEmpreendimentoUseCase } from './application/use-cases/despublicar-empreendimento.use-case';
 import { UploadEmpreendimentoPhotoUseCase } from './application/use-cases/upload-empreendimento-photo.use-case';
 import { DeleteEmpreendimentoPhotoUseCase } from './application/use-cases/delete-empreendimento-photo.use-case';
@@ -108,6 +111,9 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     GetEmpreendimentoDetailUseCase,
     PublicarEmpreendimentoUseCase,
     PublicarUnidadesNoSiteUseCase,
+    AnalisarBookEmpreendimentoUseCase,
+    ConfirmarBookEmpreendimentoUseCase,
+    { provide: 'IBookTemporarioStorage', useClass: DiskBookTemporarioStorage },
     DespublicarEmpreendimentoUseCase,
     UploadEmpreendimentoPhotoUseCase,
     DeleteEmpreendimentoPhotoUseCase,

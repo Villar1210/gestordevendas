@@ -43,6 +43,11 @@ import { PublicarEmpreendimentoUseCase } from '../../application/use-cases/publi
 import { DespublicarEmpreendimentoUseCase } from '../../application/use-cases/despublicar-empreendimento.use-case';
 import { PublicarUnidadesNoSiteUseCase } from '../../application/use-cases/publicar-unidades-no-site.use-case';
 import { PublicarUnidadesSiteDto } from './dtos/publicar-unidades-site.dto';
+import { AnalisarBookDto, ConfirmarBookDto } from './dtos/book-empreendimento.dto';
+import { AnalisarBookEmpreendimentoUseCase } from '../../application/use-cases/analisar-book-empreendimento.use-case';
+import { ConfirmarBookEmpreendimentoUseCase } from '../../application/use-cases/confirmar-book-empreendimento.use-case';
+import { BOOK_MAX_BYTES } from '../../domain/services/book-empreendimento';
+import { Throttle } from '@nestjs/throttler';
 import { UploadEmpreendimentoPhotoUseCase } from '../../application/use-cases/upload-empreendimento-photo.use-case';
 import { DeleteEmpreendimentoPhotoUseCase } from '../../application/use-cases/delete-empreendimento-photo.use-case';
 import { ReorderEmpreendimentoPhotosUseCase } from '../../application/use-cases/reorder-empreendimento-photos.use-case';
@@ -65,6 +70,8 @@ export class EmpreendimentoController {
     private readonly publicarEmpreendimentoUseCase: PublicarEmpreendimentoUseCase,
     private readonly despublicarEmpreendimentoUseCase: DespublicarEmpreendimentoUseCase,
     private readonly publicarUnidadesNoSiteUseCase: PublicarUnidadesNoSiteUseCase,
+    private readonly analisarBookUseCase: AnalisarBookEmpreendimentoUseCase,
+    private readonly confirmarBookUseCase: ConfirmarBookEmpreendimentoUseCase,
     private readonly uploadEmpreendimentoPhotoUseCase: UploadEmpreendimentoPhotoUseCase,
     private readonly deleteEmpreendimentoPhotoUseCase: DeleteEmpreendimentoPhotoUseCase,
     private readonly reorderEmpreendimentoPhotosUseCase: ReorderEmpreendimentoPhotosUseCase,
@@ -130,6 +137,53 @@ export class EmpreendimentoController {
     return this.despublicarEmpreendimentoUseCase.execute({
       tenantId: req.user!.tenantId,
       empreendimentoId: id,
+    });
+  }
+
+  // POST /empreendimentos/book/analisar - "book" (PDF da construtora):
+  // separa as paginas, a IA classifica e le a ficha tecnica. So PREVIEW.
+  // Limite apertado: cada chamada usa a IA (custo) e renderiza o PDF (CPU).
+  @Post('book/analisar')
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: BOOK_MAX_BYTES, files: 1 } }))
+  async analisarBook(
+    @Body() dto: AnalisarBookDto,
+    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    @Req() req: Request,
+  ) {
+    return this.analisarBookUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId: dto.empreendimentoId,
+      file,
+    });
+  }
+
+  // POST /empreendimentos/book/confirmar - grava o que foi revisado: cria o
+  // empreendimento (ou completa um existente), ficha tecnica e fotos.
+  @Post('book/confirmar')
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
+  async confirmarBook(@Body() dto: ConfirmarBookDto, @Req() req: Request) {
+    return this.confirmarBookUseCase.execute({
+      tenantId: req.user!.tenantId,
+      bookId: dto.bookId,
+      empreendimentoId: dto.empreendimentoId,
+      novo: dto.novo,
+      ficha: {
+        descricao: dto.ficha.descricao ?? null,
+        areaTerreno: dto.ficha.areaTerreno ?? null,
+        totalUnidades: dto.ficha.totalUnidades ?? null,
+        numeroTorres: dto.ficha.numeroTorres ?? null,
+        unidadesPorAndar: dto.ficha.unidadesPorAndar ?? null,
+        gabarito: dto.ficha.gabarito ?? null,
+        vagas: dto.ficha.vagas ?? null,
+        itensLazer: dto.ficha.itensLazer,
+        tipologias: dto.ficha.tipologias.map((t) => ({
+          nome: t.nome,
+          areaPrivativa: t.areaPrivativa ?? null,
+          dormitorios: t.dormitorios ?? null,
+        })),
+      },
+      paginas: dto.paginas,
     });
   }
 

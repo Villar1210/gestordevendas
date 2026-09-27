@@ -65,6 +65,40 @@ export interface FichaTecnicaExtraidaIA {
   itensLazer: string[];
 }
 
+// Book do empreendimento (PDF da construtora) separado pagina a pagina.
+export type CategoriaPaginaBookIA =
+  | 'ficha_tecnica'
+  | 'fachada'
+  | 'area_comum'
+  | 'planta'
+  | 'decorado'
+  | 'localizacao'
+  | 'descartar';
+
+export interface PaginaBookParaIA {
+  numero: number;
+  texto: string;
+  // Miniatura JPEG da pagina (base64 puro, sem "data:"), ou null quando a
+  // pagina vai so com texto.
+  imagemJpegBase64: string | null;
+}
+
+export interface EnderecoExtraidoIA {
+  rua: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  cep: string | null;
+}
+
+export interface ClassificacaoBookIA {
+  paginas: { numero: number; categoria: CategoriaPaginaBookIA; legenda: string | null }[];
+  nome: string | null;
+  construtora: string | null;
+  endereco: EnderecoExtraidoIA;
+}
+
 export interface IAiConversationService {
   generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput>;
   // Busca web ISOLADA (fora do loop principal de tools/conversa) so para
@@ -80,4 +114,7 @@ export interface IAiConversationService {
   // invalido - quem chama precisa saber que a extracao falhou, nunca
   // silenciosamente preencher campos com dados inventados (ver CLAUDE.md).
   extrairFichaTecnicaEmpreendimento(textoPdf: string): Promise<FichaTecnicaExtraidaIA>;
+  // Classifica cada pagina do book (ficha tecnica, fachada, lazer, planta...)
+  // e le nome/construtora/endereco. So o que estiver no PDF - nunca inventa.
+  classificarPaginasBook(paginas: PaginaBookParaIA[]): Promise<ClassificacaoBookIA>;
 }

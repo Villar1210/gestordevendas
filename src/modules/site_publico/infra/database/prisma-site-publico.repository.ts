@@ -4,6 +4,7 @@
 // a internet - nunca devolvem o registro inteiro.
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
+import { PRIORIDADE_CAPA, escolherCapa } from '../../../gestao_imobiliaria/domain/services/book-empreendimento';
 import { Prisma, ImovelStatus } from '../../../../generated/prisma/client';
 import { REMARKETING_PIPELINE_NOME } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 import { ISitePublicoRepository, SiteTenant } from '../../domain/site-publico-repository.interface';
@@ -15,6 +16,19 @@ import {
   ImovelPublicoResumo,
   Paginado,
 } from '../../domain/site-publico.types';
+
+// Capa do empreendimento: fachada > area comum > decorado > localizacao > planta.
+function capaDoEmpreendimento(fotos: { url: string; categoria: string; order: number }[]): string | null {
+  return escolherCapa(fotos)?.url ?? null;
+}
+
+function ordenarFotosDoEmpreendimento<T extends { categoria: string; order: number }>(fotos: T[]): T[] {
+  const peso = (c: string) => {
+    const i = PRIORIDADE_CAPA.indexOf(c);
+    return i === -1 ? PRIORIDADE_CAPA.length : i;
+  };
+  return [...fotos].sort((a, b) => peso(a.categoria) - peso(b.categoria) || a.order - b.order);
+}
 
 function num(value: Prisma.Decimal | number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
@@ -45,11 +59,11 @@ const IMOVEL_RESUMO_SELECT = {
     select: {
       name: true,
       publicado: true,
-      // Capa de reserva para unidade sem foto propria (area comum antes de planta).
+      // Capa de reserva para unidade sem foto propria (escolhida por prioridade).
       photos: {
-        select: { url: true },
-        orderBy: [{ categoria: 'asc' }, { order: 'asc' }],
-        take: 1,
+        select: { url: true, categoria: true, order: true },
+        orderBy: { order: 'asc' },
+        take: 20,
       },
     },
   },
@@ -78,7 +92,7 @@ function toImovelResumo(row: ImovelResumoRow): ImovelPublicoResumo {
     // (lancamento em sigilo nao pode "vazar" pela foto da fachada).
     fotoCapa:
       row.photos[0]?.url ??
-      (row.empreendimento?.publicado ? row.empreendimento.photos[0]?.url ?? null : null),
+      (row.empreendimento?.publicado ? capaDoEmpreendimento(row.empreendimento.photos) : null),
     // Empreendimento ainda nao publicado (ex: lancamento em sigilo) nao
     // aparece nem pelo nome nem pelo id.
     empreendimentoId: row.empreendimento?.publicado ? row.empreendimentoId : null,
@@ -173,8 +187,8 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
             name: true,
             publicado: true,
             photos: {
-              select: { url: true },
-              orderBy: [{ categoria: 'asc' }, { order: 'asc' }],
+              select: { url: true, categoria: true, order: true },
+              orderBy: { order: 'asc' },
             },
           },
         },
@@ -183,7 +197,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
     if (!row) return null;
     const fotosUnidade = row.photos.map((p) => p.url);
     const fotosEmpreendimento = row.empreendimento?.publicado
-      ? row.empreendimento.photos.map((p) => p.url)
+      ? ordenarFotosDoEmpreendimento(row.empreendimento.photos).map((p) => p.url)
       : [];
     return {
       ...toImovelResumo(row),
@@ -216,7 +230,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
         precoMinimo: true,
         precoMaximo: true,
         statusObra: true,
-        photos: { select: { url: true }, orderBy: [{ categoria: 'asc' }, { order: 'asc' }], take: 1 },
+        photos: { select: { url: true, categoria: true, order: true }, orderBy: { order: 'asc' }, take: 20 },
       },
       orderBy: { name: 'asc' },
     });
@@ -230,7 +244,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
       precoMinimo: r.precoMinimo,
       precoMaximo: r.precoMaximo,
       statusObra: r.statusObra,
-      fotoCapa: r.photos[0]?.url ?? null,
+      fotoCapa: capaDoEmpreendimento(r.photos),
     }));
   }
 
@@ -267,7 +281,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
           select: { nome: true, areaPrivativa: true, dormitorios: true },
           orderBy: { nome: 'asc' },
         },
-        photos: { select: { url: true, categoria: true }, orderBy: [{ categoria: 'asc' }, { order: 'asc' }] },
+        photos: { select: { url: true, categoria: true, order: true }, orderBy: { order: 'asc' } },
       },
     });
     if (!r) return null;
@@ -281,7 +295,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
       precoMinimo: r.precoMinimo,
       precoMaximo: r.precoMaximo,
       statusObra: r.statusObra,
-      fotoCapa: r.photos[0]?.url ?? null,
+      fotoCapa: capaDoEmpreendimento(r.photos),
       descricao: r.description,
       construtora: r.construtora,
       endereco: [r.rua, r.numero].filter(Boolean).join(', '),
@@ -293,7 +307,7 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
       plantaoEndereco: r.plantaoEndereco,
       plantaoHorario: r.plantaoHorarioFuncionamento,
       tipologias: r.tipologias,
-      fotos: r.photos,
+      fotos: ordenarFotosDoEmpreendimento(r.photos).map((p) => ({ url: p.url, categoria: p.categoria })),
     };
   }
 

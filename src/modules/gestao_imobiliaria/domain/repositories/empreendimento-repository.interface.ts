@@ -48,7 +48,7 @@ export interface EmpreendimentoRecord {
 // schema.prisma). Os metodos vivem dentro de IEmpreendimentoRepository, nao
 // um repositorio proprio - mesmo padrao ja usado para ImovelPhoto dentro de
 // IImovelRepository.
-export const EMPREENDIMENTO_PHOTO_CATEGORIAS = ['planta', 'area_comum'] as const;
+export const EMPREENDIMENTO_PHOTO_CATEGORIAS = ['planta', 'area_comum', 'fachada', 'decorado', 'localizacao'] as const;
 export type EmpreendimentoPhotoCategoria = (typeof EMPREENDIMENTO_PHOTO_CATEGORIAS)[number];
 
 export interface EmpreendimentoPhotoRecord {
@@ -125,6 +125,9 @@ export interface IEmpreendimentoRepository {
   }): Promise<EmpreendimentoPhotoRecord>;
   findPhotoByIdAndTenant(photoId: string, tenantId: string): Promise<EmpreendimentoPhotoRecord | null>;
   deletePhoto(photoId: string): Promise<void>;
+  // Desfaz um empreendimento recem-criado quando a importacao do book falha
+  // no meio (fotos e tipologias saem junto, em cascata). Sempre por tenant.
+  deleteByIdAndTenant(id: string, tenantId: string): Promise<void>;
   // categoria aqui NAO e so para validacao - e o que garante que o re-fetch
   // apos a transacao devolva so as fotos DAQUELA categoria, ordenadas certo.
   // Sem isso, o "order" (sequencial POR categoria, ver EmpreendimentoPhoto no

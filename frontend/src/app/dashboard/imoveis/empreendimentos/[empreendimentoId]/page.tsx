@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   Plus,
   X,
+  FileUp,
 } from "lucide-react";
 import { ApiError, API_BASE_URL } from "@/core/api/client";
 import {
@@ -112,6 +113,12 @@ export default function EmpreendimentoDetailPage({
   } = useImoveisIntegration();
 
   const [isLoading, setIsLoading] = useState(true);
+  // Voltando da importacao do book: ?book=<quantidade de fotos criadas>.
+  const [fotosDoBook, setFotosDoBook] = useState<number | null>(null);
+  useEffect(() => {
+    const valor = new URLSearchParams(window.location.search).get("book");
+    if (valor !== null && /^\d+$/.test(valor)) setFotosDoBook(Number(valor));
+  }, []);
   const [notFound, setNotFound] = useState(false);
   const [empreendimento, setEmpreendimento] = useState<Empreendimento | null>(null);
   const [tipologias, setTipologias] = useState<Tipologia[]>([]);
@@ -362,6 +369,12 @@ export default function EmpreendimentoDetailPage({
           <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
         </Link>
       </header>
+      {fotosDoBook !== null && (
+        <div role="status" className="mx-6 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Book importado: ficha técnica salva e {fotosDoBook} {fotosDoBook === 1 ? "foto adicionada" : "fotos adicionadas"}.
+          Confira abaixo e, quando estiver tudo certo, clique em &quot;Publicar empreendimento&quot;.
+        </div>
+      )}
 
       <div className="space-y-6 p-6">
         {/* Revisao e Publicacao - sempre visivel, com destaque quando pendente. */}
@@ -419,13 +432,17 @@ export default function EmpreendimentoDetailPage({
           </div>
         </div>
 
-        {/* Ficha tecnica extraida via IA (Fatia 3c) - so mostra dados se ja
-            tiver sido confirmada ao menos uma vez. O fluxo de UPLOAD do PDF
-            ainda nao tem tela propria (fora do escopo desta fatia) - ver
-            CLAUDE.md. */}
+        {/* Ficha tecnica extraida via IA - preenchida pela importacao do book
+            (PDF da construtora), em /dashboard/imoveis/empreendimentos/book. */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-800">Ficha Técnica (extraída via IA)</h2>
+            <Link
+              href={`/dashboard/imoveis/empreendimentos/book?empreendimentoId=${empreendimento.id}`}
+              className="ml-auto flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
+            >
+              <FileUp className="h-3.5 w-3.5" /> Importar book (PDF)
+            </Link>
             {temFichaTecnica && !isEditingFicha && (
               <button
                 onClick={handleIniciarEdicaoFicha}
@@ -438,9 +455,8 @@ export default function EmpreendimentoDetailPage({
 
           {!temFichaTecnica ? (
             <p className="text-sm text-slate-400">
-              Nenhuma ficha técnica importada via IA ainda. A importação de PDF acontece via
-              API (POST /empreendimentos/:id/importar-pdf + confirmar-ficha-técnica) - a tela
-              de upload ainda não foi construída.
+              Nenhuma ficha técnica ainda. Clique em &quot;Importar book (PDF)&quot; para o sistema ler a
+              ficha técnica e separar as fotos do material da construtora.
             </p>
           ) : !isEditingFicha || !fichaForm ? (
             <div className="grid gap-4 sm:grid-cols-3">
