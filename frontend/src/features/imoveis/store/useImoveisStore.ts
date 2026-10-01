@@ -177,7 +177,7 @@ export interface LancamentoFinanceiro {
 }
 
 export type FinalidadeFilter = "all" | "venda" | "aluguel" | "ambos";
-export type CatalogLayout = "cards" | "lista";
+export type CatalogLayout = "vitrine" | "cards" | "lista";
 export type ImoveisView =
   | "empreendimentos"
   | "catalogo"
@@ -300,7 +300,7 @@ export const useImoveisStore = create<ImoveisState>((set, get) => ({
   isLoading: false,
 
   activeView: "catalogo",
-  catalogLayout: "cards",
+  catalogLayout: "vitrine",
 
   busca: "",
   finalidadeFilter: "all",

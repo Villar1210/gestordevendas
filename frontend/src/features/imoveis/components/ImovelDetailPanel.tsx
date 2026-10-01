@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Plus, X, ChevronLeft, ChevronRight, Bed, Bath, Car, Maximize2, MapPin, Tag, ExternalLink, CheckCircle2 } from "lucide-react";
+import { FotoLightbox } from "./FotoLightbox";
 import { API_BASE_URL } from "@/core/api/client";
 import { ImovelPhoto, useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
@@ -46,6 +47,7 @@ export function ImovelDetailPanel() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<ImovelPhoto[]>([]);
+  const [fotoAmpliada, setFotoAmpliada] = useState<number | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [activeTab, setActiveTab] = useState<"detalhes" | "editar">("detalhes");
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -292,12 +294,19 @@ export function ImovelDetailPanel() {
               {/* Carrossel de fotos */}
               {photos.length > 0 ? (
                 <div className="relative h-72 bg-slate-900">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`${API_BASE_URL}${photos[carouselIndex]?.url}`}
-                    alt="Foto do imóvel"
-                    className="h-full w-full object-cover opacity-95"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setFotoAmpliada(carouselIndex)}
+                    aria-label="Ampliar foto"
+                    className="block h-full w-full cursor-zoom-in focus:outline-none"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`${API_BASE_URL}${photos[carouselIndex]?.url}`}
+                      alt="Foto do imóvel"
+                      className="h-full w-full object-cover opacity-95"
+                    />
+                  </button>
                   {photos.length > 1 && (
                     <>
                       <button
@@ -526,8 +535,10 @@ export function ImovelDetailPanel() {
                   <div className="flex flex-wrap gap-3">
                     {photos.map((photo, index) => (
                       <div key={photo.id} className="group relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={`${API_BASE_URL}${photo.url}`} alt="Foto do imóvel" className="h-full w-full object-cover" />
+                        <button type="button" onClick={() => setFotoAmpliada(index)} aria-label={`Ampliar foto ${index + 1}`} className="block h-full w-full cursor-zoom-in">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`${API_BASE_URL}${photo.url}`} alt="" className="h-full w-full object-cover" />
+                        </button>
                         <button type="button" onClick={() => handleRemovePhoto(photo.id)} className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-1 text-white group-hover:block" aria-label="Remover foto">
                           <X className="h-3 w-3" />
                         </button>
@@ -777,6 +788,13 @@ export function ImovelDetailPanel() {
           )}
         </div>
       </div>
+      {fotoAmpliada !== null && photos.length > 0 && (
+        <FotoLightbox
+          fotos={photos.map((p) => ({ url: p.url }))}
+          indiceInicial={Math.min(fotoAmpliada, photos.length - 1)}
+          onClose={() => setFotoAmpliada(null)}
+        />
+      )}
     </>
   );
 }

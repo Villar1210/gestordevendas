@@ -80,12 +80,20 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const [role, setRole] = useState<string | null>(null);
   const imoveisSecaoAtiva = useImoveisStore((state) => state.activeView);
   const naPaginaImoveis = pathname === "/dashboard/imoveis";
-  // Submenu de Imoveis: abre sozinho quando a pagina de Imoveis esta aberta;
-  // fora dela, o usuario abre/fecha pela setinha.
-  const [imoveisAberto, setImoveisAberto] = useState(naPaginaImoveis);
+  const naAreaImoveis = pathname?.startsWith("/dashboard/imoveis") ?? false;
+  // Secao destacada no submenu: na pagina de Imoveis, a aberta; dentro de
+  // um empreendimento (ficha, unidades, lote, book), "Empreendimentos".
+  const secaoDestacada = naPaginaImoveis
+    ? imoveisSecaoAtiva
+    : pathname?.startsWith("/dashboard/imoveis/empreendimentos")
+      ? "empreendimentos"
+      : null;
+  // Submenu de Imoveis: abre sozinho dentro da area de Imoveis; fora dela,
+  // o usuario abre/fecha pela setinha.
+  const [imoveisAberto, setImoveisAberto] = useState(naAreaImoveis);
   useEffect(() => {
-    if (naPaginaImoveis) setImoveisAberto(true);
-  }, [naPaginaImoveis]);
+    if (naAreaImoveis) setImoveisAberto(true);
+  }, [naAreaImoveis]);
 
   // Fecha a gaveta ao trocar de pagina (celular).
   useEffect(() => {
@@ -179,7 +187,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                   {imoveisAberto && (
                     <ul id="submenu-imoveis" className="mt-1 space-y-0.5 border-l border-slate-200 pl-3 ml-5">
                       {secoes.map((secao) => {
-                        const ativa = naPaginaImoveis && imoveisSecaoAtiva === secao.id;
+                        const ativa = secaoDestacada === secao.id;
                         return (
                           <li key={secao.id}>
                             <Link

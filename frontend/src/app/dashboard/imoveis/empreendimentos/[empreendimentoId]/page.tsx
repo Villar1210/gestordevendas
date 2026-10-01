@@ -21,6 +21,7 @@ import {
   FileUp,
 } from "lucide-react";
 import { ApiError, API_BASE_URL } from "@/core/api/client";
+import { FotoLightbox, FotoLightboxItem } from "@/features/imoveis/components/FotoLightbox";
 import {
   useImoveisIntegration,
   ConfirmarFichaTecnicaInput,
@@ -124,6 +125,7 @@ export default function EmpreendimentoDetailPage({
   const [tipologias, setTipologias] = useState<Tipologia[]>([]);
   const [unidadesCadastradas, setUnidadesCadastradas] = useState(0);
   const [photos, setPhotos] = useState<EmpreendimentoPhoto[]>([]);
+  const [lightbox, setLightbox] = useState<{ fotos: FotoLightboxItem[]; indice: number } | null>(null);
 
   const [isTogglingPublicacao, setIsTogglingPublicacao] = useState(false);
 
@@ -668,6 +670,16 @@ export default function EmpreendimentoDetailPage({
                 key={categoriaOption.value}
                 label={categoriaOption.label}
                 photos={photos.filter((p) => p.categoria === categoriaOption.value)}
+                onOpen={(photoId) => {
+                  // Abre na ordem em que as fotos aparecem na tela (por
+                  // categoria), para as setas seguirem a mesma sequencia.
+                  const fotos = EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS.flatMap((c) =>
+                    photos
+                      .filter((p) => p.categoria === c.value)
+                      .map((p) => ({ id: p.id, url: p.url, legenda: c.label })),
+                  );
+                  setLightbox({ fotos, indice: Math.max(0, fotos.findIndex((f) => f.id === photoId)) });
+                }}
                 onUpload={(file) => handleUploadPhotoCategoria(categoriaOption.value, file)}
                 onRemove={handleRemovePhoto}
                 onMove={(index, direction) =>
@@ -678,6 +690,9 @@ export default function EmpreendimentoDetailPage({
           </div>
         </div>
       </div>
+      {lightbox && (
+        <FotoLightbox fotos={lightbox.fotos} indiceInicial={lightbox.indice} onClose={() => setLightbox(null)} />
+      )}
     </div>
   );
 }
@@ -685,12 +700,14 @@ export default function EmpreendimentoDetailPage({
 function EmpreendimentoPhotoCategorySection({
   label,
   photos,
+  onOpen,
   onUpload,
   onRemove,
   onMove,
 }: {
   label: string;
   photos: EmpreendimentoPhoto[];
+  onOpen: (photoId: string) => void;
   onUpload: (file: File) => void;
   onRemove: (photoId: string) => void;
   onMove: (index: number, direction: -1 | 1) => void;
@@ -719,12 +736,20 @@ function EmpreendimentoPhotoCategorySection({
             key={photo.id}
             className="group relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${API_BASE_URL}${photo.url}`}
-              alt={label}
-              className="h-full w-full object-cover"
-            />
+            <button
+              type="button"
+              onClick={() => onOpen(photo.id)}
+              aria-label={`Ampliar foto ${index + 1} de ${label}`}
+              className="block h-full w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`${API_BASE_URL}${photo.url}`}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover transition group-hover:scale-105"
+              />
+            </button>
             <button
               type="button"
               onClick={() => onRemove(photo.id)}

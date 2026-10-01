@@ -20,6 +20,7 @@ import { ContratosTab } from "@/features/imoveis/components/ContratosTab";
 import { FinanceiroTab } from "@/features/imoveis/components/FinanceiroTab";
 import { InquilinosTab } from "@/features/imoveis/components/InquilinosTab";
 import { EmpreendimentosTab } from "@/features/imoveis/components/EmpreendimentosTab";
+import { CatalogoVitrine } from "@/features/imoveis/components/CatalogoVitrine";
 import { IMOVEIS_SECOES } from "@/features/imoveis/constants";
 
 // Abre a secao pedida no link do menu lateral (?secao=<id>). Componente
@@ -264,9 +265,22 @@ export default function ImoveisDashboardPage() {
                 ? "Carregando..."
                 : `${filteredImoveis.length} ${filteredImoveis.length !== 1 ? "imóveis encontrados" : "imóvel encontrado"}`}
             </p>
-            <div className="flex rounded-lg border border-slate-200 p-0.5">
+            <div className="flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Forma de exibição">
+              <button
+                onClick={() => setCatalogLayout("vitrine")}
+                aria-pressed={catalogLayout === "vitrine"}
+                title="Lista à esquerda e prévia da unidade à direita"
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  catalogLayout === "vitrine"
+                    ? "bg-blue-700 text-white"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Vitrine
+              </button>
               <button
                 onClick={() => setCatalogLayout("cards")}
+                aria-pressed={catalogLayout === "cards"}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   catalogLayout === "cards"
                     ? "bg-blue-700 text-white"
@@ -277,6 +291,7 @@ export default function ImoveisDashboardPage() {
               </button>
               <button
                 onClick={() => setCatalogLayout("lista")}
+                aria-pressed={catalogLayout === "lista"}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   catalogLayout === "lista"
                     ? "bg-blue-700 text-white"
@@ -295,7 +310,9 @@ export default function ImoveisDashboardPage() {
             </div>
           ) : (
             <div className="px-6 py-4">
-              {catalogLayout === "cards" ? (
+              {catalogLayout === "vitrine" ? (
+                <CatalogoVitrine imoveis={filteredImoveis} />
+              ) : catalogLayout === "cards" ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {filteredImoveis.slice(0, visiveis).map((imovel) => (
                     <ImovelCard key={imovel.id} imovel={imovel} />
