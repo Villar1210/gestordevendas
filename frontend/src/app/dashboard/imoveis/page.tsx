@@ -3,8 +3,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { Loader2, Plus, LayoutGrid, ClipboardCheck, Globe } from "lucide-react";
+import { Loader2, Plus, Globe } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
 import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
 import { useImoveisIntegration } from "@/features/imoveis/hooks/useImoveisIntegration";
@@ -21,6 +20,7 @@ import { FinanceiroTab } from "@/features/imoveis/components/FinanceiroTab";
 import { InquilinosTab } from "@/features/imoveis/components/InquilinosTab";
 import { EmpreendimentosTab } from "@/features/imoveis/components/EmpreendimentosTab";
 import { CatalogoVitrine } from "@/features/imoveis/components/CatalogoVitrine";
+import { EmpreendimentoDestaque } from "@/features/imoveis/components/EmpreendimentoDestaque";
 import { IMOVEIS_SECOES } from "@/features/imoveis/constants";
 
 // Abre a secao pedida no link do menu lateral (?secao=<id>). Componente
@@ -206,19 +206,11 @@ export default function ImoveisDashboardPage() {
           />
 
           {empreendimentoFilter !== "all" && (
+            <EmpreendimentoDestaque empreendimentoId={empreendimentoFilter} unidadesNaLista={filteredImoveis.length} />
+          )}
+
+          {empreendimentoFilter !== "all" && (role === "Administrador" && imoveis.length > 0 || avisoSite) && (
             <div className="flex flex-wrap items-center gap-2 px-6 pt-3">
-              <Link
-                href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}/lote`}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
-              </Link>
-              <Link
-                href={`/dashboard/imoveis/empreendimentos/${empreendimentoFilter}`}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                <ClipboardCheck className="h-4 w-4" /> Revisão e Publicação
-              </Link>
               {role === "Administrador" && imoveis.length > 0 && outrosFiltrosAtivos && (
                 <p className="flex items-center gap-1.5 text-sm text-slate-500">
                   <Globe className="h-4 w-4" aria-hidden /> Para publicar todas no site, limpe os outros filtros.
@@ -308,7 +300,7 @@ export default function ImoveisDashboardPage() {
               <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
               <p className="text-sm">Carregando imóveis...</p>
             </div>
-          ) : (
+          ) : empreendimentoFilter !== "all" && imoveis.length === 0 && !outrosFiltrosAtivos ? null : (
             <div className="px-6 py-4">
               {catalogLayout === "vitrine" ? (
                 <CatalogoVitrine imoveis={filteredImoveis} />

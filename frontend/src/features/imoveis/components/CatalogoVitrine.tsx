@@ -240,7 +240,12 @@ function PreviaImovel({
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`${API_BASE_URL}${foto.url}`} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                <img
+                  src={`${API_BASE_URL}${foto.url}`}
+                  alt=""
+                  onError={(ev) => (ev.currentTarget.style.visibility = "hidden")}
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                />
                 {i === 4 && restantes > 0 && (
                   <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-semibold text-white">
                     +{restantes} fotos

@@ -1,5 +1,5 @@
 // src/features/imoveis/hooks/useImoveisIntegration.ts
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { apiRequest, ApiError } from "@/core/api/client";
 import {
   useImoveisStore,
@@ -325,14 +325,19 @@ export function useImoveisIntegration() {
   const closeContratoFormModal = useImoveisStore((state) => state.closeContratoFormModal);
   const closeLancamentoFormModal = useImoveisStore((state) => state.closeLancamentoFormModal);
 
+  // So a resposta da busca MAIS RECENTE entra na tela: com filtros trocando
+  // rapido (ou o filtro vindo do link logo na abertura), uma busca antiga
+  // que demorasse mais sobrescrevia a lista certa.
+  const ultimaBuscaImoveis = useRef(0);
   const loadImoveis = useCallback(
     async (filters?: ListImoveisFilters) => {
+      const busca = ++ultimaBuscaImoveis.current;
       setLoading(true);
       try {
         const imoveis = await apiRequest<Imovel[]>(`/imoveis${buildQueryString(filters)}`);
-        setImoveis(imoveis);
+        if (busca === ultimaBuscaImoveis.current) setImoveis(imoveis);
       } finally {
-        setLoading(false);
+        if (busca === ultimaBuscaImoveis.current) setLoading(false);
       }
     },
     [setImoveis, setLoading],
