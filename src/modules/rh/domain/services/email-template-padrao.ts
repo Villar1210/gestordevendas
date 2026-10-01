@@ -22,6 +22,6 @@ export const EMAIL_TEMPLATE_PADRAO: Record<EmailTemplateTipo, EmailTemplatePadra
   },
   aprovacao_cadastro: {
     assunto: 'Seu cadastro foi aprovado!',
-    corpo: `<p>Olá, {{NOME}}.</p><p>Seu cadastro na {{EMPRESA}} foi aprovado! Você já pode entrar no sistema com o e-mail e a senha que você escolheu no cadastro.</p>`,
+    corpo: `<p>Olá, {{NOME}}.</p><p>Seu cadastro na {{EMPRESA}} foi aprovado! Você já pode entrar no sistema com o e-mail <strong>{{EMAIL}}</strong> e a senha que você escolheu no cadastro.</p><p><a href="{{LINK_ACESSO}}" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:10px;">Acessar a plataforma</a></p>`,
   },
 };

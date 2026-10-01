@@ -1,10 +1,10 @@
 // src/app/dashboard/rh/aprovacoes/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, UserCheck, FileSignature, ExternalLink } from "lucide-react";
+import { Loader2, UserCheck, FileSignature, ExternalLink, Info, X } from "lucide-react";
 import { useAprovacoesStore } from "@/features/aprovacoes/store/useAprovacoesStore";
 import { useAprovacoesIntegration } from "@/features/aprovacoes/hooks/useAprovacoesIntegration";
 import { CadastroDetailPanel } from "@/features/aprovacoes/components/CadastroDetailPanel";
@@ -17,6 +17,49 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", tim
 // movido pra dentro do modulo RH - ver PainelConfiguracaoTab.tsx.
 type AbaAprovacoes = "pendentes" | "aprovados" | "painel-configuracao";
 
+// Abre direto o cadastro vindo do link da notificacao/e-mail
+// (?cadastro=<id>). Componente separado + Suspense porque useSearchParams
+// exige isso no build; reage tambem quando o link e clicado com esta
+// pagina ja aberta (o sininho so troca a query, sem remontar a pagina).
+function AbrirCadastroPelaUrl({
+  onAbrir,
+  onNaoEncontrado,
+}: {
+  onAbrir: () => void;
+  onNaoEncontrado: () => void;
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const cadastroId = searchParams.get("cadastro");
+  const pendentes = useAprovacoesStore((state) => state.pendentes);
+  const isLoading = useAprovacoesStore((state) => state.isLoading);
+  const selectCadastro = useAprovacoesStore((state) => state.selectCadastro);
+  const { loadPendentes } = useAprovacoesIntegration();
+  const recarregadoPara = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!cadastroId || isLoading) return;
+    if (pendentes.some((p) => p.id === cadastroId)) {
+      onAbrir();
+      selectCadastro(cadastroId);
+      router.replace("/dashboard/rh/aprovacoes");
+      return;
+    }
+    // Cadastro novo que chegou com a pagina ja aberta: recarrega 1 vez antes
+    // de concluir que ele nao esta mais pendente.
+    if (recarregadoPara.current !== cadastroId) {
+      recarregadoPara.current = cadastroId;
+      loadPendentes();
+      return;
+    }
+    onNaoEncontrado();
+    router.replace("/dashboard/rh/aprovacoes");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cadastroId, isLoading, pendentes]);
+
+  return null;
+}
+
 export default function AprovacoesPage() {
   const router = useRouter();
   const pendentes = useAprovacoesStore((state) => state.pendentes);
@@ -27,6 +70,7 @@ export default function AprovacoesPage() {
   const { loadPendentes, loadAprovados } = useAprovacoesIntegration();
   const hasInitialized = useRef(false);
   const [aba, setAba] = useState<AbaAprovacoes>("pendentes");
+  const [avisoJaAnalisado, setAvisoJaAnalisado] = useState(false);
 
   useEffect(() => {
     if (hasInitialized.current) return;
@@ -89,7 +133,33 @@ export default function AprovacoesPage() {
         </div>
       </header>
 
+      <Suspense fallback={null}>
+        <AbrirCadastroPelaUrl
+          onAbrir={() => {
+            setAba("pendentes");
+            setAvisoJaAnalisado(false);
+          }}
+          onNaoEncontrado={() => setAvisoJaAnalisado(true)}
+        />
+      </Suspense>
+
       <div className="p-6">
+        {avisoJaAnalisado && (
+          <div
+            role="status"
+            className="mb-4 flex items-start gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600"
+          >
+            <Info className="mt-0.5 h-4 w-4 flex-none text-blue-600" aria-hidden />
+            <p className="flex-1">Esse cadastro não está mais pendente, provavelmente já foi analisado por outro Administrador.</p>
+            <button
+              onClick={() => setAvisoJaAnalisado(false)}
+              aria-label="Fechar aviso"
+              className="text-slate-400 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         {aba === "painel-configuracao" ? (
           <PainelConfiguracaoTab />
         ) : aba === "pendentes" ? (

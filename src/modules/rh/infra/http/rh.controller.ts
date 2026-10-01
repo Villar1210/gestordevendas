@@ -1,4 +1,5 @@
 // src/modules/rh/infra/http/rh.controller.ts
+import { Throttle } from '@nestjs/throttler';
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
@@ -91,6 +92,10 @@ export class RhController {
 
   // POST /rh/cadastro-publico - rota PUBLICA (sem login): cria o cadastro
   // pendente de aprovacao para qualquer um dos 4 perfis.
+  // Limite proprio (mais estrito que o global de 100/min): rota publica que
+  // cria conta e dispara e-mail aos Administradores - evita enxurrada de
+  // cadastros falsos/spam de e-mail.
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
   @Post('cadastro-publico')
   async cadastroPublico(@Body() dto: PublicSignupDto) {
     return this.publicSignupUseCase.execute({

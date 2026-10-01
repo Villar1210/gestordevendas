@@ -42,7 +42,7 @@ export function CorretorSignupForm({
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  if (submitted) return <CadastroRecebidoScreen />;
+  if (submitted) return <CadastroRecebidoScreen perfil="corretor" />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

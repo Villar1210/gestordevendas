@@ -8,11 +8,15 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { IUserRepository } from '../../../auth/domain/repositories/user-repository.interface';
 import { CreateNotificationUseCase } from '../../application/use-cases/create-notification.use-case';
+import { IEmailSender } from '../../../../shared/domain/services/email-sender.interface';
+import { montarEmailNovoCadastro } from '../../application/templates/novo-cadastro.email';
 
 const ADMINISTRADOR_ROLE_NAME = 'Administrador';
 
 interface CadastroPendenteCriadoEvent {
   tenantId: string;
+  // Opcional so por compatibilidade: sem ele o link cai na lista geral.
+  cadastroId?: string;
   nome: string;
   roleName: string;
 }
@@ -24,12 +28,20 @@ export class CadastroPendenteCriadoListener {
   constructor(
     @Inject('IUserRepository') private readonly userRepository: IUserRepository,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
+    @Inject('IEmailSender') private readonly emailSender: IEmailSender,
   ) {}
 
   @OnEvent('cadastro.pendente.criado')
   async handle(event: CadastroPendenteCriadoEvent): Promise<void> {
+    // Link direto para o cadastro: a tela de Aprovacoes le ?cadastro= e ja
+    // abre o painel de aprovar/rejeitar daquele cadastro.
+    const linkInterno = event.cadastroId
+      ? `/dashboard/rh/aprovacoes?cadastro=${encodeURIComponent(event.cadastroId)}`
+      : '/dashboard/rh/aprovacoes';
+
+    let administradores: { id: string }[] = [];
     try {
-      const administradores = await this.userRepository.findAllByTenantAndRole(
+      administradores = await this.userRepository.findAllByTenantAndRole(
         event.tenantId,
         ADMINISTRADOR_ROLE_NAME,
       );
@@ -41,7 +53,7 @@ export class CadastroPendenteCriadoListener {
             userId: admin.id,
             tipo: 'cadastro_pendente',
             mensagem: `Novo cadastro pendente de aprovação: ${event.nome} (${event.roleName})`,
-            link: '/dashboard/rh/aprovacoes',
+            link: linkInterno,
           }),
         ),
       );
@@ -54,5 +66,32 @@ export class CadastroPendenteCriadoListener {
         }`,
       );
     }
+
+    // E-mail, alem do sininho: o Administrador fica sabendo mesmo sem estar
+    // logado. Cada envio e independente - um e-mail que falha nao impede os
+    // outros (nem a notificacao interna, ja gravada acima).
+    const urlPlataforma = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    await Promise.all(
+      administradores.map(async (admin) => {
+        try {
+          const usuario = await this.userRepository.findById(admin.id);
+          if (!usuario?.email) return;
+          const { subject, body } = montarEmailNovoCadastro({
+            nomeAdministrador: usuario.name ?? '',
+            nomeCadastro: event.nome,
+            roleName: event.roleName,
+            link: `${urlPlataforma}${linkInterno}`,
+            urlPlataforma,
+          });
+          await this.emailSender.send({ to: usuario.email, subject, body });
+        } catch (error) {
+          this.logger.error(
+            `Falha ao enviar e-mail de novo cadastro ao Administrador ${admin.id}: ${
+              error instanceof Error ? error.message : error
+            }`,
+          );
+        }
+      }),
+    );
   }
 }

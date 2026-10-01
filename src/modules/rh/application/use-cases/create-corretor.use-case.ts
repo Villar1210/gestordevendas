@@ -80,7 +80,7 @@ export class CreateCorretorUseCase {
     await this.emailSender.send({
       to: corretor.email,
       subject: preencherEmailTemplate(template.assunto, dadosTemplate),
-      body: preencherEmailTemplate(template.corpo, dadosTemplate),
+      body: preencherEmailTemplate(template.corpo, dadosTemplate, { html: true }),
     });
 
     return corretor;

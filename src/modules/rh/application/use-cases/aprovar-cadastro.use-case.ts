@@ -16,7 +16,7 @@ import { IEmailSender } from '../../../../shared/domain/services/email-sender.in
 import { ITenantConfigRepository } from '../../../configuracoes/domain/repositories/tenant-config-repository.interface';
 import { exigeContrato, ehPessoaJuridica } from '../../domain/services/roles-com-contrato';
 import { VALID_CARGOS_HIERARQUICOS } from '../../domain/services/cargos-hierarquicos';
-import { preencherEmailTemplate } from '../../domain/services/preencher-email-template';
+import { preencherEmailTemplate, botaoAcessoHtml } from '../../domain/services/preencher-email-template';
 import { GerarContratoPrestacaoServicoUseCase } from './gerar-contrato-prestacao-servico.use-case';
 import { GetOrCreateEmailTemplateUseCase } from './get-or-create-email-template.use-case';
 
@@ -103,18 +103,27 @@ export class AprovarCadastroUseCase {
       tipo: 'aprovacao_cadastro',
     });
     const tenantConfig = await this.tenantConfigRepository.findByTenantId(input.tenantId);
+    // Login leva cada perfil direto para a area dele (Kanban/Minha Conta) -
+    // ver frontend app/login/page.tsx.
+    const linkAcesso = `${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '')}/login`;
     const dadosTemplate = {
       nome: aprovado.name,
       email: aprovado.email,
       empresa: tenantConfig?.name ?? 'nossa empresa',
       cargo: aprovado.cargoHierarquico ?? '',
       perfil: aprovado.roleName,
+      linkAcesso,
     };
+
+    let corpo = preencherEmailTemplate(template.corpo, dadosTemplate, { html: true });
+    if (!template.corpo.includes('{{LINK_ACESSO}}')) {
+      corpo += botaoAcessoHtml(linkAcesso);
+    }
 
     await this.emailSender.send({
       to: aprovado.email,
       subject: preencherEmailTemplate(template.assunto, dadosTemplate),
-      body: preencherEmailTemplate(template.corpo, dadosTemplate),
+      body: corpo,
     });
 
     // Geracao do contrato e um efeito colateral POS-aprovacao - uma falha

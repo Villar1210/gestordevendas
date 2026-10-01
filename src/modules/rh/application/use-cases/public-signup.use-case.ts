@@ -79,7 +79,7 @@ export class PublicSignupUseCase {
 
     const hashedPassword = await bcrypt.hash(input.password, 10);
 
-    await this.cadastroRepository.create({
+    const criado = await this.cadastroRepository.create({
       tenantId,
       roleId: role.id,
       name: input.name,
@@ -100,8 +100,11 @@ export class PublicSignupUseCase {
     // Desacoplado de proposito - este modulo (rh) nao conhece o modulo
     // notificacoes, so emite o evento generico (mesmo padrao ja usado por
     // vendas_kanban -> roleta_online, ver CardSemDonoCriadoListener).
+    // cadastroId permite ao listener montar o link direto para o cadastro
+    // na tela de Aprovacoes (notificacao + e-mail ao Administrador).
     this.eventEmitter.emit('cadastro.pendente.criado', {
       tenantId,
+      cadastroId: criado.id,
       nome: input.name,
       roleName,
     });

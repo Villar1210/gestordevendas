@@ -13,6 +13,7 @@ import { CorretorOnlineNotificaFilaListener } from './infra/listeners/corretor-o
 import { ViviUsoAnomaloListener } from './infra/listeners/vivi-uso-anomalo.listener';
 import { PrismaNotificationRepository } from './infra/database/prisma-notification.repository';
 import { PrismaService } from '../../config/prisma.service';
+import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
 import { AuthModule } from '../auth/auth.module';
 import { VendasKanbanModule } from '../vendas_kanban/vendas-kanban.module';
 import { AtendimentoModule } from '../atendimento/atendimento.module';
@@ -51,6 +52,9 @@ import { AtendimentoModule } from '../atendimento/atendimento.module';
     CorretorOnlineNotificaFilaListener,
     ViviUsoAnomaloListener,
     { provide: 'INotificationRepository', useClass: PrismaNotificationRepository },
+    // E-mail ao Administrador sobre cadastro novo (CadastroPendenteCriadoListener) -
+    // mesmo provider ja usado por AuthModule/RhModule/EdocModule.
+    { provide: 'IEmailSender', useClass: ResendEmailSender },
   ],
 })
 export class NotificacoesModule {}

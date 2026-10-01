@@ -29,7 +29,7 @@ export function ImobiliariaSignupForm() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  if (submitted) return <CadastroRecebidoScreen />;
+  if (submitted) return <CadastroRecebidoScreen perfil="imobiliaria" />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

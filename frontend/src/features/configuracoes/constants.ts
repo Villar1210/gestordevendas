@@ -98,6 +98,7 @@ export const EMAIL_TEMPLATE_PLACEHOLDERS: { token: string; label: string }[] = [
   { token: "{{SENHA_TEMPORARIA}}", label: "Senha temporária (só boas-vindas)" },
   { token: "{{CARGO}}", label: "Cargo hierárquico (só aprovação)" },
   { token: "{{PERFIL}}", label: "Perfil/role (só aprovação)" },
+  { token: "{{LINK_ACESSO}}", label: "Link de acesso à plataforma (só aprovação)" },
 ];
 
 // Espelha domain/services/email-template-padrao.ts (backend) - usado pelo
@@ -114,7 +115,7 @@ export const EMAIL_TEMPLATE_PADRAO: Record<string, { assunto: string; corpo: str
   },
   aprovacao_cadastro: {
     assunto: "Seu cadastro foi aprovado!",
-    corpo: `<p>Olá, {{NOME}}.</p><p>Seu cadastro na {{EMPRESA}} foi aprovado! Você já pode entrar no sistema com o e-mail e a senha que você escolheu no cadastro.</p>`,
+    corpo: `<p>Olá, {{NOME}}.</p><p>Seu cadastro na {{EMPRESA}} foi aprovado! Você já pode entrar no sistema com o e-mail <strong>{{EMAIL}}</strong> e a senha que você escolheu no cadastro.</p><p><a href="{{LINK_ACESSO}}" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:10px;">Acessar a plataforma</a></p>`,
   },
 };
 

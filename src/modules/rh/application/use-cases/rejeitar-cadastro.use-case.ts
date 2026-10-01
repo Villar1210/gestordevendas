@@ -62,7 +62,7 @@ export class RejeitarCadastroUseCase {
     await this.emailSender.send({
       to: rejeitado.email,
       subject: preencherEmailTemplate(template.assunto, dadosTemplate),
-      body: preencherEmailTemplate(template.corpo, dadosTemplate),
+      body: preencherEmailTemplate(template.corpo, dadosTemplate, { html: true }),
     });
 
     return rejeitado;
