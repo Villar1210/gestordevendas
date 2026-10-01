@@ -19,6 +19,7 @@ import { ProprietariosTab } from "@/features/imoveis/components/ProprietariosTab
 import { ContratosTab } from "@/features/imoveis/components/ContratosTab";
 import { FinanceiroTab } from "@/features/imoveis/components/FinanceiroTab";
 import { InquilinosTab } from "@/features/imoveis/components/InquilinosTab";
+import { EmpreendimentosTab } from "@/features/imoveis/components/EmpreendimentosTab";
 import { IMOVEIS_SECOES } from "@/features/imoveis/constants";
 
 // Abre a secao pedida no link do menu lateral (?secao=<id>). Componente
@@ -172,7 +173,7 @@ export default function ImoveisDashboardPage() {
           </h1>
         </div>
 
-        {(activeView === "catalogo" || activeView === "espelho") && (
+        {(activeView === "catalogo" || activeView === "espelho" || activeView === "empreendimentos") && (
           <div className="flex items-center gap-2">
             <button
               onClick={openEmpreendimentoFormModal}
@@ -325,6 +326,8 @@ export default function ImoveisDashboardPage() {
             </div>
           )}
         </>
+      ) : activeView === "empreendimentos" ? (
+        <EmpreendimentosTab />
       ) : activeView === "espelho" ? (
         <EspelhoDeVendas />
       ) : activeView === "proprietarios" ? (

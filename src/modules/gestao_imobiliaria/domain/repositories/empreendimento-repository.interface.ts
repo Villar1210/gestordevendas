@@ -19,6 +19,11 @@ export interface EmpreendimentoRecord {
   // chegaram (ex: "planilha") - nulo para empreendimentos cadastrados a mao.
   publicado: boolean;
   origemImportacao: string | null;
+  // So na listagem (findAllByTenant): capa (1a foto do empreendimento) e
+  // quantas unidades (Imovel) ja estao cadastradas - cards da secao
+  // "Empreendimentos". Ausentes nas demais leituras.
+  fotoCapaUrl?: string | null;
+  quantidadeUnidades?: number;
   // Ficha tecnica (Fatia 3c) - preenchidos so pelo fluxo de importacao de
   // PDF (ConfirmarFichaTecnicaUseCase), nulos/vazio ate la.
   areaTerreno: number | null;

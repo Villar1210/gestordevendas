@@ -81,6 +81,9 @@ export interface Empreendimento {
   gabarito: number | null;
   vagas: number | null;
   itensLazer: string[];
+  // So na listagem (GET /empreendimentos): capa e unidades cadastradas.
+  fotoCapaUrl?: string | null;
+  quantidadeUnidades?: number;
 }
 
 export interface Tipologia {
@@ -176,6 +179,7 @@ export interface LancamentoFinanceiro {
 export type FinalidadeFilter = "all" | "venda" | "aluguel" | "ambos";
 export type CatalogLayout = "cards" | "lista";
 export type ImoveisView =
+  | "empreendimentos"
   | "catalogo"
   | "espelho"
   | "proprietarios"

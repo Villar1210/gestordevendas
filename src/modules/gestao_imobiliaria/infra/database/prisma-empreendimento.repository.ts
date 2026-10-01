@@ -59,13 +59,24 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
     tenantId: string,
     filters?: { publicado?: boolean },
   ): Promise<EmpreendimentoRecord[]> {
-    return this.prisma.empreendimento.findMany({
+    const lista = await this.prisma.empreendimento.findMany({
       where: {
         tenantId,
         ...(filters?.publicado !== undefined ? { publicado: filters.publicado } : {}),
       },
       orderBy: { createdAt: 'desc' },
+      include: {
+        // Mesma ordem de capa ja usada no site publico e no fallback de foto
+        // das unidades (categoria, depois ordem).
+        photos: { select: { url: true }, orderBy: [{ categoria: 'asc' }, { order: 'asc' }], take: 1 },
+        _count: { select: { imoveis: true } },
+      },
     });
+    return lista.map(({ photos, _count, ...empreendimento }) => ({
+      ...empreendimento,
+      fotoCapaUrl: photos[0]?.url ?? null,
+      quantidadeUnidades: _count.imoveis,
+    }));
   }
 
   async update(

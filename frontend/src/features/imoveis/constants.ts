@@ -249,7 +249,8 @@ export function formatArea(valor: number | null | undefined): string | null {
 
 // Secoes da pagina de Imoveis - viram o submenu de "Imoveis" no menu
 // lateral (Sidebar) e o titulo da pagina. Link: /dashboard/imoveis?secao=<id>.
-export const IMOVEIS_SECOES: { id: "catalogo" | "espelho" | "proprietarios" | "contratos" | "inquilinos" | "financeiro"; label: string; soAdmin?: boolean }[] = [
+export const IMOVEIS_SECOES: { id: "empreendimentos" | "catalogo" | "espelho" | "proprietarios" | "contratos" | "inquilinos" | "financeiro"; label: string; soAdmin?: boolean }[] = [
+  { id: "empreendimentos", label: "Empreendimentos" },
   { id: "catalogo", label: "Catálogo" },
   { id: "espelho", label: "Espelho de Vendas" },
   { id: "proprietarios", label: "Proprietários" },
