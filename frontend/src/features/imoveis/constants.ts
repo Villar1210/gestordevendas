@@ -246,3 +246,14 @@ const areaFormatter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 
 export function formatArea(valor: number | null | undefined): string | null {
   return valor == null ? null : `${areaFormatter.format(valor)} m²`;
 }
+
+// Secoes da pagina de Imoveis - viram o submenu de "Imoveis" no menu
+// lateral (Sidebar) e o titulo da pagina. Link: /dashboard/imoveis?secao=<id>.
+export const IMOVEIS_SECOES: { id: "catalogo" | "espelho" | "proprietarios" | "contratos" | "inquilinos" | "financeiro"; label: string; soAdmin?: boolean }[] = [
+  { id: "catalogo", label: "Catálogo" },
+  { id: "espelho", label: "Espelho de Vendas" },
+  { id: "proprietarios", label: "Proprietários" },
+  { id: "contratos", label: "Contratos" },
+  { id: "inquilinos", label: "Inquilinos" },
+  { id: "financeiro", label: "Financeiro", soAdmin: true },
+];

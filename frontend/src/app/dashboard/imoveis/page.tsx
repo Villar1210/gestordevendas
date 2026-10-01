@@ -1,7 +1,8 @@
 // src/app/dashboard/imoveis/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Plus, LayoutGrid, ClipboardCheck, Globe } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
@@ -18,17 +19,20 @@ import { ProprietariosTab } from "@/features/imoveis/components/ProprietariosTab
 import { ContratosTab } from "@/features/imoveis/components/ContratosTab";
 import { FinanceiroTab } from "@/features/imoveis/components/FinanceiroTab";
 import { InquilinosTab } from "@/features/imoveis/components/InquilinosTab";
+import { IMOVEIS_SECOES } from "@/features/imoveis/constants";
 
-type Aba = { id: "catalogo" | "espelho" | "proprietarios" | "contratos" | "inquilinos" | "financeiro"; label: string; soAdmin?: boolean };
-
-const ABAS: Aba[] = [
-  { id: "catalogo", label: "Catálogo" },
-  { id: "espelho", label: "Espelho de Vendas" },
-  { id: "proprietarios", label: "Proprietários" },
-  { id: "contratos", label: "Contratos" },
-  { id: "inquilinos", label: "Inquilinos" },
-  { id: "financeiro", label: "Financeiro", soAdmin: true },
-];
+// Abre a secao pedida no link do menu lateral (?secao=<id>). Componente
+// separado + Suspense porque useSearchParams exige isso no build; reage
+// tambem a cliques no submenu com a pagina ja aberta (so a query muda).
+function SincronizarSecaoPelaUrl() {
+  const secao = useSearchParams().get("secao");
+  const setActiveView = useImoveisStore((state) => state.setActiveView);
+  useEffect(() => {
+    const valida = IMOVEIS_SECOES.find((s) => s.id === secao);
+    if (valida) setActiveView(valida.id);
+  }, [secao, setActiveView]);
+  return null;
+}
 
 // Cards desenhados por vez: com centenas de unidades, desenhar tudo de uma
 // vez deixa a tela lenta (principalmente no celular).
@@ -38,7 +42,6 @@ export default function ImoveisDashboardPage() {
   const imoveis = useImoveisStore((state) => state.imoveis);
   const isLoading = useImoveisStore((state) => state.isLoading);
   const activeView = useImoveisStore((state) => state.activeView);
-  const setActiveView = useImoveisStore((state) => state.setActiveView);
   const catalogLayout = useImoveisStore((state) => state.catalogLayout);
   const setCatalogLayout = useImoveisStore((state) => state.setCatalogLayout);
   const busca = useImoveisStore((state) => state.busca);
@@ -57,6 +60,7 @@ export default function ImoveisDashboardPage() {
   const [publicando, setPublicando] = useState(false);
   const [avisoSite, setAvisoSite] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const secaoAtual = IMOVEIS_SECOES.find((s) => s.id === activeView);
   const hasCheckedRole = useRef(false);
 
   const [tipoFilter, setTipoFilter] = useState<string>("all");
@@ -156,26 +160,16 @@ export default function ImoveisDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <Suspense fallback={null}>
+        <SincronizarSecaoPelaUrl />
+      </Suspense>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex min-w-0 flex-1 items-center gap-4">
-          <h1 className="text-lg font-semibold text-slate-800">Imóveis</h1>
-          {/* Abas numa linha so; em tela estreita rolam de lado em vez de quebrar o texto */}
-          <nav aria-label="Seções de imóveis" className="min-w-0 overflow-x-auto">
-            <div className="flex w-max rounded-lg border border-slate-200 p-0.5">
-              {ABAS.filter((aba) => !aba.soAdmin || role === "Administrador").map((aba) => (
-                <button
-                  key={aba.id}
-                  onClick={() => setActiveView(aba.id)}
-                  aria-current={activeView === aba.id ? "page" : undefined}
-                  className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                    activeView === aba.id ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  {aba.label}
-                </button>
-              ))}
-            </div>
-          </nav>
+          <h1 className="text-lg font-semibold text-slate-800">
+            Imóveis
+            <span className="font-normal text-slate-400"> / </span>
+            <span className="font-medium text-slate-600">{secaoAtual?.label ?? "Catálogo"}</span>
+          </h1>
         </div>
 
         {(activeView === "catalogo" || activeView === "espelho") && (

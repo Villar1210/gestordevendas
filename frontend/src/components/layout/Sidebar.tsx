@@ -17,9 +17,12 @@ import {
   Calculator,
   Settings,
   X,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { apiRequest } from "@/core/api/client";
+import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
+import { IMOVEIS_SECOES } from "@/features/imoveis/constants";
 
 interface NavItem {
   icon: LucideIcon;
@@ -28,13 +31,16 @@ interface NavItem {
   // Ausente = visivel para qualquer role. Presente = so aparece se o role
   // do usuario logado bater exatamente com este valor.
   requiredRole?: string;
+  // Itens com submenu (hoje so Imoveis): as secoes viram links
+  // "<href>?secao=<id>" e a pagina abre direto na secao.
+  submenu?: "imoveis";
 }
 
 // Array de navegacao: adicionar novos modulos aqui conforme o sistema cresce.
 const NAV_ITEMS: NavItem[] = [
   { icon: Home, label: "Início", href: "/dashboard/inicio" },
   { icon: Kanban, label: "Vendas", href: "/dashboard/kanban" },
-  { icon: Building2, label: "Imóveis", href: "/dashboard/imoveis" },
+  { icon: Building2, label: "Imóveis", href: "/dashboard/imoveis", submenu: "imoveis" },
   { icon: MessageCircle, label: "WhatsApp", href: "/dashboard/whatsapp" },
   { icon: FileSignature, label: "E-doc", href: "/dashboard/edoc" },
   { icon: Headset, label: "Atendimento", href: "/dashboard/atendimento" },
@@ -72,6 +78,14 @@ interface SidebarProps {
 export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [role, setRole] = useState<string | null>(null);
+  const imoveisSecaoAtiva = useImoveisStore((state) => state.activeView);
+  const naPaginaImoveis = pathname === "/dashboard/imoveis";
+  // Submenu de Imoveis: abre sozinho quando a pagina de Imoveis esta aberta;
+  // fora dela, o usuario abre/fecha pela setinha.
+  const [imoveisAberto, setImoveisAberto] = useState(naPaginaImoveis);
+  useEffect(() => {
+    if (naPaginaImoveis) setImoveisAberto(true);
+  }, [naPaginaImoveis]);
 
   // Fecha a gaveta ao trocar de pagina (celular).
   useEffect(() => {
@@ -133,6 +147,63 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           {visibleNavItems.map((item) => {
             const isActive = pathname?.startsWith(item.href);
             const Icon = item.icon;
+
+            if (item.submenu === "imoveis") {
+              const secoes = IMOVEIS_SECOES.filter((secao) => !secao.soAdmin || role === "Administrador");
+              return (
+                <div key={item.href}>
+                  <div
+                    className={`flex items-center rounded-lg transition ${
+                      isActive ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+                    }`}
+                  >
+                    <Link
+                      href={`${item.href}?secao=catalogo`}
+                      aria-current={isActive && !imoveisAberto ? "page" : undefined}
+                      className="flex flex-1 items-center gap-3 px-3 py-2.5 text-sm font-medium md:py-2"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setImoveisAberto((v) => !v)}
+                      aria-expanded={imoveisAberto}
+                      aria-controls="submenu-imoveis"
+                      aria-label={imoveisAberto ? "Recolher seções de Imóveis" : "Mostrar seções de Imóveis"}
+                      className="mr-1 rounded-md p-1.5 hover:bg-white/70"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${imoveisAberto ? "rotate-180" : ""}`} />
+                    </button>
+                  </div>
+                  {imoveisAberto && (
+                    <ul id="submenu-imoveis" className="mt-1 space-y-0.5 border-l border-slate-200 pl-3 ml-5">
+                      {secoes.map((secao) => {
+                        const ativa = naPaginaImoveis && imoveisSecaoAtiva === secao.id;
+                        return (
+                          <li key={secao.id}>
+                            <Link
+                              href={`${item.href}?secao=${secao.id}`}
+                              // Trocar de secao nao muda o pathname - fecha a
+                              // gaveta (celular) aqui mesmo.
+                              onClick={onClose}
+                              aria-current={ativa ? "page" : undefined}
+                              className={`block rounded-md px-3 py-2 text-sm transition md:py-1.5 ${
+                                ativa
+                                  ? "bg-blue-50 font-medium text-blue-700"
+                                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                              }`}
+                            >
+                              {secao.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <Link
