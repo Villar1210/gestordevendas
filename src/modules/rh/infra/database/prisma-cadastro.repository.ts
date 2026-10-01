@@ -161,6 +161,21 @@ export class PrismaCadastroRepository implements ICadastroRepository {
     });
   }
 
+  async setAguardandoAssinaturaContrato(userId: string, aguardando: boolean): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { aguardandoAssinaturaContrato: aguardando },
+    });
+  }
+
+  async findByContratoEnvelopeId(envelopeId: string): Promise<CadastroRecord | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { contratoPrestacaoServicoEnvelopeId: envelopeId },
+      include: { role: true },
+    });
+    return user ? this.toRecord(user) : null;
+  }
+
   async updateContratoEnvelopeId(userId: string, envelopeId: string): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },

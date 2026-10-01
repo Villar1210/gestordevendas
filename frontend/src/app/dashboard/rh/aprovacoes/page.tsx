@@ -86,6 +86,11 @@ export default function AprovacoesPage() {
     if (params.get("aba") === "painel-configuracao") {
       setAba("painel-configuracao");
       router.replace("/dashboard/rh/aprovacoes");
+    } else if (params.get("aba") === "aprovados") {
+      // Link do aviso "Contrato de parceria assinado" (sininho/e-mail).
+      setAba("aprovados");
+      loadAprovados();
+      router.replace("/dashboard/rh/aprovacoes");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

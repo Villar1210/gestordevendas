@@ -17,6 +17,9 @@ export interface UserWithRole {
   // senha. Tokens JWT carregam este valor como claim "tv" e sao rejeitados
   // se o valor no banco divergir (sessao revogada).
   tokenVersion: number;
+  // Contrato de prestacao de servico ainda nao assinado e a empresa pediu
+  // para bloquear o acesso ate a assinatura (modulo rh).
+  aguardandoAssinaturaContrato?: boolean;
   role: { name: string };
 }
 

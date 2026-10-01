@@ -2,6 +2,7 @@
 // Rota PUBLICA (sem JWT) - o token e a propria fronteira de seguranca.
 import { Injectable, Inject, Logger, NotFoundException, GoneException, ConflictException, BadRequestException } from '@nestjs/common';
 import { createHash } from 'crypto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ISignatureEnvelopeRepository } from '../../domain/repositories/signature-envelope-repository.interface';
 import { ISignatureRecipientRepository, SignatureRecipientRecord } from '../../domain/repositories/signature-recipient-repository.interface';
 import { ISignatureEventRepository } from '../../domain/repositories/signature-event-repository.interface';
@@ -38,6 +39,7 @@ export class SignDocumentUseCase {
     private readonly eventRepository: ISignatureEventRepository,
     @Inject('IEmailSender') private readonly emailSender: IEmailSender,
     private readonly generateSignedPdfUseCase: GenerateSignedPdfUseCase,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: SignDocumentInput): Promise<{ status: string }> {
@@ -114,6 +116,14 @@ export class SignDocumentUseCase {
         }`,
       );
     }
+
+    // Evento generico: o E-doc nao sabe quem escuta (ex: modulo rh libera o
+    // acesso do corretor quando o contrato de prestacao de servico conclui).
+    // Emitido depois do PDF final, para quem escuta ja encontrar o arquivo.
+    this.eventEmitter.emit('edoc.envelope.concluido', {
+      tenantId: envelope.tenantId,
+      envelopeId: envelope.id,
+    });
 
     return { status: 'concluido' };
   }

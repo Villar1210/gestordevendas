@@ -67,6 +67,11 @@ export class AuthenticateUserUseCase {
         'Seu cadastro nao foi aprovado. Entre em contato com a nossa equipe.',
       );
     }
+    if (user.aguardandoAssinaturaContrato) {
+      throw new UnauthorizedException(
+        'Seu cadastro foi aprovado! Para liberar o acesso, assine o contrato de parceria que enviamos para o seu e-mail.',
+      );
+    }
 
     if (user.twoFactorEnabled) {
       await this.twoFactorCodeRepository.invalidateAllForUser(user.id);

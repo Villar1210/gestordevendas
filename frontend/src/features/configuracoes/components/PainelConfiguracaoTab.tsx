@@ -12,6 +12,7 @@ import { useState } from "react";
 import { DadosEmpresaTab } from "./DadosEmpresaTab";
 import { MeuPerfilTab } from "./MeuPerfilTab";
 import { ContratoTemplateTab } from "./ContratoTemplateTab";
+import { AssinaturasContratoTab } from "./AssinaturasContratoTab";
 import { PermissoesCargosTab } from "./PermissoesCargosTab";
 import { ConfiguracoesViviTab } from "./ConfiguracoesViviTab";
 import { EmailTemplatesTab } from "./EmailTemplatesTab";
@@ -21,6 +22,7 @@ type AbaPainelConfiguracao =
   | "dados-empresa"
   | "meu-perfil"
   | "permissoes-cargos"
+  | "assinaturas-contrato"
   | "template-contrato"
   | "config-vivi"
   | "templates-email"
@@ -31,6 +33,7 @@ const TABS: { id: AbaPainelConfiguracao; label: string; testId: string }[] = [
   { id: "meu-perfil", label: "Meu Perfil", testId: "tab-meu-perfil" },
   { id: "permissoes-cargos", label: "Permissões/Cargos", testId: "tab-permissoes-cargos" },
   { id: "template-contrato", label: "Template de Contrato", testId: "tab-template-contrato" },
+  { id: "assinaturas-contrato", label: "Assinaturas do Contrato", testId: "tab-assinaturas-contrato" },
   { id: "config-vivi", label: "Configurações da VIVI", testId: "tab-config-vivi" },
   { id: "templates-email", label: "Templates de E-mail", testId: "tab-templates-email" },
   { id: "stands-plantao", label: "Stands/Plantão", testId: "tab-stands-plantao" },
@@ -60,6 +63,7 @@ export function PainelConfiguracaoTab() {
       {aba === "meu-perfil" && <MeuPerfilTab />}
       {aba === "permissoes-cargos" && <PermissoesCargosTab />}
       {aba === "template-contrato" && <ContratoTemplateTab />}
+      {aba === "assinaturas-contrato" && <AssinaturasContratoTab />}
       {aba === "config-vivi" && <ConfiguracoesViviTab />}
       {aba === "templates-email" && <EmailTemplatesTab />}
       {aba === "stands-plantao" && <StandsPlantaoTab />}

@@ -76,6 +76,10 @@ export interface ICadastroRepository {
     superiorId?: string;
   }): Promise<CadastroRecord>;
   rejeitar(id: string): Promise<CadastroRecord>;
+  // Contrato de prestacao de servico: bloqueio de acesso ate assinar e
+  // busca do contratado a partir do envelope concluido no E-doc.
+  setAguardandoAssinaturaContrato(userId: string, aguardando: boolean): Promise<void>;
+  findByContratoEnvelopeId(envelopeId: string): Promise<CadastroRecord | null>;
   // Usuarios do tenant com cargoHierarquico preenchido - candidatos a
   // "superior" no seletor de hierarquia (tela de aprovacao).
   findPossiveisSuperioresByTenant(tenantId: string): Promise<SuperiorCandidateRecord[]>;

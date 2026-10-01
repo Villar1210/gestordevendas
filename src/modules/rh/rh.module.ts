@@ -24,6 +24,10 @@ import { PrismaRoleRepository } from './infra/database/prisma-role.repository';
 import { PrismaCadastroRepository } from './infra/database/prisma-cadastro.repository';
 import { PrismaContratoTemplateRepository } from './infra/database/prisma-contrato-template.repository';
 import { PrismaEmailTemplateRepository } from './infra/database/prisma-email-template.repository';
+import { PrismaContratoParceriaConfigRepository } from './infra/database/prisma-contrato-parceria-config.repository';
+import { GetContratoParceriaConfigUseCase } from './application/use-cases/get-contrato-parceria-config.use-case';
+import { UpdateContratoParceriaConfigUseCase } from './application/use-cases/update-contrato-parceria-config.use-case';
+import { ContratoParceriaAssinadoListener } from './infra/listeners/contrato-parceria-assinado.listener';
 import { PrismaService } from '../../config/prisma.service';
 import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
 import { EdocModule } from '../edoc/edoc.module';
@@ -62,6 +66,10 @@ import { PlantaoModule } from '../plantao/plantao.module';
     { provide: 'ICadastroRepository', useClass: PrismaCadastroRepository },
     { provide: 'IContratoTemplateRepository', useClass: PrismaContratoTemplateRepository },
     { provide: 'IEmailTemplateRepository', useClass: PrismaEmailTemplateRepository },
+    { provide: 'IContratoParceriaConfigRepository', useClass: PrismaContratoParceriaConfigRepository },
+    GetContratoParceriaConfigUseCase,
+    UpdateContratoParceriaConfigUseCase,
+    ContratoParceriaAssinadoListener,
     // ResendEmailSender (mesma implementacao ja usada no AuthModule) - e-mails
     // de boas-vindas do corretor e de aprovacao/rejeicao do cadastro publico
     // agora sao reais.

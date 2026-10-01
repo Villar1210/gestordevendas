@@ -1,6 +1,6 @@
 // src/modules/rh/infra/http/rh.controller.ts
 import { Throttle } from '@nestjs/throttler';
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
@@ -11,6 +11,7 @@ import { UpdateStatusDisponibilidadeDto } from './dtos/update-status-disponibili
 import { PublicSignupDto } from './dtos/public-signup.dto';
 import { AprovarCadastroDto } from './dtos/aprovar-cadastro.dto';
 import { UpdateContratoTemplateDto } from './dtos/update-contrato-template.dto';
+import { UpdateContratoParceriaConfigDto } from './dtos/update-contrato-parceria-config.dto';
 import { UpdateUserCargoDto } from './dtos/update-user-cargo.dto';
 import { UpdateEmailTemplateDto } from './dtos/update-email-template.dto';
 import { CreateCorretorUseCase } from '../../application/use-cases/create-corretor.use-case';
@@ -27,6 +28,8 @@ import { ListPossiveisSuperioresUseCase } from '../../application/use-cases/list
 import { ListCadastrosAprovadosUseCase } from '../../application/use-cases/list-cadastros-aprovados.use-case';
 import { GetOrCreateContratoTemplateUseCase } from '../../application/use-cases/get-or-create-contrato-template.use-case';
 import { UpdateContratoTemplateUseCase } from '../../application/use-cases/update-contrato-template.use-case';
+import { GetContratoParceriaConfigUseCase } from '../../application/use-cases/get-contrato-parceria-config.use-case';
+import { UpdateContratoParceriaConfigUseCase } from '../../application/use-cases/update-contrato-parceria-config.use-case';
 import { ListUsuariosComHierarquiaUseCase } from '../../application/use-cases/list-usuarios-com-hierarquia.use-case';
 import { UpdateUserCargoUseCase } from '../../application/use-cases/update-user-cargo.use-case';
 import { ListEmailTemplatesUseCase } from '../../application/use-cases/list-email-templates.use-case';
@@ -46,6 +49,8 @@ export class RhController {
     private readonly listCadastrosAprovadosUseCase: ListCadastrosAprovadosUseCase,
     private readonly getOrCreateContratoTemplateUseCase: GetOrCreateContratoTemplateUseCase,
     private readonly updateContratoTemplateUseCase: UpdateContratoTemplateUseCase,
+    private readonly getContratoParceriaConfigUseCase: GetContratoParceriaConfigUseCase,
+    private readonly updateContratoParceriaConfigUseCase: UpdateContratoParceriaConfigUseCase,
     private readonly listUsuariosComHierarquiaUseCase: ListUsuariosComHierarquiaUseCase,
     private readonly updateUserCargoUseCase: UpdateUserCargoUseCase,
     private readonly listEmailTemplatesUseCase: ListEmailTemplatesUseCase,
@@ -200,6 +205,40 @@ export class RhController {
       requesterRole: req.user!.role,
       nome: dto.nome,
       corpo: dto.corpo,
+    });
+  }
+
+  // GET/PUT /rh/contrato-parceria-config - quem assina o contrato de
+  // prestacao de servico alem do contratado e se o acesso espera a
+  // assinatura (Painel de Configuracao -> "Assinaturas do Contrato").
+  @Get('contrato-parceria-config')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async getContratoParceriaConfig(@Req() req: Request) {
+    return this.getContratoParceriaConfigUseCase.execute(req.user!.tenantId);
+  }
+
+  @Put('contrato-parceria-config')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async updateContratoParceriaConfig(@Body() dto: UpdateContratoParceriaConfigDto, @Req() req: Request) {
+    return this.updateContratoParceriaConfigUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      dados: {
+        assinaturaEmpresaAtiva: dto.assinaturaEmpresaAtiva,
+        representanteNome: dto.representanteNome ?? null,
+        representanteEmail: dto.representanteEmail ?? null,
+        representanteCargo: dto.representanteCargo ?? null,
+        quantidadeTestemunhas: dto.quantidadeTestemunhas,
+        testemunha1Nome: dto.testemunha1Nome ?? null,
+        testemunha1Email: dto.testemunha1Email ?? null,
+        testemunha2Nome: dto.testemunha2Nome ?? null,
+        testemunha2Email: dto.testemunha2Email ?? null,
+        bloquearAcessoAteAssinar: dto.bloquearAcessoAteAssinar,
+        lembretesAtivos: dto.lembretesAtivos,
+        lembreteDias: dto.lembreteDias ?? '2,5',
+      },
     });
   }
 

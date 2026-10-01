@@ -73,6 +73,7 @@ model Tenant {
   signatureEnvelopes SignatureEnvelope[]
 
   contratoTemplates ContratoTemplate[]
+  contratoParceriaConfig ContratoParceriaConfig?
   emailTemplates    EmailTemplate[]
   notifications     Notification[]
   stands            Stand[]
@@ -187,6 +188,11 @@ model User {
   // aprovacao acontecer, ou se o roleName nao exigir contrato (ex:
   // Cliente). Rastreamento visivel na tela de Aprovacoes (aba "Aprovados").
   contratoPrestacaoServicoEnvelopeId String? @unique @map("contrato_prestacao_servico_envelope_id") @db.Uuid
+  // Login bloqueado ate o contrato acima ser assinado por todos - so fica
+  // true quando a empresa liga "bloquear acesso ate assinar"
+  // (ContratoParceriaConfig) e o contrato foi gerado com sucesso. Volta a
+  // false quando o envelope conclui (ContratoParceriaAssinadoListener).
+  aguardandoAssinaturaContrato Boolean @default(false) @map("aguardando_assinatura_contrato")
 
   // Modulo Plantao/Stand - stand FIXO que este usuario coordena, so
   // relevante quando cargoHierarquico = "coordenador" (diferente de
@@ -241,6 +247,42 @@ model User {
 // padrao do modulo Atendimento) - nao e @@unique de proposito, para deixar
 // aberto ter mais de um template por tenant no futuro (so 1 marcado como
 // padrao por vez, mas isso nao e reforcado no banco ainda nesta fatia).
+// Regras de assinatura do contrato de prestacao de servico (modulo rh),
+// configuraveis por empresa no Painel de Configuracao. Sem registro (ou com
+// os defaults) o comportamento e o original: so o contratado assina e o
+// acesso e liberado na aprovacao.
+model ContratoParceriaConfig {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @unique @map("tenant_id") @db.Uuid
+
+  // Representante da empresa (CONTRATANTE) assina depois do contratado.
+  assinaturaEmpresaAtiva Boolean @default(false) @map("assinatura_empresa_ativa")
+  representanteNome      String? @map("representante_nome") @db.VarChar(150)
+  representanteEmail     String? @map("representante_email") @db.VarChar(150)
+  representanteCargo     String? @map("representante_cargo") @db.VarChar(100)
+
+  // 0, 1 ou 2 testemunhas fixas - assinam por ultimo.
+  quantidadeTestemunhas Int     @default(0) @map("quantidade_testemunhas")
+  testemunha1Nome       String? @map("testemunha1_nome") @db.VarChar(150)
+  testemunha1Email      String? @map("testemunha1_email") @db.VarChar(150)
+  testemunha2Nome       String? @map("testemunha2_nome") @db.VarChar(150)
+  testemunha2Email      String? @map("testemunha2_email") @db.VarChar(150)
+
+  bloquearAcessoAteAssinar Boolean @default(false) @map("bloquear_acesso_ate_assinar")
+
+  // Reservado para os lembretes automaticos (Sprint 11): dias apos o envio,
+  // separados por virgula (ex: "2,5").
+  lembretesAtivos Boolean @default(false) @map("lembretes_ativos")
+  lembreteDias    String  @default("2,5") @map("lembrete_dias") @db.VarChar(30)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("contrato_parceria_configs")
+}
+
 model ContratoTemplate {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid

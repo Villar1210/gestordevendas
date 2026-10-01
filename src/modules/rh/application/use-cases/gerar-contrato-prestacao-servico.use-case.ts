@@ -17,22 +17,13 @@ import { GetOrCreateContratoTemplateUseCase } from './get-or-create-contrato-tem
 import { GerarPdfContratoService } from '../services/gerar-pdf-contrato.service';
 import { CreateEnvelopeUseCase } from '../../../edoc/application/use-cases/create-envelope.use-case';
 import { SendEnvelopeUseCase } from '../../../edoc/application/use-cases/send-envelope.use-case';
+import { GetContratoParceriaConfigUseCase } from './get-contrato-parceria-config.use-case';
+import { montarSignatariosContrato } from '../../domain/services/signatarios-contrato';
 
 interface GerarContratoPrestacaoServicoInput {
   cadastro: CadastroRecord;
   createdByUserId: string;
 }
-
-// Posicao fixa do campo de assinatura na ULTIMA pagina - o documento e
-// gerado por nos mesmos (nao e um upload arbitrario de terceiro), entao
-// sabemos que o bloco de assinatura do CONTRATADO(A) sempre fica na
-// porcao inferior da pagina (ver contrato-template-padrao.ts, termina com
-// as linhas de assinatura). Nao tenta alinhar pixel-a-pixel com o texto -
-// suficiente para o modelo de teste desta fatia.
-const CAMPO_ASSINATURA_X_PERCENT = 0.55;
-const CAMPO_ASSINATURA_Y_PERCENT = 0.85;
-const CAMPO_ASSINATURA_WIDTH_PERCENT = 0.35;
-const CAMPO_ASSINATURA_HEIGHT_PERCENT = 0.06;
 
 @Injectable()
 export class GerarContratoPrestacaoServicoUseCase {
@@ -43,6 +34,7 @@ export class GerarContratoPrestacaoServicoUseCase {
     private readonly gerarPdfContratoService: GerarPdfContratoService,
     private readonly createEnvelopeUseCase: CreateEnvelopeUseCase,
     private readonly sendEnvelopeUseCase: SendEnvelopeUseCase,
+    private readonly getContratoParceriaConfigUseCase: GetContratoParceriaConfigUseCase,
   ) {}
 
   async execute(input: GerarContratoPrestacaoServicoInput): Promise<void> {
@@ -83,9 +75,27 @@ export class GerarContratoPrestacaoServicoUseCase {
       dataAtual: new Date().toLocaleDateString('pt-BR'),
     });
 
-    const { buffer, pageCount } = await this.gerarPdfContratoService.execute({
+    // Quem assina (contratado, representante da empresa, testemunhas) vem da
+    // configuracao da empresa - sem configuracao, so o contratado (original).
+    const config = await this.getContratoParceriaConfigUseCase.execute(cadastro.tenantId);
+    const signatarios = montarSignatariosContrato(
+      config,
+      {
+        nome: nomeContratado,
+        email: cadastro.email,
+        documento: pessoaJuridica
+          ? cadastro.cnpj ? `CNPJ ${cadastro.cnpj}` : null
+          : cadastro.cpf ? `CPF ${cadastro.cpf}` : null,
+      },
+      nomeTenant,
+    );
+
+    // Pagina final de assinaturas com 1 quadro por signatario - o PDF devolve
+    // a posicao exata de cada campo (antes era uma posicao fixa estimada).
+    const { buffer, campos } = await this.gerarPdfContratoService.execute({
       titulo: template.nome,
       corpo: corpoPreenchido,
+      assinaturas: signatarios.map((s) => ({ rotulo: s.rotulo, nome: s.name, detalhe: s.detalhe })),
     });
 
     const result = await this.createEnvelopeUseCase.execute({
@@ -97,18 +107,12 @@ export class GerarContratoPrestacaoServicoUseCase {
         originalname: `contrato-${cadastro.id}.pdf`,
         mimetype: 'application/pdf',
       },
-      recipients: [{ name: nomeContratado, email: cadastro.email, role: 'destinatario' }],
-      fields: [
-        {
-          recipientIndex: 0,
-          tipo: 'assinatura',
-          pageNumber: pageCount,
-          xPercent: CAMPO_ASSINATURA_X_PERCENT,
-          yPercent: CAMPO_ASSINATURA_Y_PERCENT,
-          widthPercent: CAMPO_ASSINATURA_WIDTH_PERCENT,
-          heightPercent: CAMPO_ASSINATURA_HEIGHT_PERCENT,
-        },
-      ],
+      recipients: signatarios.map((s) => ({ name: s.name, email: s.email, role: s.role })),
+      fields: campos.map((campo, recipientIndex) => ({
+        recipientIndex,
+        tipo: 'assinatura' as const,
+        ...campo,
+      })),
     });
 
     await this.sendEnvelopeUseCase.execute({
@@ -120,5 +124,11 @@ export class GerarContratoPrestacaoServicoUseCase {
     // da tela de Aprovacoes) - depois do envio, ja que so importa se todo
     // o resto deu certo.
     await this.cadastroRepository.updateContratoEnvelopeId(cadastro.id, result.envelope.id);
+
+    // So bloqueia depois que o contrato saiu de verdade - se algo acima
+    // falhar, o corretor nunca fica trancado sem ter o que assinar.
+    if (config.bloquearAcessoAteAssinar) {
+      await this.cadastroRepository.setAguardandoAssinaturaContrato(cadastro.id, true);
+    }
   }
 }

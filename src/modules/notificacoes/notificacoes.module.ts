@@ -5,6 +5,7 @@ import { ListMyNotificationsUseCase } from './application/use-cases/list-my-noti
 import { MarkNotificationReadUseCase } from './application/use-cases/mark-notification-read.use-case';
 import { CreateNotificationUseCase } from './application/use-cases/create-notification.use-case';
 import { CadastroPendenteCriadoListener } from './infra/listeners/cadastro-pendente-criado.listener';
+import { ContratoParceriaAssinadoNotificaListener } from './infra/listeners/contrato-parceria-assinado.listener';
 import { LeadAtribuidoListener } from './infra/listeners/lead-atribuido.listener';
 import { AtendimentoClassificadoListener } from './infra/listeners/atendimento-classificado.listener';
 import { CardSemDonoEscalonadoListener } from './infra/listeners/card-sem-dono-escalonado.listener';
@@ -45,6 +46,7 @@ import { AtendimentoModule } from '../atendimento/atendimento.module';
     MarkNotificationReadUseCase,
     CreateNotificationUseCase,
     CadastroPendenteCriadoListener,
+    ContratoParceriaAssinadoNotificaListener,
     LeadAtribuidoListener,
     AtendimentoClassificadoListener,
     CardSemDonoEscalonadoListener,
