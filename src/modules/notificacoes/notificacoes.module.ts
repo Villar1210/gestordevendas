@@ -12,6 +12,7 @@ import { CardSemDonoEscalonadoListener } from './infra/listeners/card-sem-dono-e
 import { AtendimentoSemDonoEscalonadoListener } from './infra/listeners/atendimento-sem-dono-escalonado.listener';
 import { CorretorOnlineNotificaFilaListener } from './infra/listeners/corretor-online-notifica-fila.listener';
 import { ViviUsoAnomaloListener } from './infra/listeners/vivi-uso-anomalo.listener';
+import { RoletaSorteioListener } from './infra/listeners/roleta-sorteio.listener';
 import { PrismaNotificationRepository } from './infra/database/prisma-notification.repository';
 import { PrismaService } from '../../config/prisma.service';
 import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
@@ -53,6 +54,8 @@ import { AtendimentoModule } from '../atendimento/atendimento.module';
     AtendimentoSemDonoEscalonadoListener,
     CorretorOnlineNotificaFilaListener,
     ViviUsoAnomaloListener,
+    // Fatia 2 (Sorteio da vez): 'roleta.sorteada' / 'roleta.hora_do_sorteio'
+    RoletaSorteioListener,
     { provide: 'INotificationRepository', useClass: PrismaNotificationRepository },
     // E-mail ao Administrador sobre cadastro novo (CadastroPendenteCriadoListener) -
     // mesmo provider ja usado por AuthModule/RhModule/EdocModule.

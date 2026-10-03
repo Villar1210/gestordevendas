@@ -5,7 +5,8 @@ import {
   RoletaConfigRecord,
 } from '../../domain/repositories/roleta-config-repository.interface';
 
-const VALID_ALGORITMOS = ['round_robin', 'menor_fila'];
+// 'sorteio' = Fatia 2 (Sorteio da vez): ordem sorteada das roletas por Stand/Produto.
+const VALID_ALGORITMOS = ['round_robin', 'menor_fila', 'sorteio'];
 const VALID_MODOS = ['automatico', 'semi_automatico'];
 
 interface UpdateRoletaConfigInput {

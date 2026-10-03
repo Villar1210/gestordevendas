@@ -3,8 +3,8 @@ import { IsBoolean, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class UpdateRoletaConfigDto {
   @IsOptional()
-  @IsIn(['round_robin', 'menor_fila'], {
-    message: 'Algoritmo invalido. Use um destes: round_robin, menor_fila.',
+  @IsIn(['round_robin', 'menor_fila', 'sorteio'], {
+    message: 'Algoritmo invalido. Use um destes: round_robin, menor_fila, sorteio.',
   })
   algoritmo?: string;
 

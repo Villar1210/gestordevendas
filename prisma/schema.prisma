@@ -117,6 +117,7 @@ model Tenant {
   socialMessages      SocialMessage[]
   socialConversations SocialConversation[]
 
+  roletas Roleta[]
   @@map("tenants")
 }
 
@@ -240,6 +241,10 @@ model User {
   // fez a outros tenants via impersonacao.
   acessosPlataformaComoSuperUsuario AcessoPlataformaLog[]
 
+  // Fatia 2 (Sorteio da vez) - ver modelo Roleta
+  roletasComoCorretor RoletaCorretor[]
+  roletaPosicoes      RoletaPosicao[]
+  roletaSorteios      RoletaSorteio[]
   @@map("users")
 }
 
@@ -387,6 +392,7 @@ model Stand {
   escalas       EscalaPlantao[]
   coordenadores User[]
 
+  roletas       Roleta[]
   @@map("stands")
 }
 
@@ -751,6 +757,10 @@ model Card {
   // sentido junto com atribuidoAutomaticamenteEm preenchido.
   aceitoEm                   DateTime? @map("aceito_em")
   imovelId                   String?   @map("imovel_id") @db.Uuid
+  // Fatia 2 (Sorteio da vez): empreendimento de interesse do lead - decide
+  // em qual Roleta de produto o card e sorteado. Preenchido pela VIVI no
+  // agendamento; sem ele, vale o empreendimento do imovel (se houver).
+  empreendimentoId           String?   @map("empreendimento_id") @db.Uuid
   title                      String    @db.VarChar(200)
   value                      Decimal   @default(0) @db.Decimal(12, 2)
   position                   Float
@@ -809,6 +819,7 @@ model Card {
   repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
   socialConversations   SocialConversation[]
 
+  empreendimento        Empreendimento?        @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
   @@map("cards")
 }
 
@@ -946,6 +957,8 @@ model Empreendimento {
   photos            EmpreendimentoPhoto[]
   viviConversations ViviConversation[]
 
+  roletas           RoletaEmpreendimento[]
+  cards             Card[]
   @@map("empreendimentos")
 }
 
@@ -1777,4 +1790,119 @@ model SocialMediaAsset {
   uploader User?  @relation("SocialMediaAssetUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
 
   @@map("social_media_assets")
+}
+
+// ============================================================
+// Fatia 2 (Atendimento/Roleta) - Sorteio da vez
+// ============================================================
+// Uma Roleta e uma fila de corretores com sorteio da ordem de atendimento
+// em horarios configurados. Tipo "stand": participam os corretores escalados
+// HOJE no stand (EscalaPlantao). Tipo "produto": participam os corretores
+// vinculados (RoletaCorretor) e ela recebe os leads dos empreendimentos
+// vinculados (RoletaEmpreendimento). So vale quando RoletaConfig.algoritmo
+// = "sorteio" - ver modulo roleta_online, domain/services/fila-sorteio.ts.
+model Roleta {
+  id                      String   @id @default(uuid()) @db.Uuid
+  tenantId                String   @map("tenant_id") @db.Uuid
+  nome                    String   @db.VarChar(120)
+  tipo                    String   @db.VarChar(10) // "stand" ou "produto"
+  standId                 String?  @map("stand_id") @db.Uuid
+  // Recebe os leads sem produto/sem roleta propria (no maximo 1 por tenant).
+  padrao                  Boolean  @default(false)
+  ativa                   Boolean  @default(true)
+  // "automatico" (sorteia sozinho no horario) ou "botao" (avisa
+  // gerente/coordenador; sorteia sozinho apos minutosSorteioSeguranca).
+  modoSorteio             String   @default("automatico") @map("modo_sorteio") @db.VarChar(12)
+  // Horarios "HH:MM" no fuso America/Sao_Paulo (ex: ["09:00","14:00"]).
+  horariosSorteio         String[] @default([]) @map("horarios_sorteio")
+  minutosSorteioSeguranca Int      @default(15) @map("minutos_sorteio_seguranca")
+  // Dia ("YYYY-MM-DD", Sao Paulo) a que a fila atual pertence - fila de
+  // outro dia e zerada e recomeca por ordem de chegada.
+  filaDia                 String?  @map("fila_dia") @db.VarChar(10)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stand           Stand?                  @relation(fields: [standId], references: [id], onDelete: SetNull)
+  empreendimentos RoletaEmpreendimento[]
+  corretores      RoletaCorretor[]
+  posicoes        RoletaPosicao[]
+  sorteios        RoletaSorteio[]
+  execucoes       RoletaHorarioExecucao[]
+
+  @@index([tenantId])
+  @@map("roletas")
+}
+
+model RoletaEmpreendimento {
+  roletaId         String @map("roleta_id") @db.Uuid
+  empreendimentoId String @map("empreendimento_id") @db.Uuid
+
+  roleta         Roleta         @relation(fields: [roletaId], references: [id], onDelete: Cascade)
+  empreendimento Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+
+  @@id([roletaId, empreendimentoId])
+  @@map("roleta_empreendimentos")
+}
+
+model RoletaCorretor {
+  roletaId String @map("roleta_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+
+  roleta Roleta @relation(fields: [roletaId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roletaId, userId])
+  @@map("roleta_corretores")
+}
+
+// Fila do turno: menor posicao = proximo a receber. Quem recebe um lead vai
+// para o fim (max+1); quem chega depois do sorteio entra no fim.
+model RoletaPosicao {
+  roletaId     String    @map("roleta_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  posicao      Int
+  entrouEm     DateTime  @default(now()) @map("entrou_em")
+  ultimoLeadEm DateTime? @map("ultimo_lead_em")
+
+  roleta Roleta @relation(fields: [roletaId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roletaId, userId])
+  @@index([roletaId, posicao])
+  @@map("roleta_posicoes")
+}
+
+// Historico (transparencia): quem/quando/qual ordem.
+model RoletaSorteio {
+  id             String   @id @default(uuid()) @db.Uuid
+  roletaId       String   @map("roleta_id") @db.Uuid
+  // "automatico" | "botao" | "seguranca"
+  origem         String   @db.VarChar(12)
+  disparadoPorId String?  @map("disparado_por_id") @db.Uuid
+  horario        String?  @db.VarChar(5)
+  // [{ userId, nome }] na ordem sorteada
+  ordem          Json
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  roleta      Roleta @relation(fields: [roletaId], references: [id], onDelete: Cascade)
+  disparadoPor User? @relation(fields: [disparadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([roletaId, createdAt])
+  @@map("roleta_sorteios")
+}
+
+// Controle do job: cada horario de cada dia e executado uma vez so (e o
+// aviso de "hora do sorteio" do modo botao e enviado uma vez so).
+model RoletaHorarioExecucao {
+  roletaId   String    @map("roleta_id") @db.Uuid
+  dia        String    @db.VarChar(10)
+  horario    String    @db.VarChar(5)
+  avisadoEm  DateTime? @map("avisado_em")
+  sorteadoEm DateTime? @map("sorteado_em")
+
+  roleta Roleta @relation(fields: [roletaId], references: [id], onDelete: Cascade)
+
+  @@id([roletaId, dia, horario])
+  @@map("roleta_horario_execucoes")
 }

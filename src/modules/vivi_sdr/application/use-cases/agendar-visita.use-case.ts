@@ -99,6 +99,11 @@ export class AgendarVisitaUseCase {
     // criado (nao reaproveitado via existingCardId), a Roleta ja terminou de
     // rodar (ownerId ja atribuido, se aplicavel) antes de resolveResponsavelNome
     // ler o Card mais abaixo. Sem essa troca, seria uma condicao de corrida.
+    // Fatia 2 (Sorteio da vez): so grava no card um empreendimento que
+    // existe neste tenant - id invalido/inexistente vindo da VIVI nunca pode
+    // derrubar o agendamento (FK) nem mandar o lead para a roleta errada.
+    const empreendimentoIdValido = await this.validarEmpreendimentoId(input.tenantId, input.empreendimentoId);
+
     const cardId = input.existingCardId
       ? input.existingCardId
       : (
@@ -111,6 +116,8 @@ export class AgendarVisitaUseCase {
             title: 'Visita agendada via VIVI',
             description: input.resumo,
             origem: 'roleta_online',
+            // Fatia 2: produto de interesse decide a Roleta (sorteio da vez).
+            empreendimentoId: empreendimentoIdValido,
           })) ??
           (await this.createQuickCardUseCase.execute({
             tenantId: input.tenantId,
@@ -122,6 +129,7 @@ export class AgendarVisitaUseCase {
             origem: 'roleta_online',
             phone: input.phoneNumber,
             description: input.resumo,
+            empreendimentoId: empreendimentoIdValido,
           }))
         ).id;
 
@@ -155,7 +163,9 @@ export class AgendarVisitaUseCase {
 
     const [responsavelNome, local] = await Promise.all([
       this.resolveResponsavelNome(input.tenantId, cardId),
-      this.resolveLocal(input.tenantId, input.empreendimentoId),
+      // id ja validado: um id malformado vindo da VIVI derrubava o agendamento
+      // (erro 500 depois do card criado) - ver validarEmpreendimentoId.
+      this.resolveLocal(input.tenantId, empreendimentoIdValido),
     ]);
     const mensagemConfirmacaoEstruturada = this.buildMensagemConfirmacaoEstruturada(
       input,
@@ -200,6 +210,21 @@ export class AgendarVisitaUseCase {
   // proprio (empreendimentoId ausente) OU quando o Empreendimento encontrado
   // nao tem plantao cadastrado ainda - a mensagem so omite a linha "Local"
   // nesses casos (Achado C), nunca inventa um endereco.
+  private async validarEmpreendimentoId(
+    tenantId: string,
+    empreendimentoId: string | null | undefined,
+  ): Promise<string | null> {
+    if (!empreendimentoId || !/^[0-9a-f-]{36}$/i.test(empreendimentoId)) {
+      return null;
+    }
+    try {
+      const empreendimento = await this.empreendimentoRepository.findByIdAndTenant(empreendimentoId, tenantId);
+      return empreendimento ? empreendimento.id : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async resolveLocal(tenantId: string, empreendimentoId: string | null | undefined): Promise<string | null> {
     if (!empreendimentoId) {
       return null;

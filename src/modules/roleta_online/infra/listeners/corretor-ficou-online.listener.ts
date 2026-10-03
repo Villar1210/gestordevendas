@@ -8,6 +8,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { RetryDistribuicaoAoFicarOnlineUseCase } from '../../application/use-cases/retry-distribuicao-ao-ficar-online.use-case';
+import { FilaRoletaService } from '../../application/services/fila-roleta.service';
+import { comTravaPorTenant } from '../../domain/services/trava-por-tenant';
 
 interface CorretorFicouOnlineEvent {
   tenantId: string;
@@ -20,10 +22,22 @@ export class CorretorFicouOnlineListener {
 
   constructor(
     private readonly retryDistribuicaoAoFicarOnlineUseCase: RetryDistribuicaoAoFicarOnlineUseCase,
+    private readonly filaRoletaService: FilaRoletaService,
   ) {}
 
   @OnEvent('corretor.ficou_online')
   async handle(event: CorretorFicouOnlineEvent): Promise<void> {
+    // Fatia 2 (Sorteio da vez): primeiro entra no fim da fila das roletas
+    // de que participa (ordem de chegada), depois tenta redistribuir.
+    try {
+      await comTravaPorTenant(event.tenantId, () => this.filaRoletaService.entrarNasFilas(event.tenantId));
+    } catch (error) {
+      this.logger.error(
+        `Falha ao colocar o corretor ${event.userId} nas filas (tenant ${event.tenantId}): ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
     try {
       await this.retryDistribuicaoAoFicarOnlineUseCase.execute({ tenantId: event.tenantId });
     } catch (error) {

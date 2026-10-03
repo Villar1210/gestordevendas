@@ -1,5 +1,5 @@
 // src/modules/roleta_online/infra/http/roleta.controller.ts
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
@@ -10,6 +10,12 @@ import { GetRoletaConfigUseCase } from '../../application/use-cases/get-roleta-c
 import { UpdateRoletaConfigUseCase } from '../../application/use-cases/update-roleta-config.use-case';
 import { ConfirmSuggestedOwnerUseCase } from '../../application/use-cases/confirm-suggested-owner.use-case';
 import { AceitarLeadUseCase } from '../../application/use-cases/aceitar-lead.use-case';
+import { SalvarRoletaDto } from './dtos/salvar-roleta.dto';
+import { ListRoletasUseCase } from '../../application/use-cases/list-roletas.use-case';
+import { SalvarRoletaUseCase } from '../../application/use-cases/salvar-roleta.use-case';
+import { ExcluirRoletaUseCase } from '../../application/use-cases/excluir-roleta.use-case';
+import { SortearRoletaUseCase } from '../../application/use-cases/sortear-roleta.use-case';
+import { ListSorteiosUseCase } from '../../application/use-cases/list-sorteios.use-case';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -20,7 +26,62 @@ export class RoletaController {
     private readonly updateRoletaConfigUseCase: UpdateRoletaConfigUseCase,
     private readonly confirmSuggestedOwnerUseCase: ConfirmSuggestedOwnerUseCase,
     private readonly aceitarLeadUseCase: AceitarLeadUseCase,
+    private readonly listRoletasUseCase: ListRoletasUseCase,
+    private readonly salvarRoletaUseCase: SalvarRoletaUseCase,
+    private readonly excluirRoletaUseCase: ExcluirRoletaUseCase,
+    private readonly sortearRoletaUseCase: SortearRoletaUseCase,
+    private readonly listSorteiosUseCase: ListSorteiosUseCase,
   ) {}
+
+  // ===== Fatia 2 (Sorteio da vez) =====
+
+  // GET /roletas - roletas com a fila atual (todos do dashboard veem a ordem)
+  @Get('roletas')
+  async listRoletas(@Req() req: Request) {
+    return this.listRoletasUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo ?? null,
+    });
+  }
+
+  // POST /roletas - cria (so Administrador)
+  @Post('roletas')
+  async criarRoleta(@Body() dto: SalvarRoletaDto, @Req() req: Request) {
+    return this.salvarRoletaUseCase.execute({ ...dto, tenantId: req.user!.tenantId, requesterRole: req.user!.role });
+  }
+
+  // PATCH /roletas/:id - altera (so Administrador)
+  @Patch('roletas/:id')
+  async alterarRoleta(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SalvarRoletaDto, @Req() req: Request) {
+    return this.salvarRoletaUseCase.execute({ ...dto, id, tenantId: req.user!.tenantId, requesterRole: req.user!.role });
+  }
+
+  // DELETE /roletas/:id (so Administrador)
+  @Delete('roletas/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async excluirRoleta(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    await this.excluirRoletaUseCase.execute({ id, tenantId: req.user!.tenantId, requesterRole: req.user!.role });
+  }
+
+  // POST /roletas/:id/sortear - botao "Sortear agora" (Administrador,
+  // gerentes, diretores e coordenadores)
+  @Post('roletas/:id/sortear')
+  async sortearRoleta(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.sortearRoletaUseCase.execute({
+      tenantId: req.user!.tenantId,
+      roletaId: id,
+      userId: req.user!.id,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo ?? null,
+    });
+  }
+
+  // GET /roletas/:id/sorteios - historico (ultimos 30)
+  @Get('roletas/:id/sorteios')
+  async listSorteios(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.listSorteiosUseCase.execute({ tenantId: req.user!.tenantId, roletaId: id });
+  }
 
   // GET /roleta/config - configuracao atual da Roleta Online do tenant
   @Get('roleta/config')

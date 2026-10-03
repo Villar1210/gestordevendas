@@ -28,6 +28,8 @@ interface PromoverLeadMinimoInput {
   description?: string;
   origem?: string;
   motivoRepique?: string | null;
+  // Fatia 2 (Sorteio da vez) - ver CreateQuickCardUseCase.
+  empreendimentoId?: string | null;
 }
 
 @Injectable()
@@ -70,6 +72,7 @@ export class PromoverLeadMinimoUseCase {
       origem: input.origem,
       motivoRepique: input.motivoRepique ?? null,
       movidoParaRepiqueEm: input.motivoRepique ? new Date() : null,
+      ...(input.empreendimentoId ? { empreendimentoId: input.empreendimentoId } : {}),
     });
 
     this.logger.log(

@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ViviApiKeyGuard } from './vivi-api-key.guard';
 import { AgendarVisitaViviDto } from './dto/agendar-visita.dto';
@@ -84,6 +85,12 @@ export class ViviIntegrationController {
       existingCardId: dto.existingCardId,
       resumo: dto.resumo,
     });
+
+    if (!resultado) {
+      // Empresa sem funil configurado (AgendarVisitaUseCase ja registrou o
+      // erro no log). Antes estourava "Cannot read properties of null" (500).
+      throw new UnprocessableEntityException('Nao foi possivel registrar a visita: empresa sem funil de vendas configurado.');
+    }
 
     // Corretor dono do card (ownerId = atribuicao confirmada pela Roleta,
     // modo automatico). Antes buscava na tabela "atendimento" (modelo

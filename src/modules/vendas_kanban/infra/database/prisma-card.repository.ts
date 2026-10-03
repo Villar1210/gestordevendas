@@ -97,6 +97,7 @@ export class PrismaCardRepository implements ICardRepository {
     stageId?: string | null;
     ownerId?: string | null;
     imovelId?: string | null;
+    empreendimentoId?: string | null;
     title: string;
     value?: number;
     position: number;
@@ -116,6 +117,7 @@ export class PrismaCardRepository implements ICardRepository {
           stageId: input.stageId ?? null,
           ownerId: input.ownerId ?? null,
           imovelId: input.imovelId ?? null,
+          empreendimentoId: input.empreendimentoId ?? null,
           title: input.title,
           value: input.value ?? 0,
           position: input.position,
@@ -473,6 +475,7 @@ export class PrismaCardRepository implements ICardRepository {
       origem?: string;
       motivoRepique?: string | null;
       movidoParaRepiqueEm?: Date | null;
+      empreendimentoId?: string | null;
     },
   ): Promise<CardRecord> {
     const row = await this.prisma.card.update({
@@ -488,6 +491,7 @@ export class PrismaCardRepository implements ICardRepository {
         ...(input.movidoParaRepiqueEm !== undefined
           ? { movidoParaRepiqueEm: input.movidoParaRepiqueEm }
           : {}),
+        ...(input.empreendimentoId !== undefined ? { empreendimentoId: input.empreendimentoId } : {}),
       },
     });
     return this.toRecord(row);

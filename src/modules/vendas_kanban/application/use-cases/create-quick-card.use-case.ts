@@ -34,6 +34,9 @@ interface CreateQuickCardInput {
   phone?: string;
   temperatura?: string;
   imovelId?: string;
+  // Fatia 2 (Sorteio da vez): produto de interesse - decide em qual Roleta
+  // de produto o lead e sorteado (preenchido pela VIVI no agendamento).
+  empreendimentoId?: string | null;
   customFields?: Record<string, unknown>;
   // Nulo/omitido = Caixa de Entrada (comportamento padrao ja existente).
   // Preenchido pela VIVI para depositar leads sem perfil de renda direto
@@ -86,6 +89,7 @@ export class CreateQuickCardUseCase {
       phone: input.phone,
       temperatura: input.temperatura,
       imovelId: input.imovelId,
+      empreendimentoId: input.empreendimentoId ?? null,
       description: input.description,
       customFields: input.customFields,
       position: 0,

@@ -18,6 +18,16 @@ import { CardSemDonoEscalonamentoScheduler } from './infra/scheduler/card-sem-do
 import { PrismaRoletaConfigRepository } from './infra/database/prisma-roleta-config.repository';
 import { PrismaService } from '../../config/prisma.service';
 
+import { FilaRoletaService } from './application/services/fila-roleta.service';
+import { ListRoletasUseCase } from './application/use-cases/list-roletas.use-case';
+import { SalvarRoletaUseCase } from './application/use-cases/salvar-roleta.use-case';
+import { ExcluirRoletaUseCase } from './application/use-cases/excluir-roleta.use-case';
+import { SortearRoletaUseCase } from './application/use-cases/sortear-roleta.use-case';
+import { ListSorteiosUseCase } from './application/use-cases/list-sorteios.use-case';
+import { ProcessarHorariosSorteioUseCase } from './application/use-cases/processar-horarios-sorteio.use-case';
+import { RoletaSorteioScheduler } from './infra/scheduler/roleta-sorteio.scheduler';
+import { PrismaRoletaRepository } from './infra/database/prisma-roleta.repository';
+
 @Module({
   // Dependencia de modulo (nao circular): roleta_online consome use cases e
   // repositorios ja exportados por vendas_kanban e rh (ClaimCardUseCase,
@@ -41,6 +51,16 @@ import { PrismaService } from '../../config/prisma.service';
     CorretorFicouOnlineListener,
     RoletaTimeoutScheduler,
     CardSemDonoEscalonamentoScheduler,
+    // Fatia 2 (Sorteio da vez)
+    FilaRoletaService,
+    ListRoletasUseCase,
+    SalvarRoletaUseCase,
+    ExcluirRoletaUseCase,
+    SortearRoletaUseCase,
+    ListSorteiosUseCase,
+    ProcessarHorariosSorteioUseCase,
+    RoletaSorteioScheduler,
+    { provide: 'IRoletaRepository', useClass: PrismaRoletaRepository },
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IRoletaConfigRepository', useClass: PrismaRoletaConfigRepository },

@@ -13,6 +13,7 @@ import { ICardRepository, CardRecord } from '../../../vendas_kanban/domain/repos
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { pickByRoundRobin, pickByMenorFila } from '../../domain/services/pick-corretor';
 import { comTravaPorTenant } from '../../domain/services/trava-por-tenant';
+import { FilaRoletaService } from '../services/fila-roleta.service';
 
 const CORRETOR_ROLE_NAME = 'Corretor';
 const STAGE_TERMINAL_NAME = 'Fechamento';
@@ -29,6 +30,7 @@ export class ProcessRoletaTimeoutsUseCase {
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly filaRoletaService: FilaRoletaService,
   ) {}
 
   async execute(): Promise<void> {
@@ -62,6 +64,27 @@ export class ProcessRoletaTimeoutsUseCase {
     const decorridoMs = Date.now() - card.atribuidoAutomaticamenteEm!.getTime();
     if (decorridoMs < limiteMs) {
       return; // ainda dentro do prazo
+    }
+
+    // Fatia 2 (Sorteio da vez): proximo da fila sorteada, excluindo quem
+    // perdeu o prazo (que ja tinha ido para o fim da fila ao receber).
+    if (config.algoritmo === 'sorteio') {
+      const escolha = await this.filaRoletaService.escolherParaLead(
+        card.tenantId,
+        card.id,
+        card.ownerId ? [card.ownerId] : [],
+      );
+      if (!escolha) {
+        await this.cardRepository.clearAtribuidoAutomaticamente(card.id);
+        this.logger.warn(
+          `Timeout do card ${card.id} vencido, mas nao ha outro corretor presente na roleta - mantido com o dono atual.`,
+        );
+        return;
+      }
+      await this.cardRepository.reassignOwnerAfterTimeout(card.id, escolha.userId, new Date());
+      this.logger.log(`Card ${card.id} reatribuido de ${card.ownerId} para ${escolha.userId} (sorteio da vez) apos timeout.`);
+      this.eventEmitter.emit('lead.atribuido', { tenantId: card.tenantId, cardId: card.id, ownerId: escolha.userId });
+      return;
     }
 
     const corretorRole = await this.roleRepository.findByTenantAndName(card.tenantId, CORRETOR_ROLE_NAME);

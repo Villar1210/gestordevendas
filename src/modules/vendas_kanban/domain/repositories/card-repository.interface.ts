@@ -73,6 +73,8 @@ export interface ICardRepository {
     stageId?: string | null;
     ownerId?: string | null;
     imovelId?: string | null;
+    // Fatia 2 (Sorteio da vez): produto de interesse - decide a Roleta.
+    empreendimentoId?: string | null;
     title: string;
     value?: number;
     position: number;
@@ -242,6 +244,8 @@ export interface ICardRepository {
       origem?: string;
       motivoRepique?: string | null;
       movidoParaRepiqueEm?: Date | null;
+      // Fatia 2: so grava quando informado (undefined = mantem).
+      empreendimentoId?: string | null;
     },
   ): Promise<CardRecord>;
 }

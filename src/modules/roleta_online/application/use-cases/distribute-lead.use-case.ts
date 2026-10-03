@@ -14,6 +14,7 @@ import { IStageRepository } from '../../../vendas_kanban/domain/repositories/sta
 import { ClaimCardUseCase } from '../../../vendas_kanban/application/use-cases/claim-card.use-case';
 import { pickByRoundRobin, pickByMenorFila } from '../../domain/services/pick-corretor';
 import { comTravaPorTenant } from '../../domain/services/trava-por-tenant';
+import { FilaRoletaService } from '../services/fila-roleta.service';
 
 const CORRETOR_ROLE_NAME = 'Corretor';
 // Stage terminal do pipeline padrao - cards nela nao contam como "fila
@@ -39,6 +40,7 @@ export class DistributeLeadUseCase {
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     private readonly claimCardUseCase: ClaimCardUseCase,
     private readonly eventEmitter: EventEmitter2,
+    private readonly filaRoletaService: FilaRoletaService,
   ) {}
 
   // Fatia 1: a distribuicao inteira (ler config/ultimo corretor -> escolher
@@ -56,28 +58,39 @@ export class DistributeLeadUseCase {
       return;
     }
 
-    const corretorRole = await this.roleRepository.findByTenantAndName(
-      input.tenantId,
-      CORRETOR_ROLE_NAME,
-    );
-    if (!corretorRole) {
-      return;
-    }
-
-    const onlineCorretores = await this.corretorRepository.findOnlineByTenantAndRole(
-      input.tenantId,
-      corretorRole.id,
-    );
-    if (onlineCorretores.length === 0) {
-      return;
-    }
-
-    let chosen: CorretorRecord;
-    if (config.algoritmo === 'menor_fila') {
-      chosen = await this.escolherPorMenorFila(onlineCorretores, input.tenantId, input.pipelineId);
+    let chosen: Pick<CorretorRecord, 'id'>;
+    if (config.algoritmo === 'sorteio') {
+      // Fatia 2 (Sorteio da vez): ordem sorteada da roleta do produto do lead
+      // (ou da roleta padrao). Ja manda o escolhido para o fim da fila.
+      const escolha = await this.filaRoletaService.escolherParaLead(input.tenantId, input.cardId);
+      if (!escolha) {
+        this.logger.warn(`Lead ${input.cardId}: nenhuma roleta com corretor presente - fica na Caixa de Entrada.`);
+        return;
+      }
+      chosen = { id: escolha.userId };
     } else {
-      chosen = pickByRoundRobin(onlineCorretores, config.ultimoCorretorId);
-      await this.roletaConfigRepository.updateUltimoCorretor(input.tenantId, chosen.id);
+      const corretorRole = await this.roleRepository.findByTenantAndName(
+        input.tenantId,
+        CORRETOR_ROLE_NAME,
+      );
+      if (!corretorRole) {
+        return;
+      }
+
+      const onlineCorretores = await this.corretorRepository.findOnlineByTenantAndRole(
+        input.tenantId,
+        corretorRole.id,
+      );
+      if (onlineCorretores.length === 0) {
+        return;
+      }
+
+      if (config.algoritmo === 'menor_fila') {
+        chosen = await this.escolherPorMenorFila(onlineCorretores, input.tenantId, input.pipelineId);
+      } else {
+        chosen = pickByRoundRobin(onlineCorretores, config.ultimoCorretorId);
+        await this.roletaConfigRepository.updateUltimoCorretor(input.tenantId, chosen.id);
+      }
     }
 
     if (config.modo === 'automatico') {
