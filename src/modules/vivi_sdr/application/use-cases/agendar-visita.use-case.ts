@@ -44,6 +44,9 @@ interface AgendarVisitaInput {
   // ausente quando a conversa nunca encontrou um Empreendimento no catalogo
   // proprio - a mensagem sai sem a linha "Local" nesse caso (ver Achado C).
   empreendimentoId?: string | null;
+  // Fatia 3 (WhatsApp do corretor): nome do cliente informado pela VIVI -
+  // vai no titulo do card para o corretor saber com quem esta falando.
+  nomeCliente?: string | null;
 }
 
 interface AgendarVisitaOutput {
@@ -104,6 +107,9 @@ export class AgendarVisitaUseCase {
     // derrubar o agendamento (FK) nem mandar o lead para a roleta errada.
     const empreendimentoIdValido = await this.validarEmpreendimentoId(input.tenantId, input.empreendimentoId);
 
+    const nomeCliente = input.nomeCliente?.trim().slice(0, 120);
+    const tituloCard = nomeCliente ? `${nomeCliente} - visita via VIVI` : 'Visita agendada via VIVI';
+
     const cardId = input.existingCardId
       ? input.existingCardId
       : (
@@ -113,7 +119,7 @@ export class AgendarVisitaUseCase {
             targetPipelineId: pipeline.id,
             targetStageId: null,
             position: 0,
-            title: 'Visita agendada via VIVI',
+            title: tituloCard,
             description: input.resumo,
             origem: 'roleta_online',
             // Fatia 2: produto de interesse decide a Roleta (sorteio da vez).
@@ -125,7 +131,7 @@ export class AgendarVisitaUseCase {
             // Chamada de sistema, nao humana - nunca mira o funil de
             // remarketing (ver domain/services/remarketing-pipeline.ts).
             isSystemCall: true,
-            title: 'Visita agendada via VIVI',
+            title: tituloCard,
             origem: 'roleta_online',
             phone: input.phoneNumber,
             description: input.resumo,
@@ -214,9 +220,10 @@ export class AgendarVisitaUseCase {
     tenantId: string,
     empreendimentoId: string | null | undefined,
   ): Promise<string | null> {
-    if (!empreendimentoId || !/^[0-9a-f-]{36}$/i.test(empreendimentoId)) {
+    if (!empreendimentoId) {
       return null;
     }
+    // Id malformado (nao-uuid) faz o banco lancar erro - tratado no catch.
     try {
       const empreendimento = await this.empreendimentoRepository.findByIdAndTenant(empreendimentoId, tenantId);
       return empreendimento ? empreendimento.id : null;
