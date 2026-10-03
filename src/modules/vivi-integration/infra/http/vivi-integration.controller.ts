@@ -20,6 +20,11 @@ import { MoverCardViviDto } from './dto/mover-card.dto';
 import { MoverCardViviUseCase } from '../../application/use-cases/mover-card-vivi.use-case';
 import { SimularCreditoDto } from './dto/simular-credito.dto';
 import { SimularCreditoUseCase } from '../../application/use-cases/simular-credito.use-case';
+import { montarAvisoAgendamento, normalizarTelefoneBR } from '../../services/aviso-agendamento';
+
+// Etiqueta aplicada no Chatwoot as conversas de aviso ao corretor, para
+// separar visualmente dos leads na caixa da VIVI.
+const ETIQUETA_AVISO_CORRETOR = 'aviso-corretor';
 
 @Controller('vivi')
 @UseGuards(ViviApiKeyGuard)
@@ -80,38 +85,53 @@ export class ViviIntegrationController {
       resumo: dto.resumo,
     });
 
+    // Corretor dono do card (ownerId = atribuicao confirmada pela Roleta,
+    // modo automatico). Antes buscava na tabela "atendimento" (modelo
+    // errado, sem relacao "corretor") - o erro era engolido pelo .catch e o
+    // corretor NUNCA era avisado. Sem ownerId (Roleta desligada ou
+    // semi_automatico) nao ha para quem avisar.
     let corretor: { nome: string; telefone: string } | null = null;
 
-    if (resultado!.cardId) {
-      const card = await (this.prisma as any).atendimento.findUnique({
-        where: { id: resultado!.cardId },
-        include: { corretor: { select: { name: true, phone: true } } },
-      }).catch(() => null);
+    if (resultado?.cardId) {
+      const card = await this.prisma.card
+        .findFirst({
+          where: { id: resultado.cardId, tenantId: tenantId ?? '' },
+          select: { owner: { select: { name: true, whatsapp: true, telefone: true } } },
+        })
+        .catch((err: Error) => {
+          this.logger.error(`Falha ao buscar o corretor do card ${resultado.cardId}: ${err.message}`);
+          return null;
+        });
 
-      if (card?.corretor) {
-        corretor = {
-          nome: card?.corretor?.name ?? '',
-          telefone: card?.corretor?.phone?.replace(/\D/g, '') || '',
-        };
+      const owner = card?.owner;
+      const telefone = normalizarTelefoneBR(owner?.whatsapp || owner?.telefone);
+      if (owner && telefone) {
+        corretor = { nome: owner.name, telefone };
+      } else if (owner) {
+        this.logger.warn(`Card ${resultado.cardId}: corretor "${owner.name}" sem WhatsApp/telefone valido no cadastro - aviso nao enviado.`);
+      } else {
+        this.logger.log(`Card ${resultado.cardId} ainda sem corretor definido - aviso de agendamento nao enviado.`);
       }
     }
 
-    if (corretor?.telefone) {
-      const dataFormatada = new Date(dto.dataVisita).toLocaleDateString('pt-BR', {
-        weekday: 'long', day: '2-digit', month: '2-digit',
-      });
-
-      this.chatwoot.enviarMensagem({
-        telefone: corretor.telefone,
-        nomeContato: corretor.nome,
-        mensagem:
-          `🏠 *Novo agendamento via VIVI!*\n\n` +
-          `👤 Cliente: ${dto.nomeCliente || dto.phoneNumber}\n` +
-          `📱 WhatsApp: +${dto.phoneNumber}\n` +
-          `📅 Data: ${dataFormatada} às ${dto.horario}\n` +
-          (dto.resumo ? `📝 Perfil: ${dto.resumo}\n` : '') +
-          `\nAcesse o CRM: https://gestordevendas.ivillar.com.br`,
-      }).catch(() => {});
+    if (corretor) {
+      // Nao aguarda: o envio (e a checagem de entrega) nao pode atrasar a
+      // resposta para a VIVI. Falhas ficam registradas no log pelo servico.
+      this.chatwoot
+        .enviarMensagem({
+          telefone: corretor.telefone,
+          nomeContato: corretor.nome,
+          mensagem: montarAvisoAgendamento({
+            nomeCliente: dto.nomeCliente,
+            phoneNumber: dto.phoneNumber,
+            dataVisita: dto.dataVisita,
+            horario: dto.horario,
+            resumo: dto.resumo,
+          }),
+          etiquetas: [ETIQUETA_AVISO_CORRETOR],
+          verificarEntrega: true,
+        })
+        .catch(() => {});
     }
 
     return {

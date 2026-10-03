@@ -6,7 +6,16 @@ export interface EnviarMensagemParams {
   telefone: string;
   mensagem: string;
   nomeContato?: string;
+  // Etiquetas adicionadas a conversa no Chatwoot (somadas as que ja existem).
+  etiquetas?: string[];
+  // Confere alguns segundos depois se o WhatsApp aceitou a mensagem. A API
+  // oficial da Meta recusa mensagem livre fora da janela de 24h, e essa
+  // recusa so aparece depois do POST (status "failed") - sem isso a falha
+  // era silenciosa.
+  verificarEntrega?: boolean;
 }
+
+const ESPERA_VERIFICACAO_MS = 5000;
 
 @Injectable()
 export class ChatwootWhatsappService {
@@ -66,7 +75,7 @@ export class ChatwootWhatsappService {
   }
 
   async enviarMensagem(params: EnviarMensagemParams): Promise<void> {
-    const { telefone, mensagem, nomeContato } = params;
+    const { telefone, mensagem, nomeContato, etiquetas, verificarEntrega } = params;
     try {
       const contatoId = await this.obterOuCriarContato(telefone, nomeContato);
       let conversaId = await this.obterConversaAtiva(contatoId);
@@ -78,14 +87,58 @@ export class ChatwootWhatsappService {
         );
         conversaId = conversa.data.id;
       }
-      await axios.post(
+      const enviada = await axios.post(
         `${this.baseUrl}/api/v1/accounts/${this.accountId}/conversations/${conversaId}/messages`,
         { content: mensagem, message_type: 'outgoing', private: false },
         { headers: this.headers },
       );
       this.logger.log(`Mensagem enviada para ${telefone} (conversa #${conversaId})`);
+
+      if (etiquetas?.length) {
+        await this.adicionarEtiquetas(conversaId!, etiquetas);
+      }
+      if (verificarEntrega && enviada.data?.id) {
+        setTimeout(() => {
+          this.verificarEntrega(conversaId!, enviada.data.id, telefone).catch(() => {});
+        }, ESPERA_VERIFICACAO_MS).unref?.();
+      }
     } catch (err: any) {
       this.logger.error(`Erro ao enviar WhatsApp para ${telefone}: ${err?.response?.data?.message || err.message}`);
+    }
+  }
+
+  private async adicionarEtiquetas(conversaId: number, etiquetas: string[]): Promise<void> {
+    const url = `${this.baseUrl}/api/v1/accounts/${this.accountId}/conversations/${conversaId}/labels`;
+    try {
+      // O POST de labels SUBSTITUI a lista - soma com as atuais para nao
+      // apagar etiquetas colocadas manualmente no Chatwoot.
+      const atuais = await axios.get(url, { headers: this.headers });
+      const lista: string[] = atuais.data?.payload ?? [];
+      const novas = [...new Set([...lista, ...etiquetas])];
+      if (novas.length !== lista.length) {
+        await axios.post(url, { labels: novas }, { headers: this.headers });
+      }
+    } catch (err: any) {
+      this.logger.warn(`Falha ao etiquetar conversa #${conversaId}: ${err?.response?.data?.message || err.message}`);
+    }
+  }
+
+  private async verificarEntrega(conversaId: number, mensagemId: number, telefone: string): Promise<void> {
+    try {
+      const resp = await axios.get(
+        `${this.baseUrl}/api/v1/accounts/${this.accountId}/conversations/${conversaId}/messages`,
+        { headers: this.headers },
+      );
+      const msg = (resp.data?.payload ?? []).find((m: any) => m.id === mensagemId);
+      if (msg?.status === 'failed') {
+        const motivo = msg.content_attributes?.external_error || 'motivo nao informado';
+        this.logger.error(
+          `WhatsApp RECUSOU a mensagem para ${telefone} (conversa #${conversaId}): ${motivo}. ` +
+            'Se for a janela de 24h da Meta, e preciso um modelo de mensagem aprovado.',
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Nao foi possivel verificar a entrega para ${telefone}: ${err.message}`);
     }
   }
 }
