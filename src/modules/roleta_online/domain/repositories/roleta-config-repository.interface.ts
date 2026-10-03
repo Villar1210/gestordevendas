@@ -10,6 +10,9 @@ export interface RoletaConfigRecord {
   ultimoCorretorId: string | null;
   // So se aplica ao modo "automatico" - ver ProcessRoletaTimeoutsUseCase.
   timeoutAceiteMinutos: number;
+  // Presenca automatica: minutos sem sinal de vida para "online" virar
+  // "offline" (0 = desligado). Ver MarcarInativosOfflineUseCase (modulo rh).
+  minutosInatividadeOffline: number;
   updatedAt: Date;
 }
 
@@ -24,6 +27,7 @@ export interface IRoletaConfigRepository {
     modo?: string;
     ativa?: boolean;
     timeoutAceiteMinutos?: number;
+    minutosInatividadeOffline?: number;
   }): Promise<RoletaConfigRecord>;
   updateUltimoCorretor(tenantId: string, corretorId: string): Promise<void>;
 }

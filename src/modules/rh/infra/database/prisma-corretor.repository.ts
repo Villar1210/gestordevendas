@@ -69,6 +69,40 @@ export class PrismaCorretorRepository implements ICorretorRepository {
   }
 
   async updateStatusDisponibilidade(userId: string, tenantId: string, status: string): Promise<void> {
-    await this.prisma.user.updateMany({ where: { id: userId, tenantId }, data: { statusDisponibilidade: status } });
+    await this.prisma.user.updateMany({
+      where: { id: userId, tenantId },
+      data: { statusDisponibilidade: status, ultimaAtividadeEm: new Date() },
+    });
+  }
+
+  async registrarAtividade(userId: string, tenantId: string): Promise<string | null> {
+    const atualizado = await this.prisma.user.updateMany({
+      where: { id: userId, tenantId },
+      data: { ultimaAtividadeEm: new Date() },
+    });
+    if (atualizado.count === 0) return null;
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      select: { statusDisponibilidade: true },
+    });
+    return user?.statusDisponibilidade ?? null;
+  }
+
+  async marcarOfflinePorInatividade(): Promise<Array<{ id: string; tenantId: string; name: string }>> {
+    // Um UPDATE so, com o limite de cada tenant vindo do JOIN (tenant sem
+    // RoletaConfig usa 15). COALESCE(ultima_atividade_em, -infinity): quem
+    // esta online sem nenhum sinal registrado e tratado como inativo.
+    return this.prisma.$queryRaw<Array<{ id: string; tenantId: string; name: string }>>`
+      UPDATE "users" AS u
+         SET "status_disponibilidade" = 'offline'
+        FROM "users" AS x
+        LEFT JOIN "roleta_configs" AS rc ON rc."tenant_id" = x."tenant_id"
+       WHERE u."id" = x."id"
+         AND x."status_disponibilidade" = 'online'
+         AND COALESCE(rc."minutos_inatividade_offline", 15) > 0
+         AND COALESCE(x."ultima_atividade_em", '-infinity'::timestamp)
+             < (now() AT TIME ZONE 'UTC') - make_interval(mins => COALESCE(rc."minutos_inatividade_offline", 15))
+      RETURNING u."id"::text AS "id", u."tenant_id"::text AS "tenantId", u."name" AS "name"
+    `;
   }
 }

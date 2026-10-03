@@ -107,6 +107,15 @@ function clearLocalSession(): void {
 // Use esta funcao em todos os botoes de "Sair" da aplicacao.
 export async function logout(): Promise<void> {
   try {
+    // Presenca automatica: ao sair pelo botao, fica "offline" na hora (a
+    // Roleta para de entregar leads) em vez de esperar o job de inatividade.
+    // So para quem usa o dashboard (quem tem status salvo); falha e ignorada.
+    if (window.localStorage.getItem(STATUS_DISPONIBILIDADE_STORAGE_KEY)) {
+      await apiRequest("/rh/me/status", {
+        method: "PATCH",
+        body: JSON.stringify({ status: "offline" }),
+      }).catch(() => {});
+    }
     await apiRequest("/auth/logout", { method: "POST" });
   } catch {
     // Ignora erros de rede — a limpeza local sempre acontece.

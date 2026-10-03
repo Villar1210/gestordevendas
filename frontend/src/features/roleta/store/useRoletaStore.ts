@@ -8,6 +8,7 @@ export interface RoletaConfig {
   ativa: boolean;
   ultimoCorretorId: string | null;
   timeoutAceiteMinutos: number;
+  minutosInatividadeOffline: number;
   updatedAt: string;
 }
 

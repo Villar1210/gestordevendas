@@ -10,6 +10,12 @@ import {
 } from "@/features/equipe/constants";
 import { NotificationBell } from "./NotificationBell";
 
+// Presenca automatica: "sinal de vida" para o backend enquanto o CRM estiver
+// aberto (mesmo em aba de fundo). Se parar (navegador fechado, PC dormindo),
+// o backend derruba o usuario para "offline" depois do limite configurado na
+// Roleta (padrao 15 min). Ver RegistrarAtividadeUseCase no modulo rh.
+const INTERVALO_ATIVIDADE_MS = 60_000;
+
 interface Me {
   id: string;
   name: string;
@@ -26,6 +32,7 @@ interface TopbarProps {
 export function Topbar({ onOpenMenu, menuAberto = false }: TopbarProps) {
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState("offline");
+  const [avisoInatividade, setAvisoInatividade] = useState(false);
 
   useEffect(() => {
     apiRequest<Me>("/auth/me")
@@ -36,9 +43,36 @@ export function Topbar({ onOpenMenu, menuAberto = false }: TopbarProps) {
     if (savedStatus) setStatus(savedStatus);
   }, []);
 
+  useEffect(() => {
+    let cancelado = false;
+    async function enviarAtividade() {
+      try {
+        const resp = await apiRequest<{ statusDisponibilidade: string }>("/rh/me/atividade", {
+          method: "POST",
+        });
+        if (cancelado || !resp?.statusDisponibilidade) return;
+        const salvo = window.localStorage.getItem(STATUS_DISPONIBILIDADE_STORAGE_KEY);
+        if (salvo === "online" && resp.statusDisponibilidade === "offline") {
+          setAvisoInatividade(true);
+        }
+        setStatus(resp.statusDisponibilidade);
+        window.localStorage.setItem(STATUS_DISPONIBILIDADE_STORAGE_KEY, resp.statusDisponibilidade);
+      } catch {
+        // Falha de rede pontual: tenta de novo no proximo ciclo.
+      }
+    }
+    enviarAtividade();
+    const id = window.setInterval(enviarAtividade, INTERVALO_ATIVIDADE_MS);
+    return () => {
+      cancelado = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
   async function handleStatusChange(newStatus: string) {
     const previousStatus = status;
     setStatus(newStatus);
+    setAvisoInatividade(false);
     try {
       await apiRequest("/rh/me/status", {
         method: "PATCH",
@@ -70,6 +104,12 @@ export function Topbar({ onOpenMenu, menuAberto = false }: TopbarProps) {
       </button>
 
       <NotificationBell />
+
+      {avisoInatividade && (
+        <span className="hidden text-xs font-medium text-amber-600 sm:inline">
+          Você ficou offline por inatividade
+        </span>
+      )}
 
       <div className="relative flex items-center gap-2 rounded-lg border border-slate-200 pl-3 pr-1 py-1.5">
         <span className={`h-2.5 w-2.5 rounded-full ${statusOption.dotClassName}`} />

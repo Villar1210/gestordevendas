@@ -38,6 +38,7 @@ export class RoletaController {
       modo: dto.modo,
       ativa: dto.ativa,
       timeoutAceiteMinutos: dto.timeoutAceiteMinutos,
+      minutosInatividadeOffline: dto.minutosInatividadeOffline,
     });
   }
 

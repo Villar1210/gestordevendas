@@ -4,6 +4,9 @@ import { RhController } from './infra/http/rh.controller';
 import { CreateCorretorUseCase } from './application/use-cases/create-corretor.use-case';
 import { ListCorretoresUseCase } from './application/use-cases/list-corretores.use-case';
 import { UpdateStatusDisponibilidadeUseCase } from './application/use-cases/update-status-disponibilidade.use-case';
+import { RegistrarAtividadeUseCase } from './application/use-cases/registrar-atividade.use-case';
+import { MarcarInativosOfflineUseCase } from './application/use-cases/marcar-inativos-offline.use-case';
+import { PresencaInatividadeScheduler } from './infra/scheduler/presenca-inatividade.scheduler';
 import { PublicSignupUseCase } from './application/use-cases/public-signup.use-case';
 import { ListCadastrosPendentesUseCase } from './application/use-cases/list-cadastros-pendentes.use-case';
 import { AprovarCadastroUseCase } from './application/use-cases/aprovar-cadastro.use-case';
@@ -44,6 +47,10 @@ import { PlantaoModule } from '../plantao/plantao.module';
     CreateCorretorUseCase,
     ListCorretoresUseCase,
     UpdateStatusDisponibilidadeUseCase,
+    // Presenca automatica (Fatia 1 - Atendimento/Roleta)
+    RegistrarAtividadeUseCase,
+    MarcarInativosOfflineUseCase,
+    PresencaInatividadeScheduler,
     PublicSignupUseCase,
     ListCadastrosPendentesUseCase,
     AprovarCadastroUseCase,

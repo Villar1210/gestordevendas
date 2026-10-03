@@ -15,6 +15,7 @@ interface UpdateRoletaConfigInput {
   modo?: string;
   ativa?: boolean;
   timeoutAceiteMinutos?: number;
+  minutosInatividadeOffline?: number;
 }
 
 @Injectable()
@@ -48,12 +49,22 @@ export class UpdateRoletaConfigUseCase {
       throw new BadRequestException('Tempo para aceite precisa ser um numero inteiro entre 1 e 120 minutos.');
     }
 
+    if (
+      input.minutosInatividadeOffline !== undefined &&
+      (!Number.isInteger(input.minutosInatividadeOffline) ||
+        input.minutosInatividadeOffline < 0 ||
+        input.minutosInatividadeOffline > 240)
+    ) {
+      throw new BadRequestException('Offline automatico precisa ser um numero inteiro entre 0 e 240 minutos (0 = desligado).');
+    }
+
     return this.roletaConfigRepository.upsert({
       tenantId: input.tenantId,
       algoritmo: input.algoritmo,
       modo: input.modo,
       ativa: input.ativa,
       timeoutAceiteMinutos: input.timeoutAceiteMinutos,
+      minutosInatividadeOffline: input.minutosInatividadeOffline,
     });
   }
 }

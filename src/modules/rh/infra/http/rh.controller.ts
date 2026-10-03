@@ -17,6 +17,7 @@ import { UpdateEmailTemplateDto } from './dtos/update-email-template.dto';
 import { CreateCorretorUseCase } from '../../application/use-cases/create-corretor.use-case';
 import { ListCorretoresUseCase } from '../../application/use-cases/list-corretores.use-case';
 import { UpdateStatusDisponibilidadeUseCase } from '../../application/use-cases/update-status-disponibilidade.use-case';
+import { RegistrarAtividadeUseCase } from '../../application/use-cases/registrar-atividade.use-case';
 import {
   PublicSignupUseCase,
   TipoPerfilCadastro,
@@ -55,6 +56,7 @@ export class RhController {
     private readonly updateUserCargoUseCase: UpdateUserCargoUseCase,
     private readonly listEmailTemplatesUseCase: ListEmailTemplatesUseCase,
     private readonly updateEmailTemplateUseCase: UpdateEmailTemplateUseCase,
+    private readonly registrarAtividadeUseCase: RegistrarAtividadeUseCase,
   ) {}
 
   // POST /rh/corretores - cadastra um novo corretor (so Administrador)
@@ -93,6 +95,18 @@ export class RhController {
       status: dto.status,
     });
     return { message: 'Status atualizado com sucesso.' };
+  }
+
+  // POST /rh/me/atividade - "sinal de vida" da Topbar (a cada 60s). Devolve o
+  // status atual para o frontend perceber se foi derrubado por inatividade.
+  @Post('me/atividade')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...DASHBOARD_ROLES)
+  async registrarAtividade(@Req() req: Request) {
+    return this.registrarAtividadeUseCase.execute({
+      userId: req.user!.id,
+      tenantId: req.user!.tenantId,
+    });
   }
 
   // POST /rh/cadastro-publico - rota PUBLICA (sem login): cria o cadastro

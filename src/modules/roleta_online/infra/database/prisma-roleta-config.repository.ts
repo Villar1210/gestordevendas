@@ -21,6 +21,7 @@ export class PrismaRoletaConfigRepository implements IRoletaConfigRepository {
     modo?: string;
     ativa?: boolean;
     timeoutAceiteMinutos?: number;
+    minutosInatividadeOffline?: number;
   }): Promise<RoletaConfigRecord> {
     return this.prisma.roletaConfig.upsert({
       where: { tenantId: input.tenantId },
@@ -30,12 +31,14 @@ export class PrismaRoletaConfigRepository implements IRoletaConfigRepository {
         modo: input.modo,
         ativa: input.ativa,
         timeoutAceiteMinutos: input.timeoutAceiteMinutos,
+        minutosInatividadeOffline: input.minutosInatividadeOffline,
       },
       update: {
         algoritmo: input.algoritmo,
         modo: input.modo,
         ativa: input.ativa,
         timeoutAceiteMinutos: input.timeoutAceiteMinutos,
+        minutosInatividadeOffline: input.minutosInatividadeOffline,
       },
     });
   }

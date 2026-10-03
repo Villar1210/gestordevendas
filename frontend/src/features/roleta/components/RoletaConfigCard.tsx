@@ -125,6 +125,30 @@ export function RoletaConfigCard() {
             </p>
           </div>
         )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-600">
+            Offline automatico apos (minutos sem atividade)
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={240}
+            value={config.minutosInatividadeOffline ?? 15}
+            onChange={(e) => {
+              const parsed = Number(e.target.value);
+              if (!Number.isNaN(parsed)) {
+                handleUpdateConfig({ minutosInatividadeOffline: parsed });
+              }
+            }}
+            disabled={isSaving}
+            className={selectClass}
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Quem fechar o CRM ou ficar sem conexao por esse tempo passa para &quot;Offline&quot; e
+            sai da Roleta. Use 0 para desligar.
+          </p>
+        </div>
       </div>
     </div>
   );

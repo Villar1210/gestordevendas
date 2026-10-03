@@ -8,6 +8,7 @@ export interface UpdateRoletaConfigInput {
   modo?: string;
   ativa?: boolean;
   timeoutAceiteMinutos?: number;
+  minutosInatividadeOffline?: number;
 }
 
 export function useRoletaIntegration() {

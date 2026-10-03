@@ -27,5 +27,15 @@ export interface ICorretorRepository {
   }): Promise<CorretorRecord>;
   findAllByTenantAndRole(tenantId: string, roleId: string): Promise<CorretorRecord[]>;
   findOnlineByTenantAndRole(tenantId: string, roleId: string): Promise<CorretorRecord[]>;
+  // Tambem renova ultimaAtividadeEm (trocar de status e um sinal de vida).
   updateStatusDisponibilidade(userId: string, tenantId: string, status: string): Promise<void>;
+  // Presenca automatica: heartbeat do usuario logado. Renova
+  // ultimaAtividadeEm e devolve o status ATUAL (o frontend usa para perceber
+  // que foi derrubado para "offline" por inatividade). Nulo = usuario nao existe.
+  registrarAtividade(userId: string, tenantId: string): Promise<string | null>;
+  // Presenca automatica: derruba para "offline" todo usuario "online" sem
+  // sinal de vida ha mais que o limite do seu tenant
+  // (RoletaConfig.minutosInatividadeOffline, default 15, 0 = desligado).
+  // Devolve quem foi derrubado (para log).
+  marcarOfflinePorInatividade(): Promise<Array<{ id: string; tenantId: string; name: string }>>;
 }

@@ -23,4 +23,11 @@ export class UpdateRoletaConfigDto {
   @Min(1)
   @Max(120)
   timeoutAceiteMinutos?: number;
+
+  // Presenca automatica: 0 = desligado.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(240)
+  minutosInatividadeOffline?: number;
 }

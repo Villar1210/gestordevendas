@@ -147,6 +147,12 @@ model User {
   // "offline". Atualizado pelo proprio usuario (seletor na Topbar) ou
   // automaticamente para "online" no login.
   statusDisponibilidade String  @default("offline") @map("status_disponibilidade") @db.VarChar(10)
+  // Presenca automatica (Fatia 1 - Atendimento/Roleta): ultimo sinal de vida
+  // do usuario (heartbeat da Topbar a cada 60s, login, troca de status). O job
+  // MarcarInativosOfflineUseCase derruba para "offline" quem esta "online" e
+  // parou de dar sinal ha mais de RoletaConfig.minutosInatividadeOffline -
+  // evita a Roleta entregar lead para quem fechou o navegador.
+  ultimaAtividadeEm     DateTime? @map("ultima_atividade_em")
 
   // Modulo RH completo: cadastro publico multi-perfil + aprovacao.
   // "aprovado" e o default para nao travar contas ja existentes (criadas
@@ -1264,6 +1270,10 @@ model RoletaConfig {
   // para clicar em "Aceitar Lead" antes do card ser reatribuido ao
   // proximo da fila (ver ProcessRoletaTimeoutsUseCase).
   timeoutAceiteMinutos Int      @default(5) @map("timeout_aceite_minutos")
+  // Presenca automatica: minutos sem sinal de vida (heartbeat) para um
+  // usuario "online" virar "offline". 0 = desligado. Tenant sem RoletaConfig
+  // usa o mesmo default (15) - ver MarcarInativosOfflineUseCase.
+  minutosInatividadeOffline Int @default(15) @map("minutos_inatividade_offline")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
