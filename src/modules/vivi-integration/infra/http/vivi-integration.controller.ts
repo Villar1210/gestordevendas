@@ -84,6 +84,7 @@ export class ViviIntegrationController {
       empreendimentoId: dto.empreendimentoId,
       existingCardId: dto.existingCardId,
       resumo: dto.resumo,
+      nomeCliente: dto.nomeCliente,
     });
 
     if (!resultado) {

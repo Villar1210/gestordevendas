@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { converterMensagens, mesmoTelefone, MensagemHistorico } from './historico-chatwoot';
 
 export interface EnviarMensagemParams {
   telefone: string;
@@ -105,6 +106,44 @@ export class ChatwootWhatsappService {
     } catch (err: any) {
       this.logger.error(`Erro ao enviar WhatsApp para ${telefone}: ${err?.response?.data?.message || err.message}`);
     }
+  }
+
+  // Fatia 3 (WhatsApp do corretor): historico da conversa da VIVI com o
+  // cliente, SO LEITURA (apenas GET na API do Chatwoot - nada e enviado,
+  // atribuido ou alterado). Procura o contato pelo telefone em toda a conta
+  // (a VIVI atende em outra caixa, diferente da usada nos avisos ao
+  // corretor) e devolve as mensagens da conversa mais recente.
+  async historicoPorTelefone(telefone: string): Promise<{
+    encontrado: boolean;
+    conversaUrl: string | null;
+    status: string | null;
+    mensagens: MensagemHistorico[];
+  }> {
+    const vazio = { encontrado: false, conversaUrl: null, status: null, mensagens: [] };
+    if (!this.token) return vazio;
+    const base = `${this.baseUrl}/api/v1/accounts/${this.accountId}`;
+    const busca = await axios.get(`${base}/contacts/search`, {
+      headers: this.headers,
+      params: { q: `+${telefone.replace(/\D/g, '')}`, page: 1 },
+      timeout: 8000,
+    });
+    const contatos = (busca.data?.payload ?? []).filter((c: any) => mesmoTelefone(c.phone_number, telefone));
+    let maisRecente: any = null;
+    for (const contato of contatos.slice(0, 3)) {
+      const resp = await axios.get(`${base}/contacts/${contato.id}/conversations`, { headers: this.headers, timeout: 8000 });
+      for (const conversa of resp.data?.payload ?? []) {
+        const ultima = conversa.last_activity_at ?? conversa.timestamp ?? 0;
+        if (!maisRecente || ultima > (maisRecente.last_activity_at ?? maisRecente.timestamp ?? 0)) maisRecente = conversa;
+      }
+    }
+    if (!maisRecente) return vazio;
+    const msgs = await axios.get(`${base}/conversations/${maisRecente.id}/messages`, { headers: this.headers, timeout: 8000 });
+    return {
+      encontrado: true,
+      conversaUrl: `${this.baseUrl}/app/accounts/${this.accountId}/conversations/${maisRecente.id}`,
+      status: maisRecente.status ?? null,
+      mensagens: converterMensagens(msgs.data?.payload ?? []),
+    };
   }
 
   private async adicionarEtiquetas(conversaId: number, etiquetas: string[]): Promise<void> {

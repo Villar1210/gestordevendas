@@ -1,4 +1,6 @@
-// src/app/dashboard/whatsapp/page.tsx
+// src/features/whatsapp/components/ConexaoWhatsApp.tsx
+// Fatia 3: era a pagina /dashboard/whatsapp inteira; virou a aba "Conexão do
+// número" (so Administrador) da nova tela de WhatsApp.
 // Tela de gerenciamento da CONEXAO com o WhatsApp (QR/status/desconectar) -
 // deliberadamente sem nenhuma UI de chat/mensagens (isso e escopo da
 // Central de Atendimento, /dashboard/atendimento). Identidade visual verde
@@ -13,7 +15,6 @@ import Link from "next/link";
 import {
   CheckCircle2,
   Loader2,
-  MessageCircle,
   AlertTriangle,
   Inbox,
   Headset,
@@ -37,7 +38,7 @@ const QR_POLL_INTERVAL_MS = 3000;
 // /dashboard/atendimento e no NotificationBell.
 const CONNECTED_POLL_INTERVAL_MS = 5000;
 
-export default function WhatsAppPage() {
+export function ConexaoWhatsApp() {
   const [session, setSession] = useState<WhatsAppSession | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,19 +219,10 @@ export default function WhatsAppPage() {
     Boolean(session) && !isConnected && !isReconnecting && session?.status !== "DISCONNECTED";
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-emerald-50/70 via-emerald-50/20 to-slate-50 px-4 py-12">
-      {/* Cabeçalho de contexto da pagina - fora do card, para o WhatsApp
-          conectado (layout largo abaixo) nao ficar so um card isolado num
-          mar de espaco em branco. */}
-      <div className="mx-auto mb-8 max-w-md text-center">
-        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#25D366]/10 ring-1 ring-[#25D366]/20">
-          <MessageCircle className="h-7 w-7 text-[#25D366]" />
-        </div>
-        <h1 className="text-xl font-semibold text-slate-800">WhatsApp</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Conecte o número da imobiliária para atender seus leads direto pelo CRM.
-        </p>
-      </div>
+    <div className="px-4 py-8">
+      <p className="mx-auto mb-6 max-w-md text-center text-sm text-slate-500">
+        Conecte o número da imobiliária para atender seus leads direto pelo CRM.
+      </p>
 
       {/* Layout mais largo (2 colunas) so quando ja conectado - status+
           metricas de um lado, acoes do outro. O fluxo de QR/conexao

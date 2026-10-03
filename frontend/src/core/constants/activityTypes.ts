@@ -3,7 +3,7 @@
 // constants (mesma convencao ja usada em dashboardRoles.ts/cargoHierarquico.ts)
 // ao ser reaproveitado tambem pelo Dashboard do Corretor
 // (features/dashboard-corretor).
-import { Phone, Users, Home, CheckSquare, DollarSign, type LucideIcon } from "lucide-react";
+import { Phone, Users, Home, CheckSquare, DollarSign, MessageCircle, type LucideIcon } from "lucide-react";
 
 export interface ActivityTypeOption {
   value: string;
@@ -17,6 +17,8 @@ export const ACTIVITY_TYPE_OPTIONS: ActivityTypeOption[] = [
   { value: "visita", label: "Visita", icon: Home },
   { value: "tarefa", label: "Tarefa", icon: CheckSquare },
   { value: "proposta", label: "Proposta", icon: DollarSign },
+  // Fatia 3: registrado quando o corretor abre o WhatsApp com um lead da VIVI.
+  { value: "whatsapp", label: "WhatsApp", icon: MessageCircle },
 ];
 
 export function getActivityTypeOption(value: string): ActivityTypeOption | undefined {
