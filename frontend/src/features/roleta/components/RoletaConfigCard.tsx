@@ -74,11 +74,14 @@ export function RoletaConfigCard() {
           >
             <option value="round_robin">Round-robin</option>
             <option value="menor_fila">Menor fila</option>
+            <option value="sorteio">Sorteio da vez (roletas por stand/produto)</option>
           </select>
           <p className="mt-1 text-xs text-slate-400">
             {config.algoritmo === "menor_fila"
               ? "Escolhe sempre o corretor online com menos negócios ativos no momento."
-              : "Alterna entre os corretores online, um de cada vez, em ordem fixa."}
+              : config.algoritmo === "sorteio"
+                ? "Segue a ordem sorteada de cada roleta (configure as roletas abaixo)."
+                : "Alterna entre os corretores online, um de cada vez, em ordem fixa."}
           </p>
         </div>
 

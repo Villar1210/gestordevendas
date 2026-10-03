@@ -9,6 +9,8 @@ import { useEquipeIntegration } from "@/features/equipe/hooks/useEquipeIntegrati
 import { getStatusDisponibilidadeOption } from "@/features/equipe/constants";
 import { CorretorFormModal } from "@/features/equipe/components/CorretorFormModal";
 import { RoletaConfigCard } from "@/features/roleta/components/RoletaConfigCard";
+import { RoletasConfigCard } from "@/features/roleta/components/RoletasConfigCard";
+import { useRoletaStore } from "@/features/roleta/store/useRoletaStore";
 import { FilasManagementCard } from "@/features/atendimento/components/FilasManagementCard";
 
 export default function EquipePage() {
@@ -18,6 +20,7 @@ export default function EquipePage() {
   const { loadCorretores } = useEquipeIntegration();
   const hasInitialized = useRef(false);
   const [role, setRole] = useState<string | null>(null);
+  const algoritmoRoleta = useRoletaStore((state) => state.config?.algoritmo);
 
   useEffect(() => {
     if (hasInitialized.current) return;
@@ -43,6 +46,7 @@ export default function EquipePage() {
 
       <div className="space-y-6 p-6">
         {role === "Administrador" && <RoletaConfigCard />}
+        {role === "Administrador" && <RoletasConfigCard algoritmoAtual={algoritmoRoleta} />}
         {role === "Administrador" && <FilasManagementCard />}
 
         {isLoading ? (

@@ -9,6 +9,7 @@ import { AtendimentoList } from "@/features/atendimento/components/AtendimentoLi
 import { AtendimentoChatPanel } from "@/features/atendimento/components/AtendimentoChatPanel";
 import { AtendimentoTab } from "@/features/atendimento/constants";
 import { PlantaoStatusBadge } from "@/features/plantao/components/PlantaoStatusBadge";
+import { FilaDaVezPanel } from "@/features/roleta/components/FilaDaVezPanel";
 import { Headset } from "lucide-react";
 
 const POLL_INTERVAL_MS = 5000;
@@ -115,6 +116,9 @@ export default function AtendimentoPage() {
         </div>
         <PlantaoStatusBadge />
       </header>
+
+      {/* Fatia 2 (Sorteio da vez): ordem de atendimento de cada roleta */}
+      <FilaDaVezPanel currentUserId={currentUserId} />
 
       <div className="flex flex-1 gap-4 overflow-hidden p-4">
         <AtendimentoList
