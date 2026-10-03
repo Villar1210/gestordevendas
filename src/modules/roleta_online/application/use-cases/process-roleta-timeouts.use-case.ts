@@ -12,6 +12,7 @@ import { IRoleRepository } from '../../../rh/domain/repositories/role-repository
 import { ICardRepository, CardRecord } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { pickByRoundRobin, pickByMenorFila } from '../../domain/services/pick-corretor';
+import { comTravaPorTenant } from '../../domain/services/trava-por-tenant';
 
 const CORRETOR_ROLE_NAME = 'Corretor';
 const STAGE_TERMINAL_NAME = 'Fechamento';
@@ -38,7 +39,9 @@ export class ProcessRoletaTimeoutsUseCase {
 
     for (const card of pendentes) {
       try {
-        await this.processarCard(card);
+        // Mesma trava da DistributeLeadUseCase: a reatribuicao tambem le e
+        // grava o ultimo corretor do tenant.
+        await comTravaPorTenant(card.tenantId, () => this.processarCard(card));
       } catch (err) {
         // Um card com problema (ex: config/role removida entre o momento
         // da atribuicao e a checagem) nao pode travar os demais - mesmo

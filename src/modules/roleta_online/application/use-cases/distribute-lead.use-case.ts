@@ -13,6 +13,7 @@ import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
 import { ClaimCardUseCase } from '../../../vendas_kanban/application/use-cases/claim-card.use-case';
 import { pickByRoundRobin, pickByMenorFila } from '../../domain/services/pick-corretor';
+import { comTravaPorTenant } from '../../domain/services/trava-por-tenant';
 
 const CORRETOR_ROLE_NAME = 'Corretor';
 // Stage terminal do pipeline padrao - cards nela nao contam como "fila
@@ -40,7 +41,16 @@ export class DistributeLeadUseCase {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  // Fatia 1: a distribuicao inteira (ler config/ultimo corretor -> escolher
+  // -> gravar dono/sugestao) roda sob trava por tenant, para dois leads
+  // simultaneos nao cairem no mesmo corretor (ver trava-por-tenant.ts).
+  // Seguro contra auto-bloqueio: nada aqui dentro dispara outra distribuicao
+  // de forma aguardada ('lead.atribuido' usa emit, sem aguardar).
   async execute(input: DistributeLeadInput): Promise<void> {
+    return comTravaPorTenant(input.tenantId, () => this.distribuir(input));
+  }
+
+  private async distribuir(input: DistributeLeadInput): Promise<void> {
     const config = await this.roletaConfigRepository.findByTenant(input.tenantId);
     if (!config || !config.ativa) {
       return;
