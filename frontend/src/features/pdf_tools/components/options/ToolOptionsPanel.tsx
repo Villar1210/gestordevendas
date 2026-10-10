@@ -71,6 +71,7 @@ function SplitOptions() {
 function RotateOptions() {
   const [angle, setAngle] = useOption<number>("angle", 90);
   const [pages, setPages] = useOption<string>("pages", "");
+  const fileCount = usePdfToolsStore((s) => s.files.length);
   const error = useRangeError(pages, true);
   return (
     <>
@@ -86,14 +87,21 @@ function RotateOptions() {
           { value: 270, label: "90° esquerda" },
         ]}
       />
-      <TextField
-        label="Quais páginas (opcional)"
-        value={pages}
-        onChange={setPages}
-        placeholder="Todas"
-        hint="Deixe em branco para girar todas. Ex.: 1-3, 8"
-        error={error}
-      />
+      {fileCount > 1 ? (
+        <Note>
+          Todas as páginas de cada PDF serão giradas. Para escolher páginas específicas, envie um PDF por vez. Você
+          recebe um <span className="font-semibold">.zip</span> com os {fileCount} PDFs girados.
+        </Note>
+      ) : (
+        <TextField
+          label="Quais páginas (opcional)"
+          value={pages}
+          onChange={setPages}
+          placeholder="Todas"
+          hint="Deixe em branco para girar todas. Ex.: 1-3, 8"
+          error={error}
+        />
+      )}
     </>
   );
 }
@@ -388,6 +396,54 @@ function Note({ children }: { children: ReactNode }) {
   return <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-sm leading-relaxed text-slate-600">{children}</p>;
 }
 
+// Com varios arquivos: as opcoes valem para todos e o resultado vem num .zip.
+function BatchNote({ extra }: { extra?: string }) {
+  const fileCount = usePdfToolsStore((s) => s.files.length);
+  if (fileCount < 2) return null;
+  return (
+    <Note>
+      As opções valem para os {fileCount} arquivos{extra ? `, ${extra}` : ""}. Você recebe um{" "}
+      <span className="font-semibold">.zip</span> com um resultado para cada arquivo.
+    </Note>
+  );
+}
+
+function withBatchNote(Panel: () => ReactNode, extra?: string) {
+  return function PanelWithBatchNote() {
+    return (
+      <>
+        <Panel />
+        <BatchNote extra={extra} />
+      </>
+    );
+  };
+}
+
+function OfficeNote() {
+  const fileCount = usePdfToolsStore((s) => s.files.length);
+  return (
+    <>
+      <Note>A formatação é mantida o mais fiel possível. Fontes muito específicas podem ser substituídas.</Note>
+      {fileCount > 1 && (
+        <Note>
+          Os {fileCount} documentos são convertidos um de cada vez (até 10 por envio) e entregues num{" "}
+          <span className="font-semibold">.zip</span>. Pode levar alguns minutos.
+        </Note>
+      )}
+    </>
+  );
+}
+
+function ExtractTextNote() {
+  const fileCount = usePdfToolsStore((s) => s.files.length);
+  return (
+    <>
+      <Note>PDFs digitalizados (fotos de papel) não têm texto para extrair; o resultado pode vir vazio.</Note>
+      {fileCount > 1 && <Note>O texto de cada PDF aparece numa aba própria, e você pode baixar tudo num único .txt.</Note>}
+    </>
+  );
+}
+
 const PANELS: Record<string, () => ReactNode> = {
   juntar: () => <Note>Os arquivos serão unidos na ordem da lista. Arraste os cards para mudar a ordem.</Note>,
   dividir: SplitOptions,
@@ -395,19 +451,15 @@ const PANELS: Record<string, () => ReactNode> = {
     <Note>Arraste as páginas para reordenar. Use os botões de cada página para girar ou excluir.</Note>
   ),
   girar: RotateOptions,
-  comprimir: CompressOptions,
-  "office-para-pdf": () => (
-    <Note>A formatação é mantida o mais fiel possível. Fontes muito específicas podem ser substituídas.</Note>
-  ),
+  comprimir: withBatchNote(CompressOptions),
+  "office-para-pdf": OfficeNote,
   "imagens-para-pdf": ImagesToPdfOptions,
   "pdf-para-imagem": PdfToImagesOptions,
-  "extrair-texto": () => (
-    <Note>PDFs digitalizados (fotos de papel) não têm texto para extrair; o resultado pode vir vazio.</Note>
-  ),
-  "numeros-de-pagina": PageNumbersOptions,
-  "marca-dagua": WatermarkOptions,
-  proteger: ProtectOptions,
-  desbloquear: UnlockOptions,
+  "extrair-texto": ExtractTextNote,
+  "numeros-de-pagina": withBatchNote(PageNumbersOptions, "e a numeração de cada um começa do número inicial"),
+  "marca-dagua": withBatchNote(WatermarkOptions),
+  proteger: withBatchNote(ProtectOptions, "com a mesma senha em todos"),
+  desbloquear: withBatchNote(UnlockOptions, "com a mesma senha em todos"),
 };
 
 export function ToolOptionsPanel({ slug }: { slug: string }) {

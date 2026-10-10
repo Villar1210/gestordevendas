@@ -9,12 +9,21 @@ import { MAX_FILE_SIZE_BYTES, MAX_TOTAL_SIZE_BYTES } from "../catalog";
 import { usePdfToolsStore } from "../store/usePdfToolsStore";
 import { buildToolOptions } from "../lib/buildOptions";
 import { fileExtension, formatBytes } from "../lib/format";
-import type { PdfToolsCapabilities, ResultKind } from "../types";
+import type { PdfToolsCapabilities, ResultKind, TextDocument } from "../types";
 
-interface ExtractTextResponse {
+// O backend manda so as paginas (sem o texto completo duplicado); o texto
+// do documento e montado aqui, juntando as paginas.
+interface ExtractedText {
   pages: number;
-  text: string;
   byPage: { page: number; text: string }[];
+}
+
+// 1 PDF -> { pages, byPage }; varios -> { files: [{ name, pages, byPage }] }.
+type ExtractTextResponse = ExtractedText | { files: (ExtractedText & { name: string })[] };
+
+export function toTextDocument(name: string, data: ExtractedText): TextDocument {
+  const byPage = data.byPage ?? [];
+  return { name, pages: data.pages, byPage, text: byPage.map((p) => p.text).join("\n\n") };
 }
 
 function resultKind(blob: Blob, filename: string): ResultKind {
@@ -135,13 +144,11 @@ export function usePdfTool(tool: PdfTool | undefined) {
     try {
       if (tool.slug === "extrair-texto") {
         const data = await apiRequest<ExtractTextResponse>(tool.endpoint, { method: "POST", body });
-        usePdfToolsStore.getState().setResult({
-          type: "text",
-          pages: data.pages,
-          text: data.text,
-          byPage: data.byPage ?? [],
-          sourceName: files[0]?.file.name ?? "documento.pdf",
-        });
+        const docs: TextDocument[] =
+          "files" in data
+            ? data.files.map((f) => toTextDocument(f.name, f))
+            : [toTextDocument(files[0]?.file.name ?? "documento.pdf", data)];
+        usePdfToolsStore.getState().setResult({ type: "text", docs });
         return;
       }
       const { blob, filename, meta } = await apiBlob(

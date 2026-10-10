@@ -1,16 +1,42 @@
 // src/features/pdf_tools/components/SelectedFiles.tsx
-// Lista/grade dos arquivos escolhidos: miniatura da 1a pagina (PDF) ou da
-// imagem, nome, tamanho, paginas, remover e - em Juntar/Imagens - arrastar
-// para reordenar.
+// Lista/grade dos arquivos escolhidos: miniatura da 1a pagina (PDF), da
+// imagem ou icone por tipo (Office), nome, tamanho, paginas, remover e - em
+// Juntar/Imagens - arrastar para reordenar. Com varios arquivos, uma nota
+// "N arquivos · tamanho total" no topo.
 "use client";
 
-import { GripVertical, Lock, X } from "lucide-react";
+import { FileSpreadsheet, FileText, GripVertical, Lock, Presentation, X, type LucideIcon } from "lucide-react";
 import type { PdfTool } from "../catalog";
 import { usePdfToolsStore } from "../store/usePdfToolsStore";
 import type { SelectedFile } from "../types";
-import { formatBytes } from "../lib/format";
+import { fileExtension, formatBytes } from "../lib/format";
 import { PdfThumbnail } from "./pdf/dynamic";
 import { SortableGrid } from "./SortableGrid";
+
+// Office nao tem miniatura no navegador: icone + extensao por tipo.
+const OFFICE_KINDS: { exts: string[]; icon: LucideIcon; tone: string }[] = [
+  { exts: [".doc", ".docx", ".odt"], icon: FileText, tone: "bg-blue-50 text-blue-700" },
+  { exts: [".xls", ".xlsx", ".ods"], icon: FileSpreadsheet, tone: "bg-emerald-50 text-emerald-700" },
+  { exts: [".ppt", ".pptx", ".odp"], icon: Presentation, tone: "bg-orange-50 text-orange-700" },
+];
+
+function officeKind(name: string) {
+  const ext = fileExtension(name);
+  return OFFICE_KINDS.find((k) => k.exts.includes(ext)) ?? null;
+}
+
+function OfficeIcon({ name }: { name: string }) {
+  const kind = officeKind(name) ?? OFFICE_KINDS[0];
+  const Icon = kind.icon;
+  return (
+    <div className={`flex h-[70%] w-[62%] flex-col items-center justify-center gap-2 rounded-lg shadow-md shadow-slate-300/60 ${kind.tone}`}>
+      <Icon className="h-10 w-10" strokeWidth={1.5} aria-hidden="true" />
+      <span className="rounded bg-white/80 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide">
+        {fileExtension(name).slice(1)}
+      </span>
+    </div>
+  );
+}
 
 function FileCard({
   item,
@@ -24,12 +50,15 @@ function FileCard({
   onRemove: () => void;
 }) {
   const updateFileInfo = usePdfToolsStore((s) => s.updateFileInfo);
-  const isPdf = !item.previewUrl;
+  const isOffice = !item.previewUrl && officeKind(item.file.name) !== null;
+  const isPdf = !item.previewUrl && !isOffice;
 
   return (
     <div className="group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition hover:border-slate-300">
       <div className="relative flex aspect-[1/1.2] items-center justify-center overflow-hidden rounded-xl bg-slate-100">
-        {isPdf ? (
+        {isOffice ? (
+          <OfficeIcon name={item.file.name} />
+        ) : isPdf ? (
           <div className="shadow-md shadow-slate-300/60">
             <PdfThumbnail
               file={item.file}
@@ -74,6 +103,18 @@ function FileCard({
         </div>
       </div>
     </div>
+  );
+}
+
+export function FilesSummary({ tool }: { tool: PdfTool }) {
+  const files = usePdfToolsStore((s) => s.files);
+  if (!tool.multiple || files.length < 2) return null;
+  const total = files.reduce((sum, f) => sum + f.file.size, 0);
+  return (
+    <p className="text-sm text-slate-500" aria-live="polite">
+      <span className="font-semibold text-slate-800">{files.length} arquivos</span> · {formatBytes(total)} no total
+      {tool.batch && <span className="text-slate-400"> · cada um é processado separadamente</span>}
+    </p>
   );
 }
 

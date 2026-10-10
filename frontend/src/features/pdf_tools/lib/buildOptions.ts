@@ -58,7 +58,8 @@ export function buildToolOptions(
       };
     }
     case "girar": {
-      const pages = str(values, "pages").replace(/\s+/g, "");
+      // Intervalo so vale com 1 PDF (o backend recusa com varios).
+      const pages = files.length === 1 ? str(values, "pages").replace(/\s+/g, "") : "";
       const error = rangeCheck(pages, true);
       if (error) return { ok: false, error };
       const options: Record<string, unknown> = { angle: num(values, "angle") };

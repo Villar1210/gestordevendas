@@ -38,12 +38,17 @@ export interface FileResult {
   originalSize: number;
 }
 
-export interface TextResult {
-  type: "text";
+export interface TextDocument {
+  name: string; // nome do PDF de origem (desambiguado no lote: "a (2).pdf")
   pages: number;
   text: string;
   byPage: { page: number; text: string }[];
-  sourceName: string;
+}
+
+// Extrair texto: 1 documento (envio de 1 PDF) ou varios (lote).
+export interface TextResult {
+  type: "text";
+  docs: TextDocument[];
 }
 
 export type ToolResult = FileResult | TextResult;

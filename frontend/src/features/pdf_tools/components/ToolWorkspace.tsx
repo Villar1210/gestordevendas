@@ -11,7 +11,7 @@ import type { PdfTool } from "../catalog";
 import { usePdfToolsStore } from "../store/usePdfToolsStore";
 import { usePdfCapabilities, usePdfTool, validateIncomingFiles } from "../hooks/usePdfTool";
 import { FileDropzone } from "./FileDropzone";
-import { SelectedFiles } from "./SelectedFiles";
+import { FilesSummary, SelectedFiles } from "./SelectedFiles";
 import { ToolOptionsPanel } from "./options/ToolOptionsPanel";
 import { CreatePdfEditorBody, CreatePdfOptions } from "./CreatePdfEditor";
 import { FileResultCard, ProcessingState, TextResultPanel } from "./ResultPanels";
@@ -110,9 +110,9 @@ export function ToolWorkspace({ tool }: { tool: PdfTool }) {
   if (!ready) {
     body = null;
   } else if (processing) {
-    body = <ProcessingState tool={tool} />;
+    body = <ProcessingState tool={tool} fileCount={files.length} />;
   } else if (result?.type === "text") {
-    body = <TextResultPanel result={result} onRestart={restart} />;
+    body = <TextResultPanel tool={tool} result={result} onRestart={restart} />;
   } else if (result?.type === "file" && tool.kind === "create") {
     body = (
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -149,6 +149,7 @@ export function ToolWorkspace({ tool }: { tool: PdfTool }) {
             </div>
           ) : (
             <div className="space-y-4">
+              <FilesSummary tool={tool} />
               <SelectedFiles tool={tool} />
               {showAddMore && <FileDropzone tool={tool} onFiles={handleFiles} variant="compact" />}
               {!tool.multiple && (

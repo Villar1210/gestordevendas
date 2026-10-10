@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Search, SearchX, ShieldCheck } from "lucide-react";
+import { ArrowRight, Layers, Search, SearchX, ShieldCheck } from "lucide-react";
 import {
   PDF_TOOL_CATEGORIES,
   PDF_TOOLS,
@@ -34,6 +34,15 @@ function ToolCard({ tool, available }: { tool: PdfTool; available: boolean }) {
       <div className="min-w-0 flex-1">
         <h3 className="font-semibold text-slate-900">{tool.title}</h3>
         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-500">{tool.description}</p>
+        {tool.batch && available && (
+          <span
+            title={`Aceita até ${tool.maxFiles} arquivos de uma vez`}
+            className="mt-2.5 inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-500"
+          >
+            <Layers className="h-3 w-3" aria-hidden="true" />
+            Em lote
+          </span>
+        )}
         {!available && (
           <span className="mt-3 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
             Indisponível no servidor
