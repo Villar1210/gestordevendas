@@ -46,6 +46,11 @@ export function FileResultCard({ tool, result, onRestart }: { tool: PdfTool; res
   const size = metaNumber(result.meta, "resultSize") ?? result.blob.size;
   const original = metaNumber(result.meta, "originalSize") ?? result.originalSize;
   const pages = metaNumber(result.meta, "pages");
+  const sourceFiles = metaNumber(result.meta, "files");
+  const imagesSummary =
+    tool.slug === "pdf-para-imagem" && pages && sourceFiles
+      ? `${pages} ${pages === 1 ? "imagem" : "imagens"} de ${sourceFiles} ${sourceFiles === 1 ? "PDF" : "PDFs"}`
+      : null;
   const alreadyOptimized = result.meta.alreadyOptimized === true;
   const reduction = tool.slug === "comprimir" && original > 0 && !alreadyOptimized ? Math.max(0, 1 - size / original) : null;
 
@@ -70,7 +75,7 @@ export function FileResultCard({ tool, result, onRestart }: { tool: PdfTool; res
         </p>
         <p className="mt-1 text-sm text-slate-500">
           {formatBytes(size)}
-          {pages ? ` · ${pages} ${pages === 1 ? "página" : "páginas"}` : ""}
+          {imagesSummary ? ` · ${imagesSummary}` : pages ? ` · ${pages} ${pages === 1 ? "página" : "páginas"}` : ""}
           {result.kind === "zip" ? " · arquivo .zip" : ""}
         </p>
 

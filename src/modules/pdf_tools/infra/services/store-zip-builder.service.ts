@@ -31,10 +31,20 @@ function dosDateTime(date: Date): { time: number; date: number } {
   };
 }
 
-function safeEntryName(name: string): string {
-  // Sem caminhos: nada de "../", barra inicial ou separadores.
+function safeSegment(name: string, fallback: string): string {
+  // Um unico segmento: nada de "../", barra inicial ou separadores.
   const cleaned = name.replace(/[\\/]+/g, '_').replace(/^\.+/, '').replace(/[\u0000-\u001f]/g, '');
-  return cleaned || 'arquivo';
+  return cleaned || fallback;
+}
+
+/**
+ * Nome final da entrada. O nome (que pode vir do usuario) nunca vira
+ * caminho; a pasta opcional e exatamente UM nivel, tambem sanitizada.
+ */
+export function safeEntryName(entry: Pick<ZipEntry, 'name' | 'folder'>): string {
+  const file = safeSegment(entry.name, 'arquivo');
+  if (entry.folder === undefined) return file;
+  return `${safeSegment(entry.folder, 'pasta')}/${file}`;
 }
 
 @Injectable()
@@ -49,7 +59,7 @@ export class StoreZipBuilderService implements IZipBuilder {
     let offset = 0;
 
     for (const entry of entries) {
-      const name = Buffer.from(safeEntryName(entry.name), 'utf8');
+      const name = Buffer.from(safeEntryName(entry), 'utf8');
       const data = entry.data;
       const crc = crc32(data);
 

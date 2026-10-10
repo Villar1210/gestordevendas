@@ -113,7 +113,9 @@ export function FileDropzone({ tool, onFiles, variant = "hero", disabled }: File
         </div>
         <div>
           <span className="block text-lg font-semibold text-slate-900">
-            {dragging ? "Solte para adicionar" : tool.multiple ? "Arraste os arquivos aqui" : "Arraste o arquivo aqui"}
+            {dragging
+              ? "Solte para adicionar"
+              : tool.dropzoneTitle ?? (tool.multiple ? "Arraste os arquivos aqui" : "Arraste o arquivo aqui")}
           </span>
           <span className="mt-1 block text-sm text-slate-500">
             ou{" "}

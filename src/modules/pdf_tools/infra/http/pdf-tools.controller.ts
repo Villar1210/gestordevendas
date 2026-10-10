@@ -25,7 +25,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor, NoFilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor, NoFilesInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
@@ -55,6 +55,7 @@ import {
   requireImages,
   requireOfficeFile,
   requirePdfs,
+  requireSingleOrManyPdfs,
   requireSinglePdf,
   UploadedBinary,
 } from './file-validation';
@@ -73,6 +74,18 @@ function multiUpload(maxFiles: number) {
   return FilesInterceptor('files', maxFiles + 10, {
     limits: { fileSize: PDF_TOOLS_LIMITS.maxFileBytes, files: maxFiles, fields: 5, fieldSize: 1024 * 1024 },
   });
+}
+
+// PDF -> imagem: aceita "file" (1, contrato antigo) OU "files" (1 a 20).
+// Mesmo truque do multiUpload: maxCount folgado + limits.files exato.
+function singleOrMultiUpload(maxFiles: number) {
+  return FileFieldsInterceptor(
+    [
+      { name: 'file', maxCount: 1 },
+      { name: 'files', maxCount: maxFiles + 10 },
+    ],
+    { limits: { fileSize: PDF_TOOLS_LIMITS.maxFileBytes, files: maxFiles, fields: 5, fieldSize: 1024 * 1024 } },
+  );
 }
 
 function contentDisposition(fileName: string): string {
@@ -214,15 +227,15 @@ export class PdfToolsController {
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
   @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.pdfToImagesMaxFiles))
   pdfToImagesRoute(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: { file?: UploadedBinary[]; files?: UploadedBinary[] } | undefined,
     @Body('options') options: unknown,
   ) {
     return this.run(req, res, 'pdf-to-images', async () =>
-      this.pdfToImages.execute({ file: requireSinglePdf(file), options }),
+      this.pdfToImages.execute({ files: requireSingleOrManyPdfs(uploads), options }),
     );
   }
 

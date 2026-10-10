@@ -10,7 +10,8 @@ export const PDF_TOOLS_LIMITS = {
   mergeMaxFiles: 20,
   imagesMinFiles: 1,
   imagesMaxFiles: 50,
-  // Rasterizacao: maximo de paginas por requisicao. A 300 DPI cada pagina
+  pdfToImagesMaxFiles: 20,
+  // Rasterizacao: maximo de paginas por requisicao (TOTAL do lote). A 300 DPI cada pagina
   // A4 vira ~2480x3508 px - limite menor para nao estourar a memoria.
   rasterMaxPages: 100,
   rasterMaxPagesAt300Dpi: 15,

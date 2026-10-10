@@ -335,6 +335,21 @@ describe('StoreZipBuilderService (ZIP STORE + CRC32 manual)', () => {
   it('rejeita lista vazia', () => {
     expect(() => zipBuilder.build([])).toThrow(PdfToolsError);
   });
+
+  it('pasta: exatamente UM nivel, sanitizada (sem traversal vindo do nome ou da pasta)', () => {
+    const zip = zipBuilder.build([
+      { name: 'a_pagina_1.jpg', data: Buffer.from('a'), folder: 'contrato (2)' },
+      { name: '../../etc/passwd', data: Buffer.from('b'), folder: '../../x/y' },
+      { name: 'c.jpg', data: Buffer.from('c'), folder: '..' },
+      { name: 'd.jpg', data: Buffer.from('d') },
+    ]);
+    const names = readZipCentralDirectory(zip).map((e) => e.name);
+    expect(names).toEqual(['contrato (2)/a_pagina_1.jpg', '_.._x_y/_.._etc_passwd', 'pasta/c.jpg', 'd.jpg']);
+    for (const n of names) {
+      expect(n.split('/').length).toBeLessThanOrEqual(2);
+      expect(n.split('/').some((seg) => seg === '..' || seg === '.' || seg === '')).toBe(false);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -430,6 +445,54 @@ describe('PdfParseRasterizerService + PdfParseTextExtractorService', () => {
     expect(result.byPage[1].page).toBe(2);
     expect(result.byPage[1].text).toContain('Pagina 2');
     expect(result.byPage[0].text).toContain(ACENTOS);
+  });
+
+  it('PdfToImagesUseCase real: 2 PDFs -> ZIP valido com 2 pastas (unzip -l / -t)', async () => {
+    const a = await writeTmp(await makePdf(2));
+    const b = await writeTmp(await makePdf(3));
+    const c = await writeTmp(await makePdf(1));
+    const out = path.join(tmpDir, 'lote.zip');
+    const result = runInNode<{ fileName: string; contentType: string; meta: Record<string, number> }>(
+      `const fs = require('fs');
+       const { PdfToImagesUseCase } = require(${JSON.stringify(path.join(SERVICES_DIR, '../../application/use-cases/pdf-to-images.use-case'))});
+       const { PdfLibEngineService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'pdf-lib-engine.service'))});
+       const { PdfParseRasterizerService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'pdf-parse-rasterizer.service'))});
+       const { StoreZipBuilderService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'store-zip-builder.service'))});
+       const availability = { isAvailable: async () => true, getCapabilities: async () => ({}) };
+       const [a, b, c, out] = process.argv.slice(-4);
+       const uc = new PdfToImagesUseCase(new PdfLibEngineService(), new PdfParseRasterizerService(), new StoreZipBuilderService(), availability);
+       uc.execute({ files: [
+           { buffer: fs.readFileSync(a), originalname: 'Contrato São João.pdf' },
+           { buffer: fs.readFileSync(b), originalname: 'planta.pdf' },
+           { buffer: fs.readFileSync(c), originalname: 'contrato sao joao.pdf' },
+         ], options: { format: 'jpg', dpi: 72 } })
+         .then((r) => { fs.writeFileSync(out, r.data); console.log(JSON.stringify({ fileName: r.fileName, contentType: r.contentType, meta: r.meta })); })
+         .catch((e) => { console.log(JSON.stringify({ error: e.code || e.message })); process.exitCode = 1; });`,
+      [a, b, c, out],
+    );
+    expect(result.fileName).toBe('imagens_pdf.zip');
+    expect(result.contentType).toBe('application/zip');
+    expect(result.meta).toMatchObject({ files: 3, pages: 6, originalPages: 6 });
+    const zip = await fs.readFile(out);
+    const entries = readZipCentralDirectory(zip);
+    expect(entries.map((e) => e.name)).toEqual([
+      'Contrato Sao Joao/Contrato Sao Joao_pagina_1.jpg',
+      'Contrato Sao Joao/Contrato Sao Joao_pagina_2.jpg',
+      'planta/planta_pagina_1.jpg',
+      'planta/planta_pagina_2.jpg',
+      'planta/planta_pagina_3.jpg',
+      'contrato sao joao (2)/contrato sao joao_pagina_1.jpg',
+    ]);
+    for (const e of entries) expect(detectFileKind(extractZipEntry(zip, e))).toBe('jpg');
+    if (HAS_UNZIP) {
+      expect(execFileSync('unzip', ['-t', out]).toString()).toMatch(/No errors detected/);
+      const listing = execFileSync('unzip', ['-l', out]).toString();
+      expect(listing).toContain('planta/planta_pagina_3.jpg');
+      expect(listing).toMatch(/6 files/);
+      const dest = path.join(tmpDir, 'lote-extraido');
+      execFileSync('unzip', ['-q', out, '-d', dest]);
+      expect((await fs.readdir(dest)).sort()).toEqual(['Contrato Sao Joao', 'contrato sao joao (2)', 'planta']);
+    }
   });
 
   it('PDF corrompido no extrator -> PROCESSING_FAILED', async () => {

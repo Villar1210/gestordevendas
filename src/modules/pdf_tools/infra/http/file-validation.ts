@@ -70,6 +70,20 @@ export function requirePdfs(files: UploadedBinary[] | undefined): UploadedBinary
   });
 }
 
+/** Campo "file" (1 PDF) OU "files" (varios) - nunca os dois juntos. */
+export function requireSingleOrManyPdfs(
+  uploads: { file?: UploadedBinary[]; files?: UploadedBinary[] } | undefined,
+): UploadedBinary[] {
+  const single = uploads?.file ?? [];
+  const many = uploads?.files ?? [];
+  if (single.length > 0 && many.length > 0) {
+    throw invalidInput('Envie os PDFs só no campo "files" (ou 1 PDF no campo "file"), não nos dois.');
+  }
+  if (single.length > 0) return [requireSinglePdf(single[0])];
+  if (many.length === 0) throw invalidInput('Envie os arquivos PDF no campo "files".');
+  return requirePdfs(many);
+}
+
 export function requireImages(files: UploadedBinary[] | undefined): UploadedBinary[] {
   if (!files || files.length === 0) throw invalidInput('Envie as imagens JPG ou PNG no campo "files".');
   assertTotalSize(files);

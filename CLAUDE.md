@@ -1561,7 +1561,9 @@ frontend/src/features/pdf_tools/ + app/dashboard/ferramentas-pdf/ (hub,
   WRONG_PASSWORD, 503 TOOL_UNAVAILABLE, 500 PROCESSING_FAILED (sem stderr).
 - Limites: 50 MB por arquivo, 80 MB por requisicao (nginx /api/ aceita 85M),
   20 PDFs no merge, 50 imagens, imagem max ~30 megapixels (lido do
-  cabecalho antes de decodificar), PDF->imagem max 100 paginas (15 a 300 DPI).
+  cabecalho antes de decodificar), PDF->imagem ate 20 PDFs por vez (campo
+  "files"; "file" continua aceito), max 100 paginas no TOTAL do lote (15 a
+  300 DPI); varios PDFs -> imagens_pdf.zip com uma pasta por PDF.
 - Binarios via spawn sem shell, timeout + SIGKILL no grupo: soffice (perfil
   descartavel por execucao com macros desabilitadas e links externos nunca
   atualizados, max 2 conversoes simultaneas), gs (sempre -dSAFER), qpdf

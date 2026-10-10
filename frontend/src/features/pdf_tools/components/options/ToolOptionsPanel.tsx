@@ -5,6 +5,7 @@
 import type { ReactNode } from "react";
 import { usePdfToolsStore } from "../../store/usePdfToolsStore";
 import { validateRangeSyntax, validateRangesAgainstTotal } from "../../lib/format";
+import { RASTER_MAX_PAGES, RASTER_MAX_PAGES_AT_300_DPI } from "../../catalog";
 import { PasswordField, RadioCards, TextField, Toggle, useOption, Fieldset } from "./controls";
 
 function useRangeError(value: string, allowEmpty: boolean): string | null {
@@ -162,10 +163,34 @@ function ImagesToPdfOptions() {
   );
 }
 
+function BatchPagesNote({ dpi }: { dpi: number }) {
+  const files = usePdfToolsStore((s) => s.files);
+  const known = files.every((f) => typeof f.pages === "number");
+  const total = files.reduce((sum, f) => sum + (f.pages ?? 0), 0);
+  const max = dpi === 300 ? RASTER_MAX_PAGES_AT_300_DPI : RASTER_MAX_PAGES;
+  const over = known && total > max;
+  return (
+    <div className="space-y-1.5 rounded-xl bg-slate-50 px-3.5 py-3 text-sm leading-relaxed text-slate-600">
+      <p>
+        Todas as páginas de cada PDF serão convertidas. Você recebe um <span className="font-semibold">.zip</span> com
+        uma pasta por PDF.
+      </p>
+      {known && (
+        <p className={over ? "font-medium text-rose-700" : "text-slate-500"}>
+          {files.length} PDFs · <span className="font-semibold">{total}</span> {total === 1 ? "página" : "páginas"} no
+          total (máx. {max}
+          {dpi === 300 ? " em 300 dpi" : ""}).
+        </p>
+      )}
+    </div>
+  );
+}
+
 function PdfToImagesOptions() {
   const [format, setFormat] = useOption<string>("format", "jpg");
   const [dpi, setDpi] = useOption<number>("dpi", 150);
   const [pages, setPages] = useOption<string>("pages", "");
+  const fileCount = usePdfToolsStore((s) => s.files.length);
   const error = useRangeError(pages, true);
   return (
     <>
@@ -192,14 +217,18 @@ function PdfToImagesOptions() {
           { value: 300, label: "Impressão", description: "300 dpi" },
         ]}
       />
-      <TextField
-        label="Quais páginas (opcional)"
-        value={pages}
-        onChange={setPages}
-        placeholder="Todas (máx. 100)"
-        hint="Uma página gera a imagem direto; várias vêm num .zip."
-        error={error}
-      />
+      {fileCount > 1 ? (
+        <BatchPagesNote dpi={dpi} />
+      ) : (
+        <TextField
+          label="Quais páginas (opcional)"
+          value={pages}
+          onChange={setPages}
+          placeholder="Todas (máx. 100)"
+          hint="Uma página gera a imagem direto; várias vêm num .zip."
+          error={error}
+        />
+      )}
     </>
   );
 }

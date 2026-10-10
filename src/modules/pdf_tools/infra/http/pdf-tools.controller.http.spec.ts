@@ -166,6 +166,56 @@ describe('PdfToolsController (HTTP)', () => {
     expect(res.headers.get('content-disposition')).toContain('c_desbloqueado.pdf');
   });
 
+  // A rasterizacao real (pdf-parse) nao roda na VM do jest - coberta no
+  // spec de integracao (Node real) e no E2E. Aqui: multer + validacao.
+  it('POST /pdf-to-images: aceita "file" (legado) e "files" (lote); combinacoes invalidas -> 400', async () => {
+    const caps = await (await fetch(`${base}/capabilities`)).json();
+    if (!caps.raster) return;
+    const pdf = await makePdf(1);
+    const post = async (body: FormData) => {
+      const res = await fetch(`${base}/pdf-to-images`, { method: 'POST', body });
+      return { status: res.status, body: await res.json() };
+    };
+
+    // "file" chega ao caso de uso (erro do intervalo prova o caminho)
+    let r = await post(form([{ field: 'file', data: pdf, name: 'um.pdf' }], { pages: '5' }));
+    expect(r).toMatchObject({ status: 400, body: { code: 'INVALID_INPUT' } });
+    expect(r.body.message).not.toMatch(/Campo de arquivo/);
+
+    // "files" com intervalo -> 400 claro (antes de rasterizar)
+    r = await post(
+      form(
+        [
+          { field: 'files', data: pdf, name: 'a.pdf' },
+          { field: 'files', data: pdf, name: 'b.pdf' },
+        ],
+        { pages: '1' },
+      ),
+    );
+    expect(r).toMatchObject({ status: 400, body: { message: expect.stringMatching(/só pode ser usado com 1 PDF/) } });
+
+    // os dois campos juntos
+    r = await post(form([{ field: 'file', data: pdf, name: 'a.pdf' }, { field: 'files', data: pdf, name: 'b.pdf' }]));
+    expect(r).toMatchObject({ status: 400, body: { code: 'INVALID_INPUT', message: expect.stringMatching(/não nos dois/) } });
+
+    // mais de 20
+    r = await post(form(Array.from({ length: 21 }, (_, i) => ({ field: 'files', data: pdf, name: `${i}.pdf` }))));
+    expect(r).toMatchObject({ status: 400, body: { message: 'Arquivos demais nesta requisição.' } });
+
+    // magic bytes por arquivo, com o nome de qual falhou
+    r = await post(
+      form([
+        { field: 'files', data: pdf, name: 'a.pdf' },
+        { field: 'files', data: new TextEncoder().encode('nao sou pdf'), name: 'falso.pdf' },
+      ]),
+    );
+    expect(r).toMatchObject({ status: 400, body: { message: expect.stringMatching(/"falso\.pdf" não é um PDF válido/) } });
+
+    // campo errado
+    r = await post(form([{ field: 'arquivo', data: pdf, name: 'a.pdf' }]));
+    expect(r.status).toBe(400);
+  });
+
   it('GET /capabilities devolve o mapa booleano', async () => {
     const res = await fetch(`${base}/capabilities`);
     expect(res.status).toBe(200);

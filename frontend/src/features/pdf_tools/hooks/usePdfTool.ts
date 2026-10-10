@@ -80,8 +80,13 @@ export function usePdfTool(tool: PdfTool | undefined) {
       );
       return;
     }
-    if (files.some((f) => f.locked) && tool.slug !== "desbloquear") {
-      store.setError("Este PDF está protegido por senha. Use a ferramenta Desbloquear PDF primeiro.");
+    const locked = files.find((f) => f.locked);
+    if (locked && tool.slug !== "desbloquear") {
+      store.setError(
+        files.length > 1
+          ? `"${locked.file.name}" está protegido por senha. Remova-o da lista ou use a ferramenta Desbloquear PDF primeiro.`
+          : "Este PDF está protegido por senha. Use a ferramenta Desbloquear PDF primeiro.",
+      );
       return;
     }
 

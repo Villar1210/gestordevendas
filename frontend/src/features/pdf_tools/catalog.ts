@@ -145,6 +145,8 @@ export interface PdfTool {
   endpoint: string;
   fileField: "files" | "file";
   capability?: CapabilityKey;
+  // Titulo da dropzone grande (opcional; padrao: "Arraste o(s) arquivo(s) aqui").
+  dropzoneTitle?: string;
   actionLabel: string; // verbo do botao primario
   progressLabel: string;
   doneLabel: string;
@@ -156,6 +158,9 @@ const PDF_ACCEPT = { accept: ".pdf,application/pdf", extensions: [".pdf"], accep
 
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 export const MAX_TOTAL_SIZE_BYTES = 80 * 1024 * 1024;
+// PDF -> imagem: limite de paginas por envio (TOTAL do lote), igual ao backend.
+export const RASTER_MAX_PAGES = 100;
+export const RASTER_MAX_PAGES_AT_300_DPI = 15;
 
 export const PDF_TOOLS: PdfTool[] = [
   {
@@ -327,18 +332,19 @@ export const PDF_TOOLS: PdfTool[] = [
   {
     slug: "pdf-para-imagem",
     title: "PDF para JPG ou PNG",
-    description: "Converta as páginas do PDF em imagens na resolução que precisar.",
+    description: "Converta as páginas de um ou vários PDFs em imagens na resolução que precisar.",
     icon: Images,
     category: "converter-de",
     kind: "upload",
     ...PDF_ACCEPT,
-    multiple: false,
+    multiple: true,
     minFiles: 1,
-    maxFiles: 1,
+    maxFiles: 20,
     reorderable: false,
     endpoint: "/pdf-tools/pdf-to-images",
-    fileField: "file",
+    fileField: "files",
     capability: "raster",
+    dropzoneTitle: "Arraste um ou vários PDFs",
     actionLabel: "Converter em imagens",
     progressLabel: "Gerando as imagens…",
     doneLabel: "Suas imagens estão prontas",

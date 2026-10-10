@@ -3,6 +3,7 @@
 // do backend espera, e devolve erros de validacao amigaveis antes do envio.
 import type { OptionValues, OrganizePage, SelectedFile } from "../types";
 import { validateRangeSyntax, validateRangesAgainstTotal } from "./format";
+import { RASTER_MAX_PAGES, RASTER_MAX_PAGES_AT_300_DPI } from "../catalog";
 
 export type BuildResult =
   | { ok: true; options: Record<string, unknown> | null }
@@ -76,11 +77,30 @@ export function buildToolOptions(
         },
       };
     case "pdf-para-imagem": {
-      const pages = str(values, "pages").replace(/\s+/g, "");
+      const dpi = num(values, "dpi");
+      const options: Record<string, unknown> = { format: str(values, "format"), dpi };
+      // Intervalo so vale com 1 PDF (o backend recusa com varios).
+      const pages = files.length === 1 ? str(values, "pages").replace(/\s+/g, "") : "";
       const error = rangeCheck(pages, true);
       if (error) return { ok: false, error };
-      const options: Record<string, unknown> = { format: str(values, "format"), dpi: num(values, "dpi") };
-      if (pages) options.pages = pages;
+      if (pages) {
+        options.pages = pages;
+        return { ok: true, options };
+      }
+      // Sem intervalo: confere o total do lote quando todas as contagens ja sao conhecidas.
+      const max = dpi === 300 ? RASTER_MAX_PAGES_AT_300_DPI : RASTER_MAX_PAGES;
+      const known = files.every((f) => typeof f.pages === "number");
+      const total = files.reduce((sum, f) => sum + (f.pages ?? 0), 0);
+      if (known && total > max) {
+        const dpiNote = dpi === 300 ? " em 300 DPI" : "";
+        return {
+          ok: false,
+          error:
+            files.length > 1
+              ? `Os ${files.length} PDFs somam ${total} páginas, mas o limite é ${max} páginas por vez${dpiNote}. Remova alguns arquivos ou use uma resolução menor.`
+              : `Este PDF tem ${total} páginas, mas o limite é ${max} páginas por vez${dpiNote}. Informe um intervalo (ex.: 1-${max}).`,
+        };
+      }
       return { ok: true, options };
     }
     case "numeros-de-pagina": {
