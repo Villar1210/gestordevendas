@@ -24,6 +24,7 @@ import { SuperUsuarioModule } from './modules/super_usuario/super-usuario.module
 import { SocialMediaModule } from './modules/social_media/social-media.module';
 import { ViviIntegrationModule } from './modules/vivi-integration/vivi-integration.module';
 import { FollowUpModule } from './modules/follow-up/follow-up.module';
+import { PdfToolsModule } from './modules/pdf_tools/pdf-tools.module';
 import { CanaisModule } from './shared/canais.module';
 import { PrismaService } from './config/prisma.service';
 import { validateEnv } from './config/env.validation';
@@ -71,6 +72,9 @@ import { validateEnv } from './config/env.validation';
     SocialMediaModule,
     ViviIntegrationModule,
     FollowUpModule,
+    // Ferramentas PDF (juntar/dividir/comprimir/converter...) - sem banco,
+    // processamento em memoria/pasta temporaria (ver modules/pdf_tools).
+    PdfToolsModule,
     // Abstracao ADITIVA de canais (dispatcher + evento agnostico) - ver
     // shared/canais.module.ts. Nao consumida por nenhum modulo de negocio
     // ainda; existe pronta para features futuras (ex: Repique).
