@@ -1551,7 +1551,8 @@ frontend/src/features/pdf_tools/ + app/dashboard/ferramentas-pdf/ (hub,
   protect, unlock, extract-text, create. JwtAuthGuard + RolesGuard
   (DASHBOARD_ROLES), throttle 30/min nos POST.
 - Multipart: arquivos em "files" (merge, images-to-pdf) ou "file"; opcoes no
-  campo texto "options" (JSON). /create aceita JSON ou multipart (multipart
+  campo texto "options" (JSON). Ferramentas com lote aceitam "file" (1,
+  contrato antigo) OU "files" (1 a N) - os dois juntos -> 400. /create aceita JSON ou multipart (multipart
   porque o body JSON do Express e limitado a 100 KB).
 - Resposta: StreamableFile + Content-Disposition + header X-Pdf-Tools-Meta
   (JSON com pages/originalSize/resultSize...). Access-Control-Expose-Headers
@@ -1564,6 +1565,45 @@ frontend/src/features/pdf_tools/ + app/dashboard/ferramentas-pdf/ (hub,
   cabecalho antes de decodificar), PDF->imagem ate 20 PDFs por vez (campo
   "files"; "file" continua aceito), max 100 paginas no TOTAL do lote (15 a
   300 DPI); varios PDFs -> imagens_pdf.zip com uma pasta por PDF.
+- Lote nas ferramentas 1 arquivo -> 1 arquivo (application/batch-processor.ts,
+  BatchProcessor comum): compress, rotate, page-numbers, watermark, protect,
+  unlock, extract-text ate 20 arquivos; office-to-pdf ate 10 (LibreOffice e
+  lento, nginx corta em 300s). Split/organize continuam 1 arquivo. 1 arquivo
+  -> resposta identica a de antes; varios -> ZIP (comprimidos, convertidos,
+  girados, numerados, marca_dagua, protegidos, desbloqueados .zip) com o
+  nome individual de cada resultado, repetidos viram "x_comprimido (2).pdf".
+  Meta do lote: files + somas de pages/originalSize/resultSize (conteudo,
+  nao o zip); no compress alreadyOptimized = QUANTOS ja estavam otimizados
+  (esses entram no zip com o original). Opcoes valem para todos (mesma
+  senha/angulo); "pages" do rotate so com 1 arquivo. Valida TODOS (magic
+  bytes, pagecount/criptografia) antes de processar; processa 1 por vez;
+  erro em qualquer arquivo aborta o lote nomeando o arquivo ("x.pdf" esta
+  protegido..., Senha incorreta para "x.pdf"). extract-text em lote devolve
+  { files: [{ name, pages, byPage }] }; 1 arquivo: { pages, byPage }. SEM o
+  campo "text" (o frontend junta as paginas) e com name sem caracteres de
+  controle/bidi.
+- Prazo total do lote: 240s (batchDeadlineMs; nginx corta /api/ em 300s),
+  checado antes de cada arquivo; o restante vira o timeout de soffice/gs/
+  qpdf (opcional nas interfaces, menor entre ele e o limite do binario).
+  Estourou -> 422 BATCH_TIMEOUT "O lote demorou mais que o limite (4 min).
+  ... ja tinham sido processados N de M." 1 arquivo nao tem esse prazo.
+- Tetos anti-"bomba" (revisao de seguranca), todos TOO_LARGE (413):
+  maxPagesPerFile 2000 em TODAS as ferramentas (checado no load do motor
+  pdf-lib pelo /Count do catalogo, O(1), antes de percorrer as paginas; o
+  parse em si nao da para evitar, mas cede o event loop a cada 100 objetos);
+  batchMaxPagesTotal 5000 somado no lote (weight() no BatchProcessor, antes
+  de processar o 1o) e no merge (antes de juntar); extract-text 2 milhoes de
+  caracteres por arquivo e 5 milhoes no total (extracao pagina a pagina,
+  para assim que passa); saida 150 MB somada no lote / 120 MB com 1 arquivo.
+- Rotas com lote (incl. pdf-to-images e extract-text): alem do throttle
+  global por IP, 6 req/min POR USUARIO e por ferramenta
+  (PdfToolsBatchThrottlerGuard, tracker req.user.id, fallback IP). Rotas
+  de 1 arquivo seguem 30/min.
+- Cancelamento: o controller aborta (AbortController) quando a resposta
+  fecha antes de terminar (res "close", nao req "close" - este dispara ao
+  fim do upload); BatchProcessor checa antes de cada arquivo e repassa o
+  signal aos binarios (process-runner mata o grupo). Erro ABORTED e
+  silencioso (sem log 500); pastas temp sempre removidas no finally.
 - Binarios via spawn sem shell, timeout + SIGKILL no grupo: soffice (perfil
   descartavel por execucao com macros desabilitadas e links externos nunca
   atualizados, max 2 conversoes simultaneas), gs (sempre -dSAFER), qpdf
@@ -1574,6 +1614,6 @@ frontend/src/features/pdf_tools/ + app/dashboard/ferramentas-pdf/ (hub,
 - Dependencia de infra: qpdf e ghostscript precisam estar instalados na VPS
   ("apt install qpdf ghostscript"); sem eles /capabilities devolve false e o
   frontend mostra o card como "Indisponivel no servidor".
-- Testes: npx jest src/modules/pdf_tools (100 testes; os de integracao usam
+- Testes: npx jest src/modules/pdf_tools (173 testes; os de integracao usam
   qpdf/gs/soffice reais e pulam sozinhos se o binario faltar). Validado E2E
-  com Playwright (22 cenarios) contra o backend real.
+  com Playwright (38 cenarios, 12 de lote) contra o backend real.
