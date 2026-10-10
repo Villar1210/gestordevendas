@@ -1535,3 +1535,43 @@ projeto que dependem de WhatsApp real) - a chamada chega corretamente
 ate `SendWhatsAppMessageUseCase`, so a entrega de fato nao pode ser
 verificada sem um numero pareado de verdade. Tenant de teste, sessoes
 WhatsApp e demais dados removidos ao final (cascata a partir do Tenant).
+
+## Modulo Ferramentas PDF (estilo iLovePDF) - Fatia 1 - CONCLUIDA
+Backend em src/modules/pdf_tools/ (Clean Architecture, isolado - NAO importa
+nada do edoc; tem o proprio adapter de LibreOffice). Frontend em
+frontend/src/features/pdf_tools/ + app/dashboard/ferramentas-pdf/ (hub,
+[ferramenta], leitor) + core/api/blob.ts (download de arquivo com token).
+
+- Processamento 100% em memoria + pasta temp (mkdtemp, apagada no finally).
+  Sem banco, sem migration, NADA gravado em /uploads (que e publico). LGPD:
+  logs so com tenant/usuario/ferramenta/tempo/tamanho, nunca nome de arquivo,
+  conteudo ou senha.
+- Rotas /pdf-tools/*: capabilities, merge, split, organize, rotate, compress,
+  office-to-pdf, images-to-pdf, pdf-to-images, page-numbers, watermark,
+  protect, unlock, extract-text, create. JwtAuthGuard + RolesGuard
+  (DASHBOARD_ROLES), throttle 30/min nos POST.
+- Multipart: arquivos em "files" (merge, images-to-pdf) ou "file"; opcoes no
+  campo texto "options" (JSON). /create aceita JSON ou multipart (multipart
+  porque o body JSON do Express e limitado a 100 KB).
+- Resposta: StreamableFile + Content-Disposition + header X-Pdf-Tools-Meta
+  (JSON com pages/originalSize/resultSize...). Access-Control-Expose-Headers
+  e setado na propria resposta (o CORS global nao expoe headers).
+- Erros JSON {statusCode, code, message}: 400 INVALID_INPUT, 411
+  LENGTH_REQUIRED (sem Content-Length), 413 TOO_LARGE, 422 ENCRYPTED_PDF /
+  WRONG_PASSWORD, 503 TOOL_UNAVAILABLE, 500 PROCESSING_FAILED (sem stderr).
+- Limites: 50 MB por arquivo, 80 MB por requisicao (nginx /api/ aceita 85M),
+  20 PDFs no merge, 50 imagens, imagem max ~30 megapixels (lido do
+  cabecalho antes de decodificar), PDF->imagem max 100 paginas (15 a 300 DPI).
+- Binarios via spawn sem shell, timeout + SIGKILL no grupo: soffice (perfil
+  descartavel por execucao com macros desabilitadas e links externos nunca
+  atualizados, max 2 conversoes simultaneas), gs (sempre -dSAFER), qpdf
+  (senha so via @argsfile 0600 com sintaxe nomeada --user-password=, nunca
+  em argv/log; owner password aleatoria). PDF->imagem via pdf-parse +
+  @napi-rs/canvas, fila de 1 render por vez. ZIP gerado a mao (metodo STORE +
+  CRC32), sem dependencia nova.
+- Dependencia de infra: qpdf e ghostscript precisam estar instalados na VPS
+  ("apt install qpdf ghostscript"); sem eles /capabilities devolve false e o
+  frontend mostra o card como "Indisponivel no servidor".
+- Testes: npx jest src/modules/pdf_tools (100 testes; os de integracao usam
+  qpdf/gs/soffice reais e pulam sozinhos se o binario faltar). Validado E2E
+  com Playwright (22 cenarios) contra o backend real.
