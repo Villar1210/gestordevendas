@@ -70,18 +70,45 @@ export function requirePdfs(files: UploadedBinary[] | undefined): UploadedBinary
   });
 }
 
-/** Campo "file" (1 PDF) OU "files" (varios) - nunca os dois juntos. */
-export function requireSingleOrManyPdfs(
-  uploads: { file?: UploadedBinary[]; files?: UploadedBinary[] } | undefined,
-): UploadedBinary[] {
+export type SingleOrManyUploads = { file?: UploadedBinary[]; files?: UploadedBinary[] } | undefined;
+
+/**
+ * Campo "file" (1 arquivo, contrato antigo) OU "files" (1 a N) - nunca os
+ * dois juntos. Devolve a lista crua; a validacao de tipo e de quem chama.
+ */
+export function pickSingleOrMany(uploads: SingleOrManyUploads, noun = 'PDFs'): { single: boolean; files: UploadedBinary[] } {
   const single = uploads?.file ?? [];
   const many = uploads?.files ?? [];
   if (single.length > 0 && many.length > 0) {
-    throw invalidInput('Envie os PDFs só no campo "files" (ou 1 PDF no campo "file"), não nos dois.');
+    throw invalidInput(`Envie os ${noun} só no campo "files" (ou 1 arquivo no campo "file"), não nos dois.`);
   }
-  if (single.length > 0) return [requireSinglePdf(single[0])];
-  if (many.length === 0) throw invalidInput('Envie os arquivos PDF no campo "files".');
-  return requirePdfs(many);
+  if (single.length > 0) return { single: true, files: [single[0]] };
+  if (many.length === 0) throw invalidInput(`Envie os ${noun} no campo "files".`);
+  return { single: false, files: many };
+}
+
+/** Campo "file" (1 PDF) OU "files" (varios) - nunca os dois juntos. */
+export function requireSingleOrManyPdfs(uploads: SingleOrManyUploads): UploadedBinary[] {
+  const picked = pickSingleOrMany(uploads);
+  return picked.single ? [requireSinglePdf(picked.files[0])] : requirePdfs(picked.files);
+}
+
+/** Office: "file" (1) OU "files" (varios). No lote, o erro nomeia o arquivo. */
+export function requireSingleOrManyOfficeFiles(uploads: SingleOrManyUploads): UploadedBinary[] {
+  const picked = pickSingleOrMany(uploads, 'documentos');
+  if (picked.files.length === 1) return [requireOfficeFile(picked.files[0])];
+  assertTotalSize(picked.files);
+  return picked.files.map((f) => {
+    try {
+      return requireOfficeFile(f);
+    } catch (error) {
+      const name = normalizeOriginalName(f.originalname);
+      if (error instanceof PdfToolsError && !error.message.includes(`"${name}"`)) {
+        throw invalidInput(`"${name}": ${error.message}`);
+      }
+      throw error;
+    }
+  });
 }
 
 export function requireImages(files: UploadedBinary[] | undefined): UploadedBinary[] {

@@ -8,10 +8,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import { IOfficeConverter, OfficeExtension } from '../../domain/services/office-converter.interface';
+import { IOfficeConverter, OfficeExtension, ProcessTimeoutOptions } from '../../domain/services/office-converter.interface';
 import { PdfToolsError } from '../../domain/pdf-tools.errors';
 import { sofficePath } from './binary-paths';
-import { BinaryNotFoundError, ConcurrencyQueue, runProcess } from './process-runner';
+import { abortedError, BinaryNotFoundError, ConcurrencyQueue, runProcess, timeBudget } from './process-runner';
 import { fileExists, withTempDir } from './temp-workspace';
 
 const CONVERT_TIMEOUT_MS = 90_000;
@@ -40,11 +40,17 @@ const queue = new ConcurrencyQueue(2);
 export class LibreOfficeOfficeConverterService implements IOfficeConverter {
   private readonly logger = new Logger(LibreOfficeOfficeConverterService.name);
 
-  convertToPdf(input: { buffer: Buffer; extension: OfficeExtension }): Promise<Buffer> {
-    return queue.run(() => this.convert(input));
+  convertToPdf(input: { buffer: Buffer; extension: OfficeExtension }, options?: ProcessTimeoutOptions): Promise<Buffer> {
+    const budget = timeBudget(CONVERT_TIMEOUT_MS, options?.timeoutMs);
+    return queue.run(() => this.convert(input, budget, options?.signal));
   }
 
-  private async convert(input: { buffer: Buffer; extension: OfficeExtension }): Promise<Buffer> {
+  private async convert(
+    input: { buffer: Buffer; extension: OfficeExtension },
+    budget: () => number,
+    signal?: AbortSignal,
+  ): Promise<Buffer> {
+    if (signal?.aborted) throw abortedError();
     return withTempDir('office', async (dir) => {
       const outDir = path.join(dir, 'out');
       const profileDir = path.join(dir, 'lo-profile');
@@ -71,12 +77,14 @@ export class LibreOfficeOfficeConverterService implements IOfficeConverter {
         inputPath,
       ];
       const started = Date.now();
+      const timeoutMs = budget();
       let result;
       try {
         result = await runProcess(sofficePath(), args, {
-          timeoutMs: CONVERT_TIMEOUT_MS,
+          timeoutMs,
           cwd: dir,
           env: { ...process.env, HOME: dir },
+          signal,
         });
       } catch (error) {
         if (error instanceof BinaryNotFoundError) {
@@ -87,8 +95,9 @@ export class LibreOfficeOfficeConverterService implements IOfficeConverter {
       }
 
       const outputPath = path.join(outDir, 'documento.pdf');
+      if (result.aborted) throw abortedError();
       if (result.timedOut) {
-        this.logger.warn(`soffice excedeu ${CONVERT_TIMEOUT_MS / 1000}s e foi encerrado.`);
+        this.logger.warn(`soffice excedeu ${Math.round(timeoutMs / 1000)}s e foi encerrado.`);
         throw new PdfToolsError('PROCESSING_FAILED', 'A conversão demorou demais e foi cancelada. Tente um arquivo menor.');
       }
       if (result.code !== 0 || !(await fileExists(outputPath))) {

@@ -6,6 +6,7 @@
 //   para a resposta HTTP);
 // - fila de concorrencia por binario.
 import { spawn } from 'child_process';
+export { abortedError } from '../../domain/pdf-tools.errors';
 
 const MAX_CAPTURE_BYTES = 8 * 1024;
 
@@ -15,6 +16,8 @@ export interface ProcessResult {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  /** Cancelado via AbortSignal (cliente desconectou): processo morto. */
+  aborted: boolean;
 }
 
 export class BinaryNotFoundError extends Error {
@@ -27,9 +30,14 @@ export class BinaryNotFoundError extends Error {
 export function runProcess(
   command: string,
   args: string[],
-  options: { timeoutMs: number; cwd?: string; env?: NodeJS.ProcessEnv },
+  options: { timeoutMs: number; cwd?: string; env?: NodeJS.ProcessEnv; signal?: AbortSignal },
 ): Promise<ProcessResult> {
   return new Promise((resolve, reject) => {
+    // Ja cancelado (ex.: enquanto esperava na fila): nem inicia.
+    if (options.signal?.aborted) {
+      resolve({ code: null, signal: null, stdout: '', stderr: '', timedOut: false, aborted: true });
+      return;
+    }
     let child;
     try {
       child = spawn(command, args, {
@@ -51,6 +59,7 @@ export function runProcess(
     let stderr = '';
     let settled = false;
     let timedOut = false;
+    let aborted = false;
 
     const append = (current: string, chunk: Buffer): string =>
       current.length >= MAX_CAPTURE_BYTES ? current : (current + chunk.toString('utf8')).slice(0, MAX_CAPTURE_BYTES);
@@ -72,6 +81,15 @@ export function runProcess(
       timedOut = true;
       killTree();
     }, options.timeoutMs);
+    const onAbort = () => {
+      aborted = true;
+      killTree();
+    };
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    const cleanup = () => {
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
+    };
 
     child.stdout?.on('data', (chunk: Buffer) => {
       stdout = append(stdout, chunk);
@@ -82,17 +100,28 @@ export function runProcess(
     child.on('error', (err: NodeJS.ErrnoException) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      cleanup();
       reject(err.code === 'ENOENT' || err.code === 'EACCES' ? new BinaryNotFoundError(command) : err);
     });
     child.on('close', (code, signal) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
-      if (timedOut) killTree(); // garante que nenhum neto ficou vivo
-      resolve({ code, signal, stdout, stderr, timedOut });
+      cleanup();
+      if (timedOut || aborted) killTree(); // garante que nenhum neto ficou vivo
+      resolve({ code, signal, stdout, stderr, timedOut, aborted });
     });
   });
+}
+
+/**
+ * Orcamento de tempo de uma execucao: o menor entre o limite proprio do
+ * binario e o prazo pedido por quem chamou (ex.: o restante do lote). O
+ * relogio comeca ANTES da fila, entao a espera na fila tambem conta.
+ */
+export function timeBudget(defaultMs: number, requestedMs?: number): () => number {
+  if (requestedMs === undefined) return () => defaultMs;
+  const started = Date.now();
+  return () => Math.max(1, Math.min(defaultMs, requestedMs - (Date.now() - started)));
 }
 
 /** Semaforo simples: no maximo `limit` tarefas simultaneas. */

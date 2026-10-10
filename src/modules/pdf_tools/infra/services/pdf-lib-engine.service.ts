@@ -27,7 +27,8 @@ import {
   RotationAngle,
   WatermarkOptions,
 } from '../../domain/services/pdf-engine.interface';
-import { MENSAGEM_PDF_PROTEGIDO, PdfToolsError } from '../../domain/pdf-tools.errors';
+import { MENSAGEM_PDF_PROTEGIDO, PdfToolsError, tooManyPagesError } from '../../domain/pdf-tools.errors';
+import { PDF_TOOLS_LIMITS } from '../../domain/pdf-tools.limits';
 import { MAX_IMAGE_PIXELS, readImageDimensions } from '../../domain/image-dimensions';
 
 const PAGE_SIZES = {
@@ -38,6 +39,16 @@ const IMAGE_MARGINS = { nenhuma: 0, pequena: 20, grande: 50 };
 const WATERMARK_SIZES = { pequeno: 36, medio: 60, grande: 90 };
 // Limite da especificacao PDF para dimensao de pagina (200 polegadas).
 const MAX_PAGE_POINTS = 14_400;
+
+/** /Count da raiz da arvore de paginas (O(1), sem percorrer paginas). */
+export function declaredPageCount(doc: PDFDocument): number | null {
+  try {
+    const count = doc.catalog.Pages().Count().asNumber();
+    return Number.isFinite(count) ? count : null;
+  } catch {
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers de texto
@@ -441,15 +452,27 @@ export class PdfLibEngineService implements IPdfEngine {
   // -------------------------------------------------------------------------
 
   private async load(pdf: Buffer): Promise<PDFDocument> {
+    const max = PDF_TOOLS_LIMITS.maxPagesPerFile;
     try {
       // Sem ignoreEncryption: PDF protegido lanca EncryptedPDFError.
+      // O parse (PDFDocument.load) nao da para evitar: o pdf-lib so le o
+      // catalogo depois de parsear os objetos. Ele cede o event loop a cada
+      // 100 objetos (parseSpeed padrao "Slow"), entao nao trava o servidor;
+      // o que trava e percorrer/editar milhares de paginas - barrado abaixo.
       const doc = await PDFDocument.load(pdf, { updateMetadata: false });
+      // Teto de paginas ANTES de percorrer a arvore: /Count do catalogo
+      // custa O(1). Um /Count mentiroso e pego pela contagem real logo depois.
+      const declared = declaredPageCount(doc);
+      if (declared !== null && declared > max) throw tooManyPagesError(declared, max);
       // pdf-lib "carrega" arquivos sem catalogo/arvore de paginas validos e
       // so quebra no primeiro acesso (TypeError) - valida aqui, dentro do try.
-      if (doc.getPageCount() < 1) throw new Error('PDF sem páginas');
+      const count = doc.getPageCount();
+      if (count < 1) throw new Error('PDF sem páginas');
+      if (count > max) throw tooManyPagesError(count, max);
       doc.getPages();
       return doc;
     } catch (error) {
+      if (error instanceof PdfToolsError) throw error;
       // pdf-lib e compilado para ES5: `instanceof EncryptedPDFError` nao e
       // confiavel (subclasse de Error) - confere tambem pela mensagem.
       if (

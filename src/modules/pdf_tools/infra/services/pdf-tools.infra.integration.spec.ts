@@ -4,10 +4,10 @@
 // rasterizador e o extrator de texto de verdade. Testes que dependem de
 // binario externo pulam sozinhos se o binario nao existir na maquina.
 import { execFileSync, spawnSync } from 'child_process';
-import { promises as fs } from 'fs';
+import { promises as fs, writeFileSync } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { degrees, PDFDocument, StandardFonts } from 'pdf-lib';
+import { degrees, PDFDocument, PDFName, StandardFonts } from 'pdf-lib';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { PdfLibEngineService } from './pdf-lib-engine.service';
 import { StoreZipBuilderService, crc32 } from './store-zip-builder.service';
@@ -15,8 +15,15 @@ import { QpdfSecurityService } from './qpdf-security.service';
 import { GhostscriptCompressorService } from './ghostscript-compressor.service';
 import { LibreOfficeOfficeConverterService } from './libreoffice-office-converter.service';
 import { BinaryAvailabilityService } from './binary-availability.service';
+import { runProcess } from './process-runner';
 import { PdfToolsError } from '../../domain/pdf-tools.errors';
 import { detectFileKind } from '../../domain/file-signature';
+import { BatchProcessor } from '../../application/batch-processor';
+import { CompressPdfUseCase } from '../../application/use-cases/compress-pdf.use-case';
+import { ProtectPdfUseCase } from '../../application/use-cases/protect-pdf.use-case';
+import { UnlockPdfUseCase } from '../../application/use-cases/unlock-pdf.use-case';
+import { AddWatermarkUseCase } from '../../application/use-cases/add-watermark.use-case';
+import { OfficeToPdfUseCase } from '../../application/use-cases/office-to-pdf.use-case';
 
 jest.setTimeout(180_000);
 
@@ -565,5 +572,284 @@ describe('BinaryAvailabilityService', () => {
   it('qpdf inexistente no momento do uso -> TOOL_UNAVAILABLE', async () => {
     process.env.QPDF_PATH = '/caminho/que/nao/existe/qpdf';
     await expect(new QpdfSecurityService().unlock(await makePdf(1), 'x')).rejects.toMatchObject({ code: 'TOOL_UNAVAILABLE' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Lote real: casos de uso + binarios de verdade + ZIP validado com unzip/qpdf.
+describe('Lote nas ferramentas 1 -> 1 (casos de uso reais)', () => {
+  const engine = new PdfLibEngineService();
+  const zipBuilder = new StoreZipBuilderService();
+  const batch = new BatchProcessor(zipBuilder);
+  const availability = new BinaryAvailabilityService();
+
+  /** Grava o ZIP, confere unzip -t e extrai; devolve nome -> conteudo. */
+  async function unzipAll(zip: Buffer, label: string): Promise<Map<string, Buffer>> {
+    const file = path.join(tmpDir, `${label}.zip`);
+    await fs.writeFile(file, zip);
+    const out = new Map<string, Buffer>();
+    for (const e of readZipCentralDirectory(zip)) out.set(e.name, extractZipEntry(zip, e));
+    if (HAS_UNZIP) {
+      expect(execFileSync('unzip', ['-t', file]).toString()).toMatch(/No errors detected/);
+      const dest = path.join(tmpDir, `${label}-x`);
+      execFileSync('unzip', ['-q', file, '-d', dest]);
+      expect((await fs.readdir(dest)).sort()).toEqual([...out.keys()].sort());
+    }
+    return out;
+  }
+
+  function qpdfCheck(pdf: Buffer, password?: string): number {
+    const file = path.join(tmpDir, `chk-${++fileSeq}.pdf`);
+    writeFileSync(file, pdf);
+    const args = password ? [`--password=${password}`, '--check', file] : ['--check', file];
+    return spawnSync('qpdf', args).status ?? -1;
+  }
+
+  itIf(HAS_GS && HAS_QPDF)('compress: 3 PDFs (1 pesado, 2 leves com nome repetido) -> comprimidos.zip valido', async () => {
+    const heavy = await makeHeavyPdf();
+    const light = await makePdf(2);
+    const uc = new CompressPdfUseCase(engine, new GhostscriptCompressorService(), availability, batch);
+    const result = await uc.execute({
+      files: [
+        { buffer: heavy, originalname: 'Planta São Paulo.pdf' },
+        { buffer: light, originalname: 'contrato.pdf' },
+        { buffer: light, originalname: 'contrato.pdf' },
+      ],
+      options: { level: 'extrema' },
+    });
+    expect(result.fileName).toBe('comprimidos.zip');
+    expect(result.contentType).toBe('application/zip');
+    const files = await unzipAll(result.data, 'comprimidos');
+    expect([...files.keys()]).toEqual(['Planta Sao Paulo_comprimido.pdf', 'contrato_comprimido.pdf', 'contrato_comprimido (2).pdf']);
+    expect(files.get('Planta Sao Paulo_comprimido.pdf')!.length).toBeLessThan(heavy.length);
+    for (const pdf of files.values()) expect(qpdfCheck(pdf)).toBe(0);
+    const sizes = [...files.values()].reduce((a, b) => a + b.length, 0);
+    expect(result.meta).toMatchObject({ files: 3, pages: 5, originalSize: heavy.length + 2 * light.length, resultSize: sizes, level: 'extrema' });
+    expect(typeof result.meta.alreadyOptimized).toBe('number');
+  });
+
+  itIf(HAS_QPDF)('protect -> unlock em lote: mesma senha em todos; senha errada nomeia o arquivo', async () => {
+    const protect = new ProtectPdfUseCase(engine, new QpdfSecurityService(), availability, batch);
+    const unlock = new UnlockPdfUseCase(engine, new QpdfSecurityService(), availability, batch);
+    const inputs = [
+      { buffer: await makePdf(1), originalname: 'a.pdf' },
+      { buffer: await makePdf(2), originalname: 'b.pdf' },
+      { buffer: await makePdf(3), originalname: 'A.pdf' },
+    ];
+    const protectedZip = await protect.execute({ files: inputs, options: { password: 'Lote@ 123' } });
+    expect(protectedZip.fileName).toBe('protegidos.zip');
+    const enc = await unzipAll(protectedZip.data, 'protegidos');
+    expect([...enc.keys()]).toEqual(['a_protegido.pdf', 'b_protegido.pdf', 'A_protegido (2).pdf']);
+    for (const pdf of enc.values()) {
+      const file = await writeTmp(pdf);
+      expect(spawnSync('qpdf', ['--requires-password', file]).status).toBe(0);
+      expect(qpdfCheck(pdf, 'Lote@ 123')).toBe(0);
+    }
+
+    const encInputs = [...enc.entries()].map(([name, buffer]) => ({ buffer, originalname: name }));
+    const wrong = await unlock.execute({ files: encInputs, options: { password: 'errada' } }).catch((e) => e);
+    expect(wrong).toMatchObject({ code: 'WRONG_PASSWORD' });
+    expect(wrong.message).toMatch(/^Senha incorreta para "a_protegido\.pdf"/);
+
+    const unlocked = await unlock.execute({ files: encInputs, options: { password: 'Lote@ 123' } });
+    expect(unlocked.fileName).toBe('desbloqueados.zip');
+    const dec = await unzipAll(unlocked.data, 'desbloqueados');
+    expect([...dec.keys()]).toEqual(['a_protegido_desbloqueado.pdf', 'b_protegido_desbloqueado.pdf', 'A_protegido _2_desbloqueado.pdf']); // "(" e ")" viram "_" no sanitizador
+    const counts = await Promise.all([...dec.values()].map(async (pdf) => (await load(pdf)).getPageCount()));
+    expect(counts).toEqual([1, 2, 3]);
+    expect(unlocked.meta).toMatchObject({ files: 3, pages: 6 });
+  });
+
+  it('watermark em lote: texto acentuado em todos os PDFs; protegido nomeia o arquivo', async () => {
+    const uc = new AddWatermarkUseCase(engine, batch);
+    const result = await uc.execute({
+      files: [
+        { buffer: await makePdf(1), originalname: 'x.pdf' },
+        { buffer: await makePdf(2), originalname: 'y.pdf' },
+      ],
+      options: { text: 'Confidencial – São Paulo' },
+    });
+    expect(result.fileName).toBe('marca_dagua.zip');
+    const files = await unzipAll(result.data, 'marca');
+    expect([...files.keys()]).toEqual(['x_marca_dagua.pdf', 'y_marca_dagua.pdf']);
+    for (const pdf of files.values()) {
+      const txt = (await textOf(pdf)).join(' ').replace(/\s+/g, '');
+      expect(txt).toContain('Confidencial–SãoPaulo');
+    }
+    if (HAS_QPDF) {
+      const enc = await new QpdfSecurityService().protect(await makePdf(1), { password: 'abcd', allowPrint: true, allowCopy: true });
+      const err = await uc
+        .execute({ files: [{ buffer: await makePdf(1), originalname: 'ok.pdf' }, { buffer: enc, originalname: 'proposta.pdf' }], options: { text: 'X' } })
+        .catch((e) => e);
+      expect(err).toMatchObject({ code: 'ENCRYPTED_PDF' });
+      expect(err.message).toMatch(/^"proposta\.pdf" está protegido por senha/);
+    }
+  });
+
+  itIf(HAS_SOFFICE)('office-to-pdf em lote: .odt + .docx -> convertidos.zip com PDFs legiveis', async () => {
+    const srcDir = path.join(tmpDir, 'office-lote');
+    await fs.mkdir(srcDir);
+    const txt = path.join(srcDir, 'memorial.txt');
+    await fs.writeFile(txt, `Memorial lote\n${ACENTOS}\n`, 'utf8');
+    const profile = `file://${path.join(tmpDir, 'lo-profile-lote')}`;
+    for (const fmt of ['odt', 'docx']) {
+      execFileSync(
+        'soffice',
+        [`-env:UserInstallation=${profile}`, '--headless', '--infilter=Text (encoded):UTF8,LF,,', '--convert-to', fmt, '--outdir', srcDir, txt],
+        { timeout: 120_000, stdio: 'ignore' },
+      );
+    }
+    const uc = new OfficeToPdfUseCase(new LibreOfficeOfficeConverterService(), engine, availability, batch);
+    const result = await uc.execute({
+      files: [
+        { buffer: await fs.readFile(path.join(srcDir, 'memorial.odt')), originalname: 'memorial.odt' },
+        { buffer: await fs.readFile(path.join(srcDir, 'memorial.docx')), originalname: 'memorial.docx' },
+      ],
+    });
+    expect(result.fileName).toBe('convertidos.zip');
+    const files = await unzipAll(result.data, 'convertidos');
+    expect([...files.keys()]).toEqual(['memorial.pdf', 'memorial (2).pdf']);
+    for (const pdf of files.values()) {
+      expect(detectFileKind(pdf)).toBe('pdf');
+      expect((await textOf(pdf)).join('\n')).toContain(ACENTOS);
+    }
+    expect(result.meta).toMatchObject({ files: 2 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Revisao de seguranca: PDFs pequenos que "explodem" (A1/A2) e cancelamento (M2).
+/**
+ * PDF sintetico: N paginas que COMPARTILHAM o mesmo conteudo (o arquivo
+ * fica pequeno - poucos KB - mas o texto/paginas multiplicam por N).
+ */
+async function makeRepeatedPdf(pages: number, line: string, lines = 1): Promise<Buffer> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const first = doc.addPage([600, 800]);
+  for (let i = 0; i < lines; i++) first.drawText(line, { x: 10, y: 780 - i * 6, size: 4, font });
+  const contents = first.node.get(PDFName.of('Contents'))!;
+  const resources = first.node.get(PDFName.of('Resources'))!;
+  for (let i = 1; i < pages; i++) {
+    const p = doc.addPage([600, 800]);
+    p.node.set(PDFName.of('Contents'), contents);
+    p.node.set(PDFName.of('Resources'), resources);
+  }
+  return Buffer.from(await doc.save({ useObjectStreams: true }));
+}
+
+describe('Limites de seguranca (A1 texto, A2 paginas, M2 cancelamento)', () => {
+  const engine = new PdfLibEngineService();
+
+  it('A2: PDF de 2001 paginas -> TOO_LARGE ao carregar (vale para qualquer ferramenta, 1 arquivo)', async () => {
+    const pdf = await makeRepeatedPdf(2001, 'x');
+    expect(pdf.length).toBeLessThan(100_000);
+    const err = await engine.getPageCount(pdf).catch((e) => e);
+    expect(err).toMatchObject({ code: 'TOO_LARGE', message: 'O PDF tem 2.001 páginas; o limite é 2.000 páginas por arquivo.' });
+    await expect(engine.rotate(pdf, 90, null)).rejects.toMatchObject({ code: 'TOO_LARGE' });
+    await expect(engine.addWatermark(pdf, { text: 'X', opacity: 0.3, size: 'medio', diagonal: true })).rejects.toMatchObject({ code: 'TOO_LARGE' });
+    expect(await engine.getPageCount(await makeRepeatedPdf(2000, 'x'))).toBe(2000);
+  });
+
+  it('A2: lote 3 x 2000 paginas (6000 > 5000) -> TOO_LARGE nomeando o arquivo, sem marcar nenhum', async () => {
+    const pdf = await makeRepeatedPdf(2000, 'x');
+    const addWatermark = jest.spyOn(engine, 'addWatermark');
+    const uc = new AddWatermarkUseCase(engine, new BatchProcessor(new StoreZipBuilderService()));
+    const err = await uc
+      .execute({
+        files: [
+          { buffer: pdf, originalname: 'a.pdf' },
+          { buffer: pdf, originalname: 'b.pdf' },
+          { buffer: pdf, originalname: 'c.pdf' },
+        ],
+        options: { text: 'X' },
+      })
+      .catch((e) => e);
+    expect(err).toMatchObject({ code: 'TOO_LARGE' });
+    expect(err.message).toMatch(/mais de 5\.000 páginas.*"c\.pdf", com 6\.000 no total/);
+    expect(addWatermark).not.toHaveBeenCalled();
+    addWatermark.mockRestore();
+  });
+
+  it('A1: texto repetido em muitas paginas -> TOO_LARGE PARANDO CEDO (extrator real, pagina a pagina)', async () => {
+    // ~1.400 paginas x ~1.700 caracteres por pagina = ~2,4 milhoes > 2 milhoes
+    const line = 'Texto repetido para inflar a extracao '.repeat(3);
+    const pdf = await makeRepeatedPdf(1400, line, 15);
+    expect(pdf.length).toBeLessThan(150_000);
+    const file = await writeTmp(pdf);
+    const result = runInNode<{ error?: string; message?: string; pagesRead?: number; ms: number }>(
+      `const fs = require('fs');
+       const { PdfParseTextExtractorService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'pdf-parse-text-extractor.service'))});
+       const { ExtractTextUseCase } = require(${JSON.stringify(path.join(SERVICES_DIR, '../../application/use-cases/extract-text.use-case'))});
+       const { PdfLibEngineService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'pdf-lib-engine.service'))});
+       const { BatchProcessor } = require(${JSON.stringify(path.join(SERVICES_DIR, '../../application/batch-processor'))});
+       const { StoreZipBuilderService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'store-zip-builder.service'))});
+       const extractor = new PdfParseTextExtractorService();
+       let pagesRead = 0;
+       const orig = extractor.extract.bind(extractor);
+       const { PDFParse } = require('pdf-parse');
+       const getText = PDFParse.prototype.getText;
+       PDFParse.prototype.getText = function (p) { pagesRead++; return getText.call(this, p); };
+       const uc = new ExtractTextUseCase(new PdfLibEngineService(), extractor, new BatchProcessor(new StoreZipBuilderService()));
+       const t = Date.now();
+       uc.execute({ files: [{ buffer: fs.readFileSync(process.argv[process.argv.length - 1]), originalname: 'grande.pdf' }] })
+         .then(() => console.log(JSON.stringify({ ms: Date.now() - t })))
+         .catch((e) => console.log(JSON.stringify({ error: e.code, message: e.message, pagesRead, ms: Date.now() - t })));`,
+      [file],
+    );
+    expect(result.error).toBe('TOO_LARGE');
+    expect(result.message).toBe('O texto extraído passa do limite de 2 milhões de caracteres por arquivo. Divida o PDF em partes menores.');
+    // parou cedo: nao leu as 1.400 paginas
+    expect(result.pagesRead).toBeLessThan(1400);
+    expect(result.pagesRead).toBeGreaterThan(1000);
+  });
+
+  it('A1: dentro do limite extrai tudo; resposta so com pages + byPage (sem "text" duplicado)', async () => {
+    const pdf = await makeRepeatedPdf(30, 'Linha unica');
+    const file = await writeTmp(pdf);
+    const out = runInNode<Record<string, unknown>>(
+      `const fs = require('fs');
+       const { PdfParseTextExtractorService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'pdf-parse-text-extractor.service'))});
+       const { ExtractTextUseCase } = require(${JSON.stringify(path.join(SERVICES_DIR, '../../application/use-cases/extract-text.use-case'))});
+       const { PdfLibEngineService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'pdf-lib-engine.service'))});
+       const { BatchProcessor } = require(${JSON.stringify(path.join(SERVICES_DIR, '../../application/batch-processor'))});
+       const { StoreZipBuilderService } = require(${JSON.stringify(path.join(SERVICES_DIR, 'store-zip-builder.service'))});
+       const uc = new ExtractTextUseCase(new PdfLibEngineService(), new PdfParseTextExtractorService(), new BatchProcessor(new StoreZipBuilderService()));
+       const buf = fs.readFileSync(process.argv[process.argv.length - 1]);
+       uc.execute({ files: [{ buffer: buf, originalname: 'a.pdf' }, { buffer: buf, originalname: 'b\\u202e\\u0007fdp.pdf' }] })
+         .then((r) => console.log(JSON.stringify(r)))
+         .catch((e) => console.log(JSON.stringify({ error: e.code })));`,
+      [file],
+    );
+    const files = out.files as { name: string; pages: number; byPage: { text: string }[]; text?: string }[];
+    expect(files.map((f) => f.name)).toEqual(['a.pdf', 'bfdp.pdf']); // controle e bidi removidos
+    expect(files[0].pages).toBe(30);
+    expect(files[0].byPage).toHaveLength(30);
+    expect(files[0].byPage[29].text).toBe('Linha unica');
+    expect(files[0].text).toBeUndefined();
+  });
+
+  it('M2: AbortSignal mata o processo (runProcess) e nao deixa pasta temporaria', async () => {
+    const controller = new AbortController();
+    const started = Date.now();
+    setTimeout(() => controller.abort(), 200);
+    const result = await runProcess('sleep', ['30'], { timeoutMs: 60_000, signal: controller.signal });
+    expect(result.aborted).toBe(true);
+    expect(Date.now() - started).toBeLessThan(5_000);
+
+    const pre = new AbortController();
+    pre.abort();
+    expect((await runProcess('sleep', ['30'], { timeoutMs: 60_000, signal: pre.signal })).aborted).toBe(true);
+  });
+
+  itIf(HAS_GS)('M2: compressao cancelada -> ABORTED e pasta temp removida', async () => {
+    const before = (await fs.readdir(os.tmpdir())).filter((n) => n.startsWith('pdftools-gs-')).length;
+    const controller = new AbortController();
+    const heavy = await makeHeavyPdf();
+    const pending = new GhostscriptCompressorService().compress(heavy, 'extrema', { signal: controller.signal });
+    setTimeout(() => controller.abort(), 50);
+    await expect(pending).rejects.toMatchObject({ code: 'ABORTED' });
+    const after = (await fs.readdir(os.tmpdir())).filter((n) => n.startsWith('pdftools-gs-')).length;
+    expect(after).toBeLessThanOrEqual(before);
   });
 });

@@ -17,6 +17,10 @@ const STATUS_BY_CODE: Record<PdfToolsErrorCode, number> = {
   LENGTH_REQUIRED: HttpStatus.LENGTH_REQUIRED,
   TOOL_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   PROCESSING_FAILED: HttpStatus.INTERNAL_SERVER_ERROR,
+  // 422 e nao 408: 408 faz navegadores/proxies repetirem a requisicao.
+  BATCH_TIMEOUT: HttpStatus.UNPROCESSABLE_ENTITY,
+  // Cliente desconectou: ninguem le a resposta (499 = "client closed request").
+  ABORTED: 499,
 };
 
 const GENERIC_500 = 'Não foi possível processar o arquivo. Tente novamente.';
@@ -46,6 +50,11 @@ export class PdfToolsExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const res = host.switchToHttp().getResponse<Response>();
     if (res.headersSent) return;
+    // Cliente ja foi embora (lote cancelado): sem log, so fecha.
+    if (exception instanceof PdfToolsError && exception.code === 'ABORTED') {
+      if (!res.writableEnded && !res.destroyed) res.status(499).end();
+      return;
+    }
 
     let status: number;
     let body: { statusCode: number; code: string; message: string };

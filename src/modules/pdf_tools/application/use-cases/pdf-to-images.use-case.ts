@@ -15,7 +15,7 @@ import { IToolAvailability } from '../../domain/services/tool-availability.inter
 import { parsePageRange } from '../../domain/page-range';
 import { invalidInput, PdfToolsError } from '../../domain/pdf-tools.errors';
 import { PDF_TOOLS_LIMITS } from '../../domain/pdf-tools.limits';
-import { buildOutputFileName, sanitizeBaseName } from '../../domain/file-name';
+import { buildOutputFileName, sanitizeBaseName, uniqueFileNames } from '../../domain/file-name';
 import { CONTENT_TYPES, InputFile, PdfToolResult } from '../pdf-tool.types';
 import { parseOptions, readEnum, readString } from '../options';
 import { ensureCapability } from '../tool-guard';
@@ -30,14 +30,7 @@ interface PlannedFile {
 
 /** Pastas unicas por PDF: "contrato", "contrato (2)"... (sem diferenciar maiusculas). */
 export function uniqueFolderNames(originalNames: string[]): string[] {
-  const used = new Set<string>();
-  return originalNames.map((original) => {
-    const base = sanitizeBaseName(original);
-    let candidate = base;
-    for (let n = 2; used.has(candidate.toLowerCase()); n++) candidate = `${base} (${n})`;
-    used.add(candidate.toLowerCase());
-    return candidate;
-  });
+  return uniqueFileNames(originalNames.map((original) => sanitizeBaseName(original)), false);
 }
 
 @Injectable()

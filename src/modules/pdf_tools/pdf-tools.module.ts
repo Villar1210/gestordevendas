@@ -5,6 +5,8 @@
 import { Module } from '@nestjs/common';
 import { PdfToolsController } from './infra/http/pdf-tools.controller';
 import { PdfToolsRequestSizeGuard } from './infra/http/request-size.guard';
+import { PdfToolsBatchThrottlerGuard } from './infra/http/batch-throttler.guard';
+import { BatchProcessor } from './application/batch-processor';
 import { GetCapabilitiesUseCase } from './application/use-cases/get-capabilities.use-case';
 import { MergePdfsUseCase } from './application/use-cases/merge-pdfs.use-case';
 import { SplitPdfUseCase } from './application/use-cases/split-pdf.use-case';
@@ -33,6 +35,8 @@ import { BinaryAvailabilityService } from './infra/services/binary-availability.
   controllers: [PdfToolsController],
   providers: [
     PdfToolsRequestSizeGuard,
+    PdfToolsBatchThrottlerGuard,
+    BatchProcessor,
     GetCapabilitiesUseCase,
     MergePdfsUseCase,
     SplitPdfUseCase,

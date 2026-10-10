@@ -3,7 +3,9 @@ import { RotatePdfUseCase } from './rotate-pdf.use-case';
 import { AddPageNumbersUseCase } from './add-page-numbers.use-case';
 import { AddWatermarkUseCase } from './add-watermark.use-case';
 import { IPdfEngine } from '../../domain/services/pdf-engine.interface';
-import { engineMock, expectToolError, pdfFile } from './pdf-tools.mocks.spec';
+import { batchMock, engineMock, expectToolError, pdfFile } from './pdf-tools.mocks.spec';
+
+const batch = batchMock;
 
 function engine() {
   return engineMock();
@@ -38,7 +40,7 @@ describe('OrganizePdfUseCase', () => {
 describe('RotatePdfUseCase', () => {
   it('sem pages gira todas (indices null)', async () => {
     const e = engine();
-    const result = await new RotatePdfUseCase(e as unknown as IPdfEngine).execute({ file: pdfFile(), options: { angle: 90 } });
+    const result = await new RotatePdfUseCase(e as unknown as IPdfEngine, batch()).execute({ files: [pdfFile()], options: { angle: 90 } });
     expect(e.rotate).toHaveBeenCalledWith(expect.any(Buffer), 90, null);
     expect(result.meta).toMatchObject({ rotatedPages: 5 });
     expect(result.fileName).toBe('contrato_girado.pdf');
@@ -46,23 +48,23 @@ describe('RotatePdfUseCase', () => {
 
   it('com pages gira so o intervalo', async () => {
     const e = engine();
-    await new RotatePdfUseCase(e as unknown as IPdfEngine).execute({ file: pdfFile(), options: { angle: 180, pages: '1-2' } });
+    await new RotatePdfUseCase(e as unknown as IPdfEngine, batch()).execute({ files: [pdfFile()], options: { angle: 180, pages: '1-2' } });
     expect(e.rotate).toHaveBeenCalledWith(expect.any(Buffer), 180, [0, 1]);
   });
 
   it('rejeita angulo invalido ou ausente', async () => {
-    const useCase = new RotatePdfUseCase(engine() as unknown as IPdfEngine);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { angle: 45 } }), 'INVALID_INPUT');
-    await expectToolError(useCase.execute({ file: pdfFile(), options: {} }), 'INVALID_INPUT', /Informe/);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { angle: '90' } }), 'INVALID_INPUT');
+    const useCase = new RotatePdfUseCase(engine() as unknown as IPdfEngine, batch());
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { angle: 45 } }), 'INVALID_INPUT');
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: {} }), 'INVALID_INPUT', /Informe/);
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { angle: '90' } }), 'INVALID_INPUT');
   });
 });
 
 describe('AddPageNumbersUseCase', () => {
   it('aplica defaults e repassa as opcoes', async () => {
     const e = engine();
-    const useCase = new AddPageNumbersUseCase(e as unknown as IPdfEngine);
-    await useCase.execute({ file: pdfFile(), options: undefined });
+    const useCase = new AddPageNumbersUseCase(e as unknown as IPdfEngine, batch());
+    await useCase.execute({ files: [pdfFile()], options: undefined });
     expect(e.addPageNumbers).toHaveBeenLastCalledWith(expect.any(Buffer), {
       position: 'inferior-centro',
       format: 'n',
@@ -70,7 +72,7 @@ describe('AddPageNumbersUseCase', () => {
       skipFirst: false,
     });
     const result = await useCase.execute({
-      file: pdfFile(),
+      files: [pdfFile()],
       options: { position: 'superior-direita', format: 'n-de-total', startAt: 3, skipFirst: true },
     });
     expect(e.addPageNumbers).toHaveBeenLastCalledWith(expect.any(Buffer), {
@@ -83,19 +85,19 @@ describe('AddPageNumbersUseCase', () => {
   });
 
   it('valida enums, startAt inteiro e skipFirst booleano', async () => {
-    const useCase = new AddPageNumbersUseCase(engine() as unknown as IPdfEngine);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { position: 'meio' } }), 'INVALID_INPUT');
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { startAt: 0 } }), 'INVALID_INPUT', /entre 1/);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { startAt: 1.5 } }), 'INVALID_INPUT', /inteiro/);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { skipFirst: 'sim' } }), 'INVALID_INPUT', /true ou false/);
+    const useCase = new AddPageNumbersUseCase(engine() as unknown as IPdfEngine, batch());
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { position: 'meio' } }), 'INVALID_INPUT');
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { startAt: 0 } }), 'INVALID_INPUT', /entre 1/);
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { startAt: 1.5 } }), 'INVALID_INPUT', /inteiro/);
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { skipFirst: 'sim' } }), 'INVALID_INPUT', /true ou false/);
   });
 });
 
 describe('AddWatermarkUseCase', () => {
   it('repassa texto (trim), opacidade, tamanho e diagonal', async () => {
     const e = engine();
-    const result = await new AddWatermarkUseCase(e as unknown as IPdfEngine).execute({
-      file: pdfFile(),
+    const result = await new AddWatermarkUseCase(e as unknown as IPdfEngine, batch()).execute({
+      files: [pdfFile()],
       options: { text: '  CONFIDENCIAL  ', opacity: 0.2, size: 'grande', diagonal: false },
     });
     expect(e.addWatermark).toHaveBeenCalledWith(expect.any(Buffer), {
@@ -108,11 +110,11 @@ describe('AddWatermarkUseCase', () => {
   });
 
   it('valida texto 1-60, opacidade 0.1-0.6 e tamanho', async () => {
-    const useCase = new AddWatermarkUseCase(engine() as unknown as IPdfEngine);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: {} }), 'INVALID_INPUT', /Informe/);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { text: '   ' } }), 'INVALID_INPUT');
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { text: 'x'.repeat(61) } }), 'INVALID_INPUT', /entre 1 e 60/);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { text: 'a', opacity: 0.9 } }), 'INVALID_INPUT', /entre 0.1 e 0.6/);
-    await expectToolError(useCase.execute({ file: pdfFile(), options: { text: 'a', size: 'gigante' } }), 'INVALID_INPUT');
+    const useCase = new AddWatermarkUseCase(engine() as unknown as IPdfEngine, batch());
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: {} }), 'INVALID_INPUT', /Informe/);
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { text: '   ' } }), 'INVALID_INPUT');
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { text: 'x'.repeat(61) } }), 'INVALID_INPUT', /entre 1 e 60/);
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { text: 'a', opacity: 0.9 } }), 'INVALID_INPUT', /entre 0.1 e 0.6/);
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: { text: 'a', size: 'gigante' } }), 'INVALID_INPUT');
   });
 });

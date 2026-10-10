@@ -17,7 +17,19 @@ describe('MergePdfsUseCase', () => {
     expect(engine.merge).toHaveBeenCalledWith([files[0].buffer, files[1].buffer]);
     expect(result.fileName).toBe('documento_unido.pdf');
     expect(result.contentType).toBe('application/pdf');
-    expect(result.meta).toMatchObject({ files: 2, pages: 5, originalSize: 30, resultSize: 6 });
+    // paginas = soma das origens (5 + 5 no mock), contada ANTES de juntar
+    expect(result.meta).toMatchObject({ files: 2, pages: 10, originalSize: 30, resultSize: 6 });
+  });
+
+  it('soma de paginas acima de 5000 -> TOO_LARGE antes de juntar', async () => {
+    const { engine, useCase } = setup();
+    engine.getPageCount.mockResolvedValueOnce(2000).mockResolvedValueOnce(2000).mockResolvedValueOnce(1001);
+    await expectToolError(
+      useCase.execute({ files: [pdfFile('a.pdf'), pdfFile('b.pdf'), pdfFile('c.pdf')] }),
+      'TOO_LARGE',
+      /somam 5\.001 páginas; o limite para juntar é 5\.000/,
+    );
+    expect(engine.merge).not.toHaveBeenCalled();
   });
 
   it('exige de 2 a 20 PDFs', async () => {

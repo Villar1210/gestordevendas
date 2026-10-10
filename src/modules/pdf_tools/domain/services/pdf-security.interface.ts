@@ -7,9 +7,11 @@ export interface ProtectOptions {
   allowCopy: boolean;
 }
 
+import { ProcessTimeoutOptions } from './office-converter.interface';
+
 export interface IPdfSecurity {
   /** Criptografa com AES-256. */
-  protect(pdf: Buffer, options: ProtectOptions): Promise<Buffer>;
+  protect(pdf: Buffer, options: ProtectOptions, run?: ProcessTimeoutOptions): Promise<Buffer>;
   /** Remove a senha. Lanca WRONG_PASSWORD se a senha nao confere. */
-  unlock(pdf: Buffer, password: string): Promise<Buffer>;
+  unlock(pdf: Buffer, password: string, run?: ProcessTimeoutOptions): Promise<Buffer>;
 }

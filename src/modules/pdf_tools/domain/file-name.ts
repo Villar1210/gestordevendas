@@ -23,3 +23,21 @@ export function sanitizeBaseName(originalName: string | undefined | null): strin
 export function buildOutputFileName(originalName: string | undefined | null, suffix: string, extension: string): string {
   return `${sanitizeBaseName(originalName)}_${suffix}.${extension}`;
 }
+
+/**
+ * Desambigua nomes repetidos (sem diferenciar maiusculas):
+ * "contrato_comprimido.pdf", "contrato_comprimido (2).pdf"...
+ * Com withExtension=false (pastas) o sufixo vai no fim: "contrato (2)".
+ */
+export function uniqueFileNames(names: string[], withExtension = true): string[] {
+  const used = new Set<string>();
+  return names.map((name) => {
+    const match = withExtension ? /^(.+?)(\.[^.]{1,10})$/.exec(name) : null;
+    const base = match ? match[1] : name;
+    const ext = match ? match[2] : '';
+    let candidate = name;
+    for (let n = 2; used.has(candidate.toLowerCase()); n++) candidate = `${base} (${n})${ext}`;
+    used.add(candidate.toLowerCase());
+    return candidate;
+  });
+}

@@ -4,6 +4,14 @@ export interface ExtractedText {
   byPage: { page: number; text: string }[];
 }
 
+export interface ExtractTextOptions {
+  /**
+   * Para assim que o texto acumulado passar disso (PdfToolsError
+   * TOO_LARGE), sem extrair as paginas seguintes.
+   */
+  maxChars?: number;
+}
+
 export interface IPdfTextExtractor {
-  extract(pdf: Buffer): Promise<ExtractedText>;
+  extract(pdf: Buffer, options?: ExtractTextOptions): Promise<ExtractedText>;
 }

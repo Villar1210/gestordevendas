@@ -99,9 +99,10 @@ describe('PdfToolsController (HTTP)', () => {
     expect(res.status).toBe(400);
     expect((await res.json()).message).toMatch(/não é um PDF válido/);
 
-    res = await fetch(`${base}/rotate`, {
+    // split continua 1 arquivo: "files" e campo inesperado
+    res = await fetch(`${base}/split`, {
       method: 'POST',
-      body: form([{ field: 'files', data: await makePdf(1), name: 'x.pdf' }], { angle: 90 }),
+      body: form([{ field: 'files', data: await makePdf(1), name: 'x.pdf' }], { mode: 'every' }),
     });
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe('INVALID_INPUT');
@@ -214,6 +215,103 @@ describe('PdfToolsController (HTTP)', () => {
     // campo errado
     r = await post(form([{ field: 'arquivo', data: pdf, name: 'a.pdf' }]));
     expect(r.status).toBe(400);
+  });
+
+  it('lote (rotate/page-numbers/watermark): "files" -> ZIP; "file" continua igual; os dois juntos -> 400', async () => {
+    const one = await makePdf(1);
+    const two = await makePdf(2);
+    const files = [
+      { field: 'files', data: one, name: 'contrato.pdf' },
+      { field: 'files', data: two, name: 'contrato.pdf' },
+    ];
+
+    let res = await fetch(`${base}/rotate`, { method: 'POST', body: form(files, { angle: 90 }) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/zip');
+    expect(res.headers.get('content-disposition')).toContain('filename="girados.zip"');
+    expect(JSON.parse(res.headers.get('x-pdf-tools-meta')!)).toMatchObject({ files: 2, pages: 3, rotatedPages: 3 });
+    const zip = Buffer.from(await res.arrayBuffer());
+    expect(zip.includes(Buffer.from('contrato_girado.pdf'))).toBe(true);
+    expect(zip.includes(Buffer.from('contrato_girado (2).pdf'))).toBe(true);
+
+    // "files" com 1 arquivo = resposta individual (nao ZIP)
+    res = await fetch(`${base}/page-numbers`, { method: 'POST', body: form([files[0]], {}) });
+    expect(res.headers.get('content-type')).toBe('application/pdf');
+    expect(res.headers.get('content-disposition')).toContain('contrato_numerado.pdf');
+
+    res = await fetch(`${base}/watermark`, { method: 'POST', body: form(files, { text: 'RASCUNHO' }) });
+    expect(res.headers.get('content-disposition')).toContain('marca_dagua.zip');
+
+    // os dois campos juntos
+    res = await fetch(`${base}/rotate`, {
+      method: 'POST',
+      body: form([{ field: 'file', data: one, name: 'a.pdf' }, files[1]], { angle: 90 }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toMatch(/não nos dois/);
+
+    // intervalo de paginas com varios
+    res = await fetch(`${base}/rotate`, { method: 'POST', body: form(files, { angle: 90, pages: '1' }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toMatch(/só pode ser usado com 1 PDF/);
+
+    // magic bytes por arquivo, nomeando o falso
+    res = await fetch(`${base}/watermark`, {
+      method: 'POST',
+      body: form([files[0], { field: 'files', data: new TextEncoder().encode('nada'), name: 'falso.pdf' }], { text: 'X' }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toMatch(/"falso\.pdf" não é um PDF válido/);
+
+    // mais de 20
+    res = await fetch(`${base}/page-numbers`, {
+      method: 'POST',
+      body: form(Array.from({ length: 21 }, (_, i) => ({ field: 'files', data: one, name: `${i}.pdf` })), {}),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toBe('Arquivos demais nesta requisição.');
+  });
+
+  it('office-to-pdf: maximo 10 documentos; extensao invalida no lote nomeia o arquivo', async () => {
+    const docx = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
+    let res = await fetch(`${base}/office-to-pdf`, {
+      method: 'POST',
+      body: form(Array.from({ length: 11 }, (_, i) => ({ field: 'files', data: docx, name: `${i}.docx`, type: 'application/octet-stream' }))),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toBe('Arquivos demais nesta requisição.');
+
+    res = await fetch(`${base}/office-to-pdf`, {
+      method: 'POST',
+      body: form([
+        { field: 'files', data: docx, name: 'a.docx', type: 'application/octet-stream' },
+        { field: 'files', data: docx, name: 'virus.exe', type: 'application/octet-stream' },
+      ]),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toMatch(/^"virus\.exe": Formato não suportado/);
+  });
+
+  it('extract-text: "file" mantem { pages, text, byPage }; "files" com 2 -> { files: [...] }', async () => {
+    // A extracao real (pdf-parse) nao roda na VM do jest; aqui so o caminho
+    // multer -> validacao. PDF protegido prova que o lote chegou ao caso de
+    // uso e que o erro nomeia o arquivo.
+    const caps = await (await fetch(`${base}/capabilities`)).json();
+    if (!caps.security) return;
+    const enc = new Uint8Array(
+      await (
+        await fetch(`${base}/protect`, { method: 'POST', body: form([{ field: 'file', data: await makePdf(1), name: 'p.pdf' }], { password: 'abcd' }) })
+      ).arrayBuffer(),
+    );
+    const res = await fetch(`${base}/extract-text`, {
+      method: 'POST',
+      body: form([
+        { field: 'files', data: await makePdf(1), name: 'ok.pdf' },
+        { field: 'files', data: enc, name: 'senha.pdf' },
+      ]),
+    });
+    expect(res.status).toBe(422);
+    expect((await res.json()).message).toMatch(/^"senha\.pdf" está protegido por senha/);
   });
 
   it('GET /capabilities devolve o mapa booleano', async () => {

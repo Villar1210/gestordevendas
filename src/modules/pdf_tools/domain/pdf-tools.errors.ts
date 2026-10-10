@@ -9,7 +9,9 @@ export type PdfToolsErrorCode =
   | 'TOOL_UNAVAILABLE'
   | 'PROCESSING_FAILED'
   | 'TOO_LARGE'
-  | 'LENGTH_REQUIRED';
+  | 'LENGTH_REQUIRED'
+  | 'BATCH_TIMEOUT'
+  | 'ABORTED';
 
 export class PdfToolsError extends Error {
   constructor(
@@ -23,6 +25,19 @@ export class PdfToolsError extends Error {
 
 export const MENSAGEM_PDF_PROTEGIDO =
   'Este PDF está protegido por senha. Use a ferramenta Desbloquear PDF primeiro.';
+
+/** Cancelamento silencioso (o cliente desconectou; ninguem le a resposta). */
+export function abortedError(): PdfToolsError {
+  return new PdfToolsError('ABORTED', 'Processamento cancelado: a conexão foi encerrada.');
+}
+
+/** PDF com paginas demais (checado logo apos carregar, antes de percorrer as paginas). */
+export function tooManyPagesError(pages: number, max: number): PdfToolsError {
+  return new PdfToolsError(
+    'TOO_LARGE',
+    `O PDF tem ${pages.toLocaleString('pt-BR')} páginas; o limite é ${max.toLocaleString('pt-BR')} páginas por arquivo.`,
+  );
+}
 
 export function invalidInput(message: string): PdfToolsError {
   return new PdfToolsError('INVALID_INPUT', message);

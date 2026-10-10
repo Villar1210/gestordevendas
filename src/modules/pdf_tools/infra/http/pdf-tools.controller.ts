@@ -8,6 +8,9 @@
 // - sucesso: download (Content-Disposition com filename e filename*),
 //   header X-Pdf-Tools-Meta com JSON curto (pages, originalSize,
 //   resultSize, ...). /extract-text e /capabilities devolvem JSON.
+// - lote: nas ferramentas 1 arquivo -> 1 arquivo, varios arquivos em
+//   "files" viram um ZIP (<ferramenta>.zip) com o resultado de cada um;
+//   1 arquivo continua com a resposta de sempre.
 // - erro: JSON { statusCode, code, message } (ver PdfToolsExceptionFilter).
 import {
   Body,
@@ -47,16 +50,23 @@ import { AddPageNumbersUseCase } from '../../application/use-cases/add-page-numb
 import { AddWatermarkUseCase } from '../../application/use-cases/add-watermark.use-case';
 import { ProtectPdfUseCase } from '../../application/use-cases/protect-pdf.use-case';
 import { UnlockPdfUseCase } from '../../application/use-cases/unlock-pdf.use-case';
-import { ExtractTextUseCase, ExtractTextOutput } from '../../application/use-cases/extract-text.use-case';
+import {
+  ExtractTextBatchOutput,
+  ExtractTextOutput,
+  ExtractTextUseCase,
+  extractedTextBytes,
+} from '../../application/use-cases/extract-text.use-case';
 import { CreatePdfUseCase } from '../../application/use-cases/create-pdf.use-case';
 import { PdfToolsExceptionFilter } from './pdf-tools-exception.filter';
 import { PdfToolsRequestSizeGuard } from './request-size.guard';
+import { PdfToolsBatchThrottlerGuard } from './batch-throttler.guard';
 import {
   requireImages,
-  requireOfficeFile,
   requirePdfs,
+  requireSingleOrManyOfficeFiles,
   requireSingleOrManyPdfs,
   requireSinglePdf,
+  SingleOrManyUploads,
   UploadedBinary,
 } from './file-validation';
 
@@ -76,8 +86,10 @@ function multiUpload(maxFiles: number) {
   });
 }
 
-// PDF -> imagem: aceita "file" (1, contrato antigo) OU "files" (1 a 20).
-// Mesmo truque do multiUpload: maxCount folgado + limits.files exato.
+// Ferramentas com lote (PDF -> imagem, comprimir, Office, girar, numerar,
+// marca d'agua, proteger, desbloquear, extrair texto): aceita "file" (1,
+// contrato antigo) OU "files" (1 a N). Mesmo truque do multiUpload:
+// maxCount folgado + limits.files exato.
 function singleOrMultiUpload(maxFiles: number) {
   return FileFieldsInterceptor(
     [
@@ -86,6 +98,20 @@ function singleOrMultiUpload(maxFiles: number) {
     ],
     { limits: { fileSize: PDF_TOOLS_LIMITS.maxFileBytes, files: maxFiles, fields: 5, fieldSize: 1024 * 1024 } },
   );
+}
+
+/**
+ * Cancela o processamento se o cliente desconectar antes da resposta.
+ * Usa o "close" da RESPOSTA, nao da requisicao: no Node >= 16 o "close"
+ * do IncomingMessage dispara assim que o corpo (upload) termina de ser
+ * lido, com o cliente ainda conectado - abortaria todo lote.
+ */
+function abortOnDisconnect(res: Response): AbortSignal {
+  const controller = new AbortController();
+  res.on('close', () => {
+    if (!res.writableEnded) controller.abort();
+  });
+  return controller.signal;
 }
 
 function contentDisposition(fileName: string): string {
@@ -169,42 +195,48 @@ export class PdfToolsController {
   @Post('rotate')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.batchMaxFiles))
   rotate(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
     @Body('options') options: unknown,
   ) {
-    return this.run(req, res, 'rotate', async () => this.rotatePdf.execute({ file: requireSinglePdf(file), options }));
+    return this.run(req, res, 'rotate', async (signal) =>
+      this.rotatePdf.execute({ files: requireSingleOrManyPdfs(uploads), options, signal }),
+    );
   }
 
   @Post('compress')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.batchMaxFiles))
   compress(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
     @Body('options') options: unknown,
   ) {
-    return this.run(req, res, 'compress', async () => this.compressPdf.execute({ file: requireSinglePdf(file), options }));
+    return this.run(req, res, 'compress', async (signal) =>
+      this.compressPdf.execute({ files: requireSingleOrManyPdfs(uploads), options, signal }),
+    );
   }
 
   @Post('office-to-pdf')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.officeBatchMaxFiles))
   officeToPdfRoute(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
   ) {
-    return this.run(req, res, 'office-to-pdf', async () => this.officeToPdf.execute({ file: requireOfficeFile(file) }));
+    return this.run(req, res, 'office-to-pdf', async (signal) =>
+      this.officeToPdf.execute({ files: requireSingleOrManyOfficeFiles(uploads), signal }),
+    );
   }
 
   @Post('images-to-pdf')
@@ -226,12 +258,12 @@ export class PdfToolsController {
   @Post('pdf-to-images')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
   @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.pdfToImagesMaxFiles))
   pdfToImagesRoute(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFiles() uploads: { file?: UploadedBinary[]; files?: UploadedBinary[] } | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
     @Body('options') options: unknown,
   ) {
     return this.run(req, res, 'pdf-to-images', async () =>
@@ -242,71 +274,82 @@ export class PdfToolsController {
   @Post('page-numbers')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.batchMaxFiles))
   pageNumbers(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
     @Body('options') options: unknown,
   ) {
-    return this.run(req, res, 'page-numbers', async () =>
-      this.addPageNumbers.execute({ file: requireSinglePdf(file), options }),
+    return this.run(req, res, 'page-numbers', async (signal) =>
+      this.addPageNumbers.execute({ files: requireSingleOrManyPdfs(uploads), options, signal }),
     );
   }
 
   @Post('watermark')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.batchMaxFiles))
   watermark(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
     @Body('options') options: unknown,
   ) {
-    return this.run(req, res, 'watermark', async () => this.addWatermark.execute({ file: requireSinglePdf(file), options }));
+    return this.run(req, res, 'watermark', async (signal) =>
+      this.addWatermark.execute({ files: requireSingleOrManyPdfs(uploads), options, signal }),
+    );
   }
 
   @Post('protect')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.batchMaxFiles))
   protect(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
     @Body('options') options: unknown,
   ) {
-    return this.run(req, res, 'protect', async () => this.protectPdf.execute({ file: requireSinglePdf(file), options }));
+    return this.run(req, res, 'protect', async (signal) =>
+      this.protectPdf.execute({ files: requireSingleOrManyPdfs(uploads), options, signal }),
+    );
   }
 
   @Post('unlock')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.batchMaxFiles))
   unlock(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @UploadedFile() file: UploadedBinary | undefined,
+    @UploadedFiles() uploads: SingleOrManyUploads,
     @Body('options') options: unknown,
   ) {
-    return this.run(req, res, 'unlock', async () => this.unlockPdf.execute({ file: requireSinglePdf(file), options }));
+    return this.run(req, res, 'unlock', async (signal) =>
+      this.unlockPdf.execute({ files: requireSingleOrManyPdfs(uploads), options, signal }),
+    );
   }
 
   @Post('extract-text')
   @HttpCode(200)
   @Throttle(POST_THROTTLE)
-  @UseGuards(PdfToolsRequestSizeGuard)
-  @UseInterceptors(singleUpload())
-  async extractTextRoute(@Req() req: Request, @UploadedFile() file: UploadedBinary | undefined): Promise<ExtractTextOutput> {
+  @UseGuards(PdfToolsBatchThrottlerGuard, PdfToolsRequestSizeGuard)
+  @UseInterceptors(singleOrMultiUpload(PDF_TOOLS_LIMITS.batchMaxFiles))
+  async extractTextRoute(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @UploadedFiles() uploads: SingleOrManyUploads,
+  ): Promise<ExtractTextOutput | ExtractTextBatchOutput> {
     const started = Date.now();
-    const pdf = requireSinglePdf(file);
-    const result = await this.extractText.execute({ file: pdf });
-    this.log(req, 'extract-text', started, pdf.buffer.length, Buffer.byteLength(result.text, 'utf8'));
+    const pdfs = requireSingleOrManyPdfs(uploads);
+    const result = await this.extractText.execute({ files: pdfs, signal: abortOnDisconnect(res) });
+    const inputBytes = pdfs.reduce((acc, f) => acc + f.buffer.length, 0);
+    this.log(req, 'extract-text', started, inputBytes, extractedTextBytes(result));
     return result;
   }
 
@@ -330,10 +373,10 @@ export class PdfToolsController {
     req: Request,
     res: Response,
     tool: string,
-    task: () => Promise<PdfToolResult>,
+    task: (signal: AbortSignal) => Promise<PdfToolResult>,
   ): Promise<StreamableFile> {
     const started = Date.now();
-    const result = await task();
+    const result = await task(abortOnDisconnect(res));
     const originalSize = typeof result.meta.originalSize === 'number' ? result.meta.originalSize : 0;
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Content-Length', String(result.data.length));

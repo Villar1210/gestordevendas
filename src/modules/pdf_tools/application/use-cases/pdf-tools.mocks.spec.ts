@@ -1,6 +1,8 @@
 // Helpers compartilhados pelos specs dos casos de uso (mocks no padrao do
 // projeto: objetos com jest.fn() convertidos via "as unknown as IX").
 import { PdfToolsError, PdfToolsErrorCode } from '../../domain/pdf-tools.errors';
+import { IZipBuilder } from '../../domain/services/zip-builder.interface';
+import { BatchProcessor } from '../batch-processor';
 
 export function pdfFile(name = 'contrato.pdf', size = 1000) {
   return { buffer: Buffer.alloc(size, 1), originalname: name };
@@ -30,6 +32,11 @@ export function availabilityMock(available = true) {
 
 export function zipMock() {
   return { build: jest.fn().mockReturnValue(Buffer.from('zip')) };
+}
+
+/** BatchProcessor REAL com o ZIP mockado (o zip.build fica inspecionavel). */
+export function batchMock(zip = zipMock()) {
+  return new BatchProcessor(zip as unknown as IZipBuilder);
 }
 
 export async function expectToolError(promise: Promise<unknown>, code: PdfToolsErrorCode, message?: RegExp) {

@@ -12,7 +12,7 @@ import { IPdfRasterizer } from '../../domain/services/pdf-rasterizer.interface';
 import { IZipBuilder } from '../../domain/services/zip-builder.interface';
 import { IToolAvailability } from '../../domain/services/tool-availability.interface';
 import { PdfToolsError } from '../../domain/pdf-tools.errors';
-import { availabilityMock, engineMock, expectToolError, pdfFile, zipMock } from './pdf-tools.mocks.spec';
+import { availabilityMock, batchMock, engineMock, expectToolError, pdfFile, zipMock } from './pdf-tools.mocks.spec';
 
 describe('GetCapabilitiesUseCase', () => {
   it('devolve o mapa de capacidades', async () => {
@@ -31,13 +31,14 @@ describe('CompressPdfUseCase', () => {
       engine as unknown as IPdfEngine,
       compressor as unknown as IPdfCompressor,
       availability as unknown as IToolAvailability,
+      batchMock(),
     );
     return { engine, compressor, useCase };
   }
 
   it('devolve o comprimido quando menor', async () => {
     const { compressor, useCase } = setup(400);
-    const result = await useCase.execute({ file: pdfFile('contrato.pdf', 1000), options: { level: 'extrema' } });
+    const result = await useCase.execute({ files: [pdfFile('contrato.pdf', 1000)], options: { level: 'extrema' } });
     expect(compressor.compress).toHaveBeenCalledWith(expect.any(Buffer), 'extrema');
     expect(result.data.length).toBe(400);
     expect(result.fileName).toBe('contrato_comprimido.pdf');
@@ -47,20 +48,20 @@ describe('CompressPdfUseCase', () => {
   it('resultado >= original: devolve o original com alreadyOptimized', async () => {
     const { useCase } = setup(1500);
     const file = pdfFile('contrato.pdf', 1000);
-    const result = await useCase.execute({ file, options: {} });
+    const result = await useCase.execute({ files: [file], options: {} });
     expect(result.data).toBe(file.buffer);
     expect(result.meta).toMatchObject({ alreadyOptimized: true, resultSize: 1000, level: 'recomendada' });
   });
 
   it('503 TOOL_UNAVAILABLE sem Ghostscript; nivel invalido -> 400', async () => {
-    await expectToolError(setup(1, false).useCase.execute({ file: pdfFile(), options: {} }), 'TOOL_UNAVAILABLE', /Ghostscript/);
-    await expectToolError(setup(1).useCase.execute({ file: pdfFile(), options: { level: 'maxima' } }), 'INVALID_INPUT');
+    await expectToolError(setup(1, false).useCase.execute({ files: [pdfFile()], options: {} }), 'TOOL_UNAVAILABLE', /Ghostscript/);
+    await expectToolError(setup(1).useCase.execute({ files: [pdfFile()], options: { level: 'maxima' } }), 'INVALID_INPUT');
   });
 
   it('PDF protegido nao chega ao Ghostscript', async () => {
     const { engine, compressor, useCase } = setup(1);
     engine.getPageCount.mockRejectedValue(new PdfToolsError('ENCRYPTED_PDF', 'protegido'));
-    await expectToolError(useCase.execute({ file: pdfFile(), options: {} }), 'ENCRYPTED_PDF');
+    await expectToolError(useCase.execute({ files: [pdfFile()], options: {} }), 'ENCRYPTED_PDF');
     expect(compressor.compress).not.toHaveBeenCalled();
   });
 });
@@ -73,21 +74,22 @@ describe('OfficeToPdfUseCase', () => {
       converter as unknown as IOfficeConverter,
       engine as unknown as IPdfEngine,
       availabilityMock(available) as unknown as IToolAvailability,
+      batchMock(),
     );
     return { converter, useCase };
   }
 
   it('converte e nomeia pelo arquivo original', async () => {
     const { converter, useCase } = setup();
-    const result = await useCase.execute({ file: { buffer: Buffer.from('x'), originalname: 'Proposta Comercial.DOCX' } });
+    const result = await useCase.execute({ files: [{ buffer: Buffer.from('x'), originalname: 'Proposta Comercial.DOCX' }] });
     expect(converter.convertToPdf).toHaveBeenCalledWith({ buffer: expect.any(Buffer), extension: 'docx' });
     expect(result.fileName).toBe('Proposta Comercial.pdf');
     expect(result.meta.pages).toBe(5);
   });
 
   it('extensao nao suportada -> 400; sem LibreOffice -> 503', async () => {
-    await expectToolError(setup().useCase.execute({ file: { buffer: Buffer.from('x'), originalname: 'a.exe' } }), 'INVALID_INPUT');
-    await expectToolError(setup(false).useCase.execute({ file: { buffer: Buffer.from('x'), originalname: 'a.odt' } }), 'TOOL_UNAVAILABLE');
+    await expectToolError(setup().useCase.execute({ files: [{ buffer: Buffer.from('x'), originalname: 'a.exe' }] }), 'INVALID_INPUT');
+    await expectToolError(setup(false).useCase.execute({ files: [{ buffer: Buffer.from('x'), originalname: 'a.odt' }] }), 'TOOL_UNAVAILABLE');
   });
 
   it('officeExtensionOf', () => {
@@ -107,14 +109,14 @@ describe('ProtectPdfUseCase / UnlockPdfUseCase', () => {
     return {
       engine,
       security,
-      protect: new ProtectPdfUseCase(engine as unknown as IPdfEngine, security as unknown as IPdfSecurity, availability),
-      unlock: new UnlockPdfUseCase(engine as unknown as IPdfEngine, security as unknown as IPdfSecurity, availability),
+      protect: new ProtectPdfUseCase(engine as unknown as IPdfEngine, security as unknown as IPdfSecurity, availability, batchMock()),
+      unlock: new UnlockPdfUseCase(engine as unknown as IPdfEngine, security as unknown as IPdfSecurity, availability, batchMock()),
     };
   }
 
   it('protect: defaults allowPrint=true/allowCopy=false e senha nunca no meta', async () => {
     const { security, protect } = setup();
-    const result = await protect.execute({ file: pdfFile(), options: { password: 'segredo123' } });
+    const result = await protect.execute({ files: [pdfFile()], options: { password: 'segredo123' } });
     expect(security.protect).toHaveBeenCalledWith(expect.any(Buffer), { password: 'segredo123', allowPrint: true, allowCopy: false });
     expect(result.fileName).toBe('contrato_protegido.pdf');
     expect(JSON.stringify(result.meta)).not.toContain('segredo123');
@@ -122,21 +124,21 @@ describe('ProtectPdfUseCase / UnlockPdfUseCase', () => {
 
   it('protect: senha 4-64 sem quebra de linha', async () => {
     const { protect } = setup();
-    await expectToolError(protect.execute({ file: pdfFile(), options: { password: '123' } }), 'INVALID_INPUT', /entre 4 e 64/);
-    await expectToolError(protect.execute({ file: pdfFile(), options: { password: 'x'.repeat(65) } }), 'INVALID_INPUT');
-    await expectToolError(protect.execute({ file: pdfFile(), options: { password: 'abc\ndef' } }), 'INVALID_INPUT', /quebras de linha/);
+    await expectToolError(protect.execute({ files: [pdfFile()], options: { password: '123' } }), 'INVALID_INPUT', /entre 4 e 64/);
+    await expectToolError(protect.execute({ files: [pdfFile()], options: { password: 'x'.repeat(65) } }), 'INVALID_INPUT');
+    await expectToolError(protect.execute({ files: [pdfFile()], options: { password: 'abc\ndef' } }), 'INVALID_INPUT', /quebras de linha/);
   });
 
   it('protect: PDF ja protegido -> ENCRYPTED_PDF; sem qpdf -> 503', async () => {
     const s = setup();
     s.engine.getPageCount.mockRejectedValue(new PdfToolsError('ENCRYPTED_PDF', 'x'));
-    await expectToolError(s.protect.execute({ file: pdfFile(), options: { password: 'abcd' } }), 'ENCRYPTED_PDF');
-    await expectToolError(setup(false).protect.execute({ file: pdfFile(), options: { password: 'abcd' } }), 'TOOL_UNAVAILABLE');
+    await expectToolError(s.protect.execute({ files: [pdfFile()], options: { password: 'abcd' } }), 'ENCRYPTED_PDF');
+    await expectToolError(setup(false).protect.execute({ files: [pdfFile()], options: { password: 'abcd' } }), 'TOOL_UNAVAILABLE');
   });
 
   it('unlock: chama qpdf com a senha e conta paginas do resultado', async () => {
     const { security, engine, unlock } = setup();
-    const result = await unlock.execute({ file: pdfFile(), options: { password: 'abcd' } });
+    const result = await unlock.execute({ files: [pdfFile()], options: { password: 'abcd' } });
     expect(security.unlock).toHaveBeenCalledWith(expect.any(Buffer), 'abcd');
     expect(engine.getPageCount).toHaveBeenCalledWith(Buffer.from('dec'));
     expect(result.fileName).toBe('contrato_desbloqueado.pdf');
@@ -145,8 +147,8 @@ describe('ProtectPdfUseCase / UnlockPdfUseCase', () => {
   it('unlock: propaga WRONG_PASSWORD e exige o campo password', async () => {
     const s = setup();
     s.security.unlock.mockRejectedValue(new PdfToolsError('WRONG_PASSWORD', 'Senha incorreta.'));
-    await expectToolError(s.unlock.execute({ file: pdfFile(), options: { password: 'errada' } }), 'WRONG_PASSWORD');
-    await expectToolError(setup().unlock.execute({ file: pdfFile(), options: {} }), 'INVALID_INPUT', /Informe/);
+    await expectToolError(s.unlock.execute({ files: [pdfFile()], options: { password: 'errada' } }), 'WRONG_PASSWORD');
+    await expectToolError(setup().unlock.execute({ files: [pdfFile()], options: {} }), 'INVALID_INPUT', /Informe/);
   });
 });
 

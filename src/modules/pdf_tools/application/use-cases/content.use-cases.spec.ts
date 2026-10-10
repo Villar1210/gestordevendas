@@ -3,7 +3,7 @@ import { ExtractTextUseCase } from './extract-text.use-case';
 import { CreatePdfUseCase } from './create-pdf.use-case';
 import { IPdfEngine } from '../../domain/services/pdf-engine.interface';
 import { IPdfTextExtractor } from '../../domain/services/pdf-text-extractor.interface';
-import { engineMock, expectToolError } from './pdf-tools.mocks.spec';
+import { batchMock, engineMock, expectToolError } from './pdf-tools.mocks.spec';
 
 const JPG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]);
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
@@ -50,13 +50,12 @@ describe('ExtractTextUseCase', () => {
     const extractor = {
       extract: jest.fn().mockResolvedValue({ pages: 2, byPage: [{ page: 1, text: ' Ação \n' }, { page: 2, text: 'São João' }] }),
     };
-    const result = await new ExtractTextUseCase(engine as unknown as IPdfEngine, extractor as unknown as IPdfTextExtractor).execute({
-      file: { buffer: Buffer.from('%PDF-') },
+    const result = await new ExtractTextUseCase(engine as unknown as IPdfEngine, extractor as unknown as IPdfTextExtractor, batchMock()).execute({
+      files: [{ buffer: Buffer.from('%PDF-'), originalname: 'a.pdf' }],
     });
     expect(engine.getPageCount).toHaveBeenCalled();
     expect(result).toEqual({
       pages: 2,
-      text: 'Ação\n\nSão João',
       byPage: [
         { page: 1, text: 'Ação' },
         { page: 2, text: 'São João' },

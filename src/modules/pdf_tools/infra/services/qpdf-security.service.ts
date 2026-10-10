@@ -9,9 +9,10 @@ import { randomBytes } from 'crypto';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { IPdfSecurity, ProtectOptions } from '../../domain/services/pdf-security.interface';
+import { ProcessTimeoutOptions } from '../../domain/services/office-converter.interface';
 import { PdfToolsError } from '../../domain/pdf-tools.errors';
 import { qpdfPath } from './binary-paths';
-import { BinaryNotFoundError, ConcurrencyQueue, ProcessResult, runProcess } from './process-runner';
+import { abortedError, BinaryNotFoundError, ConcurrencyQueue, ProcessResult, runProcess, timeBudget } from './process-runner';
 import { fileExists, withTempDir } from './temp-workspace';
 
 const QPDF_TIMEOUT_MS = 60_000;
@@ -28,7 +29,7 @@ function assertSafeArgLine(value: string): void {
 export class QpdfSecurityService implements IPdfSecurity {
   private readonly logger = new Logger(QpdfSecurityService.name);
 
-  protect(pdf: Buffer, options: ProtectOptions): Promise<Buffer> {
+  protect(pdf: Buffer, options: ProtectOptions, run?: ProcessTimeoutOptions): Promise<Buffer> {
     assertSafeArgLine(options.password);
     // Senha de proprietario aleatoria (nunca devolvida): quem so tem a
     // senha de abertura nao consegue remover as restricoes de permissao.
@@ -44,18 +45,21 @@ export class QpdfSecurityService implements IPdfSecurity {
       `--extract=${options.allowCopy ? 'y' : 'n'}`,
       '--',
     ];
-    return this.run(pdf, lines, 'protect');
+    return this.run(pdf, lines, 'protect', run);
   }
 
-  unlock(pdf: Buffer, password: string): Promise<Buffer> {
+  unlock(pdf: Buffer, password: string, run?: ProcessTimeoutOptions): Promise<Buffer> {
     assertSafeArgLine(password);
     const lines = [`--password=${password}`, '--decrypt'];
-    return this.run(pdf, lines, 'unlock');
+    return this.run(pdf, lines, 'unlock', run);
   }
 
-  private run(pdf: Buffer, secretArgs: string[], operation: 'protect' | 'unlock'): Promise<Buffer> {
+  private run(pdf: Buffer, secretArgs: string[], operation: 'protect' | 'unlock', runOptions?: ProcessTimeoutOptions): Promise<Buffer> {
+    const budget = timeBudget(QPDF_TIMEOUT_MS, runOptions?.timeoutMs);
+    const signal = runOptions?.signal;
     return queue.run(() =>
       withTempDir('qpdf', async (dir) => {
+        if (signal?.aborted) throw abortedError();
         const inputPath = path.join(dir, 'entrada.pdf');
         const outputPath = path.join(dir, 'saida.pdf');
         const argsFile = path.join(dir, 'args.txt');
@@ -67,8 +71,9 @@ export class QpdfSecurityService implements IPdfSecurity {
         let result: ProcessResult;
         try {
           result = await runProcess(qpdfPath(), [`@${argsFile}`, inputPath, outputPath], {
-            timeoutMs: QPDF_TIMEOUT_MS,
+            timeoutMs: budget(),
             cwd: dir,
+            signal,
           });
         } catch (error) {
           if (error instanceof BinaryNotFoundError) {
@@ -82,6 +87,7 @@ export class QpdfSecurityService implements IPdfSecurity {
           await fs.rm(argsFile, { force: true }).catch(() => undefined);
         }
 
+        if (result.aborted) throw abortedError();
         if (result.timedOut) {
           throw new PdfToolsError('PROCESSING_FAILED', 'O processamento demorou demais e foi cancelado.');
         }
