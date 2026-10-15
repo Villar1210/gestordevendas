@@ -2,6 +2,8 @@
 // Passo 2 do "book": grava o que o usuario revisou. Cria o empreendimento
 // (se for novo) ou completa um existente, salva a ficha tecnica e transforma
 // as paginas escolhidas em fotos (JPEG), cada uma na sua categoria.
+// Book de PDF: renderiza as paginas. Book de imagens: usa os JPEGs ja
+// normalizados na analise (1600 px, q80, sem EXIF) - nao renderiza nada.
 import { BadRequestException, GoneException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   EmpreendimentoRecord,
@@ -10,7 +12,13 @@ import {
 import { ITipologiaRepository } from '../../domain/repositories/tipologia-repository.interface';
 import { IPdfReaderService } from '../../domain/services/pdf-reader.interface';
 import { IBookTemporarioStorage } from '../../domain/services/book-temporario.interface';
-import { BOOK_MAX_PAGINAS, CATEGORIAS_FOTO_BOOK, ehCategoriaDeFoto } from '../../domain/services/book-empreendimento';
+import {
+  BOOK_LARGURA_FOTO,
+  BOOK_MAX_PAGINAS,
+  BOOK_QUALIDADE_FOTO,
+  CATEGORIAS_FOTO_BOOK,
+  ehCategoriaDeFoto,
+} from '../../domain/services/book-empreendimento';
 import { IFileStorageService } from '../../../../shared/domain/services/file-storage.interface';
 import { CreateEmpreendimentoUseCase } from './create-empreendimento.use-case';
 import { ConfirmarFichaTecnicaUseCase } from './confirmar-ficha-tecnica.use-case';
@@ -50,10 +58,6 @@ export interface ConfirmarBookInput {
   paginas: { numero: number; categoria: string }[];
 }
 
-// Qualidade das fotos gravadas: boa para tela cheia no site, ~200-500 KB.
-const LARGURA_FOTO = 1600;
-const QUALIDADE_FOTO = 80;
-
 @Injectable()
 export class ConfirmarBookEmpreendimentoUseCase {
   private readonly logger = new Logger(ConfirmarBookEmpreendimentoUseCase.name);
@@ -82,21 +86,27 @@ export class ConfirmarBookEmpreendimentoUseCase {
       return Number.isInteger(p.numero) && p.numero >= 1 && p.numero <= BOOK_MAX_PAGINAS;
     });
 
-    const pdf = await this.bookStorage.ler(input.tenantId, input.bookId);
-    if (!pdf) {
-      throw new GoneException('A análise deste PDF expirou (vale 2 horas). Envie o arquivo novamente.');
+    const book = await this.bookStorage.ler(input.tenantId, input.bookId);
+    if (!book) {
+      throw new GoneException('A análise deste book expirou (vale 2 horas). Envie os arquivos novamente.');
     }
 
-    // Renderiza ANTES de criar qualquer coisa: se o PDF der problema, nada
-    // fica gravado pela metade.
-    const imagens = fotos.length
-      ? await this.pdfReader.renderizarPaginas(
-          pdf,
-          fotos.map((f) => f.numero),
-          { larguraPx: LARGURA_FOTO, qualidadeJpeg: QUALIDADE_FOTO },
-        )
-      : [];
-    const imagemPorPagina = new Map(imagens.map((i) => [i.numero, i]));
+    // Prepara as imagens ANTES de criar qualquer coisa: se o arquivo der
+    // problema, nada fica gravado pela metade.
+    const imagemPorPagina = new Map<number, { jpeg: Buffer }>();
+    if (book.origem === 'imagens') {
+      for (const foto of fotos) {
+        const jpeg = book.imagens[foto.numero - 1];
+        if (jpeg) imagemPorPagina.set(foto.numero, { jpeg });
+      }
+    } else if (fotos.length) {
+      const imagens = await this.pdfReader.renderizarPaginas(
+        book.pdf,
+        fotos.map((f) => f.numero),
+        { larguraPx: BOOK_LARGURA_FOTO, qualidadeJpeg: BOOK_QUALIDADE_FOTO },
+      );
+      for (const imagem of imagens) imagemPorPagina.set(imagem.numero, imagem);
+    }
 
     let existente: EmpreendimentoRecord | null = null;
     if (input.empreendimentoId) {

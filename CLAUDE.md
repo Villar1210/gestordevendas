@@ -1303,6 +1303,39 @@ confirmado na lista de documentos do painel, status mudado para
 painel. Tenant de teste e arquivo fisico do documento removidos ao
 final.
 
+### Book do empreendimento: PDF OU imagens JPG (Fatia 1 - so backend)
+`POST /empreendimentos/book/analisar` aceita 1 PDF OU de 1 a 80 imagens
+JPG/JPEG (uma por pagina, numeradas 1..N na ordem do campo). Multipart:
+"file" (1 arquivo, contrato antigo) OU "files" (1-80); os dois juntos,
+PDF + imagem, ou 2 PDFs -> 400. Tipo pelo CONTEUDO (`domain/services/
+arquivo-book.ts`: "%PDF-" / FF D8 FF), PNG e outros -> 400 "Envie um PDF ou
+imagens JPG/JPEG". Limites: 80 MB no total (BookRequestSizeGuard recusa
+pelo Content-Length antes do multer), 20 MB e ~50 megapixels por imagem
+(lido do cabecalho JPEG ANTES de decodificar). Resposta ganhou
+`origem: 'pdf' | 'imagens'`.
+- Imagens sao normalizadas na analise (`IImagemBookService` /
+  `CanvasImagemBookService`, @napi-rs/canvas): max 1600 px de largura sem
+  ampliar, fundo branco, JPEG q80 - descarta TODO o EXIF (GPS do celular).
+  A orientacao EXIF e respeitada (o decodificador Skia ja aplica a tag
+  Orientation ao carregar; coberto por teste). Mesma fila de 1 processamento
+  pesado por vez do render de PDF (`infra/services/fila-render.ts`).
+- Storage temporario (`DiskBookTemporarioStorage`): PDF continua
+  `<tenant>__<id>.pdf`; imagens viram a pasta `<tenant>__<id>/` com
+  001.jpg... + `manifesto.json` (gravado por ultimo; pasta sem manifesto =
+  inexistente). Tenant no caminho, UUID validado, 0o700/0o600, validade 2h,
+  limpeza de vencidos (arquivos e pastas). `ler()` devolve
+  `{ origem: 'pdf', pdf } | { origem: 'imagens', imagens }`.
+- Ficha tecnica pela IA OLHANDO as imagens: `extrairFichaTecnicaEmpreendimento
+  (texto, imagens?)` - parametro opcional, ADITIVO (sem imagens, prompt e
+  mensagem identicos a antes; a VIVI nao usa). Usada quando a origem e
+  imagens OU o PDF tem menos de 200 caracteres uteis no total
+  (BOOK_MIN_CARACTERES_TEXTO). Paginas: ficha_tecnica, planta, area_comum,
+  localizacao, fachada (sem nenhuma, as primeiras), max 10, 1000 px q70.
+  PDF com texto bom continua so pelo texto. Falha da IA = aviso + ficha vazia.
+- Confirmar: book de imagens usa os JPEGs guardados (ja 1600 px) - nao
+  renderiza nada; o resto (criar/completar, nao apagar dados, desfazer) igual.
+- Pendente (Fatia 2): frontend (upload de varias imagens/reordenar).
+
 ## Regra de seguranca: nunca imprimir valores de variaveis sensiveis
 Comandos como "cat", "grep" (sem -o especifico), "env", ou similares
 NUNCA devem ser usados em arquivos .env ou qualquer arquivo com

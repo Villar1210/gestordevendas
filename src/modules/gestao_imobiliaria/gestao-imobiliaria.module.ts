@@ -45,6 +45,7 @@ import { PublicarUnidadesNoSiteUseCase } from './application/use-cases/publicar-
 import { AnalisarBookEmpreendimentoUseCase } from './application/use-cases/analisar-book-empreendimento.use-case';
 import { ConfirmarBookEmpreendimentoUseCase } from './application/use-cases/confirmar-book-empreendimento.use-case';
 import { DiskBookTemporarioStorage } from './infra/services/disk-book-temporario.storage';
+import { CanvasImagemBookService } from './infra/services/canvas-imagem-book.service';
 import { DespublicarEmpreendimentoUseCase } from './application/use-cases/despublicar-empreendimento.use-case';
 import { UploadEmpreendimentoPhotoUseCase } from './application/use-cases/upload-empreendimento-photo.use-case';
 import { DeleteEmpreendimentoPhotoUseCase } from './application/use-cases/delete-empreendimento-photo.use-case';
@@ -114,6 +115,7 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     AnalisarBookEmpreendimentoUseCase,
     ConfirmarBookEmpreendimentoUseCase,
     { provide: 'IBookTemporarioStorage', useClass: DiskBookTemporarioStorage },
+    { provide: 'IImagemBookService', useClass: CanvasImagemBookService },
     DespublicarEmpreendimentoUseCase,
     UploadEmpreendimentoPhotoUseCase,
     DeleteEmpreendimentoPhotoUseCase,

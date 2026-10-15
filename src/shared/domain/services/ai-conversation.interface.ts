@@ -83,6 +83,13 @@ export interface PaginaBookParaIA {
   imagemJpegBase64: string | null;
 }
 
+// Imagem de uma pagina do book para a IA ler a ficha tecnica (book enviado
+// como imagens, ou PDF sem texto). Base64 puro, sem "data:".
+export interface ImagemPaginaFichaIA {
+  numero: number;
+  imagemJpegBase64: string;
+}
+
 export interface EnderecoExtraidoIA {
   rua: string | null;
   numero: string | null;
@@ -113,7 +120,13 @@ export interface IAiConversationService {
   // fallback seguro), este metodo PROPAGA qualquer falha de parsing/JSON
   // invalido - quem chama precisa saber que a extracao falhou, nunca
   // silenciosamente preencher campos com dados inventados (ver CLAUDE.md).
-  extrairFichaTecnicaEmpreendimento(textoPdf: string): Promise<FichaTecnicaExtraidaIA>;
+  // imagens (opcional, so o book usa): paginas para a IA LER a ficha nas
+  // imagens quando o texto nao basta (book de imagens ou PDF so de imagem).
+  // Sem imagens, o comportamento e exatamente o de antes.
+  extrairFichaTecnicaEmpreendimento(
+    textoPdf: string,
+    imagens?: ImagemPaginaFichaIA[],
+  ): Promise<FichaTecnicaExtraidaIA>;
   // Classifica cada pagina do book (ficha tecnica, fachada, lazer, planta...)
   // e le nome/construtora/endereco. So o que estiver no PDF - nunca inventa.
   classificarPaginasBook(paginas: PaginaBookParaIA[]): Promise<ClassificacaoBookIA>;

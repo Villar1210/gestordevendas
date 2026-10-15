@@ -1,23 +1,29 @@
 import { BadRequestException, GoneException } from '@nestjs/common';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { AnalisarBookEmpreendimentoUseCase } from './analisar-book-empreendimento.use-case';
 import { ConfirmarBookEmpreendimentoUseCase } from './confirmar-book-empreendimento.use-case';
 import { escolherCapa } from '../../domain/services/book-empreendimento';
+import { BookTemporario } from '../../domain/services/book-temporario.interface';
+import { CanvasImagemBookService } from '../../infra/services/canvas-imagem-book.service';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const PDF = Buffer.from('%PDF-1.7\nconteudo');
 
-function montar(paginas = 3) {
-  const textos = Array.from({ length: paginas }, (_, i) => ({ numero: i + 1, texto: `texto ${i + 1}` }));
+// Texto "bom" (acima do minimo de caracteres): a ficha vai so pelo texto.
+const TEXTO_LONGO = 'Ficha tecnica com area do terreno, torres, unidades e itens de lazer. '.repeat(2);
+
+function montar(paginas = 3, texto: (n: number) => string = (n) => `texto ${n} ${TEXTO_LONGO}`) {
+  const textos = Array.from({ length: paginas }, (_, i) => ({ numero: i + 1, texto: texto(i + 1) }));
   const pdfReader = {
     lerTextoPorPagina: jest.fn(async () => textos),
     renderizarPaginas: jest.fn(async (_pdf: Buffer, nums: number[]) =>
       nums.map((numero) => ({ numero, jpeg: Buffer.from(`jpg${numero}`), largura: 10, altura: 10 })),
     ),
   };
-  const guardados = new Map<string, Buffer>();
+  const guardados = new Map<string, BookTemporario>();
   const bookStorage = {
-    salvar: jest.fn(async (_t: string, pdf: Buffer) => {
-      guardados.set('book-1', pdf);
+    salvar: jest.fn(async (_t: string, book: BookTemporario) => {
+      guardados.set('book-1', book);
       return 'book-1';
     }),
     ler: jest.fn(async (t: string, id: string) => (t === TENANT ? guardados.get(id) ?? null : null)),
@@ -34,7 +40,7 @@ function montar(paginas = 3) {
       construtora: 'Construtora X',
       endereco: { rua: 'Rua A', numero: '10', bairro: 'Centro', cidade: 'São Paulo', uf: 'SP', cep: null },
     })),
-    extrairFichaTecnicaEmpreendimento: jest.fn(async (texto: string) => ({
+    extrairFichaTecnicaEmpreendimento: jest.fn(async (texto: string, _imagens?: unknown[]) => ({
       nome: null,
       endereco: null,
       descricao: texto.startsWith('[Pagina 2]') ? 'ficha primeiro' : 'ordem errada',
@@ -75,11 +81,16 @@ function montar(paginas = 3) {
     findAllByEmpreendimento: jest.fn(async () => [{ nome: 'Planta antiga', areaPrivativa: 40, dormitorios: 1 }]),
   };
 
+  // Normalizador REAL (@napi-rs/canvas), so espionado.
+  const imagemBook = new CanvasImagemBookService();
+  jest.spyOn(imagemBook, 'redimensionarJpegs');
+
   const analisar = new AnalisarBookEmpreendimentoUseCase(
     empRepo as never,
     pdfReader as never,
     bookStorage as never,
     ai as never,
+    imagemBook,
   );
   const confirmar = new ConfirmarBookEmpreendimentoUseCase(
     empRepo as never,
@@ -90,16 +101,56 @@ function montar(paginas = 3) {
     criar as never,
     ficha as never,
   );
-  return { analisar, confirmar, ai, pdfReader, bookStorage, fotos, criar, ficha, fileStorage, empRepo };
+  return { analisar, confirmar, ai, pdfReader, bookStorage, guardados, fotos, criar, ficha, fileStorage, empRepo, imagemBook };
 }
 
 const arquivo = (buffer = PDF) => ({ buffer, originalname: 'book.pdf', mimetype: 'application/pdf' });
+const pdfs = (buffer = PDF) => [arquivo(buffer)];
 const FICHA = { itensLazer: [], tipologias: [] };
+
+// JPEG gerado em teste (nada binario no repositorio): faixa colorida para
+// conferir ordem/orientacao. Com "exif", insere um segmento APP1 com
+// Orientation e um texto "GPS-SECRETO" (simulando localizacao do celular).
+async function gerarJpeg(largura: number, altura: number, cor = '#ff0000', exif?: { orientacao: number }): Promise<Buffer> {
+  const canvas = createCanvas(largura, altura);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = cor;
+  ctx.fillRect(0, 0, largura, altura);
+  const jpeg = await canvas.encode('jpeg', 90);
+  if (!exif) return jpeg;
+  // TIFF big-endian, IFD0 com 1 entrada: Orientation (0x0112), SHORT, valor.
+  const tiff = Buffer.from([0x4d, 0x4d, 0x00, 0x2a, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, exif.orientacao, 0, 0, 0, 0, 0, 0]);
+  const payload = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), tiff, Buffer.from('GPS-SECRETO', 'latin1')]);
+  const tamanho = payload.length + 2;
+  const app1 = Buffer.concat([Buffer.from([0xff, 0xe1, tamanho >> 8, tamanho & 0xff]), payload]);
+  return Buffer.concat([jpeg.subarray(0, 2), app1, jpeg.subarray(2)]);
+}
+
+// Cabecalho JPEG minimo declarando largura x altura (sem imagem de verdade):
+// SOI + SOF0. So serve para testar a recusa ANTES de decodificar.
+function jpegSoCabecalho(largura: number, altura: number): Buffer {
+  return Buffer.from([
+    0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, altura >> 8, altura & 0xff, largura >> 8, largura & 0xff,
+    0x03, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+  ]);
+}
+
+const jpg = (buffer: Buffer, nome = 'pagina.jpg') => ({ buffer, originalname: nome, mimetype: 'image/jpeg' });
+
+async function corDoCentro(jpeg: Buffer): Promise<number[]> {
+  const imagem = await loadImage(jpeg);
+  const canvas = createCanvas(imagem.width, imagem.height);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(imagem, 0, 0);
+  return [...ctx.getImageData(Math.floor(imagem.width / 2), Math.floor(imagem.height / 2), 1, 1).data].slice(0, 3);
+}
+
+const NOVO = { name: 'X', rua: 'R', numero: '1', bairro: 'B', cidade: 'C', uf: 'SP', cep: '01000-000' };
 
 describe('Book do empreendimento - analisar', () => {
   it('classifica as paginas, le endereco e manda a ficha tecnica primeiro para a IA', async () => {
     const c = montar();
-    const r = await c.analisar.execute({ tenantId: TENANT, file: arquivo() });
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
     expect(r.bookId).toBe('book-1');
     expect(r.paginas.map((p) => p.categoria)).toEqual(['fachada', 'ficha_tecnica', 'area_comum']);
     expect(r.nome).toBe('Residencial Teste');
@@ -112,17 +163,17 @@ describe('Book do empreendimento - analisar', () => {
 
   it('rejeita arquivo que nao e PDF e PDF grande demais em paginas', async () => {
     const c = montar(81);
-    await expect(c.analisar.execute({ tenantId: TENANT, file: arquivo(Buffer.from('oi')) })).rejects.toBeInstanceOf(
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: pdfs(Buffer.from('oi')) })).rejects.toBeInstanceOf(
       BadRequestException,
     );
-    await expect(c.analisar.execute({ tenantId: TENANT, file: arquivo() })).rejects.toThrow('limite é 80');
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() })).rejects.toThrow('limite é 80');
   });
 
   it('se a IA falhar, devolve tudo como "descartar" com aviso (nunca inventa)', async () => {
     const c = montar();
     c.ai.classificarPaginasBook.mockRejectedValueOnce(new Error('timeout'));
     c.ai.extrairFichaTecnicaEmpreendimento.mockRejectedValueOnce(new Error('json'));
-    const r = await c.analisar.execute({ tenantId: TENANT, file: arquivo() });
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
     expect(r.paginas.every((p) => p.categoria === 'descartar')).toBe(true);
     expect(r.ficha.areaTerreno).toBeNull();
     expect(r.avisos).toHaveLength(2);
@@ -131,7 +182,7 @@ describe('Book do empreendimento - analisar', () => {
   it('empreendimento de outra empresa: 404', async () => {
     const c = montar();
     await expect(
-      c.analisar.execute({ tenantId: TENANT, empreendimentoId: 'emp-de-outro', file: arquivo() }),
+      c.analisar.execute({ tenantId: TENANT, empreendimentoId: 'emp-de-outro', arquivos: pdfs() }),
     ).rejects.toThrow('não encontrado');
   });
 });
@@ -139,7 +190,7 @@ describe('Book do empreendimento - analisar', () => {
 describe('Book do empreendimento - confirmar', () => {
   it('cria o empreendimento novo e salva so paginas de foto, continuando a ordem existente', async () => {
     const c = montar();
-    await c.analisar.execute({ tenantId: TENANT, file: arquivo() });
+    await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
     const r = await c.confirmar.execute({
       tenantId: TENANT,
       bookId: 'book-1',
@@ -184,7 +235,7 @@ describe('Book do empreendimento - confirmar', () => {
 describe('Book do empreendimento - confirmar em empreendimento existente', () => {
   it('campo vazio no book mantem o valor ja cadastrado (nao apaga)', async () => {
     const c = montar();
-    await c.analisar.execute({ tenantId: TENANT, file: arquivo() });
+    await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
     await c.confirmar.execute({
       tenantId: TENANT,
       bookId: 'book-1',
@@ -206,7 +257,7 @@ describe('Book do empreendimento - confirmar em empreendimento existente', () =>
 
   it('se gravar as fotos falhar, o empreendimento NOVO e desfeito', async () => {
     const c = montar();
-    await c.analisar.execute({ tenantId: TENANT, file: arquivo() });
+    await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
     (c.empRepo.addPhoto as jest.Mock).mockRejectedValueOnce(new Error('banco caiu'));
     await expect(
       c.confirmar.execute({
@@ -220,6 +271,188 @@ describe('Book do empreendimento - confirmar em empreendimento existente', () =>
     expect(c.empRepo.deleteByIdAndTenant).toHaveBeenCalledWith('emp-novo', TENANT);
     // o PDF temporario continua la: o usuario pode tentar de novo
     expect(c.bookStorage.remover).not.toHaveBeenCalled();
+  });
+});
+
+describe('Book do empreendimento - analisar imagens JPG', () => {
+  it('3 JPGs viram paginas 1..3 na ordem de envio, normalizadas e guardadas como "imagens"', async () => {
+    const c = montar();
+    const arquivos = [
+      jpg(await gerarJpeg(2000, 1000, '#ff0000'), 'c.jpg'),
+      jpg(await gerarJpeg(800, 600, '#00ff00'), 'a.jpg'),
+      jpg(await gerarJpeg(1000, 1000, '#0000ff'), 'b.jpeg'),
+    ];
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos });
+    expect(r.origem).toBe('imagens');
+    expect(r.totalPaginas).toBe(3);
+    // nunca le/renderiza PDF
+    expect(c.pdfReader.lerTextoPorPagina).not.toHaveBeenCalled();
+    expect(c.pdfReader.renderizarPaginas).not.toHaveBeenCalled();
+    // classificacao: texto vazio + miniatura de cada pagina, na ordem
+    const enviadas = (c.ai.classificarPaginasBook.mock.calls[0] as unknown as [{ numero: number; texto: string; imagemJpegBase64: string | null }[]])[0];
+    expect(enviadas.map((p) => p.numero)).toEqual([1, 2, 3]);
+    expect(enviadas.every((p) => p.texto === '' && !!p.imagemJpegBase64)).toBe(true);
+    const mini1 = await loadImage(Buffer.from(enviadas[0].imagemJpegBase64!, 'base64'));
+    expect(mini1.width).toBe(480);
+
+    const guardado = c.guardados.get('book-1');
+    expect(guardado?.origem).toBe('imagens');
+    const imagens = guardado?.origem === 'imagens' ? guardado.imagens : [];
+    expect(imagens).toHaveLength(3);
+    // 2000 px -> 1600 (mantem proporcao); 800 px nao e ampliada
+    const [p1, p2] = await Promise.all([loadImage(imagens[0]), loadImage(imagens[1])]);
+    expect([p1.width, p1.height]).toEqual([1600, 800]);
+    expect([p2.width, p2.height]).toEqual([800, 600]);
+    // ordem preservada (cor de cada pagina)
+    const cores = await Promise.all(imagens.map(corDoCentro));
+    expect(cores[0][0]).toBeGreaterThan(200);
+    expect(cores[1][1]).toBeGreaterThan(200);
+    expect(cores[2][2]).toBeGreaterThan(200);
+  });
+
+  it('ficha tecnica e lida pelas IMAGENS, priorizando ficha_tecnica, planta, area_comum, localizacao, fachada', async () => {
+    const c = montar();
+    c.ai.classificarPaginasBook.mockResolvedValueOnce({
+      paginas: [
+        { numero: 1, categoria: 'fachada', legenda: null },
+        { numero: 2, categoria: 'descartar', legenda: null },
+        { numero: 3, categoria: 'planta', legenda: null },
+        { numero: 4, categoria: 'ficha_tecnica', legenda: null },
+      ],
+      nome: null,
+      construtora: null,
+      endereco: { rua: null, numero: null, bairro: null, cidade: null, uf: null, cep: null },
+    } as never);
+    const arquivos = await Promise.all([1, 2, 3, 4].map(async () => jpg(await gerarJpeg(1200, 900))));
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos });
+    const [, imagens] = c.ai.extrairFichaTecnicaEmpreendimento.mock.calls[0] as unknown as [string, { numero: number; imagemJpegBase64: string }[]];
+    expect(imagens.map((i) => i.numero)).toEqual([4, 3, 1]);
+    const img = await loadImage(Buffer.from(imagens[0].imagemJpegBase64, 'base64'));
+    expect(img.width).toBe(1000);
+    expect(r.avisos).toEqual([]);
+  });
+
+  it('remove o EXIF (localizacao) e respeita a orientacao da foto do celular', async () => {
+    const c = montar();
+    // 400x200 com Orientation=6 (girar 90 graus): a foto "em pe" e 200x400
+    const original = await gerarJpeg(400, 200, '#ff0000', { orientacao: 6 });
+    expect(original.includes(Buffer.from('GPS-SECRETO'))).toBe(true);
+    await c.analisar.execute({ tenantId: TENANT, arquivos: [jpg(original)] });
+    const guardado = c.guardados.get('book-1');
+    const jpeg = guardado?.origem === 'imagens' ? guardado.imagens[0] : Buffer.alloc(0);
+    expect(jpeg.includes(Buffer.from('GPS-SECRETO'))).toBe(false);
+    expect(jpeg.includes(Buffer.from('Exif'))).toBe(false);
+    const img = await loadImage(jpeg);
+    expect([img.width, img.height]).toEqual([200, 400]);
+  });
+
+  it('arquivo .jpg que na verdade e PNG ou texto: 400', async () => {
+    const c = montar();
+    const png = await createCanvas(10, 10).encode('png');
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: [jpg(png, 'foto.jpg')] })).rejects.toThrow(
+      'Envie um PDF ou imagens JPG/JPEG.',
+    );
+    await expect(
+      c.analisar.execute({ tenantId: TENANT, arquivos: [jpg(await gerarJpeg(10, 10)), jpg(Buffer.from('ola'), 'b.jpg')] }),
+    ).rejects.toThrow('nº 2 não é PDF nem JPG/JPEG');
+    expect(c.bookStorage.salvar).not.toHaveBeenCalled();
+  });
+
+  it('PDF junto com JPG: 400; 2 PDFs: 400', async () => {
+    const c = montar();
+    await expect(
+      c.analisar.execute({ tenantId: TENANT, arquivos: [arquivo(), jpg(await gerarJpeg(10, 10))] }),
+    ).rejects.toThrow('Não misture PDF com imagens');
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: [arquivo(), arquivo()] })).rejects.toThrow(
+      'apenas 1 PDF',
+    );
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: [] })).rejects.toBeInstanceOf(BadRequestException);
+    expect(c.pdfReader.lerTextoPorPagina).not.toHaveBeenCalled();
+  });
+
+  it('imagem acima do limite de megapixels: 400 SEM decodificar', async () => {
+    const c = montar();
+    const enorme = jpegSoCabecalho(10000, 6000); // 60 MP declarados no cabecalho
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: [jpg(enorme)] })).rejects.toThrow(
+      'resolução alta demais',
+    );
+    expect(c.imagemBook.redimensionarJpegs).not.toHaveBeenCalled();
+  });
+
+  it('mais de 80 imagens ou imagem acima de 20 MB: 400', async () => {
+    const c = montar();
+    const pequena = jpg(await gerarJpeg(10, 10));
+    await expect(
+      c.analisar.execute({ tenantId: TENANT, arquivos: Array.from({ length: 81 }, () => pequena) }),
+    ).rejects.toThrow('no máximo 80 imagens');
+    const grande = jpg(Buffer.concat([jpegSoCabecalho(100, 100), Buffer.alloc(21 * 1024 * 1024)]));
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: [grande] })).rejects.toThrow('passa de 20 MB');
+    expect(c.imagemBook.redimensionarJpegs).not.toHaveBeenCalled();
+  });
+});
+
+describe('Book do empreendimento - ficha de PDF com e sem texto', () => {
+  it('PDF com texto bom: ficha so pelo texto (sem imagens)', async () => {
+    const c = montar();
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    expect(r.origem).toBe('pdf');
+    expect(c.ai.extrairFichaTecnicaEmpreendimento).toHaveBeenCalledTimes(1);
+    expect(c.ai.extrairFichaTecnicaEmpreendimento.mock.calls[0]).toHaveLength(1);
+    // so renderizou as miniaturas da classificacao
+    expect(c.pdfReader.renderizarPaginas).toHaveBeenCalledTimes(1);
+  });
+
+  it('PDF sem texto: ficha lida pelas imagens das paginas (1000 px, q70), com aviso', async () => {
+    const c = montar(3, () => '');
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    expect(c.pdfReader.renderizarPaginas).toHaveBeenLastCalledWith(PDF, [2, 3, 1], {
+      larguraPx: 1000,
+      qualidadeJpeg: 70,
+    });
+    const [texto, imagens] = c.ai.extrairFichaTecnicaEmpreendimento.mock.calls[0] as unknown as [string, { numero: number }[]];
+    expect(texto).toBe('');
+    expect(imagens.map((i) => i.numero)).toEqual([2, 3, 1]);
+    expect(r.avisos).toEqual([expect.stringContaining('pouco ou nenhum texto')]);
+    expect(r.ficha.areaTerreno).toBe(5000);
+  });
+
+  it('PDF sem texto e IA da ficha falhando: aviso + ficha vazia, analise continua', async () => {
+    const c = montar(3, () => ' ');
+    c.ai.extrairFichaTecnicaEmpreendimento.mockRejectedValueOnce(new Error('timeout'));
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    expect(r.ficha.areaTerreno).toBeNull();
+    expect(r.bookId).toBe('book-1');
+    expect(r.avisos).toContain('Não foi possível ler a ficha técnica automaticamente. Preencha os campos abaixo.');
+  });
+});
+
+describe('Book do empreendimento - confirmar book de imagens', () => {
+  it('grava as fotos a partir dos JPEGs guardados, sem chamar renderizarPaginas', async () => {
+    const c = montar();
+    const arquivos = await Promise.all(['#ff0000', '#00ff00', '#0000ff'].map(async (cor) => jpg(await gerarJpeg(300, 200, cor))));
+    await c.analisar.execute({ tenantId: TENANT, arquivos });
+    const r = await c.confirmar.execute({
+      tenantId: TENANT,
+      bookId: 'book-1',
+      novo: NOVO,
+      ficha: FICHA,
+      paginas: [
+        { numero: 1, categoria: 'fachada' },
+        { numero: 2, categoria: 'ficha_tecnica' },
+        { numero: 3, categoria: 'area_comum' },
+        { numero: 9, categoria: 'planta' }, // pagina que nao existe: ignorada
+      ],
+    });
+    expect(r).toEqual({ empreendimentoId: 'emp-novo', fotosCriadas: 2 });
+    expect(c.pdfReader.renderizarPaginas).not.toHaveBeenCalled();
+    const enviados = c.fileStorage.upload.mock.calls.map((call) => (call as unknown as [{ buffer: Buffer; originalname: string }])[0]);
+    expect(enviados.map((e) => e.originalname)).toEqual(['book-pagina-1.jpg', 'book-pagina-3.jpg']);
+    const guardado = c.guardados.get('book-1');
+    const imagens = guardado?.origem === 'imagens' ? guardado.imagens : [];
+    expect(enviados[0].buffer).toBe(imagens[0]);
+    expect(enviados[1].buffer).toBe(imagens[2]);
+    expect(c.fotos.map((f) => f.categoria)).toEqual(['fachada', 'area_comum']);
+    expect(c.bookStorage.remover).toHaveBeenCalledWith(TENANT, 'book-1');
   });
 });
 

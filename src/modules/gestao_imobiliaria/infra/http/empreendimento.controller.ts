@@ -1,5 +1,6 @@
 // src/modules/gestao_imobiliaria/infra/http/empreendimento.controller.ts
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -12,11 +13,12 @@ import {
   Query,
   Req,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
@@ -46,12 +48,15 @@ import { PublicarUnidadesSiteDto } from './dtos/publicar-unidades-site.dto';
 import { AnalisarBookDto, ConfirmarBookDto } from './dtos/book-empreendimento.dto';
 import { AnalisarBookEmpreendimentoUseCase } from '../../application/use-cases/analisar-book-empreendimento.use-case';
 import { ConfirmarBookEmpreendimentoUseCase } from '../../application/use-cases/confirmar-book-empreendimento.use-case';
-import { BOOK_MAX_BYTES } from '../../domain/services/book-empreendimento';
+import { BOOK_MAX_BYTES, BOOK_MAX_IMAGENS } from '../../domain/services/book-empreendimento';
+import { BookRequestSizeGuard } from './book-request-size.guard';
 import { Throttle } from '@nestjs/throttler';
 import { UploadEmpreendimentoPhotoUseCase } from '../../application/use-cases/upload-empreendimento-photo.use-case';
 import { DeleteEmpreendimentoPhotoUseCase } from '../../application/use-cases/delete-empreendimento-photo.use-case';
 import { ReorderEmpreendimentoPhotosUseCase } from '../../application/use-cases/reorder-empreendimento-photos.use-case';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
+
+type ArquivoBookUpload = { buffer: Buffer; originalname: string; mimetype: string; size: number };
 
 @Controller('empreendimentos')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -140,21 +145,41 @@ export class EmpreendimentoController {
     });
   }
 
-  // POST /empreendimentos/book/analisar - "book" (PDF da construtora):
-  // separa as paginas, a IA classifica e le a ficha tecnica. So PREVIEW.
+  // POST /empreendimentos/book/analisar - "book" (PDF da construtora ou
+  // imagens JPG das paginas): separa as paginas, a IA classifica e le a
+  // ficha tecnica. So PREVIEW.
+  // Multipart: "file" (1 arquivo, contrato antigo) OU "files" (1 a 80, na
+  // ordem das paginas). Os dois juntos -> 400. O tipo real (PDF x JPEG) e
+  // validado pelo conteudo no use case.
   // Limite apertado: cada chamada usa a IA (custo) e renderiza o PDF (CPU).
   @Post('book/analisar')
   @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: BOOK_MAX_BYTES, files: 1 } }))
+  @UseGuards(BookRequestSizeGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'file', maxCount: 1 },
+        // maxCount folgado + limits.files exato: exceder vira "Too many files"
+        // em vez de "Unexpected field" (mesmo truque do pdf_tools).
+        { name: 'files', maxCount: BOOK_MAX_IMAGENS + 10 },
+      ],
+      { limits: { fileSize: BOOK_MAX_BYTES, files: BOOK_MAX_IMAGENS, fields: 5, fieldSize: 1024 } },
+    ),
+  )
   async analisarBook(
     @Body() dto: AnalisarBookDto,
-    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    @UploadedFiles() uploads: { file?: ArquivoBookUpload[]; files?: ArquivoBookUpload[] } | undefined,
     @Req() req: Request,
   ) {
+    const unico = uploads?.file ?? [];
+    const varios = uploads?.files ?? [];
+    if (unico.length && varios.length) {
+      throw new BadRequestException('Envie o arquivo no campo "file" OU as páginas no campo "files", não nos dois.');
+    }
     return this.analisarBookUseCase.execute({
       tenantId: req.user!.tenantId,
       empreendimentoId: dto.empreendimentoId,
-      file,
+      arquivos: unico.length ? unico : varios,
     });
   }
 

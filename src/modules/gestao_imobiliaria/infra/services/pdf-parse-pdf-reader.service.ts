@@ -12,6 +12,7 @@ import {
   PaginaImagemPdf,
   PaginaTextoPdf,
 } from '../../domain/services/pdf-reader.interface';
+import { naFila } from './fila-render';
 
 // Protecao de memoria: pagina com proporcao absurda (ex: 1 x 20) renderizada
 // a 1600px de largura viraria uma imagem de 32.000px de altura (~200 MB).
@@ -20,15 +21,8 @@ import {
 const PROPORCAO_ALTURA_MAX = 1.6;
 const PROPORCAO_EXTREMA = 8;
 
-// Renderizar PDF usa muita CPU e memoria e roda na thread principal do Node:
-// no maximo UM render por vez neste processo (os demais esperam na fila), para
-// um book grande nao travar o sistema para todo mundo.
-let filaRender: Promise<unknown> = Promise.resolve();
-function naFila<T>(tarefa: () => Promise<T>): Promise<T> {
-  const resultado = filaRender.then(tarefa, tarefa);
-  filaRender = resultado.catch(() => undefined);
-  return resultado;
-}
+// Renderizar PDF usa muita CPU e memoria: no maximo UM render por vez neste
+// processo (fila compartilhada com a normalizacao das imagens do book).
 
 function erroLeitura(error: unknown): BadRequestException {
   return new BadRequestException(

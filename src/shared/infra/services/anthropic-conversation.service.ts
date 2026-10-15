@@ -12,6 +12,7 @@ import {
   CategoriaPaginaBookIA,
   ClassificacaoBookIA,
   PaginaBookParaIA,
+  ImagemPaginaFichaIA,
 } from '../../domain/services/ai-conversation.interface';
 
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -33,6 +34,16 @@ const FICHA_TECNICA_MAX_TOKENS = 2048;
 // endereco, memorial e a tabela de tipologias/lazer - corta o excedente
 // (ex: anexos juridicos longos) em vez de mandar o PDF inteiro.
 const FICHA_TECNICA_MAX_TEXTO_CHARS = 60000;
+// Ficha tecnica lida tambem pelas IMAGENS das paginas (book de imagens ou PDF
+// sem texto): no maximo 10 imagens por chamada (custo/contexto). Regra extra,
+// so ACRESCENTADA ao prompt quando ha imagens - as regras de sempre valem.
+const FICHA_TECNICA_MAX_IMAGENS = 10;
+const FICHA_TECNICA_REGRA_IMAGENS =
+  '\n\nVoce tambem recebe IMAGENS de paginas do material. As MESMAS regras valem para elas: ' +
+  'extraia somente o que estiver ESCRITO e legivel nas imagens (textos, tabelas, legendas, ' +
+  'cotas de planta). NUNCA deduza um numero olhando a ilustracao (ex: nao conte andares, ' +
+  'vagas ou unidades em uma perspectiva). Itens de lazer so quando estiverem nomeados por ' +
+  'escrito. Ignore precos e condicoes comerciais tambem nas imagens.';
 // Classificacao do book: ~40 tokens de resposta por pagina + cabecalho.
 const BOOK_MAX_TOKENS = 6000;
 // Texto de cada pagina enviado junto com a miniatura (o suficiente para
@@ -374,7 +385,13 @@ export class AnthropicConversationService implements IAiConversationService {
   // IA nao devolver um JSON valido, a excecao sobe para quem chamou tratar
   // (ImportarFichaTecnicaPdfUseCase), que deve reportar um erro claro ao
   // usuario em vez de preencher a ficha tecnica com dados inventados.
-  async extrairFichaTecnicaEmpreendimento(textoPdf: string): Promise<FichaTecnicaExtraidaIA> {
+  // imagens (opcional, so o book usa): as mesmas regras valem para o que
+  // estiver ESCRITO nas imagens das paginas. Sem imagens, o prompt e a
+  // mensagem enviados sao exatamente os de antes.
+  async extrairFichaTecnicaEmpreendimento(
+    textoPdf: string,
+    imagens: ImagemPaginaFichaIA[] = [],
+  ): Promise<FichaTecnicaExtraidaIA> {
     const textoTruncado = textoPdf.slice(0, FICHA_TECNICA_MAX_TEXTO_CHARS);
 
     const systemPrompt =
@@ -404,11 +421,28 @@ export class AnthropicConversationService implements IAiConversationService {
       '"Piscina adulto e infantil")\n' +
       '}';
 
+    const imagensFicha = imagens.slice(0, FICHA_TECNICA_MAX_IMAGENS);
+    let mensagem: string | Anthropic.ContentBlockParam[] = `Texto extraido do PDF:\n\n${textoTruncado}`;
+    let system = systemPrompt;
+    if (imagensFicha.length > 0) {
+      system += FICHA_TECNICA_REGRA_IMAGENS;
+      mensagem = [
+        { type: 'text', text: `Texto extraido do PDF:\n\n${textoTruncado.trim() || '(sem texto)'}` },
+      ];
+      for (const imagem of imagensFicha) {
+        mensagem.push({ type: 'text', text: `--- Imagem da pagina ${imagem.numero} ---` });
+        mensagem.push({
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/jpeg', data: imagem.imagemJpegBase64 },
+        });
+      }
+    }
+
     const response = await this.client.messages.create({
       model: MODEL,
       max_tokens: FICHA_TECNICA_MAX_TOKENS,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: `Texto extraido do PDF:\n\n${textoTruncado}` }],
+      system,
+      messages: [{ role: 'user', content: mensagem }],
     });
 
     const textBlocks = response.content.filter(
