@@ -9,6 +9,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { IImagemBookService, ImagemJpegBook } from '../../domain/services/imagem-book.interface';
+import { BOOK_PROPORCAO_ALTURA_MAX } from '../../domain/services/book-empreendimento';
 import { naFila } from './fila-render';
 
 @Injectable()
@@ -37,7 +38,10 @@ export class CanvasImagemBookService implements IImagemBookService {
       if (!(imagem.width > 0 && imagem.height > 0)) {
         throw new BadRequestException(`Não foi possível ler a imagem nº ${i + 1}. Envie um JPG válido.`);
       }
-      const escala = Math.min(1, opcoes.larguraMaxPx / imagem.width); // nunca amplia
+      // Nunca amplia; limita a largura E a altura (largura max x 1,6) - uma
+      // imagem alta e estreita nao vira um JPEG enorme.
+      const alturaMaxPx = opcoes.larguraMaxPx * BOOK_PROPORCAO_ALTURA_MAX;
+      const escala = Math.min(1, opcoes.larguraMaxPx / imagem.width, alturaMaxPx / imagem.height);
       const largura = Math.max(1, Math.round(imagem.width * escala));
       const altura = Math.max(1, Math.round(imagem.height * escala));
       const canvas = createCanvas(largura, altura);

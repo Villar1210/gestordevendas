@@ -55,6 +55,8 @@ model Tenant {
   imovelPhotos         ImovelPhoto[]
   tipologias           Tipologia[]
   empreendimentoPhotos EmpreendimentoPhoto[]
+  empreendimentoBooks  EmpreendimentoBook[]
+  empreendimentoBookPaginas EmpreendimentoBookPagina[]
 
   proprietarios          Proprietario[]
   inquilinosCompradores  InquilinoComprador[]
@@ -955,6 +957,9 @@ model Empreendimento {
   imoveis           Imovel[]
   tipologias        Tipologia[]
   photos            EmpreendimentoPhoto[]
+  // Book completo (PDF original + todas as paginas em JPG) - no maximo UM
+  // por empreendimento (@@unique em EmpreendimentoBook.empreendimentoId).
+  book              EmpreendimentoBook?
   viviConversations ViviConversation[]
 
   roletas           RoletaEmpreendimento[]
@@ -988,6 +993,60 @@ model EmpreendimentoPhoto {
   empreendimento Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
 
   @@map("empreendimento_photos")
+}
+
+// Book do empreendimento guardado COMPLETO (Fatia 2 do book): o PDF original
+// da construtora (quando o book veio em PDF) + TODAS as paginas em JPG
+// (1600 px, q80), na ordem do book e com a categoria de cada uma - inclusive
+// "ficha_tecnica" e "descartar" (as fotos do site continuam sendo
+// EmpreendimentoPhoto, criadas como antes; isto aqui e o book "inteiro",
+// para baixar em ZIP e, no futuro, a VIVI enviar as paginas pelo WhatsApp
+// pulando as "descartar").
+// UM book ativo por empreendimento: uma nova importacao SUBSTITUI o anterior
+// (registros apagados na mesma transacao; os arquivos antigos so depois do
+// commit - ver ConfirmarBookEmpreendimentoUseCase).
+model EmpreendimentoBook {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  empreendimentoId String   @unique @map("empreendimento_id") @db.Uuid
+  // 'pdf' | 'imagens' - String livre validada no codigo (mesmo padrao de
+  // EmpreendimentoPhoto.categoria, sem enum nativo do Postgres).
+  origem           String   @db.VarChar(10)
+  // So quando origem = 'pdf' (book de imagens nao tem arquivo original).
+  pdfUrl           String?  @map("pdf_url") @db.VarChar(500)
+  // Nome do arquivo enviado pelo usuario, ja sanitizado (sem caminho nem
+  // caracteres de controle) - so para exibicao, NUNCA usado em caminho.
+  pdfNomeOriginal  String?  @map("pdf_nome_original") @db.VarChar(200)
+  totalPaginas     Int      @map("total_paginas")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empreendimento Empreendimento             @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  paginas        EmpreendimentoBookPagina[]
+
+  @@index([tenantId])
+  @@map("empreendimento_books")
+}
+
+// Uma pagina do book (JPG ja normalizado). "numero" comeca em 1 e e unico
+// dentro do book; "categoria" e uma de CATEGORIAS_PAGINA_BOOK (fachada,
+// area_comum, planta, decorado, localizacao, ficha_tecnica, descartar).
+model EmpreendimentoBookPagina {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  bookId    String @map("book_id") @db.Uuid
+  numero    Int
+  categoria String @db.VarChar(20)
+  url       String @db.VarChar(500)
+  largura   Int
+  altura    Int
+
+  tenant Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  book   EmpreendimentoBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, numero])
+  @@index([tenantId])
+  @@map("empreendimento_book_paginas")
 }
 
 // Um "tipo de planta" do empreendimento (ex: "Garden Ponta 46,76m2"),

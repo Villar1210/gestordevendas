@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm, stat, utimes } from 'fs/promises';
+import { mkdir, mkdtemp, readdir, rm, stat, symlink, utimes, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { DiskBookTemporarioStorage } from './disk-book-temporario.storage';
@@ -34,6 +34,14 @@ describe('DiskBookTemporarioStorage', () => {
     expect(info.mode & 0o777).toBe(0o600);
     await storage.remover(TENANT_A, id);
     expect(await storage.ler(TENANT_A, id)).toBeNull();
+  });
+
+  it('PDF com nome original (Fatia 2): guarda o nome ja sanitizado ao lado e remove junto', async () => {
+    const id = await storage.salvar(TENANT_A, { origem: 'pdf', pdf: Buffer.from('%PDF-1.7 x'), nomeOriginal: 'Book Sol.pdf' });
+    expect(await storage.ler(TENANT_A, id)).toEqual({ origem: 'pdf', pdf: Buffer.from('%PDF-1.7 x'), nomeOriginal: 'Book Sol.pdf' });
+    expect((await stat(join(pasta, `${TENANT_A}__${id}.json`))).mode & 0o777).toBe(0o600);
+    await storage.remover(TENANT_A, id);
+    expect(await readdir(pasta)).toEqual([]);
   });
 
   it('imagens: guarda 001.jpg, 002.jpg... + manifesto e le na mesma ordem', async () => {
@@ -81,5 +89,44 @@ describe('DiskBookTemporarioStorage', () => {
 
   it('quantidade de imagens invalida e recusada', async () => {
     await expect(storage.salvar(TENANT_A, { origem: 'imagens', imagens: [] })).rejects.toThrow();
+  });
+
+  it('M2: trava exclusiva por book - 2a tentativa 409 ate soltar; outro book nao e afetado', async () => {
+    const id = await storage.salvar(TENANT_A, { origem: 'pdf', pdf: Buffer.from('%PDF-') });
+    const soltar = await storage.travar(TENANT_A, id);
+    await expect(storage.travar(TENANT_A, id)).rejects.toThrow('Este book já está sendo salvo. Aguarde.');
+    const outro = await storage.salvar(TENANT_A, { origem: 'pdf', pdf: Buffer.from('%PDF-') });
+    const soltarOutro = await storage.travar(TENANT_A, outro);
+    await soltar();
+    await soltar(); // idempotente
+    const denovo = await storage.travar(TENANT_A, id);
+    await denovo();
+    await soltarOutro();
+    expect((await readdir(pasta)).filter((n) => n.endsWith('.lock'))).toEqual([]);
+  });
+
+  it('L2: pasta temporaria que e link simbolico e recusada (500 generico)', async () => {
+    const alvo = join(pasta, 'alvo-real');
+    await mkdir(alvo);
+    const link = join(pasta, 'pasta-link');
+    await symlink(alvo, link);
+    const inseguro = new StorageDeTeste(link);
+    await expect(inseguro.salvar(TENANT_A, { origem: 'pdf', pdf: Buffer.from('%PDF-') })).rejects.toThrow(
+      'Não foi possível processar o book agora.',
+    );
+    await expect(inseguro.ler(TENANT_A, '33333333-3333-4333-8333-333333333333')).rejects.toThrow(
+      'Não foi possível processar o book agora.',
+    );
+    expect(await readdir(alvo)).toEqual([]);
+  });
+
+  it('L2: imagem do book trocada por link simbolico nao e seguida (book tratado como inexistente)', async () => {
+    const id = await storage.salvar(TENANT_A, { origem: 'imagens', imagens: [Buffer.from('a'), Buffer.from('b')] });
+    const dir = join(pasta, `${TENANT_A}__${id}`);
+    const segredo = join(pasta, 'segredo.txt');
+    await writeFile(segredo, 'nao deveria ser lido');
+    await rm(join(dir, '002.jpg'));
+    await symlink(segredo, join(dir, '002.jpg'));
+    expect(await storage.ler(TENANT_A, id)).toBeNull();
   });
 });

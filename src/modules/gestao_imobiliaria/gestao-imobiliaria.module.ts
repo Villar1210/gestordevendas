@@ -46,6 +46,13 @@ import { AnalisarBookEmpreendimentoUseCase } from './application/use-cases/anali
 import { ConfirmarBookEmpreendimentoUseCase } from './application/use-cases/confirmar-book-empreendimento.use-case';
 import { DiskBookTemporarioStorage } from './infra/services/disk-book-temporario.storage';
 import { CanvasImagemBookService } from './infra/services/canvas-imagem-book.service';
+import { StoreZipBookService } from './infra/services/store-zip-book.service';
+import { PrismaEmpreendimentoBookRepository } from './infra/database/prisma-empreendimento-book.repository';
+import {
+  BaixarZipBookEmpreendimentoUseCase,
+  BuscarBookEmpreendimentoUseCase,
+  ListarPaginasBookPorCategoriaUseCase,
+} from './application/use-cases/book-empreendimento-leitura.use-case';
 import { DespublicarEmpreendimentoUseCase } from './application/use-cases/despublicar-empreendimento.use-case';
 import { UploadEmpreendimentoPhotoUseCase } from './application/use-cases/upload-empreendimento-photo.use-case';
 import { DeleteEmpreendimentoPhotoUseCase } from './application/use-cases/delete-empreendimento-photo.use-case';
@@ -116,6 +123,12 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     ConfirmarBookEmpreendimentoUseCase,
     { provide: 'IBookTemporarioStorage', useClass: DiskBookTemporarioStorage },
     { provide: 'IImagemBookService', useClass: CanvasImagemBookService },
+    // Book completo guardado no empreendimento (Fatia 2 do book).
+    BuscarBookEmpreendimentoUseCase,
+    BaixarZipBookEmpreendimentoUseCase,
+    ListarPaginasBookPorCategoriaUseCase,
+    { provide: 'IEmpreendimentoBookRepository', useClass: PrismaEmpreendimentoBookRepository },
+    { provide: 'IZipBookService', useClass: StoreZipBookService },
     DespublicarEmpreendimentoUseCase,
     UploadEmpreendimentoPhotoUseCase,
     DeleteEmpreendimentoPhotoUseCase,
@@ -151,6 +164,9 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     // mensagem de confirmacao de visita.
     'IEmpreendimentoRepository',
     BuscarEmpreendimentoPorEnderecoUseCase,
+    // Book completo: paginas por categoria, preparado para a VIVI enviar as
+    // paginas pelo WhatsApp no futuro (exportado, mas NENHUM modulo usa ainda).
+    ListarPaginasBookPorCategoriaUseCase,
   ],
 })
 export class GestaoImobiliariaModule {}

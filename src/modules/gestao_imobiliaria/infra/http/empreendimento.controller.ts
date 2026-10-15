@@ -12,6 +12,8 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  StreamableFile,
   UploadedFile,
   UploadedFiles,
   UseGuards,
@@ -19,7 +21,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
@@ -48,8 +50,18 @@ import { PublicarUnidadesSiteDto } from './dtos/publicar-unidades-site.dto';
 import { AnalisarBookDto, ConfirmarBookDto } from './dtos/book-empreendimento.dto';
 import { AnalisarBookEmpreendimentoUseCase } from '../../application/use-cases/analisar-book-empreendimento.use-case';
 import { ConfirmarBookEmpreendimentoUseCase } from '../../application/use-cases/confirmar-book-empreendimento.use-case';
+import {
+  BaixarZipBookEmpreendimentoUseCase,
+  BuscarBookEmpreendimentoUseCase,
+} from '../../application/use-cases/book-empreendimento-leitura.use-case';
 import { BOOK_MAX_BYTES, BOOK_MAX_IMAGENS } from '../../domain/services/book-empreendimento';
 import { BookRequestSizeGuard } from './book-request-size.guard';
+import { LimiteConcorrenciaGuard } from '../../../../shared/infra/http/limite-concorrencia';
+
+// Maximo de requisicoes pesadas simultaneas POR PROCESSO (alem do throttle
+// por IP): analisar (ate 80 MB em memoria + IA) e ZIP do book (~40 MB).
+const MAX_ANALISAR_SIMULTANEOS = 2;
+const MAX_ZIP_SIMULTANEOS = 2;
 import { Throttle } from '@nestjs/throttler';
 import { UploadEmpreendimentoPhotoUseCase } from '../../application/use-cases/upload-empreendimento-photo.use-case';
 import { DeleteEmpreendimentoPhotoUseCase } from '../../application/use-cases/delete-empreendimento-photo.use-case';
@@ -57,6 +69,16 @@ import { ReorderEmpreendimentoPhotosUseCase } from '../../application/use-cases/
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
 
 type ArquivoBookUpload = { buffer: Buffer; originalname: string; mimetype: string; size: number };
+
+// Download com nome ASCII + filename* UTF-8 (mesmo formato do pdf_tools).
+function contentDisposition(nomeArquivo: string): string {
+  const ascii = nomeArquivo.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  const codificado = encodeURIComponent(nomeArquivo).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${codificado}`;
+}
 
 @Controller('empreendimentos')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -77,6 +99,8 @@ export class EmpreendimentoController {
     private readonly publicarUnidadesNoSiteUseCase: PublicarUnidadesNoSiteUseCase,
     private readonly analisarBookUseCase: AnalisarBookEmpreendimentoUseCase,
     private readonly confirmarBookUseCase: ConfirmarBookEmpreendimentoUseCase,
+    private readonly buscarBookUseCase: BuscarBookEmpreendimentoUseCase,
+    private readonly baixarZipBookUseCase: BaixarZipBookEmpreendimentoUseCase,
     private readonly uploadEmpreendimentoPhotoUseCase: UploadEmpreendimentoPhotoUseCase,
     private readonly deleteEmpreendimentoPhotoUseCase: DeleteEmpreendimentoPhotoUseCase,
     private readonly reorderEmpreendimentoPhotosUseCase: ReorderEmpreendimentoPhotosUseCase,
@@ -113,6 +137,44 @@ export class EmpreendimentoController {
       tenantId: req.user!.tenantId,
       publicado: query.publicado !== undefined ? query.publicado === 'true' : undefined,
     });
+  }
+
+  // GET /empreendimentos/:id/book - book COMPLETO guardado (Fatia 2 do book):
+  // origem, PDF original (se houver) e todas as paginas em ordem, com a
+  // categoria de cada uma. 404 se o empreendimento nao tiver book (ou for de
+  // outra empresa). Mesmas guards da classe (Corretor tambem le).
+  @Get(':id/book')
+  async buscarBook(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: Request) {
+    return this.buscarBookUseCase.execute({ tenantId: req.user!.tenantId, empreendimentoId: id });
+  }
+
+  // GET /empreendimentos/:id/book/zip?paginas=1,2,5 - ZIP com os JPGs das
+  // paginas (<empreendimento>_pagina_01.jpg...). Sem ?paginas = todas exceto
+  // "descartar". So inteiros 1..80, sem repetir (senao 400). Os arquivos sao
+  // lidos pela url gravada no banco, nunca por caminho vindo do usuario.
+  // Throttle proprio: monta ate ~40 MB em memoria por chamada.
+  @Get(':id/book/zip')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseGuards(LimiteConcorrenciaGuard('book-zip', MAX_ZIP_SIMULTANEOS))
+  async baixarZipBook(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query('paginas') paginas: unknown,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { nomeArquivo, zip } = await this.baixarZipBookUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId: id,
+      paginas,
+    });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Length', String(zip.length));
+    res.setHeader('Content-Disposition', contentDisposition(nomeArquivo));
+    // CORS global (main.ts) nao configura exposedHeaders: expoe aqui.
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return new StreamableFile(zip);
   }
 
   // GET /empreendimentos/:id - Fatia 4 (tela de Revisao e Publicacao):
@@ -154,7 +216,10 @@ export class EmpreendimentoController {
   // Limite apertado: cada chamada usa a IA (custo) e renderiza o PDF (CPU).
   @Post('book/analisar')
   @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
-  @UseGuards(BookRequestSizeGuard)
+  // Ordem: tamanho declarado -> vaga (no maximo 2 por processo, senao 503)
+  // -> multer. Guards rodam ANTES do interceptor do multer, entao o corpo
+  // nao e lido quando nao ha vaga.
+  @UseGuards(BookRequestSizeGuard, LimiteConcorrenciaGuard('book-analisar', MAX_ANALISAR_SIMULTANEOS))
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -184,11 +249,24 @@ export class EmpreendimentoController {
   }
 
   // POST /empreendimentos/book/confirmar - grava o que foi revisado: cria o
-  // empreendimento (ou completa um existente), ficha tecnica e fotos.
+  // empreendimento (ou completa um existente), ficha tecnica e fotos, e
+  // guarda o book completo (PDF + todas as paginas; substitui o anterior).
+  // Renderiza ate 80 paginas (~1 min): limite de 20/h continua.
   @Post('book/confirmar')
   @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
-  async confirmarBook(@Body() dto: ConfirmarBookDto, @Req() req: Request) {
+  async confirmarBook(
+    @Body() dto: ConfirmarBookDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Cliente fechou a conexao antes de terminar ("close" do RESPONSE - o do
+    // request dispara ao fim do upload): o render para entre lotes.
+    const cancelar = new AbortController();
+    res.on('close', () => {
+      if (!res.writableEnded) cancelar.abort();
+    });
     return this.confirmarBookUseCase.execute({
+      sinal: cancelar.signal,
       tenantId: req.user!.tenantId,
       bookId: dto.bookId,
       empreendimentoId: dto.empreendimentoId,

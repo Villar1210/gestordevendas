@@ -22,6 +22,7 @@ import {
   BOOK_MAX_PAGINAS,
   BOOK_MAX_PAGINAS_COM_IMAGEM_IA,
   BOOK_MAX_PIXELS_IMAGEM,
+  BOOK_PROPORCAO_EXTREMA_IMAGEM,
   BOOK_MIN_CARACTERES_TEXTO,
   BOOK_QUALIDADE_FOTO,
   BOOK_QUALIDADE_IMAGEM_FICHA,
@@ -29,6 +30,7 @@ import {
   ORDEM_PAGINAS_FICHA,
   OrigemBook,
   caracteresUteis,
+  sanitizarNomeArquivoBook,
   selecionarPaginasParaFicha,
 } from '../../domain/services/book-empreendimento';
 import {
@@ -116,7 +118,7 @@ export class AnalisarBookEmpreendimentoUseCase {
     const avisos: string[] = [];
     const book =
       origem === 'pdf'
-        ? await this.prepararPdf(input.arquivos[0].buffer, avisos)
+        ? await this.prepararPdf(input.arquivos[0].buffer, avisos, input.arquivos[0].originalname)
         : await this.prepararImagens(input.arquivos.map((a) => a.buffer));
     const { textos, miniaturas } = book;
     const numeros = textos.map((t) => t.numero);
@@ -241,18 +243,26 @@ export class AnalisarBookEmpreendimentoUseCase {
           `A imagem nº ${i + 1} tem resolução alta demais (máx. ~${BOOK_MAX_PIXELS_IMAGEM / 1_000_000} megapixels).`,
         );
       }
+      const proporcao = dimensoes.altura / dimensoes.largura;
+      if (proporcao > BOOK_PROPORCAO_EXTREMA_IMAGEM || proporcao < 1 / BOOK_PROPORCAO_EXTREMA_IMAGEM) {
+        throw new BadRequestException(`A imagem nº ${i + 1} tem proporção extrema. Envie uma página por imagem.`);
+      }
     });
     return 'imagens';
   }
 
-  private async prepararPdf(pdf: Buffer, avisos: string[]): Promise<BookPreparado> {
-    const textos = await this.pdfReader.lerTextoPorPagina(pdf);
-    if (textos.length === 0) throw new BadRequestException('O PDF não tem páginas.');
-    if (textos.length > BOOK_MAX_PAGINAS) {
+  private async prepararPdf(pdf: Buffer, avisos: string[], nomeOriginal?: string): Promise<BookPreparado> {
+    // Le so ate 1 pagina alem do limite: um PDF com milhares de paginas e
+    // recusado sem extrair o texto de todas (CPU).
+    const { totalPaginas, paginas: textos } = await this.pdfReader.lerTextoPorPagina(pdf, {
+      maxPaginas: BOOK_MAX_PAGINAS + 1,
+    });
+    if (totalPaginas > BOOK_MAX_PAGINAS) {
       throw new BadRequestException(
-        `O PDF tem ${textos.length} páginas; o limite é ${BOOK_MAX_PAGINAS}. Envie só as páginas do empreendimento.`,
+        `O PDF tem ${totalPaginas} páginas; o limite é ${BOOK_MAX_PAGINAS}. Envie só as páginas do empreendimento.`,
       );
     }
+    if (totalPaginas === 0 || textos.length === 0) throw new BadRequestException('O PDF não tem páginas.');
 
     // Miniaturas para a IA "ver" as paginas (fotos de lazer quase nao tem texto).
     const comImagem = textos.map((t) => t.numero).slice(0, BOOK_MAX_PAGINAS_COM_IMAGEM_IA);
@@ -278,7 +288,9 @@ export class AnalisarBookEmpreendimentoUseCase {
       };
     }
 
-    return { guardar: { origem: 'pdf', pdf }, textos, miniaturas, imagensFicha };
+    // Nome original sanitizado: so para exibir no book guardado (Fatia 2).
+    const guardar: BookTemporario = { origem: 'pdf', pdf, nomeOriginal: sanitizarNomeArquivoBook(nomeOriginal) };
+    return { guardar, textos, miniaturas, imagensFicha };
   }
 
   private async prepararImagens(jpegs: Buffer[]): Promise<BookPreparado> {

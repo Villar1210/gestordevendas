@@ -194,6 +194,18 @@ docker run -d \
   gestordevendas-web:latest
 ```
 
+## 🗄️ Backend com migration nova
+
+Deploy do book completo do empreendimento (migration
+`20261015120000_empreendimento_book`) tem migration. No backend, antes do
+build:
+
+```bash
+npx prisma migrate deploy
+npm run db:generate   # migrate deploy NAO regenera o Prisma Client
+npm run build
+```
+
 ## 📊 Monitoramento
 
 ```bash

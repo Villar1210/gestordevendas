@@ -4,6 +4,7 @@ import { AnalisarBookEmpreendimentoUseCase } from './analisar-book-empreendiment
 import { ConfirmarBookEmpreendimentoUseCase } from './confirmar-book-empreendimento.use-case';
 import { escolherCapa } from '../../domain/services/book-empreendimento';
 import { BookTemporario } from '../../domain/services/book-temporario.interface';
+import { GravarBookInput } from '../../domain/repositories/empreendimento-book-repository.interface';
 import { CanvasImagemBookService } from '../../infra/services/canvas-imagem-book.service';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -15,7 +16,8 @@ const TEXTO_LONGO = 'Ficha tecnica com area do terreno, torres, unidades e itens
 function montar(paginas = 3, texto: (n: number) => string = (n) => `texto ${n} ${TEXTO_LONGO}`) {
   const textos = Array.from({ length: paginas }, (_, i) => ({ numero: i + 1, texto: texto(i + 1) }));
   const pdfReader = {
-    lerTextoPorPagina: jest.fn(async () => textos),
+    contarPaginas: jest.fn(async () => paginas),
+    lerTextoPorPagina: jest.fn(async () => ({ totalPaginas: textos.length, paginas: textos.slice(0, 81) })),
     renderizarPaginas: jest.fn(async (_pdf: Buffer, nums: number[]) =>
       nums.map((numero) => ({ numero, jpeg: Buffer.from(`jpg${numero}`), largura: 10, altura: 10 })),
     ),
@@ -28,6 +30,7 @@ function montar(paginas = 3, texto: (n: number) => string = (n) => `texto ${n} $
     }),
     ler: jest.fn(async (t: string, id: string) => (t === TENANT ? guardados.get(id) ?? null : null)),
     remover: jest.fn(async () => undefined),
+    travar: jest.fn(async () => async () => undefined),
   };
   const ai = {
     classificarPaginasBook: jest.fn(async () => ({
@@ -74,7 +77,33 @@ function montar(paginas = 3, texto: (n: number) => string = (n) => `texto ${n} $
     ),
     addPhoto: jest.fn(async (p: { categoria: string; url: string; order: number }) => void fotos.push(p)),
   };
-  const fileStorage = { upload: jest.fn(async (f: { originalname: string }) => ({ url: `/uploads/imoveis/${f.originalname}` })) };
+  const fileStorage: {
+    upload: jest.Mock;
+    download: jest.Mock;
+    delete?: jest.Mock;
+  } = {
+    upload: jest.fn(async (f: { originalname: string }) => ({ url: `/uploads/imoveis/${f.originalname}` })),
+    download: jest.fn(async () => Buffer.alloc(0)),
+    delete: jest.fn(async () => undefined),
+  };
+  // Book guardado (Fatia 2): fake em memoria com a mesma semantica da
+  // transacao real - substitui o anterior, grava paginas e fotos juntos.
+  const booksSalvos = new Map<string, { tenantId: string; book: GravarBookInput['book'] }>();
+  const bookRepo = {
+    substituirBookEGravarFotos: jest.fn(async (input: GravarBookInput) => {
+      const anterior = booksSalvos.get(input.empreendimentoId);
+      const urlsBookAnterior = anterior
+        ? [...(anterior.book.pdfUrl ? [anterior.book.pdfUrl] : []), ...anterior.book.paginas.map((p) => p.url)]
+        : [];
+      booksSalvos.set(input.empreendimentoId, { tenantId: input.tenantId, book: input.book });
+      for (const f of input.fotos) {
+        fotos.push({ tenantId: input.tenantId, empreendimentoId: input.empreendimentoId, ...f } as never);
+      }
+      return { urlsBookAnterior };
+    }),
+    buscarPorEmpreendimento: jest.fn(),
+    listarPaginasPorCategoria: jest.fn(),
+  };
   const criar = { execute: jest.fn(async () => ({ id: 'emp-novo' })) };
   const ficha = { execute: jest.fn(async (_input: Record<string, unknown>) => ({})) };
   const tipologiaRepo = {
@@ -98,10 +127,26 @@ function montar(paginas = 3, texto: (n: number) => string = (n) => `texto ${n} $
     bookStorage as never,
     fileStorage as never,
     tipologiaRepo as never,
+    bookRepo as never,
     criar as never,
     ficha as never,
   );
-  return { analisar, confirmar, ai, pdfReader, bookStorage, guardados, fotos, criar, ficha, fileStorage, empRepo, imagemBook };
+  return {
+    analisar,
+    confirmar,
+    ai,
+    pdfReader,
+    bookStorage,
+    guardados,
+    fotos,
+    criar,
+    ficha,
+    fileStorage,
+    empRepo,
+    imagemBook,
+    bookRepo,
+    booksSalvos,
+  };
 }
 
 const arquivo = (buffer = PDF) => ({ buffer, originalname: 'book.pdf', mimetype: 'application/pdf' });
@@ -203,12 +248,14 @@ describe('Book do empreendimento - confirmar', () => {
         { numero: 3, categoria: 'area_comum' },
       ],
     });
-    expect(r).toEqual({ empreendimentoId: 'emp-novo', fotosCriadas: 2 });
+    expect(r).toEqual({ empreendimentoId: 'emp-novo', fotosCriadas: 2, paginasNoBook: 3 });
     expect(c.fotos).toEqual([
       { tenantId: TENANT, empreendimentoId: 'emp-novo', categoria: 'fachada', url: '/uploads/imoveis/book-pagina-1.jpg', order: 0 },
       { tenantId: TENANT, empreendimentoId: 'emp-novo', categoria: 'area_comum', url: '/uploads/imoveis/book-pagina-3.jpg', order: 2 },
     ]);
-    expect(c.pdfReader.renderizarPaginas).toHaveBeenLastCalledWith(expect.any(Buffer), [1, 3], {
+    // Fatia 2: renderiza TODAS as paginas (book completo), uma vez so - as
+    // fotos reaproveitam as mesmas imagens.
+    expect(c.pdfReader.renderizarPaginas).toHaveBeenLastCalledWith(expect.any(Buffer), [1, 2, 3], {
       larguraPx: 1600,
       qualidadeJpeg: 80,
     });
@@ -258,7 +305,7 @@ describe('Book do empreendimento - confirmar em empreendimento existente', () =>
   it('se gravar as fotos falhar, o empreendimento NOVO e desfeito', async () => {
     const c = montar();
     await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
-    (c.empRepo.addPhoto as jest.Mock).mockRejectedValueOnce(new Error('banco caiu'));
+    c.bookRepo.substituirBookEGravarFotos.mockRejectedValueOnce(new Error('banco caiu'));
     await expect(
       c.confirmar.execute({
         tenantId: TENANT,
@@ -443,9 +490,11 @@ describe('Book do empreendimento - confirmar book de imagens', () => {
         { numero: 9, categoria: 'planta' }, // pagina que nao existe: ignorada
       ],
     });
-    expect(r).toEqual({ empreendimentoId: 'emp-novo', fotosCriadas: 2 });
+    expect(r).toEqual({ empreendimentoId: 'emp-novo', fotosCriadas: 2, paginasNoBook: 3 });
     expect(c.pdfReader.renderizarPaginas).not.toHaveBeenCalled();
-    const enviados = c.fileStorage.upload.mock.calls.map((call) => (call as unknown as [{ buffer: Buffer; originalname: string }])[0]);
+    const enviados = c.fileStorage.upload.mock.calls
+      .map((call) => (call as unknown as [{ buffer: Buffer; originalname: string }])[0])
+      .filter((e) => e.originalname.startsWith('book-pagina-'));
     expect(enviados.map((e) => e.originalname)).toEqual(['book-pagina-1.jpg', 'book-pagina-3.jpg']);
     const guardado = c.guardados.get('book-1');
     const imagens = guardado?.origem === 'imagens' ? guardado.imagens : [];
@@ -467,5 +516,38 @@ describe('Capa do empreendimento', () => {
     ).toBe('a0');
     expect(escolherCapa([{ categoria: 'planta', order: 0 }, { categoria: 'fachada', order: 3 }])?.categoria).toBe('fachada');
     expect(escolherCapa([])).toBeNull();
+  });
+});
+
+describe('Book do empreendimento - revisao de seguranca (A2, A1)', () => {
+  it('A2: imagem com proporcao extrema (1000 x 49.000 ou 9 x 1) e recusada SEM decodificar', async () => {
+    const c = montar();
+    for (const [l, a] of [[1000, 49_000], [9000, 1000]]) {
+      await expect(c.analisar.execute({ tenantId: TENANT, arquivos: [jpg(jpegSoCabecalho(l, a))] })).rejects.toThrow(
+        'A imagem nº 1 tem proporção extrema. Envie uma página por imagem.',
+      );
+    }
+    expect(c.imagemBook.redimensionarJpegs).not.toHaveBeenCalled();
+  });
+
+  it('A2: imagem alta (dentro do limite) e reduzida pela ALTURA (max 1600 x 2560)', async () => {
+    const c = montar();
+    // 1000 x 7000 (proporcao 7, aceita): pela largura nao reduziria nada.
+    await c.analisar.execute({ tenantId: TENANT, arquivos: [jpg(await gerarJpeg(1000, 7000))] });
+    const guardado = c.guardados.get('book-1');
+    const img = await loadImage(guardado?.origem === 'imagens' ? guardado.imagens[0] : Buffer.alloc(0));
+    expect(img.height).toBe(2560);
+    expect(img.width).toBe(366); // 1000 * 2560 / 7000, arredondado
+  });
+
+  it('A1: PDF com mais de 80 paginas e recusado pelo TOTAL do documento, lendo so 81', async () => {
+    const c = montar(3);
+    const primeiras = Array.from({ length: 81 }, (_, i) => ({ numero: i + 1, texto: 'x' }));
+    c.pdfReader.lerTextoPorPagina.mockResolvedValueOnce({ totalPaginas: 100_000, paginas: primeiras } as never);
+    await expect(c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() })).rejects.toThrow(
+      'O PDF tem 100000 páginas; o limite é 80.',
+    );
+    expect(c.pdfReader.lerTextoPorPagina).toHaveBeenLastCalledWith(PDF, { maxPaginas: 81 });
+    expect(c.pdfReader.renderizarPaginas).not.toHaveBeenCalled();
   });
 });

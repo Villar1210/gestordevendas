@@ -10,7 +10,8 @@ export interface ImagemJpegBook {
 
 export interface IImagemBookService {
   // Para cada JPEG: aplica a orientacao EXIF, reduz para no maximo
-  // larguraMaxPx (mantendo a proporcao, nunca amplia), fundo branco e
+  // larguraMaxPx de largura e larguraMaxPx x 1,6 de altura (mantendo a
+  // proporcao, nunca amplia), fundo branco e
   // re-codifica em JPEG na qualidade pedida. O resultado NAO tem EXIF
   // (localizacao do celular, modelo, data...). Mesma ordem da entrada.
   // Quem chama ja validou o tipo e o tamanho em pixels pelo cabecalho.

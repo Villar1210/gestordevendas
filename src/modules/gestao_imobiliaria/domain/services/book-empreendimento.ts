@@ -26,10 +26,23 @@ export const BOOK_MAX_BYTES_POR_IMAGEM = 20 * 1024 * 1024; // 20 MB
 // Protecao de memoria: lido do cabecalho ANTES de decodificar (uma imagem de
 // 50 MP decodificada ocupa ~200 MB de RAM).
 export const BOOK_MAX_PIXELS_IMAGEM = 50_000_000;
+// Imagem alta/larga demais (ex: 1000 x 49.000, um "print" da pagina inteira)
+// e recusada: cada imagem deve ser UMA pagina. Mesma proporcao extrema do
+// render de PDF.
+export const BOOK_PROPORCAO_EXTREMA_IMAGEM = 8;
+// Altura maxima da imagem normalizada = largura maxima x 1,6 (A4 em pe com
+// folga) - imagens mais altas sao reduzidas pela altura.
+export const BOOK_PROPORCAO_ALTURA_MAX = 1.6;
 // Fotos gravadas (PDF renderizado ou imagem normalizada): boa para tela cheia
 // no site, ~200-500 KB.
 export const BOOK_LARGURA_FOTO = 1600;
 export const BOOK_QUALIDADE_FOTO = 80;
+// Confirmar renderiza TODAS as paginas do PDF (book guardado completo): em
+// lotes pequenos na fila de render (outros usuarios intercalam entre um lote
+// e outro) e com prazo total - o nginx corta /api/ em 300s. Medido ~0,75-1 s
+// por pagina (1600 px, q80, 2 vCPU): 80 paginas ~60-85 s.
+export const BOOK_PAGINAS_POR_LOTE_RENDER = 8;
+export const BOOK_PRAZO_RENDER_MS = 200_000;
 // Ficha tecnica pela IA olhando as imagens: no maximo 10 paginas, ~1000 px.
 export const BOOK_MAX_IMAGENS_FICHA = 10;
 export const BOOK_LARGURA_IMAGEM_FICHA = 1000;
@@ -88,4 +101,70 @@ export function escolherCapa<T extends { categoria: string; order: number }>(fot
 
 export function ehCategoriaDeFoto(c: string): c is (typeof CATEGORIAS_FOTO_BOOK)[number] {
   return (CATEGORIAS_FOTO_BOOK as readonly string[]).includes(c);
+}
+
+export function ehCategoriaPaginaBook(c: string): c is CategoriaPaginaBook {
+  return (CATEGORIAS_PAGINA_BOOK as readonly string[]).includes(c);
+}
+
+// ---------------------------------------------------------------------------
+// Book guardado completo no empreendimento (Fatia 2)
+// ---------------------------------------------------------------------------
+
+// Nome do PDF enviado pelo usuario, so para EXIBIR (nunca vira caminho de
+// arquivo): sem pasta ("C:\x\book.pdf" -> "book.pdf"), sem caracteres de
+// controle ou reservados, espacos normalizados, no maximo 200 caracteres
+// (preservando a extensao). Vazio -> null.
+export const BOOK_MAX_NOME_ORIGINAL = 200;
+export function sanitizarNomeArquivoBook(nome: string | null | undefined): string | null {
+  if (!nome) return null;
+  const base = nome.split(/[\\/]/).pop() ?? '';
+  let limpo = base
+    .replace(/[\u0000-\u001f\u007f<>:"|?*]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '');
+  if (!limpo) return null;
+  if (limpo.length > BOOK_MAX_NOME_ORIGINAL) {
+    const ponto = limpo.lastIndexOf('.');
+    const ext = ponto > 0 && limpo.length - ponto <= 10 ? limpo.slice(ponto) : '';
+    limpo = limpo.slice(0, BOOK_MAX_NOME_ORIGINAL - ext.length) + ext;
+  }
+  return limpo;
+}
+
+// Parte "segura" do nome do empreendimento para nomes de arquivo do ZIP:
+// sem acento, so letras/numeros/_ , no maximo 60 caracteres.
+export function nomeEmpreendimentoParaArquivo(nome: string | null | undefined): string {
+  const limpo = (nome ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60)
+    .replace(/_+$/g, '');
+  return limpo || 'empreendimento';
+}
+
+// "<empreendimento>_pagina_01.jpg" (2 digitos cobrem o maximo de 80 paginas).
+export function nomePaginaNoZip(nomeEmpreendimento: string, numero: number): string {
+  return `${nomeEmpreendimentoParaArquivo(nomeEmpreendimento)}_pagina_${String(numero).padStart(2, '0')}.jpg`;
+}
+
+// Parametro ?paginas=1,2,5 do download em ZIP. Ausente/vazio = padrao (todas
+// exceto "descartar"). So inteiros 1..80 separados por virgula, sem
+// duplicatas; parametro repetido (?paginas=1&paginas=2) e recusado.
+export type PaginasZipParse = { ok: true; paginas: number[] | null } | { ok: false; erro: string };
+export function parsePaginasZip(bruto: unknown): PaginasZipParse {
+  if (bruto === undefined || bruto === null || bruto === '') return { ok: true, paginas: null };
+  const erro = `Parâmetro "paginas" inválido. Use números de 1 a ${BOOK_MAX_PAGINAS} separados por vírgula (ex: 1,2,5).`;
+  if (typeof bruto !== 'string' || bruto.length > 400) return { ok: false, erro };
+  const partes = bruto.split(',').map((p) => p.trim());
+  if (partes.length > BOOK_MAX_PAGINAS || partes.some((p) => !/^\d{1,3}$/.test(p))) return { ok: false, erro };
+  const paginas = partes.map(Number);
+  if (paginas.some((n) => n < 1 || n > BOOK_MAX_PAGINAS)) return { ok: false, erro };
+  if (new Set(paginas).size !== paginas.length) {
+    return { ok: false, erro: 'Parâmetro "paginas" tem números repetidos.' };
+  }
+  return { ok: true, paginas };
 }

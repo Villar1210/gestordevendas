@@ -1334,7 +1334,68 @@ pelo Content-Length antes do multer), 20 MB e ~50 megapixels por imagem
   PDF com texto bom continua so pelo texto. Falha da IA = aviso + ficha vazia.
 - Confirmar: book de imagens usa os JPEGs guardados (ja 1600 px) - nao
   renderiza nada; o resto (criar/completar, nao apagar dados, desfazer) igual.
-- Pendente (Fatia 2): frontend (upload de varias imagens/reordenar).
+
+### Book do empreendimento guardado COMPLETO (Fatia 2 - so backend)
+Migration `20261015120000_empreendimento_book` (deploy: `npx prisma migrate
+deploy` + `npm run db:generate` antes do build). Tabelas novas
+`EmpreendimentoBook` (origem pdf|imagens, pdfUrl?, pdfNomeOriginal?
+sanitizado, totalPaginas; `@@unique empreendimentoId` = UM book por
+empreendimento) e `EmpreendimentoBookPagina` (numero, categoria, url,
+largura, altura; `@@unique [bookId, numero]`). Cascata a partir de
+Empreendimento/Tenant.
+- Confirmar renderiza TODAS as paginas do PDF (1600 px q80, lotes de 8 na
+  fila de render, prazo de 200s -> 503 sem gravar nada) e reaproveita as
+  mesmas imagens para as fotos (EmpreendimentoPhoto continua igual, arquivos
+  PROPRIOS - nao dependem do book). Medido ~0,75-1 s/pagina em 2 vCPU: 80
+  paginas ~60-85 s (nginx corta em 300s). Imagens: usa os JPGs guardados.
+- Ordem: renderiza -> upload (fotos, PDF `book-<id>.pdf`, paginas
+  `book-<id>-p001.jpg`; nada do nome do usuario no caminho) -> UMA transacao
+  (`IEmpreendimentoBookRepository.substituirBookEGravarFotos`: apaga book
+  anterior + cria book/paginas + fotos). Falha: desfaz o empreendimento novo
+  (como antes) e tenta apagar os arquivos desta tentativa. Sucesso: tenta
+  apagar os arquivos do book anterior (so DEPOIS do commit).
+- `IFileStorageService.delete?` (opcional). `LocalFileStorageService.delete`
+  SO apaga arquivos do book: nome no disco exatamente
+  `<uuid>-book-<uuid>.pdf` ou `<uuid>-book-<uuid>-p001.jpg` (fotos
+  `book-pagina-N.jpg` e qualquer outro arquivo sao recusados com aviso),
+  url `/uploads/imoveis/<nome>` sem `..`/barra invertida/subpasta, caminho
+  resolvido sobre o `realpath` da pasta e conferido DENTRO dela, nunca
+  link simbolico; inexistente = ignora. Falha ao apagar = so aviso no log.
+- Leitura (mesmas guards da classe, Corretor le): `GET /empreendimentos/
+  :id/book` (404 sem book/outro tenant) e `GET .../book/zip?paginas=1,2,5`
+  (sem parametro = todas exceto "descartar"; inteiros 1..80 sem repetir,
+  senao 400; 20/min; arquivos lidos pela url do banco, so `/uploads/`).
+  ZIP por `StoreZipBookService` (copia do ZIP do pdf_tools - modulo nao
+  importa modulo). `ListarPaginasBookPorCategoriaUseCase` exportado para a
+  VIVI usar no futuro (NAO ligado).
+- Revisao de seguranca do book (protecoes que NAO podem ser removidas):
+  - PDFParse SEMPRE com `{ maxImageSize: 25_000_000, isEvalSupported: false,
+    canvasMaxAreaInBytes: 64 MB }` (PDF de 1 MB com imagem 20.000x20.000
+    levava o processo a ~6 GB; com as opcoes: ~110 ms, ~210 MB).
+  - Proporcao da pagina pela area VISIVEL (CropBox recortado pela MediaBox,
+    com rotacao), nao so MediaBox; e no render, pagina com altura acima de
+    largura x 1,6 x 1,05 e descartada ANTES de decodificar.
+  - `lerTextoPorPagina(pdf, { maxPaginas: 81 })` (pdf-parse `getText({ first })`)
+    devolve `{ totalPaginas, paginas }`: PDF com 100 mil paginas e recusado
+    sem extrair o texto de todas.
+  - Imagem com proporcao > 8 ou < 1/8 -> 400 "A imagem nº X tem proporção
+    extrema..."; normalizacao limita largura (1600) E altura (2560).
+  - `LimiteConcorrenciaGuard` (src/shared/infra/http/limite-concorrencia.ts):
+    max 2 analisar e 2 ZIP simultaneos POR PROCESSO -> 503 "Servidor ocupado.
+    Tente em instantes.". E guard: roda antes do multer. ZIP continua em
+    memoria (STORE precisa do CRC antes do cabecalho; streaming exigiria
+    reescrever com data descriptor) - o limite de 2 segura a memoria.
+  - Confirmar: trava exclusiva por bookId (`<tenant>__<id>.lock`, open 'wx')
+    -> 409 "Este book já está sendo salvo. Aguarde.", sempre solta no finally;
+    prazo conferido de novo depois do render; conexao fechada (res "close")
+    aborta o render entre lotes.
+  - Pasta temporaria: lstat (link simbolico ou de outro usuario -> 500
+    generico); arquivos lidos com lstat + isFile (link nunca e seguido).
+  - Erros do pdfjs/pdf-lib/skia: usuario ve so "Não foi possível ler o
+    arquivo PDF."; detalhe so no Logger. Logs de remocao: so o codigo do erro.
+  - DTO da ficha: descricao 5000, itensLazer 100 x 120, tipologias[].nome 150,
+    inteiros 0..2147483647, areas 0..100.000.000 m2.
+- Pendente: frontend (upload de varias imagens/reordenar, ver/baixar book).
 
 ## Regra de seguranca: nunca imprimir valores de variaveis sensiveis
 Comandos como "cat", "grep" (sem -o especifico), "env", ou similares
