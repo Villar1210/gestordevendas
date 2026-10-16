@@ -412,6 +412,25 @@ export function useImoveisIntegration() {
     [updateImovelInPlace],
   );
 
+  // PATCH /imoveis/:id/status - so o status (Espelho de Vendas e seletor do
+  // painel). Backend: so gerencia ou administracao (403 com mensagem propria).
+  const handleAlterarStatusImovel = useCallback(
+    async (imovelId: string, status: string) => {
+      try {
+        const imovel = await apiRequest<Imovel>(`/imoveis/${imovelId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        });
+        updateImovelInPlace(imovel);
+        return imovel;
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : "Não foi possível alterar o status.");
+        return null;
+      }
+    },
+    [updateImovelInPlace],
+  );
+
   // Cadastro em Lote de Unidades (Fatia 2b).
   const handleGerarLoteImoveis = useCallback(
     async (empreendimentoId: string, padrao: PadraoLoteInput) => {
@@ -951,6 +970,7 @@ export function useImoveisIntegration() {
     handleGetImovel,
     handleCreateImovel,
     handleUpdateImovel,
+    handleAlterarStatusImovel,
     handleCreateEmpreendimento,
     handleGetEmpreendimentoDetail,
     handlePublicarEmpreendimento,

@@ -30,6 +30,7 @@ import {
   type SelecaoBook,
 } from "@/features/imoveis/components/book/arquivosBook";
 import { BOOK_CATEGORIA_OPTIONS } from "@/features/imoveis/constants";
+import { SomenteAdminGuard, destinoComAviso } from "@/features/imoveis/components/SomenteAdminGuard";
 
 const BookPaginasGrid = dynamic(
   () => import("@/features/imoveis/components/book/BookPaginasGrid").then((m) => m.BookPaginasGrid),
@@ -739,11 +740,26 @@ function ImportarBook() {
   );
 }
 
+// Permissoes (16/10/2026): importar book e so Administrador.
+function ImportarBookSomenteAdmin() {
+  const empreendimentoId = useSearchParams().get("empreendimentoId");
+  const destino = destinoComAviso(
+    empreendimentoId
+      ? `/dashboard/imoveis/empreendimentos/${encodeURIComponent(empreendimentoId)}`
+      : "/dashboard/imoveis?secao=empreendimentos",
+  );
+  return (
+    <SomenteAdminGuard destino={destino}>
+      <ImportarBook />
+    </SomenteAdminGuard>
+  );
+}
+
 export default function ImportarBookPage() {
   // useSearchParams exige Suspense no App Router.
   return (
     <Suspense fallback={null}>
-      <ImportarBook />
+      <ImportarBookSomenteAdmin />
     </Suspense>
   );
 }

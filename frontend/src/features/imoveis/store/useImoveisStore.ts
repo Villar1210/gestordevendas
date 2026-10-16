@@ -35,6 +35,9 @@ export interface Imovel {
   localChaves: string | null;
   exclusividade: boolean;
   publicado: boolean;
+  // Quem cadastrou (null = antigos/lote/book = do Administrador). Decide se o
+  // corretor ve a aba Editar - ver core/constants/permissoesImoveis.ts.
+  criadoPorUserId?: string | null;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
   suites: number | null;

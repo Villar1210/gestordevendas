@@ -1,4 +1,8 @@
 // src/modules/whatsappmarketing/infra/http/whatsapp.controller.ts
+// Permissoes (16/10/2026): conexao do numero da imobiliaria (criar sessao,
+// QR, status, desconectar, enviar) e SO Administrador. GET /me tambem: so a
+// aba "Conexao do numero" (ja so admin na tela) usa. A Central de
+// Atendimento e os Leads da VIVI tem rotas proprias (nao mudaram).
 import {
   Body,
   Controller,
@@ -15,7 +19,6 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
-import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { CreateWhatsAppSessionDto } from './dtos/create-whatsapp-session.dto';
 import { SendWhatsAppMessageDto } from './dtos/send-whatsapp-message.dto';
 import { CreateWhatsAppSessionUseCase } from '../../application/use-cases/create-whatsapp-session.use-case';
@@ -27,7 +30,7 @@ import { GetMyWhatsAppSessionUseCase } from '../../application/use-cases/get-my-
 
 @Controller('whatsapp/sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(...DASHBOARD_ROLES)
+@Roles('Administrador')
 export class WhatsAppController {
   constructor(
     private readonly createWhatsAppSessionUseCase: CreateWhatsAppSessionUseCase,

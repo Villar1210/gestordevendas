@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/core/api/client";
+import { useMe } from "@/core/hooks/useMe";
 import { useImoveisStore, Imovel, EmpreendimentoPhoto } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 import {
@@ -27,9 +28,12 @@ export function EspelhoDeVendas() {
   const {
     loadEmpreendimentosPublicados,
     handleListImoveisByEmpreendimento,
-    handleUpdateImovel,
+    handleAlterarStatusImovel,
     handleGetEmpreendimentoDetail,
   } = useImoveisIntegration();
+  // Trocar status (R1): so gerencia (coordenador para cima) ou administracao.
+  // Os demais veem o grid so como leitura (sem popover).
+  const { podeAlterarStatus } = useMe();
 
   const [unidades, setUnidades] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,7 +85,7 @@ export function EspelhoDeVendas() {
 
   async function handleChangeStatus(imovelId: string, status: string) {
     setOpenPopoverFor(null);
-    const updated = await handleUpdateImovel(imovelId, { status });
+    const updated = await handleAlterarStatusImovel(imovelId, status);
     if (updated) {
       setUnidades((prev) => prev.map((u) => (u.id === imovelId ? { ...u, status } : u)));
     }
@@ -164,18 +168,30 @@ export function EspelhoDeVendas() {
             const statusOption = getStatusOption(unidade.status);
             return (
               <div key={unidade.id} className="relative">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenPopoverFor(openPopoverFor === unidade.id ? null : unidade.id)
-                  }
-                  className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg p-2 text-center text-xs font-medium leading-tight text-white shadow-sm transition hover:opacity-90 ${statusOption.solidClassName}`}
-                  title={statusOption.label}
-                >
-                  <span className="line-clamp-2">{unidade.codigoInterno || unidade.title}</span>
-                </button>
+                {podeAlterarStatus ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenPopoverFor(openPopoverFor === unidade.id ? null : unidade.id)
+                    }
+                    className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg p-2 text-center text-xs font-medium leading-tight text-white shadow-sm transition hover:opacity-90 ${statusOption.solidClassName}`}
+                    title={`${statusOption.label} - clique para alterar`}
+                    aria-label={`${unidade.codigoInterno || unidade.title}: ${statusOption.label}. Alterar status`}
+                  >
+                    <span className="line-clamp-2">{unidade.codigoInterno || unidade.title}</span>
+                  </button>
+                ) : (
+                  <div
+                    className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg p-2 text-center text-xs font-medium leading-tight text-white shadow-sm ${statusOption.solidClassName}`}
+                    title={statusOption.label}
+                    aria-label={`${unidade.codigoInterno || unidade.title}: ${statusOption.label}`}
+                    role="img"
+                  >
+                    <span className="line-clamp-2">{unidade.codigoInterno || unidade.title}</span>
+                  </div>
+                )}
 
-                {openPopoverFor === unidade.id && (
+                {podeAlterarStatus && openPopoverFor === unidade.id && (
                   <StatusPopover
                     onSelect={(status) => handleChangeStatus(unidade.id, status)}
                     onClose={() => setOpenPopoverFor(null)}

@@ -3,6 +3,8 @@
 // (tipo=venda) ou "ocupado" (tipo=locacao). Proprietario e InquilinoComprador
 // podem ser um ID existente OU dados para criar um novo na hora (o
 // formulario do frontend permite "selecionar ou criar" os dois).
+// Permissoes (R1): como muda o status da unidade, so Administrador ou cargo
+// de gestao (coordenador para cima) cria contrato - ver permissao-imovel.ts.
 import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { IImovelRepository } from '../../domain/repositories/imovel-repository.interface';
 import { IProprietarioRepository } from '../../domain/repositories/proprietario-repository.interface';
@@ -11,6 +13,8 @@ import {
   ContratoRecord,
   IContratoRepository,
 } from '../../domain/repositories/contrato-repository.interface';
+import { AtorImovel } from '../../domain/services/permissao-imovel';
+import { garantirPodeAlterarStatus } from './permissao-imovel.helper';
 
 interface NovoProprietarioInput {
   nome: string;
@@ -38,6 +42,7 @@ interface CreateContratoInput {
   dataInicio: Date;
   dataFim?: Date | null;
   diaVencimento?: number | null;
+  ator: AtorImovel;
 }
 
 @Injectable()
@@ -52,6 +57,9 @@ export class CreateContratoUseCase {
   ) {}
 
   async execute(input: CreateContratoInput): Promise<ContratoRecord> {
+    // Antes de tudo: nem cria proprietario/inquilino inline sem permissao.
+    garantirPodeAlterarStatus(input.ator);
+
     const imovel = await this.imovelRepository.findByIdAndTenant(input.imovelId, input.tenantId);
     if (!imovel) {
       throw new NotFoundException('Imovel nao encontrado.');

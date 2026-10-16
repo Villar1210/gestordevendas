@@ -5,6 +5,7 @@ import {
   IEmpreendimentoRepository,
 } from '../../domain/repositories/empreendimento-repository.interface';
 import { IFileStorageService } from '../../../../shared/domain/services/file-storage.interface';
+import { fotoValidadaParaUpload } from './foto-upload.helper';
 
 interface UploadEmpreendimentoPhotoInput {
   empreendimentoId: string;
@@ -34,7 +35,9 @@ export class UploadEmpreendimentoPhotoUseCase {
       throw new NotFoundException('Empreendimento nao encontrado.');
     }
 
-    const { url } = await this.fileStorageService.upload(input.file);
+    // Tipo real pelos bytes (JPG/PNG/WebP) e nome no disco derivado dele.
+    const foto = fotoValidadaParaUpload(input.file);
+    const { url } = await this.fileStorageService.upload(foto);
 
     // order e sequencial DENTRO DA CATEGORIA (nao global no empreendimento) -
     // ver comentario em EmpreendimentoPhoto no schema.prisma.

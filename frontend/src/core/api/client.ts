@@ -57,6 +57,10 @@ export async function apiRequest<T = unknown>(
   return rawApiRequest<T>(endpoint, options);
 }
 
+const ROLES_GUARD_MESSAGE = "Voce nao tem permissao para acessar este recurso.";
+const FRIENDLY_FORBIDDEN_MESSAGE =
+  "Você não tem permissão para fazer isso. Se precisar, fale com a gerência ou a administração.";
+
 async function rawApiRequest<T>(endpoint: string, options: RequestInit): Promise<T> {
   const token =
     typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_STORAGE_KEY) : null;
@@ -87,7 +91,14 @@ async function rawApiRequest<T>(endpoint: string, options: RequestInit): Promise
 
   if (!response.ok) {
     const rawMessage = body?.message ?? body?.error ?? "Erro inesperado. Tente novamente.";
-    const message = Array.isArray(rawMessage) ? rawMessage.join(", ") : rawMessage;
+    const joined = Array.isArray(rawMessage) ? rawMessage.join(", ") : rawMessage;
+    // 403 generico do RolesGuard (texto sem acento, pensado para log): troca
+    // por uma frase amigavel. 403 com mensagem propria (ex: "Somente gerência
+    // ou administração altera o status da unidade.") passa como veio.
+    const message =
+      response.status === 403 && (joined === ROLES_GUARD_MESSAGE || joined === "Forbidden resource")
+        ? FRIENDLY_FORBIDDEN_MESSAGE
+        : joined;
     throw new ApiError(message, response.status, body);
   }
 

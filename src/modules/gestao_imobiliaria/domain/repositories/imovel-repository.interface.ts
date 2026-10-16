@@ -31,6 +31,9 @@ export interface ImovelRecord {
   exclusividade: boolean;
   // Site imobiliario publico: aparece na vitrine quando true.
   publicado: boolean;
+  // Quem cadastrou pelo POST /imoveis (null = antigos/lote/book, tratados
+  // como do Administrador) - ver domain/services/permissao-imovel.ts.
+  criadoPorUserId: string | null;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
   // Cadastro em lote (Fatia 2) - ver domain/services/gerar-lote-imoveis.ts.
@@ -138,13 +141,34 @@ export interface ImovelWritableFields {
   areaExterna?: number | null;
 }
 
+// Escrita CONDICIONAL para quem nao e Administrador (R2, revisao de
+// seguranca): a escrita so acontece se, no MOMENTO da escrita, o imovel
+// ainda for do usuario e nao publicado (where id+tenant+publicado=false+
+// criadoPorUserId). Se nao bater, o repositorio lanca
+// EdicaoImovelBloqueadaError e nada e gravado - fecha a corrida "checou,
+// alguem publicou, gravou".
+export interface CondicaoDonoImovel {
+  tenantId: string;
+  userId: string;
+}
+
+export class EdicaoImovelBloqueadaError extends Error {
+  constructor() {
+    super('Edicao do imovel bloqueada: nao e mais do usuario ou ja foi publicado.');
+    this.name = 'EdicaoImovelBloqueadaError';
+  }
+}
+
 export interface IImovelRepository {
+  // criadoPorUserId so e gravado na criacao (nao esta em ImovelWritableFields
+  // de proposito: o PATCH nunca troca o dono do cadastro).
   create(
     input: ImovelWritableFields & {
       tenantId: string;
       title: string;
       tipo: string;
       finalidade: string;
+      criadoPorUserId?: string | null;
     },
   ): Promise<ImovelRecord>;
   // Cria varias unidades em uma unica transacao Prisma - tudo ou nada (ver
@@ -160,10 +184,11 @@ export interface IImovelRepository {
       }
     >,
   ): Promise<ImovelRecord[]>;
-  update(id: string, input: ImovelWritableFields): Promise<ImovelRecord>;
+  update(id: string, input: ImovelWritableFields, condicaoDono?: CondicaoDonoImovel): Promise<ImovelRecord>;
   findByIdAndTenant(id: string, tenantId: string): Promise<ImovelRecord | null>;
   // Marca/desmarca "Publicar no site" em TODAS as unidades de um
   // empreendimento do tenant, numa unica consulta. Retorna quantas mudaram.
+  // Nunca mexe em imovel cadastrado por corretor (criadoPorUserId preenchido).
   setPublicadoPorEmpreendimento(
     tenantId: string,
     empreendimentoId: string,
@@ -179,16 +204,23 @@ export interface IImovelRepository {
   ): Promise<string[]>;
 
   findPhotosByImovel(imovelId: string): Promise<ImovelPhotoRecord[]>;
-  addPhoto(input: {
-    tenantId: string;
-    imovelId: string;
-    url: string;
-    order: number;
-  }): Promise<ImovelPhotoRecord>;
+  addPhoto(
+    input: {
+      tenantId: string;
+      imovelId: string;
+      url: string;
+      order: number;
+    },
+    condicaoDono?: CondicaoDonoImovel,
+  ): Promise<ImovelPhotoRecord>;
   findPhotoByIdAndTenant(photoId: string, tenantId: string): Promise<ImovelPhotoRecord | null>;
-  deletePhoto(photoId: string): Promise<void>;
+  deletePhoto(photoId: string, condicaoDono?: CondicaoDonoImovel & { imovelId: string }): Promise<void>;
   // Fatia 5: aplica o novo "order" de cada foto (ja calculado por
   // computePhotoOrders, ver domain/services/reorder-photos.ts) numa unica
   // transacao, e devolve a lista ja reordenada.
-  reorderPhotos(imovelId: string, orders: { id: string; order: number }[]): Promise<ImovelPhotoRecord[]>;
+  reorderPhotos(
+    imovelId: string,
+    orders: { id: string; order: number }[],
+    condicaoDono?: CondicaoDonoImovel,
+  ): Promise<ImovelPhotoRecord[]>;
 }

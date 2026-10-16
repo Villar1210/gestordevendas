@@ -1716,3 +1716,75 @@ frontend/src/features/pdf_tools/ + app/dashboard/ferramentas-pdf/ (hub,
 - Testes: npx jest src/modules/pdf_tools (173 testes; os de integracao usam
   qpdf/gs/soffice reais e pulam sozinhos se o binario faltar). Validado E2E
   com Playwright (38 cenarios, 12 de lote) contra o backend real.
+
+## Permissoes da area Imoveis e WhatsApp (16/10/2026)
+Fecha a falha "quase toda rota de Imoveis/WhatsApp aceitava Corretor". Regras
+decididas pelo dono (nao mudar sem ele). Role/cargo = req.user.role/cargo: para
+token normal o JwtStrategy le do BANCO (user.role.name / user.cargoHierarquico,
+o usuario ja e carregado para o tokenVersion), entao promocao/rebaixamento vale
+na hora, sem relogar, e o servidor concorda com o /auth/me. Token de
+impersonacao (payload.impersonadoPor) continua usando o payload, sem banco.
+Regra pura em src/modules/gestao_imobiliaria/domain/services/permissao-imovel.ts
+(podeAlterarStatusUnidade, verificarEdicaoCadastroImovel), aplicada DENTRO dos
+use cases (application/use-cases/permissao-imovel.helper.ts -> 403), nao so no
+guard. Frontend espelha em core/constants/permissoesImoveis.ts + core/hooks/useMe.ts
+(so para esconder botoes).
+
+"Gestao" = Administrador OU cargo coordenador/gerente/gerente_regional/
+superintendente/diretor/diretor_regional. "Dono" = Imovel.criadoPorUserId
+(coluna nova, migration 20261016120000_imovel_criado_por; NULL = antigos/lote/
+book = do Administrador).
+
+| Acao | Admin | Gestao | Corretor / sem cargo / Parceiro |
+|---|---|---|---|
+| Ler imoveis, empreendimentos, book, book/zip, contratos | sim | sim | sim |
+| POST /imoveis | sim | sim (forca disponivel, nao publicado) | sim (idem) |
+| PATCH /imoveis/:id e fotos (POST/DELETE/reorder) | tudo | so dono e nao publicado | so dono e nao publicado |
+| status/publicado pelo PATCH /imoveis/:id | sim | nao (403) | nao (403) |
+| PATCH /imoveis/:id/status (so {status}) | sim | sim | nao (403 "Somente gerência ou administração altera o status da unidade.") |
+| Contrato criar / encerrar (muda status) | sim | sim | nao (403) |
+| Empreendimento criar/publicar/despublicar, book analisar/confirmar, gerar-lote, imoveis/lote, planilha, importar-pdf, ficha, fotos, unidades/site | sim | nao | nao |
+| WhatsApp sessoes (me, criar, QR, status, send, desconectar) e VIVI enable/disable | sim | nao | nao |
+| Proprietarios / Inquilinos / Financeiro | sem mudanca (como antes) | | |
+
+Padrao nos controllers ImovelController, EmpreendimentoController,
+ContratoController, WhatsAppController, ViviSessionController: a CLASSE e
+@Roles('Administrador') e cada rota liberada declara @Roles(...DASHBOARD_ROLES)
+(RolesGuard: regra do metodo tem prioridade). Rota nova esquecida nasce
+fechada. META-TESTE em infra/http/permissoes-imoveis.http.spec.ts e
+whatsappmarketing/infra/http/permissoes-whatsapp.http.spec.ts percorre o
+metadata e falha se uma rota fora da lista liberada nao for so Administrador
+(ao liberar rota nova, atualizar LIBERADAS_AO_DASHBOARD e a tabela ROTAS).
+DELETE /imoveis/:id/photos/:photoId agora tambem confere que a foto e do
+imovel da URL (antes so o photoId).
+
+Frontend: StatusPopover/seletor de status so para gestao; aba Editar do
+ImovelDetailPanel so admin ou dono nao publicado (campos status/publicado so
+admin); "Novo Empreendimento", publicar em massa, book, cadastro em lote,
+ficha/fotos/publicar do empreendimento e Novo/Encerrar contrato escondidos
+para quem nao pode; /book e /[id]/lote redirecionam nao-admin
+(SomenteAdminGuard, ?aviso=somente-admin). 403 generico do RolesGuard vira
+frase amigavel em core/api/client.ts.
+
+Ajustes da revisao de seguranca (16/10/2026):
+- Nao-admin cadastra so imovel AVULSO: POST /imoveis forca empreendimentoId
+  null, tipoItem "unidade" e codigoInterno null; PATCH de nao-admin mudando
+  empreendimentoId/tipoItem/codigoInterno -> 403 "Somente a administração
+  vincula imóveis a empreendimentos." (mesmo valor = ignorado). Tela esconde
+  o seletor de empreendimento e o codigo interno para nao-admin.
+  PATCH /empreendimentos/:id/unidades/site (publicar todas) filtra
+  criadoPorUserId: null - nunca publica imovel de corretor.
+- Escrita CONDICIONAL de nao-admin (fecha a corrida checou/publicaram/gravou):
+  update e as 3 operacoes de foto passam CondicaoDonoImovel ao repositorio;
+  update = updateMany where {id, tenantId, publicado:false, criadoPorUserId};
+  fotos = transacao que primeiro trava a linha do imovel com o mesmo
+  updateMany condicional (toca updatedAt) e so entao mexe nas fotos. count 0
+  -> EdicaoImovelBloqueadaError -> mesmo 403 da checagem normal.
+- Upload de foto (imovel E empreendimento): multer limits 10 MB / 1 arquivo
+  (acima: 413), tipo pelos bytes (JPEG FF D8 FF, PNG 89 50 4E 47, WebP
+  RIFF....WEBP - domain/services/foto-upload.ts), resto -> 400 "Envie uma foto
+  JPG, PNG ou WebP.", gravado como "<uuid>-foto.<ext real>" com o mimetype
+  real (originalname do usuario nunca vai para o disco - /uploads e publico).
+- PENDENCIA para o dono reavaliar (BAIXO-3, mantido como esta de proposito):
+  PATCH /proprietarios/:id continua aberto a DASHBOARD_ROLES (qualquer
+  Corretor edita dados de proprietario, incl. bancarios).

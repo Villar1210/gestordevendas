@@ -21,6 +21,7 @@ import {
   FileUp,
 } from "lucide-react";
 import { ApiError, API_BASE_URL } from "@/core/api/client";
+import { useMe } from "@/core/hooks/useMe";
 import { FotoLightbox, FotoLightboxItem } from "@/features/imoveis/components/FotoLightbox";
 import {
   useImoveisIntegration,
@@ -103,6 +104,9 @@ export default function EmpreendimentoDetailPage({
   params: Promise<{ empreendimentoId: string }>;
 }) {
   const { empreendimentoId } = usePromise(params);
+  // Permissoes (16/10/2026): leitura para todos; publicar/despublicar, ficha,
+  // fotos, book e cadastro em lote so Administrador (backend tambem bloqueia).
+  const { isAdmin } = useMe();
   const {
     handleGetEmpreendimentoDetail,
     handlePublicarEmpreendimento,
@@ -116,9 +120,13 @@ export default function EmpreendimentoDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   // Voltando da importacao do book: ?book=<quantidade de fotos criadas>.
   const [fotosDoBook, setFotosDoBook] = useState<number | null>(null);
+  // Corretor que tentou abrir book/lote: volta para ca com ?aviso=somente-admin.
+  const [avisoSomenteAdmin, setAvisoSomenteAdmin] = useState(false);
   useEffect(() => {
-    const valor = new URLSearchParams(window.location.search).get("book");
+    const query = new URLSearchParams(window.location.search);
+    const valor = query.get("book");
     if (valor !== null && /^\d+$/.test(valor)) setFotosDoBook(Number(valor));
+    setAvisoSomenteAdmin(query.get("aviso") === "somente-admin");
   }, []);
   const [notFound, setNotFound] = useState(false);
   const [empreendimento, setEmpreendimento] = useState<Empreendimento | null>(null);
@@ -364,13 +372,20 @@ export default function EmpreendimentoDetailPage({
         >
           <LayoutGrid className="h-4 w-4" /> Ver Unidades
         </Link>
-        <Link
-          href={`/dashboard/imoveis/empreendimentos/${empreendimentoId}/lote`}
-          className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-        >
-          <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
-        </Link>
+        {isAdmin && (
+          <Link
+            href={`/dashboard/imoveis/empreendimentos/${empreendimentoId}/lote`}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <LayoutGrid className="h-4 w-4" /> Cadastro em Lote
+          </Link>
+        )}
       </header>
+      {avisoSomenteAdmin && (
+        <p role="status" className="mx-6 mt-4 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+          Importar book e cadastrar unidades em lote é feito pela administração. Aqui você consulta o empreendimento.
+        </p>
+      )}
       {fotosDoBook !== null && (
         <div role="status" className="mx-6 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Book importado: ficha técnica salva e {fotosDoBook} {fotosDoBook === 1 ? "foto adicionada" : "fotos adicionadas"}.
@@ -403,7 +418,7 @@ export default function EmpreendimentoDetailPage({
               </span>
             </div>
 
-            {empreendimento.publicado ? (
+            {!isAdmin ? null : empreendimento.publicado ? (
               <button
                 onClick={handleDespublicarClick}
                 disabled={isTogglingPublicacao}
@@ -439,13 +454,15 @@ export default function EmpreendimentoDetailPage({
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-800">Ficha Técnica (extraída via IA)</h2>
-            <Link
-              href={`/dashboard/imoveis/empreendimentos/book?empreendimentoId=${empreendimento.id}`}
-              className="ml-auto flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
-            >
-              <FileUp className="h-3.5 w-3.5" /> Importar book (PDF ou JPG)
-            </Link>
-            {temFichaTecnica && !isEditingFicha && (
+            {isAdmin && (
+              <Link
+                href={`/dashboard/imoveis/empreendimentos/book?empreendimentoId=${empreendimento.id}`}
+                className="ml-auto flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
+              >
+                <FileUp className="h-3.5 w-3.5" /> Importar book (PDF ou JPG)
+              </Link>
+            )}
+            {isAdmin && temFichaTecnica && !isEditingFicha && (
               <button
                 onClick={handleIniciarEdicaoFicha}
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
@@ -457,10 +474,11 @@ export default function EmpreendimentoDetailPage({
 
           {!temFichaTecnica ? (
             <p className="text-sm text-slate-500">
-              Nenhuma ficha técnica ainda. Clique em &quot;Importar book (PDF ou JPG)&quot; para o sistema ler a
-              ficha técnica e separar as fotos do material da construtora.
+              {isAdmin
+                ? "Nenhuma ficha técnica ainda. Clique em \"Importar book (PDF ou JPG)\" para o sistema ler a ficha técnica e separar as fotos do material da construtora."
+                : "Nenhuma ficha técnica cadastrada ainda."}
             </p>
-          ) : !isEditingFicha || !fichaForm ? (
+          ) : !isAdmin || !isEditingFicha || !fichaForm ? (
             <div className="grid gap-4 sm:grid-cols-3">
               <FichaCampo label="Área do terreno (m2)" valor={empreendimento.areaTerreno} />
               <FichaCampo label="Total de unidades (declarado)" valor={empreendimento.totalUnidades} />
@@ -669,6 +687,7 @@ export default function EmpreendimentoDetailPage({
               <EmpreendimentoPhotoCategorySection
                 key={categoriaOption.value}
                 label={categoriaOption.label}
+                podeEditar={isAdmin}
                 photos={photos.filter((p) => p.categoria === categoriaOption.value)}
                 onOpen={(photoId) => {
                   // Abre na ordem em que as fotos aparecem na tela (por
@@ -699,6 +718,7 @@ export default function EmpreendimentoDetailPage({
 
 function EmpreendimentoPhotoCategorySection({
   label,
+  podeEditar,
   photos,
   onOpen,
   onUpload,
@@ -706,6 +726,7 @@ function EmpreendimentoPhotoCategorySection({
   onMove,
 }: {
   label: string;
+  podeEditar: boolean;
   photos: EmpreendimentoPhoto[];
   onOpen: (photoId: string) => void;
   onUpload: (file: File) => void;
@@ -750,53 +771,62 @@ function EmpreendimentoPhotoCategorySection({
                 className="h-full w-full object-cover transition group-hover:scale-105"
               />
             </button>
-            <button
-              type="button"
-              onClick={() => onRemove(photo.id)}
-              className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-1 text-white group-hover:block"
-              aria-label="Remover foto"
-            >
-              <X className="h-3 w-3" />
-            </button>
-            <div className="absolute inset-x-1 bottom-1 hidden items-center justify-between group-hover:flex">
-              <button
-                type="button"
-                onClick={() => onMove(index, -1)}
-                disabled={index === 0}
-                className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
-                aria-label="Mover para a esquerda"
-              >
-                <ArrowLeft className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onMove(index, 1)}
-                disabled={index === photos.length - 1}
-                className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
-                aria-label="Mover para a direita"
-              >
-                <ArrowRight className="h-3 w-3" />
-              </button>
-            </div>
+            {podeEditar && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onRemove(photo.id)}
+                  className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-1 text-white group-hover:block"
+                  aria-label="Remover foto"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+                <div className="absolute inset-x-1 bottom-1 hidden items-center justify-between group-hover:flex">
+                  <button
+                    type="button"
+                    onClick={() => onMove(index, -1)}
+                    disabled={index === 0}
+                    className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                    aria-label="Mover para a esquerda"
+                  >
+                    <ArrowLeft className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMove(index, 1)}
+                    disabled={index === photos.length - 1}
+                    className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                    aria-label="Mover para a direita"
+                  >
+                    <ArrowRight className="h-3 w-3" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ))}
 
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 disabled:opacity-60"
-        >
-          <Plus className="h-5 w-5" />
-          <span className="text-xs">{uploading ? "Enviando..." : "Adicionar"}</span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileSelected}
-        />
+        {!podeEditar && photos.length === 0 && <p className="text-sm text-slate-400">Sem fotos.</p>}
+        {podeEditar && (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 disabled:opacity-60"
+            >
+              <Plus className="h-5 w-5" />
+              <span className="text-xs">{uploading ? "Enviando..." : "Adicionar"}</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+          </>
+        )}
       </div>
     </div>
   );

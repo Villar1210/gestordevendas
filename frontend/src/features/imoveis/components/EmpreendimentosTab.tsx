@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Building2, FileUp, Globe, MapPin, Search, LayoutGrid, Home } from "lucide-react";
 import { API_BASE_URL } from "@/core/api/client";
+import { useMe } from "@/core/hooks/useMe";
 import { useImoveisStore } from "../store/useImoveisStore";
 
 export function EmpreendimentosTab() {
@@ -17,6 +18,8 @@ export function EmpreendimentosTab() {
   const setEmpreendimentoFilter = useImoveisStore((state) => state.setEmpreendimentoFilter);
   const setActiveView = useImoveisStore((state) => state.setActiveView);
   const [busca, setBusca] = useState("");
+  // Consulta para todos; importar book e cadastro em lote so Administrador.
+  const { isAdmin } = useMe();
 
   const lista = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -49,12 +52,14 @@ export function EmpreendimentosTab() {
         <p className="text-sm text-slate-500">
           {lista.length} {lista.length === 1 ? "empreendimento" : "empreendimentos"}
         </p>
-        <Link
-          href="/dashboard/imoveis/empreendimentos/book"
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-        >
-          <FileUp className="h-4 w-4" aria-hidden /> Cadastrar pelo book (PDF ou JPG)
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/dashboard/imoveis/empreendimentos/book"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <FileUp className="h-4 w-4" aria-hidden /> Cadastrar pelo book (PDF ou JPG)
+          </Link>
+        )}
       </div>
 
       {lista.length === 0 ? (
@@ -116,12 +121,14 @@ export function EmpreendimentosTab() {
                       Ver unidades
                     </button>
                   ) : null}
-                  <Link
-                    href={`/dashboard/imoveis/empreendimentos/${e.id}/lote`}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <LayoutGrid className="h-3.5 w-3.5" aria-hidden /> {unidades === 0 ? "Cadastrar unidades" : "Cadastro em lote"}
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href={`/dashboard/imoveis/empreendimentos/${e.id}/lote`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" aria-hidden /> {unidades === 0 ? "Cadastrar unidades" : "Cadastro em lote"}
+                    </Link>
+                  )}
                 </div>
               </li>
             );

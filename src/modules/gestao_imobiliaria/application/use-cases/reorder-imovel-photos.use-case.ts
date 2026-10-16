@@ -5,6 +5,12 @@ import {
   ImovelPhotoRecord,
 } from '../../domain/repositories/imovel-repository.interface';
 import { computePhotoOrders } from '../../domain/services/reorder-photos';
+import { AtorImovel } from '../../domain/services/permissao-imovel';
+import {
+  comBloqueioDeCorrida,
+  condicaoDonoPara,
+  garantirPodeEditarCadastro,
+} from './permissao-imovel.helper';
 
 @Injectable()
 export class ReorderImovelPhotosUseCase {
@@ -14,11 +20,13 @@ export class ReorderImovelPhotosUseCase {
     tenantId: string;
     imovelId: string;
     photoIds: string[];
+    ator: AtorImovel;
   }): Promise<ImovelPhotoRecord[]> {
     const imovel = await this.imovelRepository.findByIdAndTenant(input.imovelId, input.tenantId);
     if (!imovel) {
       throw new NotFoundException('Imovel nao encontrado.');
     }
+    garantirPodeEditarCadastro(input.ator, imovel);
 
     const existingPhotos = await this.imovelRepository.findPhotosByImovel(imovel.id);
 
@@ -38,6 +46,10 @@ export class ReorderImovelPhotosUseCase {
     }
 
     const orders = computePhotoOrders(input.photoIds);
-    return this.imovelRepository.reorderPhotos(imovel.id, orders);
+    return comBloqueioDeCorrida(
+      this.imovelRepository.reorderPhotos(imovel.id, orders, condicaoDonoPara(input.ator, input.tenantId)),
+      input.ator,
+      () => this.imovelRepository.findByIdAndTenant(imovel.id, input.tenantId),
+    );
   }
 }

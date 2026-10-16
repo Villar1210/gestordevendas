@@ -58,6 +58,7 @@ import { UploadEmpreendimentoPhotoUseCase } from './application/use-cases/upload
 import { DeleteEmpreendimentoPhotoUseCase } from './application/use-cases/delete-empreendimento-photo.use-case';
 import { ReorderEmpreendimentoPhotosUseCase } from './application/use-cases/reorder-empreendimento-photos.use-case';
 import { ReorderImovelPhotosUseCase } from './application/use-cases/reorder-imovel-photos.use-case';
+import { AlterarStatusImovelUseCase } from './application/use-cases/alterar-status-imovel.use-case';
 import { PrismaEmpreendimentoRepository } from './infra/database/prisma-empreendimento.repository';
 import { PrismaImovelRepository } from './infra/database/prisma-imovel.repository';
 import { PrismaProprietarioRepository } from './infra/database/prisma-proprietario.repository';
@@ -95,6 +96,7 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
     UploadImovelPhotoUseCase,
     DeleteImovelPhotoUseCase,
     ReorderImovelPhotosUseCase,
+    AlterarStatusImovelUseCase,
     CreateProprietarioUseCase,
     ListProprietariosUseCase,
     UpdateProprietarioUseCase,

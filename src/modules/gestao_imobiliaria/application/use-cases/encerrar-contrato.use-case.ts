@@ -1,16 +1,20 @@
 // src/modules/gestao_imobiliaria/application/use-cases/encerrar-contrato.use-case.ts
 // Encerra o contrato e devolve o Imovel ao status de disponibilidade:
 // "disponivel" (venda cancelada/concluida) ou "vago" (locacao encerrada).
+// Permissoes (R1): so Administrador ou cargo de gestao - ver permissao-imovel.ts.
 import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { IImovelRepository } from '../../domain/repositories/imovel-repository.interface';
 import {
   ContratoRecord,
   IContratoRepository,
 } from '../../domain/repositories/contrato-repository.interface';
+import { AtorImovel } from '../../domain/services/permissao-imovel';
+import { garantirPodeAlterarStatus } from './permissao-imovel.helper';
 
 interface EncerrarContratoInput {
   contratoId: string;
   tenantId: string;
+  ator: AtorImovel;
 }
 
 @Injectable()
@@ -21,6 +25,8 @@ export class EncerrarContratoUseCase {
   ) {}
 
   async execute(input: EncerrarContratoInput): Promise<ContratoRecord> {
+    garantirPodeAlterarStatus(input.ator);
+
     const contrato = await this.contratoRepository.findByIdAndTenant(
       input.contratoId,
       input.tenantId,

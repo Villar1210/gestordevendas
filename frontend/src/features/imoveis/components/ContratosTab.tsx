@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 import { ContratoFormModal } from "./ContratoFormModal";
+import { useMe } from "@/core/hooks/useMe";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -29,6 +30,9 @@ export function ContratosTab() {
   const proprietarios = useImoveisStore((state) => state.proprietarios);
   const inquilinosCompradores = useImoveisStore((state) => state.inquilinosCompradores);
   const openContratoFormModal = useImoveisStore((state) => state.openContratoFormModal);
+  // Criar/encerrar contrato muda o status da unidade: so gerencia ou
+  // administracao (R1, 16/10/2026). Os demais so consultam.
+  const { podeAlterarStatus } = useMe();
   const { loadImoveis, loadProprietarios, loadInquilinosCompradores, loadContratos, handleEncerrarContrato } =
     useImoveisIntegration();
 
@@ -47,14 +51,16 @@ export function ContratosTab() {
 
   return (
     <div className="px-6 py-4">
-      <div className="mb-4 flex items-center justify-end">
-        <button
-          onClick={openContratoFormModal}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-        >
-          <Plus className="h-4 w-4" /> Novo Contrato
-        </button>
-      </div>
+      {podeAlterarStatus && (
+        <div className="mb-4 flex items-center justify-end">
+          <button
+            onClick={openContratoFormModal}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+          >
+            <Plus className="h-4 w-4" /> Novo Contrato
+          </button>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">
@@ -104,7 +110,7 @@ export function ContratosTab() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {contrato.status === "ativo" && (
+                    {podeAlterarStatus && contrato.status === "ativo" && (
                       <button
                         onClick={() => handleEncerrarClick(contrato.id, contrato.imovelId)}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
@@ -126,7 +132,7 @@ export function ContratosTab() {
         )}
       </div>
 
-      <ContratoFormModal />
+      {podeAlterarStatus && <ContratoFormModal />}
     </div>
   );
 }

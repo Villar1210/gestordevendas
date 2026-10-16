@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, Globe, LayoutGrid, Loader2, MapPin, PencilLine } from "lucide-react";
 import { apiRequest, API_BASE_URL } from "@/core/api/client";
+import { useMe } from "@/core/hooks/useMe";
 import type { EmpreendimentoDetail } from "../hooks/useImoveisIntegration";
 import { EMPREENDIMENTO_PHOTO_CATEGORIA_OPTIONS } from "../constants";
 import { FotoLightbox, FotoLightboxItem } from "./FotoLightbox";
@@ -25,6 +26,8 @@ export function EmpreendimentoDestaque({
   const [detalhe, setDetalhe] = useState<EmpreendimentoDetail | null>(null);
   const [erro, setErro] = useState(false);
   const [ampliada, setAmpliada] = useState<number | null>(null);
+  // Cadastro em lote e edicao da ficha/fotos: so Administrador (16/10/2026).
+  const { isAdmin } = useMe();
 
   useEffect(() => {
     let ativo = true;
@@ -167,8 +170,9 @@ export function EmpreendimentoDestaque({
 
           {semUnidades ? (
             <p role="status" className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
-              Este empreendimento ainda não tem unidades cadastradas. Cadastre as unidades para elas aparecerem no
-              catálogo e no espelho de vendas.
+              {isAdmin
+                ? "Este empreendimento ainda não tem unidades cadastradas. Cadastre as unidades para elas aparecerem no catálogo e no espelho de vendas."
+                : "Este empreendimento ainda não tem unidades cadastradas."}
             </p>
           ) : (
             <p className="text-sm text-slate-500">
@@ -178,21 +182,23 @@ export function EmpreendimentoDestaque({
           )}
 
           <div className="mt-auto flex flex-wrap gap-2">
-            <Link
-              href={`/dashboard/imoveis/empreendimentos/${e.id}/lote`}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
-                semUnidades
-                  ? "bg-blue-700 text-white hover:bg-blue-800"
-                  : "border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <LayoutGrid className="h-4 w-4" aria-hidden /> {semUnidades ? "Cadastrar unidades" : "Cadastro em lote"}
-            </Link>
+            {isAdmin && (
+              <Link
+                href={`/dashboard/imoveis/empreendimentos/${e.id}/lote`}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
+                  semUnidades
+                    ? "bg-blue-700 text-white hover:bg-blue-800"
+                    : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <LayoutGrid className="h-4 w-4" aria-hidden /> {semUnidades ? "Cadastrar unidades" : "Cadastro em lote"}
+              </Link>
+            )}
             <Link
               href={`/dashboard/imoveis/empreendimentos/${e.id}`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              <PencilLine className="h-4 w-4" aria-hidden /> Ficha e fotos
+              <PencilLine className="h-4 w-4" aria-hidden /> {isAdmin ? "Ficha e fotos" : "Ver ficha e fotos"}
             </Link>
           </div>
         </div>

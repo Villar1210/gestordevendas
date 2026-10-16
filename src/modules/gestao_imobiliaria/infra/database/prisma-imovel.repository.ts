@@ -15,6 +15,8 @@ import {
   ImovelPhotoRecord,
   ImovelRecord,
   ImovelWritableFields,
+  CondicaoDonoImovel,
+  EdicaoImovelBloqueadaError,
 } from '../../domain/repositories/imovel-repository.interface';
 
 // O dominio (e os DTOs/frontend, que nao mudam nesta fatia - ver STATUS_VALUES
@@ -148,6 +150,7 @@ type PrismaImovelRow = {
   localChaves: string | null;
   exclusividade: boolean;
   publicado: boolean;
+  criadoPorUserId: string | null;
   proprietarioNome: string | null;
   proprietarioTelefone: string | null;
   tipoItem: string;
@@ -227,6 +230,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       localChaves: row.localChaves,
       exclusividade: row.exclusividade,
       publicado: row.publicado,
+      criadoPorUserId: row.criadoPorUserId,
       proprietarioNome: row.proprietarioNome,
       proprietarioTelefone: row.proprietarioTelefone,
       tipoItem: fromPrismaTipoItem(row.tipoItem),
@@ -265,10 +269,12 @@ export class PrismaImovelRepository implements IImovelRepository {
       title: string;
       tipo: string;
       finalidade: string;
+      criadoPorUserId?: string | null;
     },
   ) {
     return {
       tenantId: input.tenantId,
+      criadoPorUserId: input.criadoPorUserId ?? null,
       empreendimentoId: input.empreendimentoId ?? null,
       title: input.title,
       codigoInterno: input.codigoInterno ?? null,
@@ -326,6 +332,7 @@ export class PrismaImovelRepository implements IImovelRepository {
       title: string;
       tipo: string;
       finalidade: string;
+      criadoPorUserId?: string | null;
     },
   ): Promise<ImovelRecord> {
     const row = await this.prisma.imovel.create({ data: this.buildCreateData(input) });
@@ -358,87 +365,128 @@ export class PrismaImovelRepository implements IImovelRepository {
     publicado: boolean,
   ): Promise<number> {
     const { count } = await this.prisma.imovel.updateMany({
-      where: { tenantId, empreendimentoId, publicado: !publicado },
+      // criadoPorUserId: null - defesa extra: a acao em massa nunca publica
+      // (nem retira) imovel cadastrado por corretor.
+      where: { tenantId, empreendimentoId, publicado: !publicado, criadoPorUserId: null },
       data: { publicado },
     });
     return count;
   }
 
-  async update(id: string, input: ImovelWritableFields): Promise<ImovelRecord> {
-    const row = await this.prisma.imovel.update({
-      where: { id },
-      data: {
-        ...(input.empreendimentoId !== undefined
-          ? { empreendimentoId: input.empreendimentoId }
-          : {}),
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.codigoInterno !== undefined ? { codigoInterno: input.codigoInterno } : {}),
-        ...(input.tipo !== undefined ? { tipo: input.tipo } : {}),
-        ...(input.uso !== undefined ? { uso: input.uso } : {}),
-        ...(input.finalidade !== undefined ? { finalidade: input.finalidade } : {}),
-        ...(input.tags !== undefined ? { tags: input.tags } : {}),
-        ...(input.price !== undefined ? { price: input.price } : {}),
-        ...(input.rentPrice !== undefined ? { rentPrice: input.rentPrice } : {}),
-        ...(input.area !== undefined ? { area: input.area } : {}),
-        ...(input.bedrooms !== undefined ? { bedrooms: input.bedrooms } : {}),
-        ...(input.bathrooms !== undefined ? { bathrooms: input.bathrooms } : {}),
-        ...(input.parkingSpots !== undefined ? { parkingSpots: input.parkingSpots } : {}),
-        ...(input.rua !== undefined ? { rua: input.rua } : {}),
-        ...(input.numero !== undefined ? { numero: input.numero } : {}),
-        ...(input.complemento !== undefined ? { complemento: input.complemento } : {}),
-        ...(input.bairro !== undefined ? { bairro: input.bairro } : {}),
-        ...(input.cidade !== undefined ? { cidade: input.cidade } : {}),
-        ...(input.uf !== undefined ? { uf: input.uf } : {}),
-        ...(input.cep !== undefined ? { cep: input.cep } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.status !== undefined ? { status: toPrismaStatus(input.status) } : {}),
-        ...(input.disponivelApartirDe !== undefined
-          ? { disponivelApartirDe: input.disponivelApartirDe }
-          : {}),
-        ...(input.localChaves !== undefined ? { localChaves: input.localChaves } : {}),
-        ...(input.exclusividade !== undefined ? { exclusividade: input.exclusividade } : {}),
-        ...(input.publicado !== undefined ? { publicado: input.publicado } : {}),
-        ...(input.proprietarioNome !== undefined
-          ? { proprietarioNome: input.proprietarioNome }
-          : {}),
-        ...(input.proprietarioTelefone !== undefined
-          ? { proprietarioTelefone: input.proprietarioTelefone }
-          : {}),
-        ...(input.tipoItem !== undefined ? { tipoItem: toPrismaTipoItem(input.tipoItem) } : {}),
-        ...(input.identificadorExterno !== undefined
-          ? { identificadorExterno: input.identificadorExterno }
-          : {}),
-        ...(input.bloco !== undefined ? { bloco: input.bloco } : {}),
-        ...(input.andar !== undefined ? { andar: input.andar } : {}),
-        ...(input.numeroNoAndar !== undefined ? { numeroNoAndar: input.numeroNoAndar } : {}),
-        ...(input.enquadramento !== undefined
-          ? { enquadramento: toPrismaEnquadramento(input.enquadramento) }
-          : {}),
-        ...(input.pcd !== undefined ? { pcd: input.pcd } : {}),
-        ...(input.valorTabela !== undefined ? { valorTabela: input.valorTabela } : {}),
-        ...(input.valorComDesconto !== undefined
-          ? { valorComDesconto: input.valorComDesconto }
-          : {}),
-        ...(input.vagasIncluidas !== undefined ? { vagasIncluidas: input.vagasIncluidas } : {}),
-        ...(input.customFields !== undefined
-          ? { customFields: input.customFields as Prisma.InputJsonValue }
-          : {}),
-        ...(input.suites !== undefined ? { suites: input.suites } : {}),
-        ...(input.areaTotal !== undefined ? { areaTotal: input.areaTotal } : {}),
-        ...(input.iptu !== undefined ? { iptu: input.iptu } : {}),
-        ...(input.valorCondominio !== undefined ? { valorCondominio: input.valorCondominio } : {}),
-        ...(input.aceitaFinanciamento !== undefined ? { aceitaFinanciamento: input.aceitaFinanciamento } : {}),
-        ...(input.aceitaPermuta !== undefined ? { aceitaPermuta: input.aceitaPermuta } : {}),
-        ...(input.latitude !== undefined ? { latitude: input.latitude } : {}),
-        ...(input.longitude !== undefined ? { longitude: input.longitude } : {}),
-        ...(input.linkTourVirtual !== undefined ? { linkTourVirtual: input.linkTourVirtual } : {}),
-        ...(input.areaExterna !== undefined ? { areaExterna: input.areaExterna } : {}),
-      },
-      // Mesmo motivo do findAllByTenant: manter coverPhotoUrl correto tambem
-      // apos um PATCH (sem isso, salvar o formulario apos upload zerava a capa).
-      include: INCLUDE_CAPAS,
+  // Mesmo mapeamento campo a campo para update() e para a escrita
+  // condicional (updateMany) - so o que veio definido e gravado.
+  private buildUpdateData(input: ImovelWritableFields) {
+    return {
+      ...(input.empreendimentoId !== undefined
+        ? { empreendimentoId: input.empreendimentoId }
+        : {}),
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.codigoInterno !== undefined ? { codigoInterno: input.codigoInterno } : {}),
+      ...(input.tipo !== undefined ? { tipo: input.tipo } : {}),
+      ...(input.uso !== undefined ? { uso: input.uso } : {}),
+      ...(input.finalidade !== undefined ? { finalidade: input.finalidade } : {}),
+      ...(input.tags !== undefined ? { tags: input.tags } : {}),
+      ...(input.price !== undefined ? { price: input.price } : {}),
+      ...(input.rentPrice !== undefined ? { rentPrice: input.rentPrice } : {}),
+      ...(input.area !== undefined ? { area: input.area } : {}),
+      ...(input.bedrooms !== undefined ? { bedrooms: input.bedrooms } : {}),
+      ...(input.bathrooms !== undefined ? { bathrooms: input.bathrooms } : {}),
+      ...(input.parkingSpots !== undefined ? { parkingSpots: input.parkingSpots } : {}),
+      ...(input.rua !== undefined ? { rua: input.rua } : {}),
+      ...(input.numero !== undefined ? { numero: input.numero } : {}),
+      ...(input.complemento !== undefined ? { complemento: input.complemento } : {}),
+      ...(input.bairro !== undefined ? { bairro: input.bairro } : {}),
+      ...(input.cidade !== undefined ? { cidade: input.cidade } : {}),
+      ...(input.uf !== undefined ? { uf: input.uf } : {}),
+      ...(input.cep !== undefined ? { cep: input.cep } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.status !== undefined ? { status: toPrismaStatus(input.status) } : {}),
+      ...(input.disponivelApartirDe !== undefined
+        ? { disponivelApartirDe: input.disponivelApartirDe }
+        : {}),
+      ...(input.localChaves !== undefined ? { localChaves: input.localChaves } : {}),
+      ...(input.exclusividade !== undefined ? { exclusividade: input.exclusividade } : {}),
+      ...(input.publicado !== undefined ? { publicado: input.publicado } : {}),
+      ...(input.proprietarioNome !== undefined
+        ? { proprietarioNome: input.proprietarioNome }
+        : {}),
+      ...(input.proprietarioTelefone !== undefined
+        ? { proprietarioTelefone: input.proprietarioTelefone }
+        : {}),
+      ...(input.tipoItem !== undefined ? { tipoItem: toPrismaTipoItem(input.tipoItem) } : {}),
+      ...(input.identificadorExterno !== undefined
+        ? { identificadorExterno: input.identificadorExterno }
+        : {}),
+      ...(input.bloco !== undefined ? { bloco: input.bloco } : {}),
+      ...(input.andar !== undefined ? { andar: input.andar } : {}),
+      ...(input.numeroNoAndar !== undefined ? { numeroNoAndar: input.numeroNoAndar } : {}),
+      ...(input.enquadramento !== undefined
+        ? { enquadramento: toPrismaEnquadramento(input.enquadramento) }
+        : {}),
+      ...(input.pcd !== undefined ? { pcd: input.pcd } : {}),
+      ...(input.valorTabela !== undefined ? { valorTabela: input.valorTabela } : {}),
+      ...(input.valorComDesconto !== undefined
+        ? { valorComDesconto: input.valorComDesconto }
+        : {}),
+      ...(input.vagasIncluidas !== undefined ? { vagasIncluidas: input.vagasIncluidas } : {}),
+      ...(input.customFields !== undefined
+        ? { customFields: input.customFields as Prisma.InputJsonValue }
+        : {}),
+      ...(input.suites !== undefined ? { suites: input.suites } : {}),
+      ...(input.areaTotal !== undefined ? { areaTotal: input.areaTotal } : {}),
+      ...(input.iptu !== undefined ? { iptu: input.iptu } : {}),
+      ...(input.valorCondominio !== undefined ? { valorCondominio: input.valorCondominio } : {}),
+      ...(input.aceitaFinanciamento !== undefined ? { aceitaFinanciamento: input.aceitaFinanciamento } : {}),
+      ...(input.aceitaPermuta !== undefined ? { aceitaPermuta: input.aceitaPermuta } : {}),
+      ...(input.latitude !== undefined ? { latitude: input.latitude } : {}),
+      ...(input.longitude !== undefined ? { longitude: input.longitude } : {}),
+      ...(input.linkTourVirtual !== undefined ? { linkTourVirtual: input.linkTourVirtual } : {}),
+      ...(input.areaExterna !== undefined ? { areaExterna: input.areaExterna } : {}),
+    };
+  }
+
+  async update(
+    id: string,
+    input: ImovelWritableFields,
+    condicaoDono?: CondicaoDonoImovel,
+  ): Promise<ImovelRecord> {
+    const data = this.buildUpdateData(input);
+    if (!condicaoDono) {
+      const row = await this.prisma.imovel.update({
+        where: { id },
+        data,
+        // Mesmo motivo do findAllByTenant: manter coverPhotoUrl correto tambem
+        // apos um PATCH (sem isso, salvar o formulario apos upload zerava a capa).
+        include: INCLUDE_CAPAS,
+      });
+      return this.toRecord(row);
+    }
+    // Nao-admin: grava SO se, neste instante, ainda for dele e nao publicado.
+    const row = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.imovel.updateMany({ where: this.whereDono(id, condicaoDono), data });
+      if (count === 0) throw new EdicaoImovelBloqueadaError();
+      return tx.imovel.findUniqueOrThrow({ where: { id }, include: INCLUDE_CAPAS });
     });
     return this.toRecord(row);
+  }
+
+  private whereDono(imovelId: string, condicao: CondicaoDonoImovel) {
+    return { id: imovelId, tenantId: condicao.tenantId, publicado: false, criadoPorUserId: condicao.userId };
+  }
+
+  // Trava a linha do imovel (UPDATE condicional dentro da transacao) e
+  // confere dono/nao publicado ANTES de mexer nas fotos: um "publicar" ao
+  // mesmo tempo espera esta transacao terminar.
+  private async travarSeDono(
+    tx: Prisma.TransactionClient,
+    imovelId: string,
+    condicao: CondicaoDonoImovel,
+  ): Promise<void> {
+    const { count } = await tx.imovel.updateMany({
+      where: this.whereDono(imovelId, condicao),
+      data: { updatedAt: new Date() },
+    });
+    if (count === 0) throw new EdicaoImovelBloqueadaError();
   }
 
   async findByIdAndTenant(id: string, tenantId: string): Promise<ImovelRecord | null> {
@@ -487,19 +535,25 @@ export class PrismaImovelRepository implements IImovelRepository {
     });
   }
 
-  async addPhoto(input: {
-    tenantId: string;
-    imovelId: string;
-    url: string;
-    order: number;
-  }): Promise<ImovelPhotoRecord> {
-    return this.prisma.imovelPhoto.create({
-      data: {
-        tenantId: input.tenantId,
-        imovelId: input.imovelId,
-        url: input.url,
-        order: input.order,
-      },
+  async addPhoto(
+    input: {
+      tenantId: string;
+      imovelId: string;
+      url: string;
+      order: number;
+    },
+    condicaoDono?: CondicaoDonoImovel,
+  ): Promise<ImovelPhotoRecord> {
+    const data = {
+      tenantId: input.tenantId,
+      imovelId: input.imovelId,
+      url: input.url,
+      order: input.order,
+    };
+    if (!condicaoDono) return this.prisma.imovelPhoto.create({ data });
+    return this.prisma.$transaction(async (tx) => {
+      await this.travarSeDono(tx, input.imovelId, condicaoDono);
+      return tx.imovelPhoto.create({ data });
     });
   }
 
@@ -510,17 +564,35 @@ export class PrismaImovelRepository implements IImovelRepository {
     return this.prisma.imovelPhoto.findFirst({ where: { id: photoId, tenantId } });
   }
 
-  async deletePhoto(photoId: string): Promise<void> {
-    await this.prisma.imovelPhoto.delete({ where: { id: photoId } });
+  async deletePhoto(photoId: string, condicaoDono?: CondicaoDonoImovel & { imovelId: string }): Promise<void> {
+    if (!condicaoDono) {
+      await this.prisma.imovelPhoto.delete({ where: { id: photoId } });
+      return;
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await this.travarSeDono(tx, condicaoDono.imovelId, condicaoDono);
+      const { count } = await tx.imovelPhoto.deleteMany({ where: { id: photoId, imovelId: condicaoDono.imovelId } });
+      if (count === 0) throw new EdicaoImovelBloqueadaError();
+    });
   }
 
   async reorderPhotos(
     imovelId: string,
     orders: { id: string; order: number }[],
+    condicaoDono?: CondicaoDonoImovel,
   ): Promise<ImovelPhotoRecord[]> {
-    await this.prisma.$transaction(
-      orders.map(({ id, order }) => this.prisma.imovelPhoto.update({ where: { id }, data: { order } })),
-    );
+    if (!condicaoDono) {
+      await this.prisma.$transaction(
+        orders.map(({ id, order }) => this.prisma.imovelPhoto.update({ where: { id }, data: { order } })),
+      );
+    } else {
+      await this.prisma.$transaction(async (tx) => {
+        await this.travarSeDono(tx, imovelId, condicaoDono);
+        for (const { id, order } of orders) {
+          await tx.imovelPhoto.updateMany({ where: { id, imovelId }, data: { order } });
+        }
+      });
+    }
     return this.findPhotosByImovel(imovelId);
   }
 }

@@ -1,4 +1,7 @@
 // src/modules/gestao_imobiliaria/infra/http/empreendimento.controller.ts
+// Permissoes (16/10/2026): a CLASSE e so Administrador (criar/publicar,
+// book analisar/confirmar, lote, planilha, PDF, ficha, fotos, unidades/site).
+// So as LEITURAS declaram @Roles(...DASHBOARD_ROLES) explicito.
 import {
   BadRequestException,
   Body,
@@ -56,6 +59,7 @@ import {
 } from '../../application/use-cases/book-empreendimento-leitura.use-case';
 import { BOOK_MAX_BYTES, BOOK_MAX_IMAGENS } from '../../domain/services/book-empreendimento';
 import { BookRequestSizeGuard } from './book-request-size.guard';
+import { FOTO_MAX_BYTES } from '../../domain/services/foto-upload';
 import { LimiteConcorrenciaGuard } from '../../../../shared/infra/http/limite-concorrencia';
 
 // Maximo de requisicoes pesadas simultaneas POR PROCESSO (alem do throttle
@@ -82,7 +86,7 @@ function contentDisposition(nomeArquivo: string): string {
 
 @Controller('empreendimentos')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(...DASHBOARD_ROLES)
+@Roles('Administrador')
 export class EmpreendimentoController {
   constructor(
     private readonly createEmpreendimentoUseCase: CreateEmpreendimentoUseCase,
@@ -132,6 +136,7 @@ export class EmpreendimentoController {
   // ja revisados; sem o parametro, devolve todos do tenant (Catalogo,
   // Cadastro em Lote), como sempre foi.
   @Get()
+  @Roles(...DASHBOARD_ROLES)
   async list(@Query() query: ListEmpreendimentosQueryDto, @Req() req: Request) {
     return this.listEmpreendimentosUseCase.execute({
       tenantId: req.user!.tenantId,
@@ -142,8 +147,9 @@ export class EmpreendimentoController {
   // GET /empreendimentos/:id/book - book COMPLETO guardado (Fatia 2 do book):
   // origem, PDF original (se houver) e todas as paginas em ordem, com a
   // categoria de cada uma. 404 se o empreendimento nao tiver book (ou for de
-  // outra empresa). Mesmas guards da classe (Corretor tambem le).
+  // outra empresa). Leitura: liberada ao dashboard (Corretor tambem le).
   @Get(':id/book')
+  @Roles(...DASHBOARD_ROLES)
   async buscarBook(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: Request) {
     return this.buscarBookUseCase.execute({ tenantId: req.user!.tenantId, empreendimentoId: id });
   }
@@ -154,6 +160,7 @@ export class EmpreendimentoController {
   // lidos pela url gravada no banco, nunca por caminho vindo do usuario.
   // Throttle proprio: monta ate ~40 MB em memoria por chamada.
   @Get(':id/book/zip')
+  @Roles(...DASHBOARD_ROLES)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @UseGuards(LimiteConcorrenciaGuard('book-zip', MAX_ZIP_SIMULTANEOS))
   async baixarZipBook(
@@ -182,6 +189,7 @@ export class EmpreendimentoController {
   // contagem real de unidades ja cadastradas (Imovel, distinto do
   // totalUnidades DECLARADO na ficha tecnica do PDF).
   @Get(':id')
+  @Roles(...DASHBOARD_ROLES)
   async getOne(@Param('id') id: string, @Req() req: Request) {
     return this.getEmpreendimentoDetailUseCase.execute({
       tenantId: req.user!.tenantId,
@@ -292,9 +300,8 @@ export class EmpreendimentoController {
 
   // PATCH /empreendimentos/:id/unidades/site - liga/desliga "Publicar no
   // site" em todas as unidades de uma vez. So Administrador: expoe (ou
-  // retira) centenas de imoveis da internet numa acao so.
+  // retira) centenas de imoveis da internet numa acao so (herda da classe).
   @Patch(':id/unidades/site')
-  @Roles('Administrador')
   async publicarUnidadesNoSite(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: PublicarUnidadesSiteDto,
@@ -441,7 +448,8 @@ export class EmpreendimentoController {
   // um todo (planta/area comum), diferente de POST /imoveis/:id/photos
   // (foto de uma unidade especifica). Exige "categoria" no multipart.
   @Post(':id/photos')
-  @UseInterceptors(FileInterceptor('file'))
+  // 1 foto de ate 10 MB; tipo real validado no use case.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: FOTO_MAX_BYTES, files: 1 } }))
   async uploadPhoto(
     @Param('id') id: string,
     @Body() dto: UploadEmpreendimentoPhotoDto,

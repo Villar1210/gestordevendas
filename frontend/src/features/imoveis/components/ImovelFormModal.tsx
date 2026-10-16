@@ -8,6 +8,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { X } from "lucide-react";
 import { BookAtalho } from "./book/BookAtalho";
+import { useMe } from "@/core/hooks/useMe";
 import { useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 import { FINALIDADE_OPTIONS, TIPO_OPTIONS } from "../constants";
@@ -18,6 +19,8 @@ export function ImovelFormModal() {
   const closeImovelFormModal = useImoveisStore((state) => state.closeImovelFormModal);
   const openImovelDetailPanel = useImoveisStore((state) => state.openImovelDetailPanel);
   const { handleCreateImovel } = useImoveisIntegration();
+  // Importar book e so Administrador; o cadastro do imovel e para todos.
+  const { isAdmin } = useMe();
 
   const [empreendimentoId, setEmpreendimentoId] = useState("");
   const [title, setTitle] = useState("");
@@ -44,7 +47,7 @@ export function ImovelFormModal() {
     setSaving(true);
     try {
       const imovel = await handleCreateImovel({
-        empreendimentoId: empreendimentoId || undefined,
+        empreendimentoId: isAdmin ? empreendimentoId || undefined : undefined,
         title,
         tipo,
         finalidade,
@@ -82,24 +85,28 @@ export function ImovelFormModal() {
           </button>
         </div>
 
-        <BookAtalho onNavegar={closeImovelFormModal} />
+        {isAdmin && <BookAtalho onNavegar={closeImovelFormModal} />}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm text-slate-500">Empreendimento</label>
-            <select
-              value={empreendimentoId}
-              onChange={(e) => setEmpreendimentoId(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">Avulso (sem empreendimento)</option>
-              {empreendimentos.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Vincular a empreendimento e so da administracao (o backend tambem
+              forca avulso para os demais). */}
+          {isAdmin && (
+            <div>
+              <label className="mb-1 block text-sm text-slate-500">Empreendimento</label>
+              <select
+                value={empreendimentoId}
+                onChange={(e) => setEmpreendimentoId(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              >
+                <option value="">Avulso (sem empreendimento)</option>
+                {empreendimentos.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm text-slate-500">Título</label>

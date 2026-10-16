@@ -20,6 +20,7 @@ import {
 import { PadraoLoteForm } from "@/features/imoveis/components/lote/PadraoLoteForm";
 import { ImportarPlanilhaForm } from "@/features/imoveis/components/lote/ImportarPlanilhaForm";
 import { UnidadesLoteGrid, UnidadeLoteRow } from "@/features/imoveis/components/lote/UnidadesLoteGrid";
+import { SomenteAdminGuard, destinoComAviso } from "@/features/imoveis/components/SomenteAdminGuard";
 
 function novaLinhaEmBranco(): UnidadeLoteRow {
   return {
@@ -104,12 +105,23 @@ interface SaveError {
   identificadoresColidindo: string[];
 }
 
+// Permissoes (16/10/2026): cadastro em lote e so Administrador.
 export default function CadastroEmLotePage({
   params,
 }: {
   params: Promise<{ empreendimentoId: string }>;
 }) {
   const { empreendimentoId } = usePromise(params);
+  return (
+    <SomenteAdminGuard
+      destino={destinoComAviso(`/dashboard/imoveis/empreendimentos/${encodeURIComponent(empreendimentoId)}`)}
+    >
+      <CadastroEmLote empreendimentoId={empreendimentoId} />
+    </SomenteAdminGuard>
+  );
+}
+
+function CadastroEmLote({ empreendimentoId }: { empreendimentoId: string }) {
   const router = useRouter();
 
   const empreendimentos = useImoveisStore((state) => state.empreendimentos);

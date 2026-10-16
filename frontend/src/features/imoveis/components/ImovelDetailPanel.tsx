@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Plus, X, ChevronLeft, ChevronRight, Bed, Bath, Car, Maximize2, MapPin, Tag, ExternalLink, CheckCircle2 } from "lucide-react";
 import { FotoLightbox } from "./FotoLightbox";
 import { API_BASE_URL } from "@/core/api/client";
+import { useMe } from "@/core/hooks/useMe";
+import { podeEditarCadastroImovel } from "@/core/constants/permissoesImoveis";
 import { ImovelPhoto, useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
 import {
@@ -40,6 +42,7 @@ export function ImovelDetailPanel() {
   const {
     handleGetImovel,
     handleUpdateImovel,
+    handleAlterarStatusImovel,
     handleUploadPhoto,
     handleDeletePhoto,
     handleReorderImovelPhotos,
@@ -90,6 +93,12 @@ export function ImovelDetailPanel() {
   const [linkTourVirtual, setLinkTourVirtual] = useState("");
   const [areaExterna, setAreaExterna] = useState("");
   const [saving, setSaving] = useState(false);
+  const [alterandoStatus, setAlterandoStatus] = useState(false);
+  // Permissoes (16/10/2026): aba Editar (cadastro + fotos) so para admin OU
+  // dono do imovel ainda nao publicado; status/publicado no formulario so
+  // admin; o seletor de status do cabecalho e para quem pode alterar status
+  // (gerencia ou admin - PATCH /imoveis/:id/status). O backend reforca tudo.
+  const me = useMe();
 
   const imovel = imovelDetailPanel.imovel;
 
@@ -142,6 +151,20 @@ export function ImovelDetailPanel() {
   }, [imovelDetailPanel.isOpen, imovel?.id]);
 
   if (!imovelDetailPanel.isOpen || !imovel) return null;
+
+  const podeEditar = podeEditarCadastroImovel({ id: me.id, role: me.role }, imovel);
+  const abaAtiva = podeEditar ? activeTab : "detalhes";
+
+  async function handleStatusRapido(novoStatus: string) {
+    if (!imovel || novoStatus === imovel.status) return;
+    setAlterandoStatus(true);
+    try {
+      const atualizado = await handleAlterarStatusImovel(imovel.id, novoStatus);
+      if (atualizado) setStatus(atualizado.status);
+    } finally {
+      setAlterandoStatus(false);
+    }
+  }
 
   async function handleAddPhotoClick() {
     fileInputRef.current?.click();
@@ -200,17 +223,19 @@ export function ImovelDetailPanel() {
     setSaving(true);
     try {
       await handleUpdateImovel(imovel.id, {
-        codigoInterno: codigoInterno.trim() || undefined,
+        // Codigo interno (unidade do empreendimento): so admin altera.
+        ...(me.isAdmin ? { codigoInterno: codigoInterno.trim() || undefined } : {}),
         title,
         tipo,
         uso: uso || undefined,
         finalidade,
         tags: tags.trim() || undefined,
-        status,
+        // Status e "publicar no site" pelo cadastro: so admin (o backend
+        // recusa mudanca vinda de outro perfil).
+        ...(me.isAdmin ? { status, publicado } : {}),
         disponivelApartirDe: disponivelApartirDe || undefined,
         localChaves: localChaves || undefined,
         exclusividade,
-        publicado,
         rua: rua.trim() || undefined,
         numero: numero.trim() || undefined,
         complemento: complemento.trim() || undefined,
@@ -260,9 +285,25 @@ export function ImovelDetailPanel() {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusOption.badgeClassName}`}>
-              {statusOption.label}
-            </span>
+            {me.podeAlterarStatus ? (
+              <select
+                value={imovel.status}
+                onChange={(e) => handleStatusRapido(e.target.value)}
+                disabled={alterandoStatus}
+                aria-label="Status da unidade"
+                className={`rounded-full border-0 px-2.5 py-0.5 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-60 ${statusOption.badgeClassName}`}
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusOption.badgeClassName}`}>
+                {statusOption.label}
+              </span>
+            )}
             {imovel.codigoInterno && (
               <span className="text-xs text-slate-400">{imovel.codigoInterno}</span>
             )}
@@ -271,16 +312,18 @@ export function ImovelDetailPanel() {
             <div className="flex rounded-lg border border-slate-200 p-0.5">
               <button
                 onClick={() => setActiveTab("detalhes")}
-                className={`rounded-md px-3 py-1 text-sm font-medium transition ${activeTab === "detalhes" ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"}`}
+                className={`rounded-md px-3 py-1 text-sm font-medium transition ${abaAtiva === "detalhes" ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"}`}
               >
                 Detalhes
               </button>
-              <button
-                onClick={() => setActiveTab("editar")}
-                className={`rounded-md px-3 py-1 text-sm font-medium transition ${activeTab === "editar" ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                Editar
-              </button>
+              {podeEditar && (
+                <button
+                  onClick={() => setActiveTab("editar")}
+                  className={`rounded-md px-3 py-1 text-sm font-medium transition ${abaAtiva === "editar" ? "bg-blue-700 text-white" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Editar
+                </button>
+              )}
             </div>
             <button onClick={closeImovelDetailPanel} className="text-slate-400 hover:text-slate-600">
               <X className="h-5 w-5" />
@@ -289,7 +332,7 @@ export function ImovelDetailPanel() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {activeTab === "detalhes" ? (
+          {abaAtiva === "detalhes" ? (
             <div>
               {/* Carrossel de fotos */}
               {photos.length > 0 ? (
@@ -556,18 +599,20 @@ export function ImovelDetailPanel() {
                       <Plus className="h-5 w-5" />
                       <span className="text-xs">{uploadingPhoto ? "Enviando..." : "Adicionar"}</span>
                     </button>
-                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelected} />
+                    <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelected} />
                   </div>
                 </section>
 
                 <section>
                   <h3 className="mb-3 text-sm font-semibold text-slate-700">Informações Básicas</h3>
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1 block text-sm text-slate-500">Código interno</label>
-                        <input type="text" placeholder="ex: AP-101" value={codigoInterno} onChange={(e) => setCodigoInterno(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
-                      </div>
+                    <div className={`grid gap-3 ${me.isAdmin ? "grid-cols-2" : "grid-cols-1"}`}>
+                      {me.isAdmin && (
+                        <div>
+                          <label className="mb-1 block text-sm text-slate-500">Código interno</label>
+                          <input type="text" placeholder="ex: AP-101" value={codigoInterno} onChange={(e) => setCodigoInterno(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+                        </div>
+                      )}
                       <div>
                         <label className="mb-1 block text-sm text-slate-500">Título</label>
                         <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
@@ -605,12 +650,14 @@ export function ImovelDetailPanel() {
                   <h3 className="mb-3 text-sm font-semibold text-slate-700">Situação e Chaves</h3>
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1 block text-sm text-slate-500">Status</label>
-                        <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
-                          {STATUS_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                        </select>
-                      </div>
+                      {me.isAdmin && (
+                        <div>
+                          <label className="mb-1 block text-sm text-slate-500">Status</label>
+                          <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
+                            {STATUS_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                        </div>
+                      )}
                       <div>
                         <label className="mb-1 block text-sm text-slate-500">Disponível a partir de</label>
                         <input type="date" value={disponivelApartirDe} onChange={(e) => setDisponivelApartirDe(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
@@ -628,10 +675,12 @@ export function ImovelDetailPanel() {
                         <input type="checkbox" checked={exclusividade} onChange={(e) => setExclusividade(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
                         Exclusividade
                       </label>
-                      <label className="flex items-center gap-2 pb-2 text-sm text-slate-600" title="Mostra este imóvel no site imobiliário (só se estiver Disponível)">
-                        <input type="checkbox" checked={publicado} onChange={(e) => setPublicado(e.target.checked)} data-testid="imovel-publicado" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
-                        Publicar no site
-                      </label>
+                      {me.isAdmin && (
+                        <label className="flex items-center gap-2 pb-2 text-sm text-slate-600" title="Mostra este imóvel no site imobiliário (só se estiver Disponível)">
+                          <input type="checkbox" checked={publicado} onChange={(e) => setPublicado(e.target.checked)} data-testid="imovel-publicado" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
+                          Publicar no site
+                        </label>
+                      )}
                     </div>
                   </div>
                 </section>

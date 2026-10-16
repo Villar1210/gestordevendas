@@ -1,4 +1,7 @@
 // src/modules/gestao_imobiliaria/infra/http/contrato.controller.ts
+// Permissoes (16/10/2026): classe so Administrador; rotas liberadas declaram
+// @Roles(...DASHBOARD_ROLES). Criar/encerrar mudam o status da unidade: R1
+// (gerencia ou admin) checado no use case.
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
@@ -12,10 +15,11 @@ import { ListContratosUseCase } from '../../application/use-cases/list-contratos
 import { GetContratoUseCase } from '../../application/use-cases/get-contrato.use-case';
 import { EncerrarContratoUseCase } from '../../application/use-cases/encerrar-contrato.use-case';
 import { parseDateOnly } from '../../../../shared/utils/date-only.util';
+import { atorDaRequisicao } from './ator-da-requisicao';
 
 @Controller('contratos')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(...DASHBOARD_ROLES)
+@Roles('Administrador')
 export class ContratoController {
   constructor(
     private readonly createContratoUseCase: CreateContratoUseCase,
@@ -25,6 +29,7 @@ export class ContratoController {
   ) {}
 
   @Post()
+  @Roles(...DASHBOARD_ROLES)
   async create(@Body() dto: CreateContratoDto, @Req() req: Request) {
     return this.createContratoUseCase.execute({
       tenantId: req.user!.tenantId,
@@ -38,10 +43,12 @@ export class ContratoController {
       dataInicio: parseDateOnly(dto.dataInicio),
       dataFim: dto.dataFim ? parseDateOnly(dto.dataFim) : undefined,
       diaVencimento: dto.diaVencimento,
+      ator: atorDaRequisicao(req),
     });
   }
 
   @Get()
+  @Roles(...DASHBOARD_ROLES)
   async list(@Query() query: ListContratosQueryDto, @Req() req: Request) {
     return this.listContratosUseCase.execute({
       tenantId: req.user!.tenantId,
@@ -53,16 +60,19 @@ export class ContratoController {
   }
 
   @Get(':id')
+  @Roles(...DASHBOARD_ROLES)
   async get(@Param('id') id: string, @Req() req: Request) {
     return this.getContratoUseCase.execute({ contratoId: id, tenantId: req.user!.tenantId });
   }
 
   @Post(':id/encerrar')
+  @Roles(...DASHBOARD_ROLES)
   @HttpCode(HttpStatus.OK)
   async encerrar(@Param('id') id: string, @Req() req: Request) {
     return this.encerrarContratoUseCase.execute({
       contratoId: id,
       tenantId: req.user!.tenantId,
+      ator: atorDaRequisicao(req),
     });
   }
 }

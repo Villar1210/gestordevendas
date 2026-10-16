@@ -206,6 +206,17 @@ npm run db:generate   # migrate deploy NAO regenera o Prisma Client
 npm run build
 ```
 
+Permissões da área Imóveis e WhatsApp (16/10/2026) também tem migration:
+`20261016120000_imovel_criado_por` (aditiva: só a coluna nullable
+`imoveis.criado_por_user_id` + índice + FK para `users`, ON DELETE SET NULL;
+nenhum dado existente muda). Mesmos 3 comandos acima. Depois do deploy:
+
+- Subir backend E frontend juntos: o frontend novo usa `PATCH /imoveis/:id/status`
+  (rota nova) no Espelho de Vendas; o frontend antigo com o backend novo dá 403
+  para Corretor nas telas de gestão (esperado).
+- Role/cargo agora são lidos do banco a cada requisição: promoção/rebaixamento
+  vale na hora, sem precisar sair e entrar.
+
 ## 📊 Monitoramento
 
 ```bash

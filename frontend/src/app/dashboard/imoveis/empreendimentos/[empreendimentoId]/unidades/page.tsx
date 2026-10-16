@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Building2, Home, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useImoveisIntegration } from "@/features/imoveis/hooks/useImoveisIntegration";
+import { useMe } from "@/core/hooks/useMe";
 import { useImoveisStore, Imovel } from "@/features/imoveis/store/useImoveisStore";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -129,6 +130,8 @@ export default function UnidadesPage() {
   const params = useParams();
   const router = useRouter();
   const empreendimentoId = params.empreendimentoId as string;
+  // Cadastro em lote e so Administrador (16/10/2026).
+  const { isAdmin } = useMe();
 
   const { handleListImoveisByEmpreendimento, handleGetEmpreendimentoDetail } = useImoveisIntegration();
   const imoveis = useImoveisStore((s) => s.imoveis);
@@ -240,12 +243,14 @@ export default function UnidadesPage() {
             <p className="text-gray-400 text-sm mt-1">
               Este empreendimento ainda não possui imóveis cadastrados.
             </p>
-            <Link
-              href={`/dashboard/imoveis/empreendimentos/${empreendimentoId}/lote`}
-              className="mt-4 text-sm text-blue-600 hover:underline"
-            >
-              Cadastrar unidades em lote →
-            </Link>
+            {isAdmin && (
+              <Link
+                href={`/dashboard/imoveis/empreendimentos/${empreendimentoId}/lote`}
+                className="mt-4 text-sm text-blue-600 hover:underline"
+              >
+                Cadastrar unidades em lote →
+              </Link>
+            )}
           </div>
         ) : (
           <>

@@ -1,10 +1,10 @@
 // src/app/dashboard/imoveis/page.tsx
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Plus, Globe } from "lucide-react";
-import { apiRequest } from "@/core/api/client";
+import { useMe } from "@/core/hooks/useMe";
 import { useImoveisStore } from "@/features/imoveis/store/useImoveisStore";
 import { useImoveisIntegration } from "@/features/imoveis/hooks/useImoveisIntegration";
 import { ImoveisFilters } from "@/features/imoveis/components/ImoveisFilters";
@@ -61,9 +61,12 @@ export default function ImoveisDashboardPage() {
   const [visiveis, setVisiveis] = useState(LOTE_CARDS);
   const [publicando, setPublicando] = useState(false);
   const [avisoSite, setAvisoSite] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  // Corretor que tentou abrir o book: volta com ?aviso=somente-admin.
+  const [avisoSomenteAdmin, setAvisoSomenteAdmin] = useState(false);
+  // Permissoes (16/10/2026): gestao (empreendimento, publicar em massa) so
+  // Administrador; "Novo Imovel" continua para todos (R2 no backend).
+  const { isAdmin } = useMe();
   const secaoAtual = IMOVEIS_SECOES.find((s) => s.id === activeView);
-  const hasCheckedRole = useRef(false);
 
   const [tipoFilter, setTipoFilter] = useState<string>("all");
   const [bedroomsFilter, setBedroomsFilter] = useState<string>("all");
@@ -72,13 +75,8 @@ export default function ImoveisDashboardPage() {
 
   useEffect(() => {
     loadEmpreendimentos();
-    if (!hasCheckedRole.current) {
-      hasCheckedRole.current = true;
-      apiRequest<{ role: string }>("/auth/me")
-        .then((me) => setRole(me.role))
-        .catch(() => setRole(null));
-    }
     const params = new URLSearchParams(window.location.search);
+    setAvisoSomenteAdmin(params.get("aviso") === "somente-admin");
     const empreendimentoIdParam = params.get("empreendimentoId");
     if (empreendimentoIdParam) {
       setEmpreendimentoFilter(empreendimentoIdParam);
@@ -176,12 +174,14 @@ export default function ImoveisDashboardPage() {
 
         {(activeView === "catalogo" || activeView === "espelho" || activeView === "empreendimentos") && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={openEmpreendimentoFormModal}
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
-              <Plus className="h-4 w-4" /> Novo Empreendimento
-            </button>
+            {isAdmin && (
+              <button
+                onClick={openEmpreendimentoFormModal}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <Plus className="h-4 w-4" /> Novo Empreendimento
+              </button>
+            )}
             <button
               onClick={openImovelFormModal}
               className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
@@ -191,6 +191,12 @@ export default function ImoveisDashboardPage() {
           </div>
         )}
       </header>
+
+      {avisoSomenteAdmin && (
+        <p role="status" className="mx-6 mt-4 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+          Importar book e cadastrar unidades em lote é feito pela administração.
+        </p>
+      )}
 
       {activeView === "catalogo" ? (
         <>
@@ -209,14 +215,14 @@ export default function ImoveisDashboardPage() {
             <EmpreendimentoDestaque empreendimentoId={empreendimentoFilter} unidadesNaLista={filteredImoveis.length} />
           )}
 
-          {empreendimentoFilter !== "all" && (role === "Administrador" && imoveis.length > 0 || avisoSite) && (
+          {empreendimentoFilter !== "all" && (isAdmin && imoveis.length > 0 || avisoSite) && (
             <div className="flex flex-wrap items-center gap-2 px-6 pt-3">
-              {role === "Administrador" && imoveis.length > 0 && outrosFiltrosAtivos && (
+              {isAdmin && imoveis.length > 0 && outrosFiltrosAtivos && (
                 <p className="flex items-center gap-1.5 text-sm text-slate-500">
                   <Globe className="h-4 w-4" aria-hidden /> Para publicar todas no site, limpe os outros filtros.
                 </p>
               )}
-              {role === "Administrador" && imoveis.length > 0 && !outrosFiltrosAtivos && (
+              {isAdmin && imoveis.length > 0 && !outrosFiltrosAtivos && (
                 <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm text-sky-800">
                   <Globe className="h-4 w-4" aria-hidden />
                   <span>
@@ -350,7 +356,7 @@ export default function ImoveisDashboardPage() {
       )}
 
       <ImovelFormModal />
-      <EmpreendimentoFormModal />
+      {isAdmin && <EmpreendimentoFormModal />}
       <ImovelDetailPanel />
     </div>
   );
