@@ -53,8 +53,13 @@ function montar(paginas = 3, texto: (n: number) => string = (n) => `texto ${n} $
       unidadesPorAndar: null,
       gabarito: null,
       vagas: null,
-      tipologias: [],
-      itensLazer: ['Piscina'],
+      // Texto "completo" (lazer E tipologias): sem segunda chamada com imagens.
+      tipologias: [{ nome: '2 dormitórios', areaPrivativa: 45, dormitorios: 2 }] as {
+        nome: string;
+        areaPrivativa: number | null;
+        dormitorios: number | null;
+      }[],
+      itensLazer: ['Piscina'] as string[],
     })),
   };
   const fotos: { categoria: string; url: string; order: number }[] = [];
@@ -549,5 +554,171 @@ describe('Book do empreendimento - revisao de seguranca (A2, A1)', () => {
     );
     expect(c.pdfReader.lerTextoPorPagina).toHaveBeenLastCalledWith(PDF, { maxPaginas: 81 });
     expect(c.pdfReader.renderizarPaginas).not.toHaveBeenCalled();
+  });
+});
+
+describe('Book do empreendimento - PDF com texto sem lazer/plantas (caso "Terrasse")', () => {
+  const ENDERECO_NULO = { rua: null, numero: null, bairro: null, cidade: null, uf: null, cep: null };
+  const CLASSIFICACAO_TERRASSE = {
+    paginas: [
+      { numero: 1, categoria: 'descartar', legenda: null },
+      { numero: 2, categoria: 'area_comum', legenda: 'Piscina área comum' },
+      { numero: 3, categoria: 'area_comum', legenda: 'Quadra esporte área comum' },
+      { numero: 4, categoria: 'planta', legenda: 'Planta 2 dormitórios 60,30m2' },
+      { numero: 5, categoria: 'planta', legenda: 'Implantação terreno áreas comuns' },
+      { numero: 6, categoria: 'ficha_tecnica', legenda: null },
+      { numero: 7, categoria: 'fachada', legenda: 'Fachada' },
+      { numero: 8, categoria: 'area_comum', legenda: 'Piscina - área comum' },
+      { numero: 9, categoria: 'planta', legenda: 'Planta terreo garden 50,62m2' },
+    ],
+    nome: 'Terrasse',
+    construtora: null,
+    endereco: ENDERECO_NULO,
+  };
+  // Texto so com o institucional: sem lazer, sem tipologias, sem numeros.
+  const FICHA_TEXTO = {
+    nome: 'Terrasse',
+    endereco: null,
+    descricao: 'Apartamentos com terraço gourmet',
+    areaTerreno: null,
+    totalUnidades: null,
+    numeroTorres: null,
+    unidadesPorAndar: null,
+    gabarito: null,
+    vagas: 120,
+    tipologias: [],
+    itensLazer: [],
+  };
+  const FICHA_VISAO = {
+    nome: 'Outro nome',
+    endereco: 'Rua da imagem, 10',
+    descricao: 'Descrição vinda da imagem',
+    areaTerreno: 4200,
+    totalUnidades: 280,
+    numeroTorres: 2,
+    unidadesPorAndar: 8,
+    gabarito: null,
+    vagas: 999,
+    tipologias: [{ nome: 'Tipo 2 dorms', areaPrivativa: 60.3, dormitorios: 2 }],
+    itensLazer: ['Piscina', 'Quadra esportiva', 'Adega wine bar'],
+  };
+
+  function montarTerrasse(paginas = 9) {
+    const c = montar(paginas);
+    c.ai.classificarPaginasBook.mockResolvedValueOnce(CLASSIFICACAO_TERRASSE as never);
+    c.ai.extrairFichaTecnicaEmpreendimento.mockResolvedValueOnce(FICHA_TEXTO as never);
+    return c;
+  }
+
+  it('faz UMA segunda chamada com as imagens (ficha, planta, lazer) e mescla: o texto prevalece', async () => {
+    const c = montarTerrasse();
+    c.ai.extrairFichaTecnicaEmpreendimento.mockResolvedValueOnce(FICHA_VISAO as never);
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+
+    expect(c.ai.extrairFichaTecnicaEmpreendimento).toHaveBeenCalledTimes(2);
+    // 1a chamada: so texto (como antes)
+    expect(c.ai.extrairFichaTecnicaEmpreendimento.mock.calls[0]).toHaveLength(1);
+    // 2a chamada: imagens das paginas ficha_tecnica, planta, area_comum (nessa ordem)
+    const [texto2, imagens] = c.ai.extrairFichaTecnicaEmpreendimento.mock.calls[1] as unknown as [string, { numero: number }[]];
+    expect(texto2).toBe('');
+    expect(imagens.map((i) => i.numero)).toEqual([6, 4, 5, 9, 2, 3, 8]);
+    expect(c.pdfReader.renderizarPaginas).toHaveBeenLastCalledWith(PDF, [6, 4, 5, 9, 2, 3, 8], {
+      larguraPx: 1000,
+      qualidadeJpeg: 70,
+    });
+
+    // campos do texto prevalecem
+    expect(r.ficha.nome).toBe('Terrasse');
+    expect(r.ficha.descricao).toBe('Apartamentos com terraço gourmet');
+    expect(r.ficha.vagas).toBe(120);
+    // campos vazios do texto preenchidos pela visao
+    expect(r.ficha.endereco).toBe('Rua da imagem, 10');
+    expect(r.ficha.areaTerreno).toBe(4200);
+    expect(r.ficha.totalUnidades).toBe(280);
+    expect(r.ficha.numeroTorres).toBe(2);
+    expect(r.ficha.gabarito).toBeNull();
+    expect(r.ficha.itensLazer).toEqual(['Piscina', 'Quadra esportiva', 'Adega wine bar']);
+    expect(r.ficha.tipologias).toEqual([{ nome: 'Tipo 2 dorms', areaPrivativa: 60.3, dormitorios: 2 }]);
+    // veio da IA: sem aviso de "sugerido pelas legendas"
+    expect(r.avisos).toEqual([]);
+  });
+
+  it('no maximo 10 imagens na segunda chamada', async () => {
+    const c = montar(20);
+    c.ai.classificarPaginasBook.mockResolvedValueOnce({
+      ...CLASSIFICACAO_TERRASSE,
+      paginas: Array.from({ length: 20 }, (_, i) => ({ numero: i + 1, categoria: 'area_comum', legenda: null })),
+    } as never);
+    c.ai.extrairFichaTecnicaEmpreendimento.mockResolvedValueOnce(FICHA_TEXTO as never);
+    await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    const [, imagens] = c.ai.extrairFichaTecnicaEmpreendimento.mock.calls[1] as unknown as [string, unknown[]];
+    expect(imagens).toHaveLength(10);
+  });
+
+  it('texto ja trouxe lazer E tipologias (e numeros): sem segunda chamada', async () => {
+    const c = montar(9);
+    c.ai.classificarPaginasBook.mockResolvedValueOnce(CLASSIFICACAO_TERRASSE as never);
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    expect(c.ai.extrairFichaTecnicaEmpreendimento).toHaveBeenCalledTimes(1);
+    expect(c.pdfReader.renderizarPaginas).toHaveBeenCalledTimes(1); // so as miniaturas
+    expect(r.ficha.itensLazer).toEqual(['Piscina']);
+    expect(r.avisos).toEqual([]);
+  });
+
+  it('sem paginas de ficha/planta/lazer: sem segunda chamada', async () => {
+    const c = montar(3);
+    c.ai.classificarPaginasBook.mockResolvedValueOnce({
+      ...CLASSIFICACAO_TERRASSE,
+      paginas: [1, 2, 3].map((numero) => ({ numero, categoria: 'fachada', legenda: null })),
+    } as never);
+    c.ai.extrairFichaTecnicaEmpreendimento.mockResolvedValueOnce(FICHA_TEXTO as never);
+    await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    expect(c.ai.extrairFichaTecnicaEmpreendimento).toHaveBeenCalledTimes(1);
+  });
+
+  it('segunda chamada falha: mantem o texto e sugere lazer/plantas pelas legendas', async () => {
+    const c = montarTerrasse();
+    c.ai.extrairFichaTecnicaEmpreendimento.mockRejectedValueOnce(new Error('timeout'));
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    expect(c.ai.extrairFichaTecnicaEmpreendimento).toHaveBeenCalledTimes(2);
+    expect(r.bookId).toBe('book-1');
+    expect(r.ficha.descricao).toBe('Apartamentos com terraço gourmet');
+    expect(r.ficha.vagas).toBe(120);
+    expect(r.ficha.areaTerreno).toBeNull();
+    // legendas: lazer limpo e deduplicado
+    expect(r.ficha.itensLazer).toEqual(['Piscina', 'Quadra esporte']);
+    // implantacao/terreno ignorada; metragem com virgula vira numero
+    expect(r.ficha.tipologias).toEqual([
+      { nome: 'Planta 2 dormitórios 60,30m2', areaPrivativa: 60.3, dormitorios: 2 },
+      { nome: 'Planta terreo garden 50,62m2', areaPrivativa: 50.62, dormitorios: null },
+    ]);
+    expect(r.avisos).toEqual([
+      'Lazer e plantas foram sugeridos a partir das imagens das páginas. Confira antes de salvar.',
+    ]);
+    // nao e o aviso de falha geral da ficha
+    expect(r.avisos.join(' ')).not.toContain('Não foi possível ler a ficha técnica');
+  });
+
+  it('visao tambem nao acha lazer: so o lazer vem das legendas (tipologias da visao ficam)', async () => {
+    const c = montarTerrasse();
+    c.ai.extrairFichaTecnicaEmpreendimento.mockResolvedValueOnce({ ...FICHA_VISAO, itensLazer: [] } as never);
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos: pdfs() });
+    expect(r.ficha.itensLazer).toEqual(['Piscina', 'Quadra esporte']);
+    expect(r.ficha.tipologias).toEqual(FICHA_VISAO.tipologias);
+    expect(r.avisos).toContain('Lazer e plantas foram sugeridos a partir das imagens das páginas. Confira antes de salvar.');
+  });
+
+  it('book de imagens: nao faz segunda chamada (ficha ja foi pelas imagens), mas usa as legendas', async () => {
+    const c = montar();
+    c.ai.classificarPaginasBook.mockResolvedValueOnce({
+      ...CLASSIFICACAO_TERRASSE,
+      paginas: CLASSIFICACAO_TERRASSE.paginas.slice(0, 4),
+    } as never);
+    c.ai.extrairFichaTecnicaEmpreendimento.mockResolvedValueOnce(FICHA_TEXTO as never);
+    const arquivos = await Promise.all([1, 2, 3, 4].map(async () => jpg(await gerarJpeg(100, 100))));
+    const r = await c.analisar.execute({ tenantId: TENANT, arquivos });
+    expect(c.ai.extrairFichaTecnicaEmpreendimento).toHaveBeenCalledTimes(1);
+    expect(r.ficha.itensLazer).toEqual(['Piscina', 'Quadra esporte']);
+    expect(r.ficha.tipologias).toEqual([{ nome: 'Planta 2 dormitórios 60,30m2', areaPrivativa: 60.3, dormitorios: 2 }]);
   });
 });

@@ -1,19 +1,34 @@
 // src/app/dashboard/imoveis/empreendimentos/book/page.tsx
-// Importar o "book" (PDF de apresentacao da construtora):
-// 1) envia o PDF -> o sistema separa as paginas e a IA sugere a categoria de
-//    cada uma (fachada, lazer, planta, ficha tecnica...) e le a ficha tecnica;
+// Importar o "book" (material de apresentacao da construtora): 1 PDF OU de 1
+// a 80 imagens JPG/JPEG (uma por pagina, na ordem escolhida aqui).
+// 1) envia o PDF ("file") ou as imagens ("files") -> o sistema separa as
+//    paginas e a IA sugere a categoria de cada uma (fachada, lazer, planta,
+//    ficha tecnica...) e le a ficha tecnica;
 // 2) o usuario revisa tudo nesta tela;
 // 3) salvar cria o empreendimento (ou completa um existente, via
 //    ?empreendimentoId=) com a ficha tecnica e as fotos.
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeft, FileUp, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText, FileUp, Info, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { apiRequest, ApiError } from "@/core/api/client";
-import type { PaginaRevisao } from "@/features/imoveis/components/book/BookPaginasGrid";
+import type { FonteBook, PaginaRevisao } from "@/features/imoveis/components/book/BookPaginasGrid";
+import { BookImagensSelecionadas } from "@/features/imoveis/components/book/BookImagensSelecionadas";
+import {
+  BOOK_ACCEPT,
+  BOOK_MAX_IMAGENS,
+  BOOK_MAX_MB,
+  BOOK_MAX_MB_POR_IMAGEM,
+  combinarSelecao,
+  formatarMb,
+  problemaDimensoes,
+  totalBytes,
+  type ImagemBook,
+  type SelecaoBook,
+} from "@/features/imoveis/components/book/arquivosBook";
 import { BOOK_CATEGORIA_OPTIONS } from "@/features/imoveis/constants";
 
 const BookPaginasGrid = dynamic(
@@ -21,7 +36,6 @@ const BookPaginasGrid = dynamic(
   { ssr: false, loading: () => <p className="text-sm text-slate-500">Carregando páginas...</p> },
 );
 
-const MAX_MB = 80;
 const CATEGORIAS_FOTO = ["fachada", "area_comum", "decorado", "planta", "localizacao"];
 const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
 
@@ -47,6 +61,7 @@ interface Analise {
   endereco: { rua: string | null; numero: string | null; bairro: string | null; cidade: string | null; uf: string | null; cep: string | null };
   ficha: FichaIA;
   avisos: string[];
+  origem?: "pdf" | "imagens";
 }
 
 type Etapa = "envio" | "analisando" | "revisao" | "salvando";
@@ -63,13 +78,25 @@ const txt = (v: number | null) => (v === null || v === undefined ? "" : String(v
 
 function mensagemDeErro(err: unknown, padrao: string): string {
   if (err instanceof ApiError) {
-    if (err.status === 413) return `O arquivo é grande demais (máximo ${MAX_MB} MB).`;
+    if (err.status === 413) return `O envio é grande demais: o book pode ter no máximo ${BOOK_MAX_MB} MB no total e ${BOOK_MAX_MB_POR_IMAGEM} MB por imagem.`;
+    if (err.status === 411) return "O navegador não informou o tamanho do envio. Escolha os arquivos e tente de novo.";
+    if (err.status === 503) return "Servidor ocupado, tente em instantes.";
+    if (err.status === 409) return err.message || "Este book já está sendo salvo. Aguarde.";
     if (err.status === 429) return "Muitas importações seguidas. Aguarde um pouco e tente de novo.";
+    if (err.status === 400) {
+      // Erros do multer chegam em ingles.
+      if (/too many files|unexpected field/i.test(err.message)) return `O book pode ter no máximo ${BOOK_MAX_IMAGENS} imagens.`;
+      if (/file too large/i.test(err.message)) return `Um dos arquivos passa do limite (${BOOK_MAX_MB_POR_IMAGEM} MB por imagem, ${BOOK_MAX_MB} MB no total).`;
+      return err.message || padrao;
+    }
+    if (err.status >= 500) return `${padrao} Tente de novo em instantes.`;
     return err.message;
   }
   if (err instanceof TypeError) return "Não foi possível conectar ao servidor. Verifique sua internet.";
   return padrao;
 }
+
+const duracao = (seg: number) => `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}`;
 
 function Campo({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
@@ -86,8 +113,14 @@ function ImportarBook() {
   const empreendimentoId = params.get("empreendimentoId");
 
   const [etapa, setEtapa] = useState<Etapa>("envio");
-  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [selecao, setSelecao] = useState<SelecaoBook>({ tipo: "vazio" });
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [soltando, setSoltando] = useState(false);
+  const [segundos, setSegundos] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const selecaoRef = useRef<SelecaoBook>(selecao);
+  const enviandoRef = useRef(false);
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [paginas, setPaginas] = useState<PaginaRevisao[]>([]);
   const [nomeExistente, setNomeExistente] = useState<string | null>(null);
@@ -105,21 +138,116 @@ function ImportarBook() {
       .catch(() => setNomeExistente(null));
   }, [empreendimentoId]);
 
-  function escolherArquivo(f: File | null) {
+  // Fonte da verdade sincrona (o handler async le a selecao mais recente).
+  const trocarSelecao = useCallback((nova: SelecaoBook) => {
+    selecaoRef.current = nova;
+    setSelecao(nova);
+  }, []);
+
+  // Libera as object URLs das miniaturas ao sair da tela.
+  useEffect(
+    () => () => {
+      const s = selecaoRef.current;
+      if (s.tipo === "imagens") s.imagens.forEach((i) => URL.revokeObjectURL(i.url));
+    },
+    [],
+  );
+
+  // Cronometro e aviso ao fechar a aba durante a analise (1-2 min).
+  useEffect(() => {
+    if (etapa !== "analisando") return;
+    setSegundos(0);
+    const inicio = Date.now();
+    const t = window.setInterval(() => setSegundos(Math.floor((Date.now() - inicio) / 1000)), 1000);
+    const antesDeSair = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", antesDeSair);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener("beforeunload", antesDeSair);
+    };
+  }, [etapa]);
+
+  async function adicionarArquivos(lista: FileList | File[] | null) {
+    const novos = Array.from(lista ?? []);
+    if (!novos.length || etapa !== "envio") return;
     setErro(null);
-    if (!f) return;
-    const ehPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
-    if (!ehPdf) return setErro("Escolha um arquivo PDF.");
-    if (f.size > MAX_MB * 1024 * 1024) return setErro(`O PDF pode ter no máximo ${MAX_MB} MB.`);
-    setArquivo(f);
+    setAviso(null);
+    const atual = selecaoRef.current;
+    const r = await combinarSelecao(atual, novos);
+    if (!r.ok) return setErro(r.erro);
+    let nova = r.selecao;
+    if (nova.tipo === "imagens") {
+      nova = { ...nova, imagens: nova.imagens.map((i) => (i.url ? i : { ...i, url: URL.createObjectURL(i.arquivo) })) };
+    }
+    trocarSelecao(nova);
+    if (r.aviso) setAviso(r.aviso);
   }
 
-  async function analisar() {
-    if (!arquivo) return;
+  function limparSelecao() {
+    const s = selecaoRef.current;
+    if (s.tipo === "imagens") s.imagens.forEach((i) => URL.revokeObjectURL(i.url));
+    trocarSelecao({ tipo: "vazio" });
+  }
+
+  function atualizarImagens(fn: (imgs: ImagemBook[]) => ImagemBook[]) {
+    const s = selecaoRef.current;
+    if (s.tipo !== "imagens") return;
+    const imagens = fn(s.imagens);
+    trocarSelecao(imagens.length ? { tipo: "imagens", imagens } : { tipo: "vazio" });
+  }
+
+  function removerImagem(id: string) {
     setErro(null);
+    setAviso(null);
+    atualizarImagens((imgs) => {
+      const alvo = imgs.find((i) => i.id === id);
+      if (alvo) URL.revokeObjectURL(alvo.url);
+      return imgs.filter((i) => i.id !== id);
+    });
+  }
+
+  function moverImagemPara(id: string, destino: number) {
+    atualizarImagens((imgs) => {
+      const de = imgs.findIndex((i) => i.id === id);
+      if (de < 0 || destino < 0 || destino >= imgs.length || de === destino) return imgs;
+      const copia = [...imgs];
+      const [item] = copia.splice(de, 1);
+      copia.splice(destino, 0, item);
+      return copia;
+    });
+  }
+
+  function moverImagem(id: string, delta: -1 | 1) {
+    const s = selecaoRef.current;
+    if (s.tipo !== "imagens") return;
+    moverImagemPara(id, s.imagens.findIndex((i) => i.id === id) + delta);
+  }
+
+  function registrarDimensoes(id: string, largura: number, altura: number) {
+    atualizarImagens((imgs) =>
+      imgs.map((i) =>
+        i.id === id && i.largura === undefined ? { ...i, largura, altura, problema: problemaDimensoes(largura, altura) } : i,
+      ),
+    );
+  }
+
+  const imagensComProblema = selecao.tipo === "imagens" ? selecao.imagens.filter((i) => i.problema).length : 0;
+  const ehImagens = selecao.tipo === "imagens";
+
+  async function analisar() {
+    const s = selecaoRef.current;
+    if (s.tipo === "vazio" || enviandoRef.current) return;
+    if (s.tipo === "imagens" && s.imagens.some((i) => i.problema)) {
+      return setErro("Remova ou troque as imagens marcadas em vermelho antes de analisar.");
+    }
+    enviandoRef.current = true;
+    setErro(null);
+    setAviso(null);
     setEtapa("analisando");
     const form = new FormData();
-    form.append("file", arquivo);
+    if (s.tipo === "pdf") form.append("file", s.arquivo);
+    // A ordem do campo "files" e a ordem das paginas.
+    else s.imagens.forEach((i) => form.append("files", i.arquivo, i.arquivo.name));
     if (empreendimentoId) form.append("empreendimentoId", empreendimentoId);
     try {
       const r = await apiRequest<Analise>("/empreendimentos/book/analisar", { method: "POST", body: form });
@@ -149,10 +277,19 @@ function ImportarBook() {
       setTipologias(r.ficha.tipologias.map((t) => ({ nome: t.nome, area: txt(t.areaPrivativa), dorms: txt(t.dormitorios) })));
       setEtapa("revisao");
     } catch (err) {
-      setErro(mensagemDeErro(err, "Não foi possível analisar o PDF."));
+      setErro(mensagemDeErro(err, s.tipo === "pdf" ? "Não foi possível analisar o PDF." : "Não foi possível analisar as imagens."));
       setEtapa("envio");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+      enviandoRef.current = false;
     }
   }
+
+  const fonte = useMemo<FonteBook | null>(() => {
+    if (selecao.tipo === "pdf") return { tipo: "pdf", arquivo: selecao.arquivo };
+    if (selecao.tipo === "imagens") return { tipo: "imagens", urls: selecao.imagens.map((i) => i.url) };
+    return null;
+  }, [selecao]);
 
   const contagem = useMemo(() => {
     const c: Record<string, number> = {};
@@ -233,71 +370,190 @@ function ImportarBook() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-4">
+      <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
         <Link href={voltarHref} className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-blue-700">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Link>
         <h1 className="text-lg font-semibold text-slate-800">
-          {empreendimentoId ? `Importar book — ${nomeExistente ?? "empreendimento"}` : "Novo empreendimento a partir do book (PDF)"}
+          {empreendimentoId ? `Importar book — ${nomeExistente ?? "empreendimento"}` : "Novo empreendimento a partir do book (PDF ou imagens JPG)"}
         </h1>
         <p className="text-sm text-slate-500">
-          Envie o PDF de apresentação da construtora. O sistema separa as páginas, identifica fachada, lazer, plantas e
-          ficha técnica, e você revisa antes de salvar.
+          Envie o PDF de apresentação da construtora ou as imagens JPG das páginas. O sistema separa as páginas,
+          identifica fachada, lazer, plantas e ficha técnica, e você revisa antes de salvar.
         </p>
       </header>
 
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-6">
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         {erro && (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {erro}
+          <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" aria-hidden /> <span>{erro}</span>
+          </div>
+        )}
+        {aviso && (
+          <div role="status" className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <Info className="mt-0.5 h-4 w-4 flex-none" aria-hidden /> <span>{aviso}</span>
           </div>
         )}
 
         {(etapa === "envio" || etapa === "analisando") && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6">
-            <label
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (etapa === "envio") escolherArquivo(e.dataTransfer.files?.[0] ?? null);
+          <section
+            aria-label="Arquivos do book"
+            onDragOver={(e) => {
+              if (etapa !== "envio" || !e.dataTransfer.types.includes("Files")) return;
+              e.preventDefault();
+              setSoltando(true);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSoltando(false);
+            }}
+            onDrop={(e) => {
+              if (!e.dataTransfer.types.includes("Files")) return;
+              e.preventDefault();
+              setSoltando(false);
+              void adicionarArquivos(e.dataTransfer.files);
+            }}
+            className={`rounded-2xl border bg-white p-4 transition sm:p-6 ${
+              soltando ? "border-blue-500 ring-2 ring-blue-200" : "border-slate-200"
+            }`}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept={BOOK_ACCEPT}
+              multiple
+              className="hidden"
+              tabIndex={-1}
+              aria-hidden
+              disabled={etapa === "analisando"}
+              onChange={(e) => {
+                const arquivos = Array.from(e.target.files ?? []);
+                // Permite escolher o mesmo arquivo de novo depois de remover.
+                e.target.value = "";
+                void adicionarArquivos(arquivos);
               }}
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-6 py-12 text-center hover:border-blue-500 hover:bg-blue-50/40"
-            >
-              <FileUp className="h-10 w-10 text-slate-400" aria-hidden />
-              <span className="font-medium text-slate-700">
-                {arquivo ? arquivo.name : "Arraste o PDF aqui ou clique para escolher"}
-              </span>
-              <span className="text-xs text-slate-500">
-                {arquivo ? `${(arquivo.size / 1024 / 1024).toFixed(1)} MB` : `Somente PDF, até ${MAX_MB} MB e 80 páginas`}
-              </span>
-              <input
-                type="file"
-                accept="application/pdf,.pdf"
-                className="sr-only"
-                disabled={etapa === "analisando"}
-                onChange={(e) => escolherArquivo(e.target.files?.[0] ?? null)}
-              />
-            </label>
-            <div className="mt-4 flex justify-end">
+            />
+
+            {selecao.tipo === "vazio" && (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-12 text-center transition hover:border-blue-500 hover:bg-blue-50/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+                  soltando ? "border-blue-500 bg-blue-50/60" : "border-slate-300"
+                }`}
+              >
+                <FileUp className="h-10 w-10 text-slate-400" aria-hidden />
+                <span className="font-medium text-slate-700">Arraste aqui ou clique para escolher</span>
+                <span className="max-w-md text-sm text-slate-600">
+                  <strong className="font-semibold">1 PDF</strong> (até {BOOK_MAX_MB} MB e {BOOK_MAX_IMAGENS} páginas){" "}
+                  <span className="text-slate-500">ou</span>{" "}
+                  <strong className="font-semibold">imagens JPG/JPEG</strong>, uma por página (até {BOOK_MAX_IMAGENS} imagens,{" "}
+                  {BOOK_MAX_MB_POR_IMAGEM} MB cada, {BOOK_MAX_MB} MB no total)
+                </span>
+              </button>
+            )}
+
+            {selecao.tipo === "pdf" && (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-white text-blue-700 ring-1 ring-slate-200">
+                  <FileText className="h-6 w-6" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-800" title={selecao.arquivo.name}>
+                    {selecao.arquivo.name}
+                  </p>
+                  <p className="text-xs text-slate-500">PDF · {formatarMb(selecao.arquivo.size)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    limparSelecao();
+                    inputRef.current?.click();
+                  }}
+                  disabled={etapa === "analisando"}
+                  className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-50"
+                >
+                  Trocar arquivo
+                </button>
+              </div>
+            )}
+
+            {selecao.tipo === "imagens" && (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div className="mr-auto">
+                    <h2 className="text-sm font-semibold text-slate-800">
+                      {selecao.imagens.length} {selecao.imagens.length === 1 ? "imagem" : "imagens"} ·{" "}
+                      {formatarMb(totalBytes(selecao))} de {BOOK_MAX_MB} MB
+                    </h2>
+                    <p className="text-sm text-slate-600">
+                      As imagens entram em ordem pelo nome do arquivo; use as setas para ajustar. A ordem vira a ordem das
+                      páginas do book.
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      <span className="hidden sm:inline">Você também pode arrastar a miniatura. </span>Até {BOOK_MAX_IMAGENS} imagens.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selecao.imagens.length > 1 && !window.confirm(`Remover as ${selecao.imagens.length} imagens escolhidas?`)) return;
+                      limparSelecao();
+                      setErro(null);
+                      setAviso(null);
+                    }}
+                    disabled={etapa === "analisando"}
+                    className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-50"
+                  >
+                    Remover todas
+                  </button>
+                </div>
+                <BookImagensSelecionadas
+                  imagens={selecao.imagens}
+                  desabilitado={etapa === "analisando"}
+                  onMover={moverImagem}
+                  onMoverPara={moverImagemPara}
+                  onRemover={removerImagem}
+                  onDimensoes={registrarDimensoes}
+                  onAdicionar={() => inputRef.current?.click()}
+                  podeAdicionar={selecao.imagens.length < BOOK_MAX_IMAGENS}
+                />
+                {imagensComProblema > 0 && (
+                  <p className="text-sm font-medium text-red-700">
+                    {imagensComProblema === 1
+                      ? "1 imagem não pode ser usada (marcada em vermelho)."
+                      : `${imagensComProblema} imagens não podem ser usadas (marcadas em vermelho).`}{" "}
+                    Remova ou troque antes de analisar.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+              {etapa === "analisando" && (
+                <div role="status" aria-live="polite" className="text-sm text-slate-600 sm:mr-auto">
+                  <p className="font-medium text-slate-800">
+                    {ehImagens ? "Analisando as imagens" : "Lendo o PDF e separando as páginas"}… {duracao(segundos)}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Pode levar 1 a 2 minutos em books grandes. Não feche esta página.
+                  </p>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={analisar}
-                disabled={!arquivo || etapa === "analisando"}
-                className="flex items-center gap-2 rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+                disabled={selecao.tipo === "vazio" || etapa === "analisando" || imagensComProblema > 0}
+                aria-busy={etapa === "analisando"}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {etapa === "analisando" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {etapa === "analisando" ? "Lendo o PDF e separando as páginas..." : "Analisar PDF"}
+                {etapa === "analisando" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+                {etapa === "analisando" ? "Analisando..." : ehImagens ? "Analisar imagens" : selecao.tipo === "pdf" ? "Analisar PDF" : "Analisar book"}
               </button>
             </div>
-            {etapa === "analisando" && (
-              <p role="status" className="mt-2 text-right text-xs text-slate-500">
-                Isso pode levar até 1 minuto em books grandes. Não feche esta página.
-              </p>
-            )}
           </section>
         )}
 
-        {(etapa === "revisao" || etapa === "salvando") && analise && arquivo && (
+        {(etapa === "revisao" || etapa === "salvando") && analise && fonte && (
           <>
             {analise.avisos.length > 0 && (
               <div className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -370,7 +626,7 @@ function ImportarBook() {
             <section className="rounded-2xl border border-slate-200 bg-white p-6">
               <h2 className="mb-1 text-sm font-semibold text-slate-800">Ficha técnica</h2>
               <p className="mb-4 text-xs text-slate-500">
-                Só o que está escrito no PDF foi preenchido — campos vazios não foram encontrados. Preços e condições comerciais
+                Só o que está escrito no book foi preenchido — campos vazios não foram encontrados. Preços e condições comerciais
                 são ignorados.
                 {empreendimentoId && " Campos deixados em branco mantêm o que já está cadastrado no empreendimento."}
               </p>
@@ -439,7 +695,7 @@ function ImportarBook() {
                 </p>
               </div>
               <BookPaginasGrid
-                arquivo={arquivo}
+                fonte={fonte}
                 paginas={paginas}
                 onMudarCategoria={(numero, categoria) =>
                   setPaginas((ps) => ps.map((p) => (p.numero === numero ? { ...p, categoria } : p)))
@@ -447,7 +703,7 @@ function ImportarBook() {
               />
             </section>
 
-            <div className="sticky bottom-0 -mx-6 flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-white/95 px-6 py-3 backdrop-blur">
+            <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
               <span className="mr-auto text-sm text-slate-600">
                 {totalFotos} {totalFotos === 1 ? "página vai virar foto" : "páginas vão virar fotos"}
               </span>
@@ -456,14 +712,15 @@ function ImportarBook() {
                 onClick={() => {
                   setEtapa("envio");
                   setAnalise(null);
-                  setArquivo(null);
+                  limparSelecao();
                   setPaginas([]);
                   setErro(null);
+                  setAviso(null);
                 }}
                 disabled={etapa === "salvando"}
                 className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
               >
-                Trocar PDF
+                Trocar arquivo(s)
               </button>
               <button
                 type="button"

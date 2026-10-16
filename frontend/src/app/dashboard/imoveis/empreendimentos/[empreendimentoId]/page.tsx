@@ -435,7 +435,7 @@ export default function EmpreendimentoDetailPage({
         </div>
 
         {/* Ficha tecnica extraida via IA - preenchida pela importacao do book
-            (PDF da construtora), em /dashboard/imoveis/empreendimentos/book. */}
+            (PDF ou imagens JPG da construtora), em /dashboard/imoveis/empreendimentos/book. */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-800">Ficha Técnica (extraída via IA)</h2>
@@ -443,7 +443,7 @@ export default function EmpreendimentoDetailPage({
               href={`/dashboard/imoveis/empreendimentos/book?empreendimentoId=${empreendimento.id}`}
               className="ml-auto flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
             >
-              <FileUp className="h-3.5 w-3.5" /> Importar book (PDF)
+              <FileUp className="h-3.5 w-3.5" /> Importar book (PDF ou JPG)
             </Link>
             {temFichaTecnica && !isEditingFicha && (
               <button
@@ -456,8 +456,8 @@ export default function EmpreendimentoDetailPage({
           </div>
 
           {!temFichaTecnica ? (
-            <p className="text-sm text-slate-400">
-              Nenhuma ficha técnica ainda. Clique em &quot;Importar book (PDF)&quot; para o sistema ler a
+            <p className="text-sm text-slate-500">
+              Nenhuma ficha técnica ainda. Clique em &quot;Importar book (PDF ou JPG)&quot; para o sistema ler a
               ficha técnica e separar as fotos do material da construtora.
             </p>
           ) : !isEditingFicha || !fichaForm ? (

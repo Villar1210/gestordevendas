@@ -1332,6 +1332,11 @@ pelo Content-Length antes do multer), 20 MB e ~50 megapixels por imagem
   (BOOK_MIN_CARACTERES_TEXTO). Paginas: ficha_tecnica, planta, area_comum,
   localizacao, fachada (sem nenhuma, as primeiras), max 10, 1000 px q70.
   PDF com texto bom continua so pelo texto. Falha da IA = aviso + ficha vazia.
+- PDF com texto sem lazer OU tipologias (ou terreno/unidades/torres todos null): UMA 2a chamada so
+  com imagens (ficha_tecnica, planta, area_comum; max 10, 1000 px q70) e `mesclarFicha` (texto
+  prevalece; falha = fica o texto). Ainda vazio: lazer/plantas pelas LEGENDAS das paginas
+  (`derivar*DasLegendas`, sem IA) + aviso "...sugeridos...". Descricao ignora texto institucional
+  da construtora; institucional e material interno de vendas -> "descartar".
 - Confirmar: book de imagens usa os JPEGs guardados (ja 1600 px) - nao
   renderiza nada; o resto (criar/completar, nao apagar dados, desfazer) igual.
 

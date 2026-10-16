@@ -1,7 +1,8 @@
 // src/features/imoveis/components/book/BookPaginasGrid.tsx
 // Grade de paginas do book com a categoria de cada uma. As miniaturas sao
-// desenhadas no NAVEGADOR a partir do proprio arquivo escolhido (react-pdf),
-// sem baixar nada do servidor. Importado via next/dynamic com ssr:false
+// desenhadas no NAVEGADOR a partir do proprio arquivo escolhido (react-pdf
+// para PDF; as proprias imagens locais para book de JPGs), sem baixar nada
+// do servidor. Importado via next/dynamic com ssr:false
 // (pdfjs so roda no navegador - ver PdfViewer.tsx do E-doc).
 "use client";
 
@@ -51,16 +52,26 @@ function QuandoVisivel({ children, altura }: { children: React.ReactNode; altura
   );
 }
 
+// De onde vem a imagem de cada pagina: o PDF escolhido (desenhado no
+// navegador com react-pdf) ou as proprias imagens JPG locais, na ordem
+// enviada (pagina N = urls[N-1]).
+export type FonteBook = { tipo: "pdf"; arquivo: File } | { tipo: "imagens"; urls: string[] };
+
 interface Props {
-  arquivo: File;
+  fonte: FonteBook;
   paginas: PaginaRevisao[];
   onMudarCategoria: (numero: number, categoria: string) => void;
 }
 
-export function BookPaginasGrid({ arquivo, paginas, onMudarCategoria }: Props) {
+interface GradeProps {
+  paginas: PaginaRevisao[];
+  onMudarCategoria: (numero: number, categoria: string) => void;
+  miniatura: (numero: number) => React.ReactNode;
+  ampliada: (numero: number) => React.ReactNode;
+}
+
+function Grade({ paginas, onMudarCategoria, miniatura, ampliada: renderAmpliada }: GradeProps) {
   const [ampliada, setAmpliada] = useState<number | null>(null);
-  // Um so "documento" para a grade inteira (o PDF e lido uma vez).
-  const fonte = useMemo(() => arquivo, [arquivo]);
 
   useEffect(() => {
     if (ampliada === null) return;
@@ -70,28 +81,12 @@ export function BookPaginasGrid({ arquivo, paginas, onMudarCategoria }: Props) {
   }, [ampliada]);
 
   return (
-    <Document
-      file={fonte}
-      loading={
-        <p className="flex items-center gap-2 py-8 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Abrindo o PDF...
-        </p>
-      }
-      error={<p className="py-8 text-sm text-red-600">Não foi possível mostrar as páginas deste PDF.</p>}
-    >
+    <>
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {paginas.map((p) => (
           <li key={p.numero} className={`overflow-hidden rounded-xl border-2 transition ${COR[p.categoria] ?? COR.descartar}`}>
             <div className="relative bg-white">
-              <QuandoVisivel altura={150}>
-                <Page
-                  pageNumber={p.numero}
-                  width={210}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                  loading={<Loader2 className="h-5 w-5 animate-spin text-slate-300" />}
-                />
-              </QuandoVisivel>
+              {miniatura(p.numero)}
               <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
                 Pág. {p.numero}
               </span>
@@ -144,15 +139,71 @@ export function BookPaginasGrid({ arquivo, paginas, onMudarCategoria }: Props) {
             >
               <X className="h-4 w-4" />
             </button>
-            <Page
-              pageNumber={ampliada}
-              width={Math.min(1000, typeof window !== "undefined" ? window.innerWidth - 64 : 1000)}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
+            {renderAmpliada(ampliada)}
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+export function BookPaginasGrid({ fonte, paginas, onMudarCategoria }: Props) {
+  // Um so "documento" para a grade inteira (o PDF e lido uma vez).
+  const arquivoPdf = fonte.tipo === "pdf" ? fonte.arquivo : null;
+  const pdf = useMemo(() => arquivoPdf, [arquivoPdf]);
+
+  if (fonte.tipo === "imagens") {
+    return (
+      <Grade
+        paginas={paginas}
+        onMudarCategoria={onMudarCategoria}
+        miniatura={(n) => (
+          <div className="flex h-[150px] items-center justify-center bg-slate-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={fonte.urls[n - 1]} alt="" loading="lazy" className="max-h-[150px] w-full object-contain" />
+          </div>
+        )}
+        ampliada={(n) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={fonte.urls[n - 1]} alt={`Página ${n}`} className="max-h-[85vh] w-auto max-w-[min(1000px,calc(100vw-4rem))] object-contain" />
+        )}
+      />
+    );
+  }
+
+  return (
+    <Document
+      file={pdf}
+      loading={
+        <p className="flex items-center gap-2 py-8 text-sm text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" /> Abrindo o PDF...
+        </p>
+      }
+      error={<p className="py-8 text-sm text-red-600">Não foi possível mostrar as páginas deste PDF.</p>}
+    >
+      <Grade
+        paginas={paginas}
+        onMudarCategoria={onMudarCategoria}
+        miniatura={(n) => (
+          <QuandoVisivel altura={150}>
+            <Page
+              pageNumber={n}
+              width={210}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              loading={<Loader2 className="h-5 w-5 animate-spin text-slate-300" />}
+            />
+          </QuandoVisivel>
+        )}
+        ampliada={(n) => (
+          <Page
+            pageNumber={n}
+            width={Math.min(1000, typeof window !== "undefined" ? window.innerWidth - 64 : 1000)}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+          />
+        )}
+      />
     </Document>
   );
 }

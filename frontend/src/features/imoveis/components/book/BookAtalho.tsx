@@ -1,5 +1,5 @@
 // src/features/imoveis/components/book/BookAtalho.tsx
-// Atalho "criar empreendimento a partir do book (PDF)" nos modais de cadastro.
+// Atalho "criar empreendimento a partir do book (PDF ou JPG)" nos modais de cadastro.
 import Link from "next/link";
 import { FileUp } from "lucide-react";
 
@@ -12,7 +12,7 @@ export function BookAtalho({ onNavegar }: { onNavegar?: () => void }) {
     >
       <FileUp className="mt-0.5 h-5 w-5 flex-none text-blue-700" aria-hidden />
       <span>
-        <strong className="block font-semibold">Lançamento novo? Use o book (PDF)</strong>
+        <strong className="block font-semibold">Lançamento novo? Use o book (PDF ou JPG)</strong>
         O sistema separa as páginas, lê a ficha técnica e salva as fotos de fachada, lazer e plantas.
       </span>
     </Link>

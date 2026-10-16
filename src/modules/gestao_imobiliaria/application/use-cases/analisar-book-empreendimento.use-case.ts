@@ -30,7 +30,11 @@ import {
   ORDEM_PAGINAS_FICHA,
   OrigemBook,
   caracteresUteis,
+  derivarLazerDasLegendas,
+  derivarTipologiasDasLegendas,
+  fichaPrecisaComplemento,
   sanitizarNomeArquivoBook,
+  selecionarPaginasParaComplementoFicha,
   selecionarPaginasParaFicha,
 } from '../../domain/services/book-empreendimento';
 import {
@@ -84,6 +88,28 @@ const ENDERECO_VAZIO: EnderecoExtraidoIA = { rua: null, numero: null, bairro: nu
 
 const MB = 1024 * 1024;
 
+export const AVISO_LAZER_PLANTAS_SUGERIDOS =
+  'Lazer e plantas foram sugeridos a partir das imagens das páginas. Confira antes de salvar.';
+
+// Junta a ficha lida pelo texto com a lida pelas imagens: o que o texto ja
+// trouxe prevalece; campo nulo/lista vazia do texto e preenchido pela visao.
+export function mesclarFicha(texto: FichaTecnicaExtraidaIA, visao: FichaTecnicaExtraidaIA): FichaTecnicaExtraidaIA {
+  const ou = <T>(a: T | null, b: T | null): T | null => (a !== null && a !== undefined ? a : b ?? null);
+  return {
+    nome: ou(texto.nome, visao.nome),
+    endereco: ou(texto.endereco, visao.endereco),
+    descricao: ou(texto.descricao, visao.descricao),
+    areaTerreno: ou(texto.areaTerreno, visao.areaTerreno),
+    totalUnidades: ou(texto.totalUnidades, visao.totalUnidades),
+    numeroTorres: ou(texto.numeroTorres, visao.numeroTorres),
+    unidadesPorAndar: ou(texto.unidadesPorAndar, visao.unidadesPorAndar),
+    gabarito: ou(texto.gabarito, visao.gabarito),
+    vagas: ou(texto.vagas, visao.vagas),
+    tipologias: texto.tipologias.length > 0 ? texto.tipologias : visao.tipologias ?? [],
+    itensLazer: texto.itensLazer.length > 0 ? texto.itensLazer : visao.itensLazer ?? [],
+  };
+}
+
 // Book ja lido e validado, pronto para a IA.
 interface BookPreparado {
   guardar: BookTemporario;
@@ -92,6 +118,9 @@ interface BookPreparado {
   // Imagens das paginas para a IA ler a ficha (1000 px), ou null quando o
   // texto do PDF basta.
   imagensFicha: ((numeros: number[]) => Promise<ImagemPaginaFichaIA[]>) | null;
+  // PDF com texto bom: imagens (1000 px) para COMPLETAR a ficha quando o
+  // texto nao trouxe lazer/plantas. null quando a ficha ja foi pelas imagens.
+  imagensComplemento: ((numeros: number[]) => Promise<ImagemPaginaFichaIA[]>) | null;
 }
 
 @Injectable()
@@ -183,6 +212,9 @@ export class AnalisarBookEmpreendimentoUseCase {
       avisos.push('Não foi possível ler a ficha técnica automaticamente. Preencha os campos abaixo.');
     }
 
+    ficha = await this.completarFicha(ficha, paginas, book);
+    ficha = this.sugerirPelasLegendas(ficha, paginas, avisos);
+
     const bookId = await this.bookStorage.salvar(input.tenantId, book.guardar);
 
     return {
@@ -196,6 +228,45 @@ export class AnalisarBookEmpreendimentoUseCase {
       ficha,
       avisos,
     };
+  }
+
+  // PDF com texto: se o texto nao trouxe lazer/plantas (ou nenhum numero
+  // principal), UMA segunda chamada com as imagens das paginas de ficha,
+  // planta e lazer. O texto prevalece; a visao so preenche o que faltou.
+  // Falha aqui nunca derruba a analise (fica o resultado do texto).
+  private async completarFicha(
+    ficha: FichaTecnicaExtraidaIA,
+    paginas: AnalisarBookOutput['paginas'],
+    book: BookPreparado,
+  ): Promise<FichaTecnicaExtraidaIA> {
+    if (!book.imagensComplemento || !fichaPrecisaComplemento(ficha)) return ficha;
+    const numeros = selecionarPaginasParaComplementoFicha(paginas);
+    if (numeros.length === 0) return ficha;
+    try {
+      const imagens = await book.imagensComplemento(numeros);
+      if (imagens.length === 0) return ficha;
+      // So as imagens (o texto ja foi lido na primeira chamada): custo menor.
+      const visao = await this.ai.extrairFichaTecnicaEmpreendimento('', imagens);
+      return mesclarFicha(ficha, visao);
+    } catch (err) {
+      this.logger.warn(`Complemento da ficha pelas imagens falhou: ${err instanceof Error ? err.message : err}`);
+      return ficha;
+    }
+  }
+
+  // Rede de seguranca sem custo de IA: lazer e plantas pelas legendas das
+  // paginas (so quando continuam vazios). E sugestao - aviso para conferir.
+  private sugerirPelasLegendas(
+    ficha: FichaTecnicaExtraidaIA,
+    paginas: AnalisarBookOutput['paginas'],
+    avisos: string[],
+  ): FichaTecnicaExtraidaIA {
+    const itensLazer = ficha.itensLazer.length > 0 ? ficha.itensLazer : derivarLazerDasLegendas(paginas);
+    const tipologias = ficha.tipologias.length > 0 ? ficha.tipologias : derivarTipologiasDasLegendas(paginas);
+    if (itensLazer === ficha.itensLazer && tipologias === ficha.tipologias) return ficha;
+    if (itensLazer.length === 0 && tipologias.length === 0) return ficha;
+    if (!avisos.includes(AVISO_LAZER_PLANTAS_SUGERIDOS)) avisos.push(AVISO_LAZER_PLANTAS_SUGERIDOS);
+    return { ...ficha, itensLazer, tipologias };
   }
 
   // Tipo real pelo CONTEUDO (nunca pela extensao), quantidade e tamanhos.
@@ -274,23 +345,26 @@ export class AnalisarBookEmpreendimentoUseCase {
 
     // PDF com texto bom: ficha so pelo texto (sem custo extra de imagem).
     // Pouco ou nenhum texto (PDF "so de imagem"): a IA le as paginas.
+    const renderizarFicha = async (numeros: number[]): Promise<ImagemPaginaFichaIA[]> => {
+      const imagens = await this.pdfReader.renderizarPaginas(pdf, numeros, {
+        larguraPx: BOOK_LARGURA_IMAGEM_FICHA,
+        qualidadeJpeg: BOOK_QUALIDADE_IMAGEM_FICHA,
+      });
+      return imagens.map((i) => ({ numero: i.numero, imagemJpegBase64: i.jpeg.toString('base64') }));
+    };
     let imagensFicha: BookPreparado['imagensFicha'] = null;
+    let imagensComplemento: BookPreparado['imagensComplemento'] = renderizarFicha;
     if (caracteresUteis(textos) < BOOK_MIN_CARACTERES_TEXTO) {
       avisos.push(
         'O PDF tem pouco ou nenhum texto: a ficha técnica foi lida pelas imagens das páginas. Confira os campos com atenção.',
       );
-      imagensFicha = async (numeros) => {
-        const imagens = await this.pdfReader.renderizarPaginas(pdf, numeros, {
-          larguraPx: BOOK_LARGURA_IMAGEM_FICHA,
-          qualidadeJpeg: BOOK_QUALIDADE_IMAGEM_FICHA,
-        });
-        return imagens.map((i) => ({ numero: i.numero, imagemJpegBase64: i.jpeg.toString('base64') }));
-      };
+      imagensFicha = renderizarFicha;
+      imagensComplemento = null;
     }
 
     // Nome original sanitizado: so para exibir no book guardado (Fatia 2).
     const guardar: BookTemporario = { origem: 'pdf', pdf, nomeOriginal: sanitizarNomeArquivoBook(nomeOriginal) };
-    return { guardar, textos, miniaturas, imagensFicha };
+    return { guardar, textos, miniaturas, imagensFicha, imagensComplemento };
   }
 
   private async prepararImagens(jpegs: Buffer[]): Promise<BookPreparado> {
@@ -316,6 +390,13 @@ export class AnalisarBookEmpreendimentoUseCase {
       return imagens.map((img, i) => ({ numero: validos[i], imagemJpegBase64: img.jpeg.toString('base64') }));
     };
 
-    return { guardar: { origem: 'imagens', imagens: normalizadas }, textos, miniaturas, imagensFicha };
+    // Book de imagens: a ficha ja e lida pelas imagens (sem complemento).
+    return {
+      guardar: { origem: 'imagens', imagens: normalizadas },
+      textos,
+      miniaturas,
+      imagensFicha,
+      imagensComplemento: null,
+    };
   }
 }

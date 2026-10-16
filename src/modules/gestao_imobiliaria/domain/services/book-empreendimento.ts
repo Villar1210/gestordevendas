@@ -168,3 +168,133 @@ export function parsePaginasZip(bruto: unknown): PaginasZipParse {
   }
   return { ok: true, paginas };
 }
+
+// ---------------------------------------------------------------------------
+// Complemento da ficha (PDF com texto que nao trouxe lazer/plantas)
+// ---------------------------------------------------------------------------
+
+// PDF com texto bom: a ficha sai do texto. Se o texto nao trouxe lazer ou
+// tipologias (ou nenhum numero principal), UMA segunda chamada olha as
+// imagens destas paginas, nesta ordem de prioridade.
+export const ORDEM_PAGINAS_COMPLEMENTO_FICHA: readonly CategoriaPaginaBook[] = ['ficha_tecnica', 'planta', 'area_comum'];
+
+export function selecionarPaginasParaComplementoFicha(
+  paginas: { numero: number; categoria: string }[],
+  max = BOOK_MAX_IMAGENS_FICHA,
+): number[] {
+  const peso = (c: string) => ORDEM_PAGINAS_COMPLEMENTO_FICHA.indexOf(c as CategoriaPaginaBook);
+  return paginas
+    .filter((p) => peso(p.categoria) !== -1)
+    .sort((a, b) => peso(a.categoria) - peso(b.categoria) || a.numero - b.numero)
+    .map((p) => p.numero)
+    .slice(0, max);
+}
+
+export interface FichaParaComplemento {
+  areaTerreno: number | null;
+  totalUnidades: number | null;
+  numeroTorres: number | null;
+  tipologias: unknown[];
+  itensLazer: unknown[];
+}
+
+// Falta algo que as imagens das paginas costumam ter?
+export function fichaPrecisaComplemento(ficha: FichaParaComplemento): boolean {
+  return (
+    ficha.itensLazer.length === 0 ||
+    ficha.tipologias.length === 0 ||
+    (ficha.areaTerreno === null && ficha.totalUnidades === null && ficha.numeroTorres === null)
+  );
+}
+
+// Rede de seguranca SEM IA: lazer e plantas sugeridos a partir das legendas
+// que a classificacao ja escreveu para cada pagina. So sugestao - o usuario
+// revisa na tela antes de salvar.
+export const BOOK_MAX_LAZER_DERIVADO = 30;
+const MAX_ITEM_LAZER = 120;
+const MAX_NOME_TIPOLOGIA = 150;
+
+const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+const chave = (s: string) => semAcento(s).toLowerCase().replace(/\s+/g, ' ').trim();
+
+// Termos genericos que nao sao um item de lazer (ex: "Piscina area comum").
+const TERMOS_GENERICOS_LAZER =
+  /\b(?:areas?\s+comu(?:m|ns)|areas?\s+de\s+lazer|imagem\s+ilustrativa|perspectiva\s+ilustrada|perspectiva|ilustrativa)\b/gi;
+
+function limparLegendaLazer(legenda: string): string {
+  // Remove os termos sobre a versao sem acento, preservando os acentos do resto.
+  // NFC: cada letra acentuada e 1 caractere, entao os indices batem.
+  const original = legenda.normalize('NFC').replace(/\s+/g, ' ').trim();
+  const base = semAcento(original);
+  let resultado = '';
+  let ultimo = 0;
+  for (const m of base.matchAll(TERMOS_GENERICOS_LAZER)) {
+    resultado += original.slice(ultimo, m.index);
+    ultimo = (m.index ?? 0) + m[0].length;
+  }
+  resultado += original.slice(ultimo);
+  const limpo = resultado
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s\-–—:,;.()]+|[\s\-–—:,;.(]+$/g, '')
+    .trim();
+  return limpo.charAt(0).toUpperCase() + limpo.slice(1);
+}
+
+export function derivarLazerDasLegendas(
+  paginas: { categoria: string; legenda: string | null }[],
+  max = BOOK_MAX_LAZER_DERIVADO,
+): string[] {
+  const vistos = new Set<string>();
+  const itens: string[] = [];
+  for (const p of paginas) {
+    if (p.categoria !== 'area_comum' || !p.legenda) continue;
+    const item = limparLegendaLazer(p.legenda).slice(0, MAX_ITEM_LAZER).trim();
+    // Precisa ter pelo menos uma letra de verdade (nao so "2" ou "-").
+    if (!/[a-zA-Z]{2,}/.test(semAcento(item))) continue;
+    const k = chave(item);
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    itens.push(item);
+    if (itens.length >= max) break;
+  }
+  return itens;
+}
+
+export interface TipologiaDerivada {
+  nome: string;
+  areaPrivativa: number | null;
+  dormitorios: number | null;
+}
+
+// "60,30m2", "60.30 m²", "45 m2" (area da unidade).
+const REGEX_METRAGEM = /(\d{1,4}(?:[.,]\d{1,2})?)\s*m(?:²|2)(?![a-z0-9])/i;
+// "2 dorm", "2 dormitorios", "2 dorms", "3 quartos", "2 qts".
+const REGEX_DORMITORIOS = /\b(\d{1,2})\s*(?:dorm\w*|quartos?|qts?\b)/i;
+// Implantacao/terreno/situacao nao e planta de unidade.
+const REGEX_NAO_UNIDADE = /\b(?:implanta\w*|terreno|situacao|masterplan|pavimento\s+tipo)\b/i;
+
+export function derivarTipologiasDasLegendas(
+  paginas: { categoria: string; legenda: string | null }[],
+): TipologiaDerivada[] {
+  const vistos = new Set<string>();
+  const tipologias: TipologiaDerivada[] = [];
+  for (const p of paginas) {
+    if (p.categoria !== 'planta' || !p.legenda) continue;
+    const nome = p.legenda.replace(/\s+/g, ' ').trim().slice(0, MAX_NOME_TIPOLOGIA).trim();
+    const base = semAcento(nome);
+    if (!nome || REGEX_NAO_UNIDADE.test(base)) continue;
+    const m = base.match(REGEX_METRAGEM);
+    const d = base.match(REGEX_DORMITORIOS);
+    if (!m && !d) continue;
+    const area = m ? Number(m[1].replace(',', '.')) : null;
+    const areaPrivativa = area !== null && Number.isFinite(area) && area > 0 ? area : null;
+    const dormitorios = d ? Number(d[1]) : null;
+    if (areaPrivativa === null && dormitorios === null) continue;
+    const k = `${chave(nome)}|${areaPrivativa ?? ''}`;
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    tipologias.push({ nome, areaPrivativa, dormitorios });
+  }
+  return tipologias;
+}

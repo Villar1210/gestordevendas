@@ -44,6 +44,16 @@ const FICHA_TECNICA_REGRA_IMAGENS =
   'cotas de planta). NUNCA deduza um numero olhando a ilustracao (ex: nao conte andares, ' +
   'vagas ou unidades em uma perspectiva). Itens de lazer so quando estiverem nomeados por ' +
   'escrito. Ignore precos e condicoes comerciais tambem nas imagens.';
+// Descricao da ficha = sobre o EMPREENDIMENTO, nunca o texto institucional da
+// construtora (visto em producao: book cuja descricao veio "A <marca> leva a
+// solidez do Grupo..."). Regra ACRESCENTADA ao prompt da ficha.
+const FICHA_TECNICA_REGRA_DESCRICAO =
+  'Regra da "descricao": descreva SOMENTE o EMPREENDIMENTO (conceito, localizacao, ' +
+  'diferenciais do produto). IGNORE textos institucionais sobre a construtora, ' +
+  'incorporadora ou grupo (historia, missao, numeros da empresa, "quem somos", obras ' +
+  'entregues). Se so houver texto institucional, use null. IGNORE tambem material interno ' +
+  'de vendas para corretores (metas, premiacoes, sorteios, campanhas, fluxo ou condicoes de ' +
+  'pagamento) em todos os campos.\n\n';
 // Classificacao do book: ~40 tokens de resposta por pagina + cabecalho.
 const BOOK_MAX_TOKENS = 6000;
 // Texto de cada pagina enviado junto com a miniatura (o suficiente para
@@ -402,12 +412,14 @@ export class AnthropicConversationService implements IAiConversationService {
       'encontrado, use null (ou lista vazia []) para ele - jamais um palpite. IGNORE ' +
       'completamente qualquer tabela de precos, valores de unidades especificas ou condicoes ' +
       'comerciais - esses dados NAO fazem parte desta ficha tecnica.\n\n' +
+      FICHA_TECNICA_REGRA_DESCRICAO +
       'Responda EXCLUSIVAMENTE com um JSON no formato exato abaixo - sem nenhum texto antes ou ' +
       'depois do JSON, sem markdown, sem comentarios:\n' +
       '{\n' +
       '  "nome": string ou null (nome do empreendimento),\n' +
       '  "endereco": string ou null (endereco completo como aparece no texto),\n' +
-      '  "descricao": string ou null (memorial/descricao/diferenciais, texto livre),\n' +
+      '  "descricao": string ou null (memorial/descricao/diferenciais DO EMPREENDIMENTO, texto ' +
+      'livre; null se so houver texto institucional da construtora),\n' +
       '  "areaTerreno": numero ou null (area do terreno em m2, so o numero),\n' +
       '  "totalUnidades": numero ou null (total de unidades do empreendimento),\n' +
       '  "numeroTorres": numero ou null (quantidade de torres/blocos),\n' +
@@ -469,7 +481,10 @@ export class AnthropicConversationService implements IAiConversationService {
       '- "decorado": imagem de interior decorado de uma unidade (sala, quarto, cozinha).\n' +
       '- "localizacao": mapa, localizacao, pontos de interesse, "como chegar".\n' +
       '- "descartar": capa so com logo, pagina em branco, textos legais, tabela de precos, ' +
-      'condicoes comerciais, contatos, ou qualquer outra coisa.\n' +
+      'condicoes comerciais, contatos, ou qualquer outra coisa. Tambem "descartar": texto ' +
+      'institucional da construtora/incorporadora/grupo (historia, missao, "quem somos", obras ' +
+      'entregues) e material interno de vendas para corretores (metas, premiacoes, sorteios, ' +
+      'campanhas, fluxo ou condicoes de pagamento).\n' +
       'Para cada pagina de imagem, escreva uma "legenda" curta em portugues (ate 6 palavras, ' +
       'ex: "Piscina adulto", "Planta 2 dormitorios 45 m2"); para as demais, null.\n' +
       'Leia tambem, SOMENTE se estiver escrito no material: nome do empreendimento, ' +
