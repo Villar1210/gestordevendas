@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BII — Wireframes Fase 1</title>
+<style>
+  :root{
+    --slate-50:#f8fafc;--slate-100:#f1f5f9;--slate-200:#e2e8f0;--slate-300:#cbd5e1;--slate-400:#94a3b8;
+    --slate-500:#64748b;--slate-600:#475569;--slate-700:#334155;--slate-800:#1e293b;--slate-900:#0f172a;
+    --blue-50:#eff6ff;--blue-100:#dbeafe;--blue-200:#bfdbfe;--blue-300:#93c5fd;--blue-500:#3b82f6;--blue-600:#2563eb;--blue-700:#1d4ed8;--blue-800:#1e40af;
+    --brand:#0f74c5;--navy:#142f4b;
+    --green-50:#f0fdf4;--green-600:#16a34a;--green-700:#15803d;
+    --red-50:#fef2f2;--red-600:#dc2626;--red-700:#b91c1c;
+    --amber-50:#fffbeb;--amber-200:#fde68a;--amber-700:#b45309;
+    --violet-50:#f5f3ff;--violet-700:#6d28d9;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--slate-50);color:var(--slate-800);font-size:14px;line-height:1.45}
+  button,input,select,textarea{font:inherit;color:inherit}
+  .app{display:flex;min-height:100vh}
+  /* Sidebar (espelha Sidebar.tsx) */
+  .sidebar{width:240px;flex-shrink:0;background:#fff;border-right:1px solid var(--slate-200);display:flex;flex-direction:column}
+  .logo{padding:20px 24px;display:flex;align-items:center;gap:8px}
+  .logo-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--navy));color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .logo-text{line-height:1.05}.logo-text b{color:var(--navy);font-size:14px;display:block}.logo-text span{color:var(--brand);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;flex-direction:column;gap:4px;padding:0 12px 16px}
+  .nav a{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:8px;color:var(--slate-600);text-decoration:none;font-weight:500;font-size:14px}
+  .nav a:hover{background:var(--slate-50);color:var(--slate-800)}
+  .nav a.active{background:var(--blue-50);color:var(--blue-600)}
+  .nav svg{width:16px;height:16px;flex-shrink:0}
+  .nav .sep{height:1px;background:var(--slate-100);margin:6px 12px}
+  .nav .badge-new{margin-left:auto;font-size:10px;font-weight:600;background:var(--blue-100);color:var(--blue-700);border-radius:999px;padding:1px 6px}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  /* Topbar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 24px;background:#fff;border-bottom:1px solid var(--slate-200)}
+  .topbar .left{display:flex;align-items:center;gap:10px;min-width:0}
+  .burger{display:none;border:0;background:transparent;padding:8px;border-radius:8px;color:var(--slate-500);cursor:pointer}
+  .burger:hover{background:var(--slate-100)}
+  .status-pill{display:flex;align-items:center;gap:6px;border:1px solid var(--slate-200);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--slate-600)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green-600)}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--blue-100);color:var(--blue-700);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
+  /* Header da página */
+  .page-head{background:#fff;border-bottom:1px solid var(--slate-200);padding:16px 24px 0}
+  .page-head h1{margin:0;font-size:18px;font-weight:600;color:var(--slate-800);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .page-head .sub{color:var(--slate-500);font-size:13px;margin:2px 0 12px}
+  .wire-tag{font-size:11px;font-weight:500;color:var(--slate-500);background:var(--slate-100);border:1px dashed var(--slate-300);border-radius:999px;padding:2px 8px}
+  .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin;margin:0 -4px;padding:0 4px}
+  .tab{border:0;background:transparent;padding:10px 12px;font-size:14px;font-weight:500;color:var(--slate-500);border-bottom:2px solid transparent;white-space:nowrap;cursor:pointer}
+  .tab:hover{color:var(--slate-800)}
+  .tab[aria-selected="true"]{color:var(--blue-700);border-bottom-color:var(--blue-600)}
+  .content{padding:24px;display:flex;flex-direction:column;gap:24px}
+  .panel{display:none;flex-direction:column;gap:24px}
+  .panel.on{display:flex}
+  /* Cards */
+  .card{background:#fff;border:1px solid var(--slate-200);border-radius:16px;padding:20px;min-width:0}
+  .card h2{margin:0 0 4px;font-size:14px;font-weight:600;color:var(--slate-800);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card .hint{margin:0 0 14px;color:var(--slate-500);font-size:12px}
+  .grid{display:grid;gap:24px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .g-2-1{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+  .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+  .kpi{background:#fff;border:1px solid var(--slate-200);border-radius:16px;padding:16px;min-width:0}
+  .kpi .lbl{font-size:12px;color:var(--slate-500);display:flex;justify-content:space-between;gap:6px}
+  .kpi .val{font-size:24px;font-weight:600;color:var(--blue-700);margin:4px 0 2px;white-space:nowrap}
+  .kpi .delta{font-size:12px}
+  .up{color:var(--green-700)} .down{color:var(--red-700)} .muted{color:var(--slate-500)}
+  /* Fonte do dado */
+  .src{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;letter-spacing:.02em;border-radius:999px;padding:1px 7px;white-space:nowrap;border:1px solid transparent;vertical-align:middle}
+  .src-crm{background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-100)}
+  .src-itbi{background:var(--green-50);color:var(--green-700);border-color:#dcfce7}
+  .src-ibge{background:var(--violet-50);color:var(--violet-700);border-color:#ede9fe}
+  .src-man{background:var(--slate-100);color:var(--slate-600);border-color:var(--slate-200)}
+  .src-bc{background:#ecfeff;color:#0e7490;border-color:#cffafe}
+  .src-gov{background:#fdf2f8;color:#9d174d;border-color:#fce7f3}
+  .src-ia{background:var(--slate-900);color:#fff}
+  /* Filtros / form */
+  .filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px;min-width:150px;flex:1}
+  .field label{font-size:12px;font-weight:500;color:var(--slate-600)}
+  .input,.select{border:1px solid var(--slate-200);background:#fff;border-radius:8px;padding:8px 10px;font-size:14px;width:100%;min-width:0}
+  .input:focus,.select:focus{outline:2px solid var(--blue-200);border-color:var(--blue-500)}
+  .seg{display:inline-flex;border:1px solid var(--slate-200);border-radius:8px;overflow:hidden;background:#fff}
+  .seg button{border:0;background:transparent;padding:8px 12px;font-size:13px;color:var(--slate-600);cursor:pointer}
+  .seg button+button{border-left:1px solid var(--slate-200)}
+  .seg button.on{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;padding:8px 14px;font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--slate-200);background:#fff;color:var(--slate-600);white-space:nowrap}
+  .btn:hover{background:var(--slate-50)}
+  .btn-primary{background:var(--blue-700);border-color:var(--blue-700);color:#fff}
+  .btn-primary:hover{background:var(--blue-800)}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .btn svg{width:16px;height:16px}
+  /* Tabelas */
+  .tbl-wrap{overflow-x:auto;margin:0 -4px;padding:0 4px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-weight:500;color:var(--slate-500);font-size:12px;padding:8px 10px;border-bottom:1px solid var(--slate-200);white-space:nowrap}
+  td{padding:10px;border-bottom:1px solid var(--slate-100);white-space:nowrap}
+  tr.own td{background:var(--blue-50)}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px}
+  .p-blue{background:var(--blue-50);color:var(--blue-700)}
+  .p-green{background:var(--green-50);color:var(--green-700)}
+  .p-slate{background:var(--slate-100);color:var(--slate-600)}
+  .p-amber{background:var(--amber-50);color:var(--amber-700)}
+  .p-red{background:var(--red-50);color:var(--red-700)}
+  .p-violet{background:var(--violet-50);color:var(--violet-700)}
+  /* Ranking / barras */
+  .rank{display:flex;flex-direction:column;gap:10px}
+  .rank-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center}
+  .rank-pos{font-size:12px;font-weight:600;color:var(--slate-400);text-align:center}
+  .bar{height:6px;background:var(--slate-100);border-radius:999px;overflow:hidden;margin-top:4px}
+  .bar>i{display:block;height:100%;background:var(--blue-600);border-radius:999px}
+  .bar.slate>i{background:var(--slate-400)}
+  .rank-name{font-size:13px;font-weight:500;display:flex;justify-content:space-between;gap:8px}
+  .rank-name small{color:var(--slate-500);font-weight:400}
+  .rank-val{font-size:13px;font-weight:600;color:var(--slate-700);font-variant-numeric:tabular-nums}
+  svg.chart{width:100%;height:auto;display:block}
+  .chart text{font-family:inherit}
+  /* Estado vazio */
+  .empty{border:1px dashed var(--slate-300);border-radius:12px;padding:24px;text-align:center;color:var(--slate-500);background:var(--slate-50)}
+  .empty b{display:block;color:var(--slate-700);margin-bottom:4px}
+  .empty svg{width:28px;height:28px;color:var(--slate-400);margin-bottom:6px}
+  /* Mapa placeholder */
+  .map{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--slate-200);background:#eef2f6}
+  .map-attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.85);font-size:10px;color:var(--slate-600);padding:2px 6px;border-top-left-radius:6px}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--slate-600);margin-top:10px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  .stat-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .stat{border:1px solid var(--slate-200);background:var(--slate-50);border-radius:12px;padding:12px}
+  .stat .v{font-size:20px;font-weight:600;color:var(--blue-700)}
+  .stat .l{font-size:12px;color:var(--slate-500)}
+  .footnote{font-size:11px;color:var(--slate-500);margin-top:12px;border-top:1px solid var(--slate-100);padding-top:10px}
+  /* Comparativo */
+  .vs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+  .vs-col{border:1px solid var(--slate-200);border-radius:12px;padding:14px}
+  .vs-col.own{border-color:var(--blue-300);background:var(--blue-50)}
+  .vs-row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--slate-100);font-size:13px}
+  .vs-row:last-child{border-bottom:0}
+  .vs-row span:first-child{color:var(--slate-500)}
+  .vs-row b{font-weight:600;text-align:right}
+  /* Parecer IA */
+  .ia{border:1px solid var(--slate-200);border-radius:12px;padding:16px;background:linear-gradient(180deg,#fff, var(--slate-50))}
+  .ia p{margin:0 0 10px;font-size:13.5px;color:var(--slate-700)}
+  .ia ul{margin:0 0 10px;padding-left:18px;font-size:13.5px;color:var(--slate-700)}
+  .alert{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:12px 14px;font-size:13px}
+  .alert-amber{background:var(--amber-50);border:1px solid var(--amber-200);color:var(--amber-700)}
+  .alert-blue{background:var(--blue-50);border:1px solid var(--blue-100);color:var(--blue-800)}
+  .alert svg{width:16px;height:16px;flex-shrink:0;margin-top:2px}
+  .note-wire{position:fixed;right:12px;bottom:12px;z-index:60;font-size:11px;color:var(--slate-600);background:rgba(255,255,255,.95);border:1px dashed var(--slate-300);border-radius:999px;padding:4px 10px}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .flex-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:12px;border:1px solid var(--slate-200);border-radius:999px;padding:3px 10px;color:var(--slate-600);background:#fff}
+  .chip.on{border-color:var(--blue-300);background:var(--blue-50);color:var(--blue-700)}
+  .overlay{display:none}
+  /* Responsivo */
+  @media (max-width:1200px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:1024px){.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.g-2-1{grid-template-columns:1fr}}
+  @media (max-width:860px){
+    .sidebar{position:fixed;inset:0 auto 0 0;z-index:50;width:256px;transform:translateX(-100%);transition:transform .2s;box-shadow:0 10px 30px rgba(15,23,42,.15)}
+    .sidebar.open{transform:none}
+    .overlay.open{display:block;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:40}
+    .burger{display:inline-flex}
+    .g2,.g3{grid-template-columns:1fr}
+    .content{padding:16px}
+    .page-head{padding:14px 16px 0}
+    .topbar{padding:10px 16px}
+    .vs{grid-template-columns:1fr}
+  }
+  @media (max-width:560px){
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .kpi .val{font-size:20px}
+    .field{min-width:100%}
+    .stat-list{grid-template-columns:1fr 1fr}
+    .status-pill span.t{display:none}
+    .card{padding:16px}
+    .hide-sm{display:none}
+  }
+  @media (max-width:380px){.kpis{grid-template-columns:1fr}.stat-list{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<!-- Ícones (paths simplificados no estilo lucide) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/></symbol>
+    <symbol id="i-kanban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 7v7M12 7v4M16 7v9"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></symbol>
+    <symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+    <symbol id="i-headset" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="5" height="7" rx="2"/><rect x="17" y="14" width="5" height="7" rx="2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h8"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-bii" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16v5M16 14v7M20 10v11M8 18v3M4 20v1"/><path d="m22 3-8.6 8.6a.5.5 0 0 1-.7 0L9.3 8.3a.5.5 0 0 0-.7 0L2 15"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+    <symbol id="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+    <symbol id="i-hist" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="overlay" id="overlay" onclick="toggleMenu(false)"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar" aria-label="Menu principal">
+    <div class="logo">
+      <div class="logo-mark">GV</div>
+      <div class="logo-text"><b>Gestor de Vendas</b><span>CRM Imobiliário</span></div>
+    </div>
+    <nav class="nav">
+      <a href="#"><svg><use href="#i-home"/></svg>Início</a>
+      <a href="#"><svg><use href="#i-kanban"/></svg>Vendas</a>
+      <a href="#"><svg><use href="#i-building"/></svg>Imóveis</a>
+      <a href="#"><svg><use href="#i-msg"/></svg>WhatsApp</a>
+      <a href="#"><svg><use href="#i-file"/></svg>E-doc</a>
+      <a href="#"><svg><use href="#i-headset"/></svg>Atendimento</a>
+      <a href="#"><svg><use href="#i-users"/></svg>Equipe</a>
+      <a href="#"><svg><use href="#i-calc"/></svg>Simulador</a>
+      <a href="#" class="active" aria-current="page"><svg><use href="#i-bii"/></svg>BII<span class="badge-new">novo</span></a>
+      <div class="sep"></div>
+      <a href="#"><svg><use href="#i-gear"/></svg>Configurações</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="left">
+        <button class="burger" aria-label="Abrir menu" aria-controls="sidebar" onclick="toggleMenu(true)"><svg width="20" height="20"><use href="#i-menu"/></svg></button>
+        <span class="muted" style="font-size:13px">Dashboard / <b style="color:var(--slate-800)">BII</b></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="status-pill"><span class="dot"></span><span class="t">Online</span></span>
+        <span class="avatar" title="Administrador">DV</span>
+      </div>
+    </div>
+
+    <!-- HEADER + ABAS -->
+    <div class="page-head">
+      <h1>Business Intelligence Imobiliário <span class="wire-tag">dados fictícios — wireframe</span></h1>
+      <p class="sub">Vendas do CRM, mercado no entorno, concorrência e viabilidade num só lugar. Somente Administrador.</p>
+      <div class="tabs" role="tablist" aria-label="Seções do BII">
+        <button class="tab" role="tab" aria-selected="true" aria-controls="p-vendas" data-tab="p-vendas">Painel de Vendas</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-endereco" data-tab="p-endereco">Nova Análise por Endereço</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-concorrentes" data-tab="p-concorrentes">Concorrentes</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-viab" data-tab="p-viab">Viabilidade</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-hist" data-tab="p-hist">Histórico</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+<!-- ============================ 1. PAINEL DE VENDAS ============================ -->
+<section class="panel on" id="p-vendas" role="tabpanel">
+  <div class="card">
+    <div class="filters">
+      <div class="field"><label>Período</label>
+        <select class="select"><option>Últimos 6 meses (mai–out/2026)</option><option>Mês atual</option><option>Trimestre</option><option>Ano 2026</option><option>Personalizado…</option></select></div>
+      <div class="field"><label>Stand</label>
+        <select class="select"><option>Todos os stands</option><option>Stand Vila Ema</option><option>Stand Vila Prudente</option></select></div>
+      <div class="field"><label>Corretor</label>
+        <select class="select"><option>Todos (12)</option><option>Ana Ribeiro</option><option>Bruno Matos</option></select></div>
+      <div class="field"><label>Origem</label>
+        <select class="select"><option>Todas</option><option>Meta Ads</option><option>Portal</option><option>WhatsApp/VIVI</option><option>Plantão</option><option>Indicação</option></select></div>
+      <div class="row-actions" style="flex:0"><button class="btn">Limpar</button><button class="btn btn-primary">Aplicar</button></div>
+    </div>
+    <p class="footnote" style="margin-bottom:0">Comparação com os 6 meses anteriores. Todos os números desta aba vêm do <span class="src src-crm">CRM</span> (Kanban: cards, etapas, ganho/perda).</p>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Leads <span class="src src-crm">CRM</span></div><div class="val">1.284</div><div class="delta up">▲ 12% vs. anterior</div></div>
+    <div class="kpi"><div class="lbl">Conversão lead→venda <span class="src src-crm">CRM</span></div><div class="val">3,4%</div><div class="delta up">▲ 0,6 p.p.</div></div>
+    <div class="kpi"><div class="lbl">VGV ganho <span class="src src-crm">CRM</span></div><div class="val">R$ 11,9 mi</div><div class="delta up">▲ 18%</div></div>
+    <div class="kpi"><div class="lbl">Ciclo médio <span class="src src-crm">CRM</span></div><div class="val">47 dias</div><div class="delta down">▲ 5 dias (pior)</div></div>
+    <div class="kpi"><div class="lbl">Ticket médio <span class="src src-crm">CRM</span></div><div class="val">R$ 272 mil</div><div class="delta muted">≈ estável</div></div>
+  </div>
+
+  <div class="grid g-2-1">
+    <div class="card">
+      <h2>Funil por etapa <span class="src src-crm">CRM · histórico de etapas</span></h2>
+      <p class="hint">Quantos cards passaram por cada etapa no período e a conversão para a etapa seguinte.</p>
+      <svg class="chart" viewBox="0 0 640 300" role="img" aria-label="Funil: 1284 leads, 742 em atendimento, 318 visitas, 121 propostas, 64 análises de crédito, 44 vendas">
+        <g font-size="12" fill="#334155">
+          <!-- barras centralizadas -->
+          <rect x="120" y="8"   width="400" height="36" rx="8" fill="#1d4ed8"/>
+          <rect x="164" y="58"  width="312" height="36" rx="8" fill="#2563eb"/>
+          <rect x="219" y="108" width="202" height="36" rx="8" fill="#3b82f6"/>
+          <rect x="258" y="158" width="124" height="36" rx="8" fill="#60a5fa"/>
+          <rect x="280" y="208" width="80"  height="36" rx="8" fill="#93c5fd"/>
+          <rect x="290" y="258" width="60"  height="36" rx="8" fill="#16a34a"/>
+          <g fill="#fff" font-weight="600" text-anchor="middle">
+            <text x="320" y="31">1.284</text><text x="320" y="81">742</text><text x="320" y="131">318</text><text x="320" y="181">121</text>
+          </g>
+          <g fill="#1e293b" font-weight="600" text-anchor="middle"><text x="320" y="231">64</text></g>
+          <g fill="#fff" font-weight="600" text-anchor="middle"><text x="320" y="281">44</text></g>
+          <g text-anchor="end" fill="#475569">
+            <text x="110" y="31">Lead (Caixa)</text><text x="110" y="81">Em atendimento</text><text x="110" y="131">Visita</text>
+            <text x="110" y="181">Proposta</text><text x="110" y="231">Análise crédito</text><text x="110" y="281">Venda</text>
+          </g>
+          <g fill="#64748b" font-size="11">
+            <text x="530" y="56">↓ 57,8%</text><text x="530" y="106">↓ 42,9%</text><text x="530" y="156">↓ 38,1%</text>
+            <text x="530" y="206">↓ 52,9%</text><text x="530" y="256">↓ 68,8%</text>
+          </g>
+        </g>
+      </svg>
+      <p class="footnote">Gargalo do período: <b>Visita → Proposta (38,1%)</b>. Conversão entre etapas exige o novo histórico de etapas do Card (decisão pendente nº 1 da Fase 0).</p>
+    </div>
+
+    <div class="card">
+      <h2>Motivos de perda <span class="src src-crm">CRM</span></h2>
+      <p class="hint">412 cards perdidos no período.</p>
+      <div class="rank">
+        <div><div class="rank-name">Renda insuficiente / reprovado <small>34%</small></div><div class="bar slate"><i style="width:100%"></i></div></div>
+        <div><div class="rank-name">Sem retorno do cliente <small>27%</small></div><div class="bar slate"><i style="width:79%"></i></div></div>
+        <div><div class="rank-name">Comprou na concorrência <small>14%</small></div><div class="bar slate"><i style="width:41%"></i></div></div>
+        <div><div class="rank-name">Entrada / ato alto <small>11%</small></div><div class="bar slate"><i style="width:32%"></i></div></div>
+        <div><div class="rank-name">Localização <small>8%</small></div><div class="bar slate"><i style="width:24%"></i></div></div>
+        <div><div class="rank-name">Outros <small>6%</small></div><div class="bar slate"><i style="width:18%"></i></div></div>
+      </div>
+      <p class="footnote">"Comprou na concorrência" leva à aba Concorrentes.</p>
+    </div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h2>VGV ganho por mês <span class="src src-crm">CRM</span></h2>
+      <p class="hint">Soma do valor dos cards ganhos (R$ milhões). Linha tracejada = meta mensal cadastrada.</p>
+      <svg class="chart" viewBox="0 0 520 240" role="img" aria-label="VGV por mês: mai 1,4; jun 1,7; jul 2,1; ago 1,8; set 2,3; out 2,6 milhões">
+        <g stroke="#e2e8f0"><line x1="40" y1="20" x2="510" y2="20"/><line x1="40" y1="140" x2="510" y2="140"/><line x1="40" y1="200" x2="510" y2="200" stroke="#cbd5e1"/></g>
+        <g font-size="11" fill="#94a3b8" text-anchor="end"><text x="34" y="24">3,0</text><text x="34" y="84">2,0</text><text x="34" y="144">1,0</text><text x="34" y="204">0</text></g>
+        <!-- escala: 60px por R$ 1,0 mi, base em y=200 -->
+        <g fill="#2563eb">
+          <rect x="62"  y="116" width="48" height="84" rx="4"/>
+          <rect x="140" y="98"  width="48" height="102" rx="4"/>
+          <rect x="218" y="74"  width="48" height="126" rx="4"/>
+          <rect x="296" y="92"  width="48" height="108" rx="4"/>
+          <rect x="374" y="62"  width="48" height="138" rx="4"/>
+          <rect x="452" y="44"  width="48" height="156" rx="4" fill="#1d4ed8"/>
+        </g>
+        <line x1="40" y1="80" x2="510" y2="80" stroke="#64748b" stroke-dasharray="5 4"/>
+        <text x="508" y="76" font-size="10" fill="#64748b" text-anchor="end">meta R$ 2,0 mi</text>
+        <g font-size="11" fill="#334155" text-anchor="middle" font-weight="600"><text x="86" y="110">1,4</text><text x="164" y="92">1,7</text><text x="242" y="68">2,1</text><text x="320" y="86">1,8</text><text x="398" y="56">2,3</text><text x="476" y="38">2,6</text></g>
+        <g font-size="11" fill="#64748b" text-anchor="middle"><text x="86" y="220">mai</text><text x="164" y="220">jun</text><text x="242" y="220">jul</text><text x="320" y="220">ago</text><text x="398" y="220">set</text><text x="476" y="220">out*</text></g>
+      </svg>
+      <p class="footnote">* Outubro parcial (até 19/10). Eixo começa em zero.</p>
+    </div>
+
+    <div class="card">
+      <div class="flex-between"><h2>Ranking de corretores <span class="src src-crm">CRM</span></h2>
+        <div class="seg" role="group" aria-label="Ordenar por"><button class="on">VGV</button><button>Vendas</button><button>Conversão</button></div></div>
+      <p class="hint" style="margin-top:6px">Top 6 do período.</p>
+      <div class="rank">
+        <div class="rank-row"><span class="rank-pos">1</span><div><div class="rank-name">Ana Ribeiro <small>9 vendas · 4,8%</small></div><div class="bar"><i style="width:100%"></i></div></div><span class="rank-val">R$ 2,46 mi</span></div>
+        <div class="rank-row"><span class="rank-pos">2</span><div><div class="rank-name">Bruno Matos <small>7 vendas · 4,1%</small></div><div class="bar"><i style="width:80%"></i></div></div><span class="rank-val">R$ 1,97 mi</span></div>
+        <div class="rank-row"><span class="rank-pos">3</span><div><div class="rank-name">Carla Nogueira <small>6 vendas · 3,9%</small></div><div class="bar"><i style="width:66%"></i></div></div><span class="rank-val">R$ 1,63 mi</span></div>
+        <div class="rank-row"><span class="rank-pos">4</span><div><div class="rank-name">Diego Saraiva <small>5 vendas · 3,2%</small></div><div class="bar"><i style="width:57%"></i></div></div><span class="rank-val">R$ 1,41 mi</span></div>
+        <div class="rank-row"><span class="rank-pos">5</span><div><div class="rank-name">Elaine Torres <small>5 vendas · 2,9%</small></div><div class="bar"><i style="width:53%"></i></div></div><span class="rank-val">R$ 1,30 mi</span></div>
+        <div class="rank-row"><span class="rank-pos">6</span><div><div class="rank-name">Fábio Lima <small>4 vendas · 2,4%</small></div><div class="bar"><i style="width:44%"></i></div></div><span class="rank-val">R$ 1,08 mi</span></div>
+      </div>
+      <p class="footnote"><a href="#" style="color:var(--blue-700)">Ver todos os 12 corretores</a></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Estado vazio (exemplo) — filtro sem resultado</h2>
+    <div class="empty"><svg><use href="#i-search"/></svg><b>Nenhum card encontrado com esses filtros.</b>Tente outro período ou "Todos os stands". <br><button class="btn btn-sm" style="margin-top:10px">Limpar filtros</button></div>
+  </div>
+</section>
+
+<!-- ============================ 2. NOVA ANÁLISE POR ENDEREÇO ============================ -->
+<section class="panel" id="p-endereco" role="tabpanel">
+  <div class="card">
+    <h2>Nova análise por endereço</h2>
+    <p class="hint">Digite o endereço do terreno ou do empreendimento. O BII busca transações de ITBI e dados do IBGE no raio escolhido.</p>
+    <div class="filters">
+      <div class="field" style="flex:3;min-width:240px"><label for="end">Endereço</label>
+        <input id="end" class="input" value="Rua Ibitirama, 1500 — Vila Prudente, São Paulo/SP"></div>
+      <div class="field" style="flex:0;min-width:auto"><label>Raio</label>
+        <div class="seg" role="group" aria-label="Raio"><button>500 m</button><button class="on">1 km</button><button>2 km</button></div></div>
+      <div class="field" style="flex:2"><label>Vincular a empreendimento próprio (opcional)</label>
+        <select class="select"><option>— nenhum —</option><option selected>Residencial Jardim Ema</option><option>Parque das Ipês (Vila Prudente)</option></select></div>
+      <div class="row-actions" style="flex:0"><button class="btn btn-primary"><svg><use href="#i-search"/></svg>Analisar</button></div>
+    </div>
+    <p class="footnote" style="margin-bottom:0">Endereço convertido em coordenadas por geocodificação (Google; Nominatim de reserva). Cada análise é registrada na trilha de auditoria do BII.</p>
+  </div>
+
+  <div class="alert alert-blue"><svg><use href="#i-pin"/></svg><div><b>Endereço localizado:</b> Rua Ibitirama, 1500 — Vila Prudente (−23,5868; −46,5795). Confira o pino no mapa antes de salvar. <a href="#" style="color:var(--blue-700)">Ajustar pino</a></div></div>
+
+  <div class="grid g-2-1">
+    <div class="card">
+      <div class="flex-between"><h2>Mapa do entorno (raio 1 km)</h2>
+        <div class="chips"><span class="chip on">Transações ITBI</span><span class="chip on">Concorrentes</span><span class="chip">Estações</span></div></div>
+      <div class="map" style="margin-top:12px">
+        <svg class="chart" viewBox="0 0 640 360" role="img" aria-label="Mapa placeholder com o endereço no centro, raio de 1 km, pontos de transações ITBI e 4 concorrentes">
+          <rect width="640" height="360" fill="#eef2f6"/>
+          <!-- ruas -->
+          <g stroke="#fff" stroke-width="10" stroke-linecap="round"><path d="M-10 120 L650 90"/><path d="M-10 260 L650 290"/><path d="M180 -10 L220 370"/><path d="M430 -10 L400 370"/></g>
+          <g stroke="#fff" stroke-width="5"><path d="M-10 190 L650 175"/><path d="M90 -10 L120 370"/><path d="M540 -10 L560 370"/><path d="M300 -10 L320 370"/></g>
+          <path d="M-10 40 Q 200 70 330 30 T 650 50" stroke="#bfdbfe" stroke-width="14" fill="none"/>
+          <text x="560" y="32" font-size="10" fill="#64748b">Av. Prof. Luiz I. A. Melo</text>
+          <rect x="460" y="300" width="70" height="40" rx="6" fill="#d9f99d" opacity=".6"/><text x="470" y="324" font-size="10" fill="#4d7c0f">praça</text>
+          <!-- raio -->
+          <circle cx="320" cy="180" r="150" fill="#2563eb" fill-opacity=".06" stroke="#2563eb" stroke-dasharray="6 5"/>
+          <!-- transações ITBI -->
+          <g fill="#16a34a" fill-opacity=".75">
+            <circle cx="250" cy="130" r="5"/><circle cx="270" cy="150" r="5"/><circle cx="360" cy="120" r="5"/><circle cx="390" cy="210" r="5"/><circle cx="290" cy="240" r="5"/><circle cx="230" cy="200" r="5"/><circle cx="340" cy="260" r="5"/><circle cx="410" cy="150" r="5"/><circle cx="215" cy="160" r="5"/><circle cx="375" cy="90" r="5"/><circle cx="300" cy="100" r="5"/><circle cx="260" cy="280" r="5"/><circle cx="420" cy="250" r="5"/><circle cx="350" cy="300" r="5"/><circle cx="200" cy="230" r="5"/>
+          </g>
+          <!-- concorrentes -->
+          <g fill="#475569"><path d="M232 82 l10 -22 l10 22 z"/><path d="M432 196 l10 -22 l10 22 z"/><path d="M362 312 l10 -22 l10 22 z"/><path d="M152 262 l10 -22 l10 22 z"/></g>
+          <g font-size="10" fill="#334155" font-weight="600"><text x="256" y="78">C1</text><text x="456" y="192">C2</text><text x="386" y="308">C3</text><text x="176" y="258">C4</text></g>
+          <!-- pino principal -->
+          <path d="M320 180 c-12 -16 -18 -24 -18 -34 a18 18 0 0 1 36 0 c0 10 -6 18 -18 34z" fill="#1d4ed8"/>
+          <circle cx="320" cy="146" r="6" fill="#fff"/>
+        </svg>
+        <span class="map-attr">© colaboradores do OpenStreetMap</span>
+      </div>
+      <div class="legend"><span><i style="background:#1d4ed8"></i>Endereço analisado</span><span><i style="background:#16a34a"></i>Transação ITBI (12 meses)</span><span><i style="background:#475569;border-radius:2px"></i>Concorrente cadastrado</span><span><i style="background:transparent;border:1px dashed #2563eb"></i>Raio 1 km</span></div>
+    </div>
+
+    <div class="card">
+      <h2>ITBI no raio <span class="src src-itbi">ITBI · Prefeitura SP</span></h2>
+      <p class="hint">Apartamentos, últimos 12 meses (out/2025–set/2026).</p>
+      <div class="stat-list">
+        <div class="stat"><div class="v">186</div><div class="l">transações</div></div>
+        <div class="stat"><div class="v">R$ 8.420</div><div class="l">preço/m² mediano</div></div>
+        <div class="stat" style="grid-column:1/-1"><div class="v" style="font-size:16px">R$ 7.150 – R$ 9.880</div><div class="l">faixa típica p25–p75 do preço/m²</div></div>
+      </div>
+      <h2 style="margin-top:16px">Evolução do m² mediano</h2>
+      <svg class="chart" viewBox="0 0 300 130" role="img" aria-label="Evolução trimestral do preço por m²: 7.640, 7.890, 8.050, 8.210, 8.420">
+        <g stroke="#e2e8f0"><line x1="30" y1="20" x2="290" y2="20"/><line x1="30" y1="60" x2="290" y2="60"/><line x1="30" y1="100" x2="290" y2="100"/></g>
+        <g font-size="9" fill="#94a3b8" text-anchor="end"><text x="26" y="23">8,5k</text><text x="26" y="63">8,0k</text><text x="26" y="103">7,5k</text></g>
+        <polyline points="45,89 105,69 165,56 225,43 285,26" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+        <g fill="#2563eb"><circle cx="45" cy="89" r="3"/><circle cx="105" cy="69" r="3"/><circle cx="165" cy="56" r="3"/><circle cx="225" cy="43" r="3"/><circle cx="285" cy="26" r="4"/></g>
+        <g font-size="9" fill="#64748b" text-anchor="middle"><text x="45" y="120">3T25</text><text x="105" y="120">4T25</text><text x="165" y="120">1T26</text><text x="225" y="120">2T26</text><text x="280" y="120">3T26</text></g>
+      </svg>
+      <p class="kpi delta up" style="border:0;padding:0;margin:4px 0 0">▲ 10,2% em 12 meses (eixo não começa em zero)</p>
+      <p class="footnote">Fonte: Prefeitura de SP — Guias de ITBI (base aberta, atualização mensal). Dado mais recente: set/2026. Valores declarados na guia; não inclui transações sem ITBI.</p>
+    </div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h2>Perfil demográfico no raio <span class="src src-ibge">IBGE · Censo 2022</span></h2>
+      <p class="hint">Soma dos setores censitários que tocam o raio de 1 km.</p>
+      <div class="stat-list">
+        <div class="stat"><div class="v">41.870</div><div class="l">habitantes</div></div>
+        <div class="stat"><div class="v">15.320</div><div class="l">domicílios</div></div>
+        <div class="stat"><div class="v">2,7</div><div class="l">moradores/domicílio</div></div>
+        <div class="stat"><div class="v">39 anos</div><div class="l">idade mediana</div></div>
+      </div>
+      <h2 style="margin-top:16px">Faixa etária</h2>
+      <svg class="chart" viewBox="0 0 400 150" role="img" aria-label="Faixa etária: 0-14 16%, 15-24 12%, 25-39 24%, 40-59 28%, 60+ 20%">
+        <g font-size="11" fill="#475569"><text x="0" y="18">0–14</text><text x="0" y="46">15–24</text><text x="0" y="74">25–39</text><text x="0" y="102">40–59</text><text x="0" y="130">60+</text></g>
+        <g fill="#cbd5e1"><rect x="50" y="8" width="160" height="14" rx="3"/><rect x="50" y="36" width="120" height="14" rx="3"/></g>
+        <rect x="50" y="64" width="240" height="14" rx="3" fill="#2563eb"/>
+        <g fill="#cbd5e1"><rect x="50" y="92" width="280" height="14" rx="3"/><rect x="50" y="120" width="200" height="14" rx="3"/></g>
+        <g font-size="11" fill="#334155" font-weight="600"><text x="216" y="19">16%</text><text x="176" y="47">12%</text><text x="296" y="75">24% · comprador típico HIS</text><text x="336" y="103">28%</text><text x="256" y="131">20%</text></g>
+      </svg>
+      <p class="footnote">Fonte: IBGE, Censo Demográfico 2022 — agregados por setor censitário (publicado em 2024). Renda por setor ainda não confirmada para o MVP.</p>
+    </div>
+
+    <div class="card">
+      <h2>Demanda no CRM para esta região <span class="src src-crm">CRM</span></h2>
+      <p class="hint">Leads e buscas de endereço que citam Vila Prudente / Vila Ema (12 meses).</p>
+      <div class="stat-list">
+        <div class="stat"><div class="v">612</div><div class="l">leads com interesse na região</div></div>
+        <div class="stat"><div class="v">2.140</div><div class="l">buscas de endereço no site</div></div>
+      </div>
+      <div class="empty" style="margin-top:16px"><svg><use href="#i-info"/></svg><b>Renda declarada dos leads: oculta</b>Dado sensível da VIVI — mostrado só em faixas agregadas e com mínimo de 20 leads por faixa (LGPD).</div>
+      <div class="row-actions" style="margin-top:16px"><button class="btn">Descartar</button><button class="btn btn-primary"><svg><use href="#i-save"/></svg>Salvar análise</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Estado vazio (exemplo) — antes da primeira busca</h2>
+    <div class="empty"><svg><use href="#i-pin"/></svg><b>Digite um endereço para começar.</b>Ex.: "Av. Vila Ema, 3000". Você vê transações reais de ITBI e o perfil do bairro em segundos.</div>
+  </div>
+</section>
+
+<!-- ============================ 3. CONCORRENTES ============================ -->
+<section class="panel" id="p-concorrentes" role="tabpanel">
+  <div class="card">
+    <div class="flex-between">
+      <div><h2>Concorrentes próximos — Residencial Jardim Ema</h2><p class="hint" style="margin:0">Raio de 2 km · 5 lançamentos cadastrados · atualizado em 14/10/2026</p></div>
+      <div class="row-actions"><button class="btn"><svg><use href="#i-dl"/></svg>Exportar</button><button class="btn btn-primary"><svg><use href="#i-plus"/></svg>Cadastrar concorrente</button></div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Empreendimento</th><th>Construtora</th><th class="num">Distância</th><th>Fase</th><th>Tipologias</th><th class="num">Metragem</th><th class="num">Preço a partir</th><th class="num">R$/m²</th><th>Enquadramento</th><th>Fonte</th></tr></thead>
+        <tbody>
+          <tr class="own"><td><b>Residencial Jardim Ema (próprio)</b></td><td>—</td><td class="num">0 m</td><td><span class="pill p-blue">Lançamento</span></td><td>2D · 2D+suíte · 3D</td><td class="num">36–65 m²</td><td class="num">R$ 239.000</td><td class="num">R$ 6.640</td><td><span class="pill p-green">HIS-1</span> <span class="pill p-violet">MCMV F2</span></td><td><span class="src src-crm">CRM</span></td></tr>
+          <tr><td>C1 · Vivaz Ema Park</td><td>Construtora Alfa</td><td class="num">420 m</td><td><span class="pill p-slate">Em obras</span></td><td>2D</td><td class="num">34–40 m²</td><td class="num">R$ 229.900</td><td class="num">R$ 6.760</td><td><span class="pill p-green">HIS-1</span> <span class="pill p-violet">MCMV F2</span></td><td><span class="src src-man">Manual</span></td></tr>
+          <tr><td>C2 · Prudente Mood</td><td>Beta Incorporadora</td><td class="num">780 m</td><td><span class="pill p-blue">Lançamento</span></td><td>1D · 2D</td><td class="num">28–44 m²</td><td class="num">R$ 215.000</td><td class="num">R$ 7.680</td><td><span class="pill p-green">HIS-1</span> <span class="pill p-violet">MCMV F2</span></td><td><span class="src src-man">Manual</span></td></tr>
+          <tr><td>C3 · Jardins do Parque</td><td>Gama Engenharia</td><td class="num">1,1 km</td><td><span class="pill p-slate">Pronto</span></td><td>2D · 3D</td><td class="num">48–67 m²</td><td class="num">R$ 359.000</td><td class="num">R$ 7.480</td><td><span class="pill p-blue">HIS-2</span> <span class="pill p-violet">MCMV F3</span></td><td><span class="src src-man">Manual</span></td></tr>
+          <tr><td>C4 · Up São Lucas</td><td>Delta Urbanismo</td><td class="num">1,6 km</td><td><span class="pill p-slate">Breve lançamento</span></td><td>2D</td><td class="num">38–42 m²</td><td class="num">R$ 249.000</td><td class="num">R$ 6.550</td><td><span class="pill p-green">HIS-1</span> <span class="pill p-violet">MCMV F2</span></td><td><span class="src src-man">Manual</span></td></tr>
+          <tr><td>C5 · Essence Prudente</td><td>Épsilon</td><td class="num">1,9 km</td><td><span class="pill p-blue">Lançamento</span></td><td>2D+suíte · 3D</td><td class="num">55–78 m²</td><td class="num">R$ 489.000</td><td class="num">R$ 8.890</td><td><span class="pill p-slate">HMP</span> <span class="pill p-violet">MCMV F4</span></td><td><span class="src src-man">Manual</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">Concorrentes são cadastrados à mão no MVP (folder, visita, site da construtora). Captura automática (Apify/portais) só após revisão jurídica. Enquadramento calculado pelo BII a partir do preço e das tabelas vigentes. Tabela rola na horizontal no celular.</p>
+  </div>
+
+  <div class="card">
+    <div class="flex-between"><h2>Comparativo lado a lado</h2>
+      <div class="field" style="flex:0;min-width:220px"><select class="select" aria-label="Escolher concorrente"><option>C1 · Vivaz Ema Park</option><option>C2 · Prudente Mood</option><option>C3 · Jardins do Parque</option></select></div></div>
+    <div class="vs" style="margin-top:12px">
+      <div class="vs-col own">
+        <p style="margin:0 0 8px;font-weight:600;color:var(--blue-800)">Residencial Jardim Ema (próprio) <span class="src src-crm">CRM</span></p>
+        <div class="vs-row"><span>Tipologia comparada</span><b>2D · 36 m²</b></div>
+        <div class="vs-row"><span>Preço</span><b>R$ 239.000</b></div>
+        <div class="vs-row"><span>R$/m²</span><b class="up">R$ 6.640 (−1,8%)</b></div>
+        <div class="vs-row"><span>Vagas</span><b>Sem vaga</b></div>
+        <div class="vs-row"><span>Lazer</span><b>8 itens (piscina, coworking)</b></div>
+        <div class="vs-row"><span>Entrega</span><b>dez/2028</b></div>
+        <div class="vs-row"><span>Distância ao metrô Vila Prudente</span><b>1,3 km</b></div>
+        <div class="vs-row"><span>Enquadramento</span><b>HIS-1 · MCMV F2</b></div>
+      </div>
+      <div class="vs-col">
+        <p style="margin:0 0 8px;font-weight:600">C1 · Vivaz Ema Park <span class="src src-man">Manual · 14/10/2026</span></p>
+        <div class="vs-row"><span>Tipologia comparada</span><b>2D · 34 m²</b></div>
+        <div class="vs-row"><span>Preço</span><b>R$ 229.900</b></div>
+        <div class="vs-row"><span>R$/m²</span><b>R$ 6.760</b></div>
+        <div class="vs-row"><span>Vagas</span><b>Sem vaga</b></div>
+        <div class="vs-row"><span>Lazer</span><b>5 itens</b></div>
+        <div class="vs-row"><span>Entrega</span><b>mar/2027</b></div>
+        <div class="vs-row"><span>Distância ao metrô Vila Prudente</span><b>0,9 km</b></div>
+        <div class="vs-row"><span>Enquadramento</span><b>HIS-1 · MCMV F2</b></div>
+      </div>
+    </div>
+    <p class="footnote">Verde = vantagem do empreendimento próprio. Concorrente entrega 21 meses antes — argumento de venda dele; o nosso ganha em m² e lazer.</p>
+  </div>
+
+  <div class="card">
+    <h2>Estado vazio (exemplo) — nenhum concorrente cadastrado</h2>
+    <div class="empty"><svg><use href="#i-building"/></svg><b>Nenhum concorrente cadastrado neste raio.</b>Cadastre os lançamentos que seus corretores citam nas perdas ("comprou na concorrência").<br><button class="btn btn-primary btn-sm" style="margin-top:10px"><svg><use href="#i-plus"/></svg>Cadastrar concorrente</button></div>
+  </div>
+</section>
+
+<!-- ============================ 4. VIABILIDADE ============================ -->
+<section class="panel" id="p-viab" role="tabpanel">
+  <div class="card">
+    <div class="flex-between">
+      <div><h2>Enquadramento por tipologia — Residencial Jardim Ema</h2><p class="hint" style="margin:0">Classificação municipal (HIS/HMP) e federal (MCMV) de cada tipologia, pelos parâmetros vigentes.</p></div>
+      <span class="src src-crm">Preços: CRM</span>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Tipologia</th><th class="num">Área</th><th class="num">Preço</th><th class="num">Teto HIS/HMP</th><th>Municipal</th><th>MCMV</th><th class="num">Renda necessária*</th><th>Situação</th></tr></thead>
+        <tbody>
+          <tr><td>2D compacto</td><td class="num">36 m²</td><td class="num">R$ 239.000</td><td class="num">R$ 276.102</td><td><span class="pill p-green">HIS-1</span></td><td><span class="pill p-violet">Faixa 2</span></td><td class="num">R$ 4.467</td><td><span class="pill p-green">OK</span></td></tr>
+          <tr><td>2D</td><td class="num">42 m²</td><td class="num">R$ 269.000</td><td class="num">R$ 276.102</td><td><span class="pill p-green">HIS-1</span></td><td><span class="pill p-violet">Faixa 2 → 3</span></td><td class="num">R$ 5.027</td><td><span class="pill p-amber">Atenção</span></td></tr>
+          <tr><td>2D + suíte</td><td class="num">50 m²</td><td class="num">R$ 329.000</td><td class="num">R$ 383.637</td><td><span class="pill p-blue">HIS-2</span></td><td><span class="pill p-violet">Faixa 3</span></td><td class="num">R$ 6.149</td><td><span class="pill p-green">OK</span></td></tr>
+          <tr><td>3D</td><td class="num">65 m²</td><td class="num">R$ 459.000</td><td class="num">R$ 537.673</td><td><span class="pill p-slate">HMP</span></td><td><span class="pill p-violet">Faixa 4</span></td><td class="num">R$ 8.578</td><td><span class="pill p-amber">Atenção</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-amber" style="margin-top:14px"><svg><use href="#i-alert"/></svg><div><b>2D 42 m²:</b> o preço cabe no teto HIS-1, mas a renda necessária (R$ 5.027) passa do limite de renda HIS-1 (R$ 4.863) e da Faixa 2 (R$ 5.000). <b>3D 65 m²:</b> renda necessária abaixo do piso da Faixa 4 — cliente cairia na Faixa 3, cujo teto (R$ 400 mil) não cobre o preço.</div></div>
+    <p class="footnote">* Simulação simplificada para o wireframe: 80% financiado, 420 meses, Price, taxa única 8,16% a.a., parcela ≤ 30% da renda. Na versão real, a taxa varia por faixa MCMV e o subsídio entra no cálculo.</p>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h2>Tabelas de parâmetros vigentes</h2>
+      <p class="hint">Duas tabelas versionadas por vigência. Mudou a regra? Cadastra-se nova vigência, sem apagar a anterior.</p>
+      <p style="margin:6px 0;font-size:12px;font-weight:600;color:var(--slate-600)">Municipal — HIS/HMP <span class="src src-gov">Prefeitura SP · Decreto 64.895/2026 · DOM 06/01/2026</span></p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Categoria</th><th class="num">Renda familiar máx.</th><th class="num">Teto de venda</th></tr></thead>
+        <tbody>
+          <tr><td>HIS-1</td><td class="num">R$ 4.863 (3 SM)</td><td class="num">R$ 276.102,20</td></tr>
+          <tr><td>HIS-2</td><td class="num">R$ 9.726 (6 SM)</td><td class="num">R$ 383.636,74</td></tr>
+          <tr><td>HMP</td><td class="num">R$ 16.210 (10 SM)</td><td class="num">R$ 537.672,71</td></tr>
+        </tbody></table></div>
+      <p style="margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--slate-600)">Federal — MCMV <span class="src src-gov">vigente desde 22/04/2026 · conferir resolução oficial</span></p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Faixa</th><th class="num">Renda bruta até</th><th class="num">Teto do imóvel</th></tr></thead>
+        <tbody>
+          <tr><td>Faixa 1</td><td class="num">R$ 3.200</td><td class="num">—</td></tr>
+          <tr><td>Faixa 2</td><td class="num">R$ 5.000</td><td class="num">R$ 275.000</td></tr>
+          <tr><td>Faixa 3</td><td class="num">R$ 9.600</td><td class="num">R$ 400.000</td></tr>
+          <tr><td>Faixa 4</td><td class="num">R$ 13.000</td><td class="num">R$ 600.000</td></tr>
+        </tbody></table></div>
+      <p class="footnote">Salário mínimo de referência R$ 1.621,00. Tetos municipais corrigidos pelo INCC; renda, pelo salário mínimo. Correspondência HIS×MCMV é aproximada. <a href="#" style="color:var(--blue-700)">Gerenciar vigências</a></p>
+    </div>
+
+    <div class="card">
+      <h2>Renda necessária × preço <span class="src src-crm">CRM</span> <span class="src src-gov">Tabelas</span></h2>
+      <p class="hint">Barra = renda necessária por tipologia. Linhas = limites de renda HIS-1 e HIS-2.</p>
+      <svg class="chart" viewBox="0 0 420 240" role="img" aria-label="Renda necessária: 239 mil exige 4.467; 269 mil exige 5.027; 329 mil exige 6.149; 459 mil exige 8.578. Limite HIS-1 4.863, HIS-2 9.726">
+        <!-- escala: 0..10.000 -> 200..20 (0,018 px por real) -->
+        <g stroke="#e2e8f0"><line x1="44" y1="20" x2="410" y2="20"/><line x1="44" y1="110" x2="410" y2="110"/><line x1="44" y1="200" x2="410" y2="200" stroke="#cbd5e1"/></g>
+        <g font-size="10" fill="#94a3b8" text-anchor="end"><text x="40" y="24">10 mil</text><text x="40" y="114">5 mil</text><text x="40" y="204">0</text></g>
+        <rect x="64"  y="120" width="56" height="80"  rx="4" fill="#2563eb"/>
+        <rect x="150" y="110" width="56" height="90"  rx="4" fill="#b45309"/>
+        <rect x="236" y="89"  width="56" height="111" rx="4" fill="#2563eb"/>
+        <rect x="322" y="46"  width="56" height="154" rx="4" fill="#b45309"/>
+        <line x1="44" y1="112" x2="410" y2="112" stroke="#16a34a" stroke-dasharray="5 4"/>
+        <line x1="44" y1="25"  x2="410" y2="25"  stroke="#1d4ed8" stroke-dasharray="5 4"/>
+        <text x="408" y="108" font-size="9" fill="#15803d" text-anchor="end">limite HIS-1 R$ 4.863</text>
+        <text x="408" y="38" font-size="9" fill="#1d4ed8" text-anchor="end">limite HIS-2 R$ 9.726</text>
+        <g font-size="10" fill="#334155" font-weight="600" text-anchor="middle"><text x="92" y="116">4.467</text><text x="178" y="104">5.027</text><text x="264" y="84">6.149</text><text x="350" y="60">8.578</text></g>
+        <g font-size="10" fill="#64748b" text-anchor="middle"><text x="92" y="216">R$ 239 mil</text><text x="178" y="216">R$ 269 mil</text><text x="264" y="216">R$ 329 mil</text><text x="350" y="216">R$ 459 mil</text></g>
+        <g font-size="9" fill="#94a3b8" text-anchor="middle"><text x="92" y="230">2D 36</text><text x="178" y="230">2D 42</text><text x="264" y="230">2D+s 50</text><text x="350" y="230">3D 65</text></g>
+      </svg>
+      <p class="footnote">Âmbar = situação de atenção (cor de status). Simulação interativa no item "Simulador" do menu.</p>
+      <h2 style="margin-top:14px">INCC acumulado <span class="src src-bc">Banco Central · SGS</span></h2>
+      <div class="stat-list">
+        <div class="stat"><div class="v">5,9%</div><div class="l">12 meses (set/2026)</div></div>
+        <div class="stat"><div class="v">4,1%</div><div class="l">desde o lançamento (fev/2026)</div></div>
+      </div>
+      <p class="footnote">INCC-M (FGV) via API do Banco Central, série mensal. Última leitura: set/2026. Usado para corrigir tetos HIS/HMP e projetar reajuste de tabela.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="flex-between"><h2><svg width="16" height="16" style="color:var(--blue-600)"><use href="#i-spark"/></svg>Parecer</h2>
+      <div class="row-actions"><span class="src src-ia">gerado por IA — revise</span><button class="btn btn-sm">Gerar de novo</button><button class="btn btn-sm">Editar</button></div></div>
+    <div class="ia" style="margin-top:12px">
+      <p><b>Resumo.</b> O Residencial Jardim Ema está posicionado no centro do mercado HIS-1 do entorno: R$ 6.640/m², abaixo do mediano do ITBI no raio de 1 km (R$ 8.420/m²) e 1,8% abaixo do concorrente mais próximo (C1).</p>
+      <ul>
+        <li><b>Força:</b> preço/m² competitivo e lazer superior aos 4 concorrentes HIS-1 cadastrados.</li>
+        <li><b>Risco:</b> a tipologia 2D 42 m² exige renda (R$ 5.027) acima do limite HIS-1 e da Faixa 2 — avaliar reduzir preço para ~R$ 259 mil ou reforçar entrada facilitada.</li>
+        <li><b>Risco:</b> 3D 65 m² fica sem faixa MCMV coerente com a renda simulada; público provável é fora do programa.</li>
+        <li><b>Mercado:</b> m² mediano subiu 10,2% em 12 meses, acima do INCC (5,9%) — espaço para reajuste de tabela.</li>
+        <li><b>Funil:</b> 34% das perdas são por renda; reforça a recomendação acima.</li>
+      </ul>
+      <p class="footnote" style="margin-bottom:0">Gerado em 19/10/2026 10:42 a partir apenas dos números desta análise (CRM, ITBI, IBGE, tabelas, INCC). A IA não consulta dados pessoais de clientes. Custo registrado no uso diário de IA do tenant.</p>
+    </div>
+    <div class="row-actions" style="margin-top:14px"><button class="btn"><svg><use href="#i-dl"/></svg>Baixar PDF</button><button class="btn btn-primary"><svg><use href="#i-save"/></svg>Salvar no histórico</button></div>
+  </div>
+</section>
+
+<!-- ============================ 5. HISTÓRICO ============================ -->
+<section class="panel" id="p-hist" role="tabpanel">
+  <div class="card">
+    <div class="flex-between">
+      <div><h2>Análises salvas</h2><p class="hint" style="margin:0">Cada análise guarda os números do dia em que foi feita (foto do momento), com fonte e data de cada dado.</p></div>
+      <div class="field" style="flex:0;min-width:240px"><input class="input" placeholder="Buscar por endereço ou empreendimento"></div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Data</th><th>Endereço</th><th>Empreendimento</th><th class="num">Raio</th><th class="num">R$/m² ITBI</th><th class="num">Concorrentes</th><th>Parecer</th><th>Autor</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>19/10/2026</td><td>Rua Ibitirama, 1500 — Vila Prudente</td><td>Residencial Jardim Ema</td><td class="num">1 km</td><td class="num">R$ 8.420</td><td class="num">5</td><td><span class="pill p-blue">IA revisado</span></td><td>Daniel V.</td><td><button class="btn btn-sm">Abrir</button></td></tr>
+          <tr><td>02/10/2026</td><td>Av. Vila Ema, 2800 — Vila Ema</td><td>—</td><td class="num">2 km</td><td class="num">R$ 7.390</td><td class="num">3</td><td><span class="pill p-slate">IA não revisado</span></td><td>Daniel V.</td><td><button class="btn btn-sm">Abrir</button></td></tr>
+          <tr><td>18/09/2026</td><td>Rua Itamumbuca, 300 — Pq. São Lucas</td><td>Parque das Ipês</td><td class="num">1 km</td><td class="num">R$ 6.980</td><td class="num">2</td><td><span class="pill p-slate">Sem parecer</span></td><td>Daniel V.</td><td><button class="btn btn-sm">Abrir</button></td></tr>
+          <tr><td>05/09/2026</td><td>Rua Costa Barros, 1200 — Vila Alpina</td><td>—</td><td class="num">500 m</td><td class="num">R$ 8.910</td><td class="num">1</td><td><span class="pill p-blue">IA revisado</span></td><td>Daniel V.</td><td><button class="btn btn-sm">Abrir</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">Abrir mostra a análise como foi salva; botão "Atualizar com dados de hoje" cria uma nova versão (não sobrescreve).</p>
+  </div>
+
+  <div class="card">
+    <h2>Estado vazio (exemplo) — primeira vez</h2>
+    <div class="empty"><svg><use href="#i-hist"/></svg><b>Você ainda não salvou nenhuma análise.</b>Faça uma análise por endereço e clique em "Salvar análise" para comparar o mesmo terreno ao longo do tempo.<br><button class="btn btn-primary btn-sm" style="margin-top:10px">Nova análise por endereço</button></div>
+  </div>
+</section>
+
+    </div>
+  </div>
+</div>
+
+<span class="note-wire">dados fictícios — wireframe</span>
+
+<script>
+  // JS mínimo: troca de abas + gaveta do menu no celular.
+  document.querySelectorAll('.tab').forEach(function (t) {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (x) { x.setAttribute('aria-selected', 'false'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('on'); });
+      t.setAttribute('aria-selected', 'true');
+      document.getElementById(t.dataset.tab).classList.add('on');
+      window.scrollTo(0, 0);
+    });
+  });
+  document.querySelectorAll('.seg').forEach(function (g) {
+    g.addEventListener('click', function (e) {
+      if (e.target.tagName !== 'BUTTON') return;
+      g.querySelectorAll('button').forEach(function (b) { b.classList.remove('on'); });
+      e.target.classList.add('on');
+    });
+  });
+  function toggleMenu(open) {
+    document.getElementById('sidebar').classList.toggle('open', open);
+    document.getElementById('overlay').classList.toggle('open', open);
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') toggleMenu(false); });
+</script>
+</body>
+</html>
