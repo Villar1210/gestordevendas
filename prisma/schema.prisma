@@ -123,6 +123,8 @@ model Tenant {
 
   // Modulo BII (Fatia 1) - historico de etapas dos cards (ver BiiCardStageEvento).
   biiCardStageEventos BiiCardStageEvento[]
+  // Modulo BII (Fatia 2) - analises por endereco salvas (ver BiiAnalise).
+  biiAnalises BiiAnalise[]
   @@map("tenants")
 }
 
@@ -2011,4 +2013,146 @@ model BiiCardStageEvento {
   @@index([tenantId, cardId, ocorridoEm])
   @@index([tenantId, toStageNome, ocorridoEm])
   @@map("bii_card_stage_eventos")
+}
+
+// =============================================================================
+// Modulo BII - Fatia 2 (Analise por Endereco + ITBI)
+// ItbiTransacao, GeocodeCache e ItbiImportacao sao GLOBAIS de proposito (dado
+// publico da Prefeitura/OpenStreetMap, igual para todo tenant): SEM tenantId e
+// SEM FK para nenhuma tabela de tenant. Escrita so por job/Super Usuario; o
+// tenant so le. O que e do tenant (qual endereco pesquisou) fica em BiiAnalise.
+// =============================================================================
+
+// Uma linha por guia de ITBI (planilha da Prefeitura de SP, abas mensais).
+// So as colunas do mapa domain/services/itbi-colunas.ts sao importadas (LGPD:
+// coluna desconhecida/pessoal nunca entra).
+model ItbiTransacao {
+  id                   String    @id @default(uuid()) @db.Uuid
+  // sha256 dos campos normalizados - deduplicacao (createMany skipDuplicates)
+  hashLinha            String    @unique @map("hash_linha") @db.Char(64)
+  // SQL do IPTU: vem como numero no arquivo (zeros a esquerda perdidos) -> padStart 11
+  sqlCadastro          String?   @map("sql_cadastro") @db.VarChar(30)
+  logradouro           String    @db.VarChar(200)
+  numero               String?   @db.VarChar(20)
+  complemento          String?   @db.VarChar(100)
+  // nome do condominio/edificio (coluna "Referencia")
+  referencia           String?   @db.VarChar(150)
+  bairro               String?   @db.VarChar(100)
+  bairroNormalizado    String?   @map("bairro_normalizado") @db.VarChar(100)
+  cep                  String?   @db.VarChar(8)
+  cepPrefixo           String?   @map("cep_prefixo") @db.Char(5)
+  // logradouro normalizado|numero|cep - liga ao GeocodeCache ("itbi:" + chave)
+  enderecoChave        String    @map("endereco_chave") @db.VarChar(260)
+  // "1.Compra e venda" -> codigo 1 + descricao "Compra e venda"
+  naturezaCodigo       Int?      @map("natureza_codigo")
+  naturezaTransacao    String?   @map("natureza_transacao") @db.VarChar(120)
+  valorTransacao       Decimal   @map("valor_transacao") @db.Decimal(14, 2)
+  dataTransacao        DateTime  @map("data_transacao") @db.Date
+  valorVenalReferencia Decimal?  @map("valor_venal_referencia") @db.Decimal(14, 2)
+  proporcaoTransmitida Decimal?  @map("proporcao_transmitida") @db.Decimal(7, 4)
+  // "2.Minha Casa Minha Vida" -> codigo 2 + descricao
+  tipoFinanciamentoCodigo Int?   @map("tipo_financiamento_codigo")
+  tipoFinanciamento    String?   @map("tipo_financiamento") @db.VarChar(120)
+  valorFinanciado      Decimal?  @map("valor_financiado") @db.Decimal(14, 2)
+  situacaoSql          String?   @map("situacao_sql") @db.VarChar(40)
+  areaTerreno          Decimal?  @map("area_terreno") @db.Decimal(12, 2)
+  fracaoIdeal          Decimal?  @map("fracao_ideal") @db.Decimal(11, 10)
+  areaConstruida       Decimal?  @map("area_construida") @db.Decimal(12, 2)
+  usoIptu              Int?      @map("uso_iptu")
+  usoDescricao         String?   @map("uso_descricao") @db.VarChar(150)
+  padraoIptu           Int?      @map("padrao_iptu")
+  padraoDescricao      String?   @map("padrao_descricao") @db.VarChar(150)
+  accIptu              Int?      @map("acc_iptu")
+  latitude             Float?
+  longitude            Float?
+  geoPrecisao          String?   @map("geo_precisao") @db.VarChar(10)
+  importacaoId         String?   @map("importacao_id") @db.Uuid
+  arquivoAba           String?   @map("arquivo_aba") @db.VarChar(100)
+  importadoEm          DateTime  @default(now()) @map("importado_em")
+
+  importacao ItbiImportacao? @relation(fields: [importacaoId], references: [id], onDelete: SetNull)
+
+  @@index([latitude, longitude])
+  @@index([dataTransacao])
+  @@index([enderecoChave])
+  @@index([cepPrefixo, dataTransacao])
+  @@index([bairroNormalizado])
+  @@map("itbi_transacoes")
+}
+
+// Cache de geocodificacao (inclusive "nao achou": lat/lng nulos), para nunca
+// repetir a mesma consulta ao Nominatim. chave = "itbi:<enderecoChave>" para
+// enderecos do ITBI ou "txt:<sha256 do texto normalizado>" para o endereco
+// digitado numa analise. Chave txt: guarda SO lat, lng, precisao e CEP -
+// nem o texto pesquisado nem o endereco formatado (esse vai para a
+// BiiAnalise do proprio tenant). enderecoFormatado so para chaves itbi:.
+model GeocodeCache {
+  id                String   @id @default(uuid()) @db.Uuid
+  chave             String   @unique @db.VarChar(300)
+  provedor          String   @db.VarChar(20)
+  latitude          Float?
+  longitude         Float?
+  precisao          String?  @db.VarChar(10)
+  cep               String?  @db.VarChar(8)
+  enderecoFormatado String?  @map("endereco_formatado") @db.VarChar(500)
+  criadoEm          DateTime @default(now()) @map("criado_em")
+
+  @@map("geocode_cache")
+}
+
+// Registro de cada importacao do ITBI (o arquivo original NAO e guardado).
+model ItbiImportacao {
+  id                 String    @id @default(uuid()) @db.Uuid
+  nomeArquivo        String    @map("nome_arquivo") @db.VarChar(120)
+  ano                Int
+  // processando | concluida | erro
+  status             String    @db.VarChar(20)
+  linhasLidas        Int       @default(0) @map("linhas_lidas")
+  linhasInseridas    Int       @default(0) @map("linhas_inseridas")
+  linhasDuplicadas   Int       @default(0) @map("linhas_duplicadas")
+  linhasDescartadas  Int       @default(0) @map("linhas_descartadas")
+  // [{ nome, status: importada|ignorada, linhas }] - abas sem cabecalho reconhecivel
+  abas               Json?
+  mensagemErro       String?   @map("mensagem_erro") @db.VarChar(300)
+  importadoPorUserId String    @map("importado_por_user_id") @db.Uuid
+  iniciadoEm         DateTime  @default(now()) @map("iniciado_em")
+  atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
+  concluidoEm        DateTime? @map("concluido_em")
+
+  transacoes ItbiTransacao[]
+
+  @@index([status])
+  @@index([iniciadoEm])
+  @@map("itbi_importacoes")
+}
+
+// Analise por endereco salva (por tenant). resultado = snapshot da resposta
+// (AnaliseEnderecoResponse sem id/criadoEm) - abrir depois mostra os mesmos
+// numeros mesmo que o ITBI seja reimportado. Usuario sem FK de proposito
+// (mesmo padrao do BiiCardStageEvento: excluir usuario nao apaga historico).
+model BiiAnalise {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  createdById       String   @map("created_by_id") @db.Uuid
+  // id do Super Usuario quando feita em impersonacao (auditoria)
+  impersonadoPor    String?  @map("impersonado_por") @db.Uuid
+  enderecoDigitado  String   @map("endereco_digitado") @db.VarChar(200)
+  enderecoFormatado String   @map("endereco_formatado") @db.VarChar(500)
+  latitude          Float
+  longitude         Float
+  precisao          String   @db.VarChar(10)
+  raioMetros        Int      @map("raio_metros")
+  meses             Int
+  areaMin           Decimal? @map("area_min") @db.Decimal(12, 2)
+  areaMax           Decimal? @map("area_max") @db.Decimal(12, 2)
+  // resumo duplicado em colunas para a listagem nao ler o Json inteiro
+  transacoes        Int      @default(0)
+  precoM2Mediano    Decimal? @map("preco_m2_mediano") @db.Decimal(12, 2)
+  resultado         Json
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@map("bii_analises")
 }

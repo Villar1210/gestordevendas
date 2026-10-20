@@ -18,6 +18,7 @@ import { CardStageChangedListener } from '../listeners/card-stage-changed.listen
 import { FiltroPainel } from '../../domain/repositories/painel-vendas-repository.interface';
 import { Test } from '@nestjs/testing';
 import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { BiiModule } from '../../bii.module';
 
 const descrever = process.env.DATABASE_URL ? describe : describe.skip;
@@ -223,7 +224,9 @@ descrever('BII - isolamento de tenant no Painel de Vendas (integracao - banco re
 
   it('wiring do BiiModule: emit("card.stage.changed") chega ao listener e grava no banco', async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [EventEmitterModule.forRoot(), BiiModule],
+      // ThrottlerModule e global no AppModule; aqui o BiiModule sobe sozinho
+      // (BiiAnaliseThrottlerGuard precisa das opcoes do throttler)
+      imports: [EventEmitterModule.forRoot(), ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 1000 }]), BiiModule],
     }).compile();
     const app = moduleRef.createNestApplication({ logger: false });
     await app.init();

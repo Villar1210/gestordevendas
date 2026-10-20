@@ -2,7 +2,8 @@
 // Tela do dono da plataforma SaaS - lista todos os tenants clientes e
 // permite "entrar como Administrador" de qualquer um (impersonacao, ver
 // ImpersonarTenantUseCase no backend), alem do historico de auditoria dos
-// proprios acessos (Fatia 3). Fora do layout do dashboard normal (sem
+// proprios acessos (Fatia 3) e, desde a Fatia 2 do BII, a importacao dos
+// dados publicos do ITBI (aba "Dados do BII"). Fora do layout do dashboard normal (sem
 // Sidebar/Topbar) - mesmo padrao de /minha-conta - ja que Super Usuario
 // nunca acessa o dashboard normal.
 "use client";
@@ -17,6 +18,7 @@ import {
   TOKEN_STORAGE_KEY,
   IMPERSONANDO_TENANT_NOME_STORAGE_KEY,
 } from "@/core/api/client";
+import { ItbiDadosPublicosCard } from "@/features/bii-plataforma/components/ItbiDadosPublicosCard";
 
 interface TenantSummary {
   id: string;
@@ -32,7 +34,7 @@ interface AcessoPlataformaLog {
   createdAt: string;
 }
 
-type ActiveView = "tenants" | "historico";
+type ActiveView = "tenants" | "historico" | "bii";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
@@ -125,8 +127,8 @@ export default function SuperUsuarioPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="text-lg font-semibold text-slate-800">Gestão de Tenants</span>
           <div className="flex rounded-lg border border-slate-200 p-0.5">
             <button
@@ -149,6 +151,16 @@ export default function SuperUsuarioPage() {
             >
               Meus Acessos
             </button>
+            <button
+              onClick={() => handleSelectView("bii")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                activeView === "bii"
+                  ? "bg-blue-700 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Dados do BII
+            </button>
           </div>
         </div>
         <button
@@ -160,8 +172,10 @@ export default function SuperUsuarioPage() {
         </button>
       </header>
 
-      <div className="p-6">
-        {activeView === "tenants" ? (
+      <div className="p-4 sm:p-6">
+        {activeView === "bii" ? (
+          <ItbiDadosPublicosCard />
+        ) : activeView === "tenants" ? (
           isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">
               <Loader2 className="h-6 w-6 animate-spin text-blue-600" />

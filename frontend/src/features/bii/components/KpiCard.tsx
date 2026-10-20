@@ -4,7 +4,7 @@
 // venda, subir e ruim (vermelho) e descer e bom (verde).
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { formatDecimal1, formatNumero } from "../constants";
-import { SourceBadge } from "./SourceBadge";
+import { SourceBadge, type FonteDado } from "./SourceBadge";
 
 export interface Variacao {
   texto: string;
@@ -17,7 +17,9 @@ interface KpiCardProps {
   valor: string;
   valorCompleto?: string; // tooltip/leitor de tela quando o valor e compacto
   sub?: string;
-  variacao: Variacao | null;
+  // undefined = card sem linha de comparacao (ex.: ITBI); null = "sem base".
+  variacao?: Variacao | null;
+  fonte?: FonteDado;
 }
 
 const TOM_CLASSE: Record<Variacao["tom"], string> = {
@@ -26,13 +28,13 @@ const TOM_CLASSE: Record<Variacao["tom"], string> = {
   neutro: "text-slate-500",
 };
 
-export function KpiCard({ label, valor, valorCompleto, sub, variacao }: KpiCardProps) {
+export function KpiCard({ label, valor, valorCompleto, sub, variacao, fonte }: KpiCardProps) {
   const Icone = variacao?.direcao === "up" ? ArrowUpRight : variacao?.direcao === "down" ? ArrowDownRight : Minus;
   return (
     <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-1.5">
-        <p className="text-xs leading-tight text-slate-500">{label}</p>
-        <SourceBadge />
+      <div className="flex flex-wrap items-start justify-between gap-1.5">
+        <p className="min-w-0 text-xs leading-tight text-slate-500">{label}</p>
+        <SourceBadge fonte={fonte} />
       </div>
       <p
         className="mt-1.5 truncate text-xl font-semibold text-blue-700 sm:text-2xl"
@@ -42,16 +44,18 @@ export function KpiCard({ label, valor, valorCompleto, sub, variacao }: KpiCardP
         {valor}
       </p>
       {sub && <p className="truncate text-xs text-slate-500">{sub}</p>}
-      <p className={`mt-1 flex items-center gap-1 text-xs ${variacao ? TOM_CLASSE[variacao.tom] : "text-slate-400"}`}>
-        {variacao ? (
-          <>
-            <Icone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="min-w-0">{variacao.texto}</span>
-          </>
-        ) : (
-          <span>sem base de comparação</span>
-        )}
-      </p>
+      {variacao !== undefined && (
+        <p className={`mt-1 flex items-center gap-1 text-xs ${variacao ? TOM_CLASSE[variacao.tom] : "text-slate-400"}`}>
+          {variacao ? (
+            <>
+              <Icone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0">{variacao.texto}</span>
+            </>
+          ) : (
+            <span>sem base de comparação</span>
+          )}
+        </p>
+      )}
     </div>
   );
 }
