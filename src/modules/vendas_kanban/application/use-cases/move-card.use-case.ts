@@ -1,5 +1,6 @@
 // src/modules/vendas_kanban/application/use-cases/move-card.use-case.ts
 import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
@@ -9,6 +10,10 @@ import {
   REMARKETING_PIPELINE_NOME,
   podeAcessarPipelineRemarketing,
 } from '../../domain/services/remarketing-pipeline';
+import {
+  CARD_STAGE_CHANGED_EVENT,
+  CardStageChangedEvent,
+} from '../../domain/events/card-stage-changed.event';
 
 const POSITION_STEP = 1000;
 
@@ -25,6 +30,9 @@ interface MoveCardInput {
   // valida de novo, mesmo padrao ja usado em outras regras de negocio
   // deste projeto (ex: AceitarLeadUseCase).
   motivoRepique?: string;
+  // Quem moveu (evento card.stage.changed, consumido pelo BII). Opcional:
+  // chamadores de sistema (ex: MoverCardViviUseCase) nao informam -> null.
+  requesterUserId?: string | null;
 }
 
 @Injectable()
@@ -33,6 +41,7 @@ export class MoveCardUseCase {
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: MoveCardInput): Promise<{ newPosition: number }> {
@@ -80,7 +89,8 @@ export class MoveCardUseCase {
 
     const newPosition = this.calculatePosition(cardsInTargetStage, input.targetIndex);
 
-    if (targetStage.name === REPIQUE_STAGE_NAME) {
+    const isRepique = targetStage.name === REPIQUE_STAGE_NAME;
+    if (isRepique) {
       if (!input.motivoRepique || !isMotivoRepiqueValido(input.motivoRepique)) {
         throw new BadRequestException(
           `Motivo obrigatorio ao mover para Repique. Use um destes: ${MOTIVOS_REPIQUE.join(', ')}.`,
@@ -92,6 +102,24 @@ export class MoveCardUseCase {
       });
     } else {
       await this.cardRepository.updateStageAndPosition(card.id, input.targetStageId, newPosition);
+    }
+
+    // Historico de etapas (BII): so quando a stage muda de verdade (reordenar
+    // dentro da mesma coluna nao conta). emit (nao emitAsync): o Kanban nao
+    // espera nem falha por causa de quem escuta.
+    if (card.stageId !== input.targetStageId) {
+      const evento: CardStageChangedEvent = {
+        tenantId: input.tenantId,
+        cardId: card.id,
+        pipelineId: card.pipelineId,
+        fromStageId: card.stageId ?? null,
+        toStageId: input.targetStageId,
+        userId: input.requesterUserId ?? null,
+        origem: 'move',
+        ocorridoEm: new Date(),
+        motivoRepique: isRepique ? input.motivoRepique : null,
+      };
+      this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
     }
 
     return { newPosition };

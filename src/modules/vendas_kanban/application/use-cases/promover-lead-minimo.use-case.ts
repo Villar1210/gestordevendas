@@ -17,6 +17,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
 import { REMARKETING_PIPELINE_NOME } from '../../domain/services/remarketing-pipeline';
+import {
+  CARD_STAGE_CHANGED_EVENT,
+  CardStageChangedEvent,
+} from '../../domain/events/card-stage-changed.event';
 
 interface PromoverLeadMinimoInput {
   tenantId: string;
@@ -78,6 +82,24 @@ export class PromoverLeadMinimoUseCase {
     this.logger.log(
       `[Remarketing] Card ${cardPromovido.id} promovido do funil de remarketing para o pipeline ${input.targetPipelineId} (telefone ${input.phoneNumber}).`,
     );
+
+    // Historico de etapas (BII): so quando o card promovido cai numa stage
+    // (Caixa de Entrada = sem stage -> o evento sai depois, no claim) e ela e
+    // diferente da que ele tinha no funil de remarketing.
+    if (input.targetStageId && input.targetStageId !== cardRemarketing.stageId) {
+      const evento: CardStageChangedEvent = {
+        tenantId: input.tenantId,
+        cardId: cardPromovido.id,
+        pipelineId: input.targetPipelineId,
+        fromStageId: cardRemarketing.stageId ?? null,
+        toStageId: input.targetStageId,
+        userId: null,
+        origem: 'promocao',
+        ocorridoEm: new Date(),
+        motivoRepique: input.motivoRepique ?? null,
+      };
+      this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
+    }
 
     // Mesma condicao ja usada por CreateQuickCardUseCase: so dispara a
     // Roleta Online se o card promovido caiu na Caixa de Entrada (sem

@@ -157,6 +157,7 @@ export class CardController {
       targetStageId: dto.targetStageId,
       targetIndex: dto.targetIndex,
       motivoRepique: dto.motivoRepique,
+      requesterUserId: req.user!.id,
     });
   }
 

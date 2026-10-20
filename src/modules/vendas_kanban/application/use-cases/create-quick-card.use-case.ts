@@ -10,6 +10,10 @@ import {
   REMARKETING_PIPELINE_NOME,
   podeAcessarPipelineRemarketing,
 } from '../../domain/services/remarketing-pipeline';
+import {
+  CARD_STAGE_CHANGED_EVENT,
+  CardStageChangedEvent,
+} from '../../domain/events/card-stage-changed.event';
 
 interface CreateQuickCardInput {
   tenantId: string;
@@ -111,6 +115,25 @@ export class CreateQuickCardUseCase {
     // um card criado ja com stage explicito (ex: "Repique", deposito
     // estrategico para remarketing futuro) foi posicionado de proposito e
     // NAO deve ser distribuido/movido pela Roleta.
+    // Historico de etapas (BII): card criado ja com stage (ex: "Repique" pela
+    // VIVI, ou a stage do funil de remarketing) = entrada no funil. Card na
+    // Caixa de Entrada (sem stage) nao gera evento aqui - o evento sai quando
+    // alguem o assume (ClaimCardUseCase).
+    if (card.stageId) {
+      const evento: CardStageChangedEvent = {
+        tenantId: input.tenantId,
+        cardId: card.id,
+        pipelineId: pipeline.id,
+        fromStageId: null,
+        toStageId: card.stageId,
+        userId: null,
+        origem: 'criacao',
+        ocorridoEm: new Date(),
+        motivoRepique: input.motivoRepique ?? null,
+      };
+      this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
+    }
+
     if (!card.stageId) {
       await this.eventEmitter.emitAsync('card.sem_dono.criado', {
         tenantId: input.tenantId,

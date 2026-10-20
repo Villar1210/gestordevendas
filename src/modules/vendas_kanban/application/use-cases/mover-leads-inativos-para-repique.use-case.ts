@@ -6,10 +6,15 @@
 // WhatsApp (IN ou OUT) mais recente que os 90 dias para o telefone do card,
 // caso em que ha interacao real que o Card.updatedAt sozinho nao capturou.
 import { Injectable, Inject, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { IWhatsAppMessageRepository } from '../../../whatsappmarketing/domain/repositories/whatsapp-message-repository.interface';
 import { REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
+import {
+  CARD_STAGE_CHANGED_EVENT,
+  CardStageChangedEvent,
+} from '../../domain/events/card-stage-changed.event';
 
 const DIAS_INATIVIDADE = 90;
 const POSITION_STEP = 1000;
@@ -23,6 +28,7 @@ export class MoverLeadsInativosParaRepiqueUseCase {
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('IWhatsAppMessageRepository')
     private readonly whatsAppMessageRepository: IWhatsAppMessageRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(): Promise<void> {
@@ -82,6 +88,20 @@ export class MoverLeadsInativosParaRepiqueUseCase {
       motivoRepique: 'SEM_RESPOSTA_90_DIAS',
       movidoParaRepiqueEm: new Date(),
     });
+
+    // Historico de etapas (BII) - job de sistema (userId null).
+    const evento: CardStageChangedEvent = {
+      tenantId: card.tenantId,
+      cardId: card.id,
+      pipelineId: card.pipelineId,
+      fromStageId: card.stageId ?? null,
+      toStageId: repiqueStage.id,
+      userId: null,
+      origem: 'job_repique',
+      ocorridoEm: new Date(),
+      motivoRepique: 'SEM_RESPOSTA_90_DIAS',
+    };
+    this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
 
     this.logger.log(
       `Card ${card.id} (tenant ${card.tenantId}) movido automaticamente para Repique - inativo ha ${DIAS_INATIVIDADE}+ dias.`,

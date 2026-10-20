@@ -1788,3 +1788,97 @@ Ajustes da revisao de seguranca (16/10/2026):
 - PENDENCIA para o dono reavaliar (BAIXO-3, mantido como esta de proposito):
   PATCH /proprietarios/:id continua aberto a DASHBOARD_ROLES (qualquer
   Corretor edita dados de proprietario, incl. bancarios).
+
+## Modulo BII - Fatia 1 (historico de etapas + Painel de Vendas) - CONCLUIDA
+BII = Business Intelligence Imobiliario. Contrato completo (aprovado pelo
+Villar em 19/10/2026): docs/bii/fatia1/CONTRATO_PAINEL.md. Desenho geral:
+docs/bii/fase1/.
+
+### Historico de etapas (evento `card.stage.changed`)
+O vendas_kanban so EMITE o evento (contrato em
+src/modules/vendas_kanban/domain/events/card-stage-changed.event.ts; o BII tem
+a propria copia em src/modules/bii/domain/events/ - modulo nao importa modulo):
+`{ tenantId, cardId, pipelineId, fromStageId (null = entrada no funil),
+toStageId, userId (null = job/sistema), origem: move|claim|job_repique|
+promocao|criacao, ocorridoEm, motivoRepique? }`. Sempre `emit` (nunca
+emitAsync), DEPOIS da escrita bem-sucedida, e SO quando a stage muda de
+verdade. Pontos de emissao (conferidos no codigo, nenhum outro modulo grava
+Card.stageId):
+- MoveCardUseCase (origem move; nao emite ao reordenar na mesma coluna;
+  userId = `requesterUserId`, campo novo opcional passado pelo
+  CardController - MoverCardViviUseCase do vivi-integration nao passa, fica
+  null, sem mexer naquele modulo).
+- ClaimCardUseCase (claim; Roleta automatica tambem passa aqui, userId = o
+  corretor sorteado; nao emite se o card ja estava na primeira stage).
+- MoverLeadsInativosParaRepiqueUseCase (job_repique, motivo
+  SEM_RESPOSTA_90_DIAS).
+- PromoverLeadMinimoUseCase (promocao; so se o card promovido cai numa
+  stage - promovido para a Caixa de Entrada nao emite, o evento sai no claim).
+- CreateCardUseCase (criacao, sempre nasce com stage) e CreateQuickCardUseCase
+  (criacao, so quando nasce com stage - ex: Repique da VIVI, stage do funil de
+  remarketing; Caixa de Entrada nao emite).
+EventEmitter2 foi injetado em MoveCard/ClaimCard/CreateCard/
+MoverLeadsInativos (PromoverLeadMinimo/CreateQuickCard ja tinham). Nenhum
+comportamento do Kanban mudou.
+
+`CardStageChangedListener` (bii/infra/listeners) grava `BiiCardStageEvento`
+(tabela bii_card_stage_eventos, migration 20261020120000_bii_card_stage_evento,
+so CREATE TABLE): confere que o card e do tenant, busca o NOME das stages por
+id + tenantId e guarda uma COPIA (fromStageNome/toStageNome - sobrevive a
+renomear/excluir a stage). Stage/pipeline/usuario SEM FK de proposito (excluir
+stage ou usuario nao pode apagar nem bloquear historico; userId e so registro).
+FK so para Tenant e Card (Cascade). try/catch que so loga ids + mensagem do
+erro (sem dado pessoal); nunca derruba o Kanban.
+
+LIMITACOES CONHECIDAS: (1) historico so existe a partir da implantacao (sem
+passado; backfill "estimado" ficou para depois, se o Villar quiser); (2) o
+evento e em memoria - se o processo cair entre a escrita do card e o
+listener, aquele movimento se perde (janela de milissegundos; conferencia
+noturna Card.stageId x ultimo evento ficou como melhoria futura).
+
+### Painel de Vendas (GET /bii/painel)
+`BiiPainelController` (`@Controller('bii')`, classe com
+`@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles('Administrador')`) ->
+`GetPainelVendasUseCase` (checa `requesterRole === 'Administrador'` de novo ->
+403). Impersonacao do Super Usuario permitida (so leitura). Query opcional:
+`de`/`ate` (YYYY-MM-DD, `parseDateOnly` no controller; padrao = 6 meses de
+calendario incluindo o atual, do dia 1 de 5 meses atras ate hoje; `ate`
+inclusivo ate o fim do dia local - consultas usam `< inicio do dia seguinte`;
+`de > ate` -> 400; mais de 24 meses -> 400), `pipelineId` (padrao = pipeline
+mais antigo do tenant; de outro tenant -> 404), `corretorId` (Card.ownerId),
+`origem` (Card.origem). Resposta exatamente no formato do contrato.
+
+Regras: leadsNovos por Card.createdAt no periodo; ganho = card DISTINTO que
+ENTROU em "Fechamento" no periodo, perda = idem "Repique" (vale a primeira
+entrada no periodo; nome da etapa no momento do evento, comparado sem acento
+e sem caixa); VGV = soma de Card.value dos ganhos; ticketMedio so com value >
+0; ciclo = dias entre Card.createdAt e a entrada em Fechamento (negativo e
+descartado); funil sem Repique, em ordem de position, conversao = proxima /
+esta; comparativo = periodo anterior com a mesma quantidade de dias; ranking
+por VGV desc e depois ganhos (card sem dono fica fora); motivos de perda com
+os rotulos do Kanban (copiados em bii/domain/services/motivo-repique.ts),
+nulo = "Nao informado". Percentuais com 1 casa, null quando nao ha base.
+
+Calculos em funcoes PURAS (bii/domain/services: estatistica, normalizar,
+periodo, ciclo-venda, funil, painel-vendas, motivo-repique). Leitura por
+repositorio PROPRIO (`PrismaPainelVendasRepository`, le Card/Stage/Pipeline/
+User sem importar o vendas_kanban): todo where com tenantId, so Prisma tipado
+(findMany/groupBy/aggregate), ZERO SQL bruto no modulo. Decimal -> number.
+Agregacao em memoria sobre os eventos do periodo (suficiente para o volume
+atual; se crescer, mover para groupBy/SQL parametrizado).
+
+### Testes
+`npx jest src/modules/bii src/modules/vendas_kanban` (unitarios + meta-teste
+`bii/infra/http/permissoes-bii.http.spec.ts`, que descobre os controllers
+pelo proprio BiiModule e falha se alguma rota nao for so Administrador com
+JwtAuthGuard+RolesGuard). Integracao (isolamento de tenant + listener + wiring
+do evento, banco real; pulado sem DATABASE_URL):
+`DATABASE_URL=postgresql://... npx jest src/modules/bii --runInBand`.
+Falhas PRE-EXISTENTES na suite inteira (nao relacionadas ao BII):
+get-board-remarketing-restricao (mock sem findUltimasByCardIds) e 3 specs do
+vivi_sdr (factory vivi-config-record sem diasParaRotting).
+
+### Deploy
+`npx prisma migrate deploy` + `npm run db:generate` + `npm run build` +
+`pm2 restart gestordevendas --update-env`. NUNCA `pm2 restart all`.
+Nenhuma variavel de ambiente nova, nenhuma dependencia nova.

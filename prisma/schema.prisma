@@ -120,6 +120,9 @@ model Tenant {
   socialConversations SocialConversation[]
 
   roletas Roleta[]
+
+  // Modulo BII (Fatia 1) - historico de etapas dos cards (ver BiiCardStageEvento).
+  biiCardStageEventos BiiCardStageEvento[]
   @@map("tenants")
 }
 
@@ -823,6 +826,7 @@ model Card {
   viviConversations     ViviConversation[]
   repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
   socialConversations   SocialConversation[]
+  biiCardStageEventos   BiiCardStageEvento[]
 
   empreendimento        Empreendimento?        @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
   @@map("cards")
@@ -1973,4 +1977,38 @@ model RoletaHorarioExecucao {
 
   @@id([roletaId, dia, horario])
   @@map("roleta_horario_execucoes")
+}
+
+// Modulo BII (Fatia 1) - historico de etapas do Kanban. Uma linha por entrada
+// de um card numa stage (inclui a entrada no funil: fromStageId null). Gravada
+// pelo listener 'card.stage.changed' do modulo bii (o vendas_kanban so emite o
+// evento). Append-only, so leitura no Painel de Vendas.
+// - fromStageNome/toStageNome: COPIA do nome no momento do evento - o
+//   historico sobrevive a renomear/excluir a stage (por isso stage/pipeline/
+//   usuario NAO tem FK aqui: excluir uma stage ou um usuario nao pode apagar
+//   nem bloquear o historico).
+// - userId sem FK: e so um registro de quem moveu (null = job/sistema).
+model BiiCardStageEvento {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  cardId        String   @map("card_id") @db.Uuid
+  pipelineId    String?  @map("pipeline_id") @db.Uuid
+  fromStageId   String?  @map("from_stage_id") @db.Uuid
+  toStageId     String   @map("to_stage_id") @db.Uuid
+  fromStageNome String?  @map("from_stage_nome") @db.VarChar(100)
+  toStageNome   String   @map("to_stage_nome") @db.VarChar(100)
+  userId        String?  @map("user_id") @db.Uuid
+  // move | claim | job_repique | promocao | criacao
+  origem        String   @db.VarChar(20)
+  motivoRepique String?  @map("motivo_repique") @db.VarChar(30)
+  ocorridoEm    DateTime @map("ocorrido_em")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ocorridoEm])
+  @@index([tenantId, cardId, ocorridoEm])
+  @@index([tenantId, toStageNome, ocorridoEm])
+  @@map("bii_card_stage_eventos")
 }

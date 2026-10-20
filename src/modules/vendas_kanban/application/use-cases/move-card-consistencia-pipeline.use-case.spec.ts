@@ -8,6 +8,7 @@
 // card.pipelineId). BadRequestException, nao ForbiddenException - e um erro
 // de consistencia, nao de permissao, entao bloqueia mesmo para
 // Administrador.
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MoveCardUseCase } from './move-card.use-case';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
@@ -26,6 +27,7 @@ function setup(options: { cardPipelineId: string; targetStagePipelineId: string;
     stageRepository as unknown as IStageRepository,
     cardRepository as unknown as ICardRepository,
     pipelineRepository as unknown as IPipelineRepository,
+    { emit: jest.fn() } as unknown as EventEmitter2,
   );
 
   cardRepository.findByIdAndTenant.mockResolvedValue({
