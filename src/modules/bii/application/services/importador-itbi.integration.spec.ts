@@ -205,4 +205,12 @@ descrever('ImportadorItbiService (integracao - banco real, planilha sintetica)',
     expect(antigo.status).toBe('erro');
     expect(antigo.mensagemErro).toMatch(/interrompida/i);
   });
+
+  it('B4: onModuleInit marca as "processando" (do processo anterior) como erro', async () => {
+    const presa = await importacoes.criar({ nomeArquivo: 'presa.xlsx', ano: 2026, importadoPorUserId: USER });
+    await svc.onModuleInit();
+    const r = (await importacoes.listar(50)).find((i) => i.id === presa.id)!;
+    expect(r).toMatchObject({ status: 'erro', mensagemErro: 'Interrompida por reinício do servidor' });
+    expect(r.concluidoEm).not.toBeNull();
+  });
 });

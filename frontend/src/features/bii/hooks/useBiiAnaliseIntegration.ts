@@ -14,10 +14,21 @@ const ERRO_GENERICO = "Não foi possível concluir agora. Verifique sua conexão
 
 // Traduz o erro da API para uma frase para o usuario. 422 (endereco nao
 // encontrado) e 400 (validacao) trazem mensagem propria do backend.
-// 429 por cota diaria da empresa (diferente do limite por minuto): o
-// backend manda uma mensagem propria que fala em "diario".
+// 429 por cota diaria da empresa (diferente do limite por minuto) e 403 do
+// modo de acesso do Super Usuario: o backend manda um `code` estavel no corpo
+// (BII_COTA_DIARIA / BII_SOMENTE_LEITURA) - nunca depender do texto.
+function codigoErro(err: unknown): string | null {
+  if (!(err instanceof ApiError) || !err.body || typeof err.body !== "object") return null;
+  const code = (err.body as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
+}
+
 export function ehCotaDiaria(err: unknown): boolean {
-  return err instanceof ApiError && err.status === 429 && /di[aá]ri/i.test(err.message);
+  return err instanceof ApiError && err.status === 429 && codigoErro(err) === "BII_COTA_DIARIA";
+}
+
+export function ehSomenteLeitura(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 403 && codigoErro(err) === "BII_SOMENTE_LEITURA";
 }
 
 export function mensagemErroAnalise(err: unknown): string {
@@ -66,7 +77,7 @@ export function useBiiAnaliseIntegration() {
         setErro(mensagemErroAnalise(err));
         // Nos dois casos tentar de novo nao adianta: trava o botao.
         if (ehCotaDiaria(err)) setBloqueio("cota");
-        else if (err instanceof ApiError && err.status === 403) setBloqueio("somente_leitura");
+        else if (ehSomenteLeitura(err)) setBloqueio("somente_leitura");
       } finally {
         enviando.current = false;
         setLoading(false);

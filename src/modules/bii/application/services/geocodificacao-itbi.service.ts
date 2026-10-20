@@ -6,7 +6,8 @@
 // TODAS as ItbiTransacao daquela chave. Um job por vez (409). Progresso fica
 // em memoria (GET /bii-plataforma/itbi/geocodificacao: job atual ou o ultimo
 // deste processo). Desligamento do Nest cancela sem travar o processo.
-import { ConflictException, Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
+import { CoberturaItbiCache } from './cobertura-itbi.cache';
 import {
   chaveCacheItbi,
   GEOCODING_COM_CACHE,
@@ -22,9 +23,25 @@ export const GEOCODE_LOTE_PADRAO = 2000;
 // falhas seguidas do provedor (rede/429/5xx) que encerram o job
 export const GEOCODE_MAX_FALHAS_SEGUIDAS = 5;
 
+// B3: teto DIARIO de consultas REAIS ao Nominatim feitas pelo job em lote
+// (acertos de cache nao contam; a analise de endereco nao entra - ela tem
+// throttle por usuario e cota diaria por tenant). Contador em memoria por dia
+// local do servidor (por processo; zera ao reiniciar - aceito, o Nominatim
+// limita por IP e o job ja respeita 1 req/s).
+export const GEOCODE_POR_DIA_PADRAO = 10_000;
+
+export function geocodificacoesPorDia(valor = process.env.BII_GEOCODIFICACAO_POR_DIA): number {
+  const n = Number(valor);
+  return Number.isInteger(n) && n >= 1 ? n : GEOCODE_POR_DIA_PADRAO;
+}
+
+export function mensagemPausadoLimite(limite: number): string {
+  return `Pausado: limite diário de ${limite.toLocaleString('pt-BR')} consultas ao Nominatim atingido. Rode de novo amanhã para continuar.`;
+}
+
 export const MENSAGEM_GEOCODIFICACAO_EM_ANDAMENTO = 'Já existe uma geocodificação em andamento. Aguarde terminar.';
 
-export type StatusJobGeocode = 'processando' | 'concluida' | 'erro' | 'cancelada';
+export type StatusJobGeocode = 'processando' | 'concluida' | 'erro' | 'cancelada' | 'pausado';
 
 export interface ProgressoGeocodificacao {
   id: string;
@@ -50,11 +67,28 @@ export class GeocodificacaoItbiService implements OnModuleDestroy {
   private controle: AbortController | null = null;
   private promessa: Promise<void> | null = null;
   private seq = 0;
+  private consultasHoje = { dia: '', total: 0 };
+  // substituiveis em teste
+  agora: () => Date = () => new Date();
+  limitePorDia: () => number = () => geocodificacoesPorDia();
 
   constructor(
     @Inject(ITBI_REPOSITORY) private readonly itbiRepo: IItbiRepository,
     @Inject(GEOCODING_COM_CACHE) private readonly geocoder: IGeocodingComCache,
+    @Optional() private readonly cobertura?: CoberturaItbiCache,
   ) {}
+
+  private consultasDoDia(): { dia: string; total: number } {
+    const a = this.agora();
+    const dia = `${a.getFullYear()}-${a.getMonth() + 1}-${a.getDate()}`;
+    if (this.consultasHoje.dia !== dia) this.consultasHoje = { dia, total: 0 };
+    return this.consultasHoje;
+  }
+
+  // consultas reais ao Nominatim feitas hoje pelo job (para o progresso/teste)
+  get consultasRealizadasHoje(): number {
+    return this.consultasDoDia().total;
+  }
 
   status(): ProgressoGeocodificacao | null {
     return this.atual ? { ...this.atual, filtros: { ...this.atual.filtros } } : null;
@@ -114,6 +148,13 @@ export class GeocodificacaoItbiService implements OnModuleDestroy {
     try {
       for (const chave of chaves) {
         if (signal.aborted) break;
+        // conferido ANTES de cada item: cada item faz no maximo 1 consulta
+        const limite = this.limitePorDia();
+        if (this.consultasDoDia().total >= limite) {
+          p.status = 'pausado';
+          p.mensagemErro = mensagemPausadoLimite(limite);
+          return;
+        }
         const consulta = consultaGeocodeItbi(chave);
         p.processados++;
         if (!consulta) {
@@ -127,6 +168,8 @@ export class GeocodificacaoItbiService implements OnModuleDestroy {
         } catch (erro) {
           if (signal.aborted) break;
           if (erro instanceof GeocodingIndisponivelError) {
+            // a requisicao foi feita (conta no teto do dia)
+            this.consultasDoDia().total++;
             p.falhas++;
             falhasSeguidas++;
             if (falhasSeguidas >= GEOCODE_MAX_FALHAS_SEGUIDAS) {
@@ -139,7 +182,10 @@ export class GeocodificacaoItbiService implements OnModuleDestroy {
           throw erro;
         }
         if (r.fonte === 'cache') p.doCache++;
-        else p.consultasProvedor++;
+        else {
+          p.consultasProvedor++;
+          this.consultasDoDia().total++;
+        }
         const ponto = r.resultado;
         if (!ponto || !dentroDaGrandeSP(ponto)) {
           p.naoEncontrados++;
@@ -163,6 +209,7 @@ export class GeocodificacaoItbiService implements OnModuleDestroy {
       this.logger.warn(`Geocodificacao ITBI ${p.id} falhou: ${(erro as Error)?.name ?? 'erro'}`);
     } finally {
       p.concluidoEm = new Date().toISOString();
+      this.cobertura?.invalidar();
       this.logger.log(
         `Geocodificacao ITBI ${p.id} ${p.status}: processados=${p.processados}/${p.enfileirados} encontrados=${p.encontrados} cache=${p.doCache} consultas=${p.consultasProvedor} falhas=${p.falhas} transacoes=${p.transacoesAtualizadas}`,
       );

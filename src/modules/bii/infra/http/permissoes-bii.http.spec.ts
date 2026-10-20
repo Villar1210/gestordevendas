@@ -16,6 +16,9 @@ import { BiiPainelController, BiiPainelLimiteGuard } from './bii-painel.controll
 import { BiiAnaliseController, BiiAnaliseLimiteGuard } from './bii-analise.controller';
 import { BiiPlataformaController } from './bii-plataforma.controller';
 import { BiiItbiImportarLimiteGuard, ItbiUploadTamanhoGuard, PASTA_TEMP_ITBI } from './itbi-upload';
+import { BiiAnaliseThrottlerGuard } from './bii-analise-throttler.guard';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ForbiddenException, HttpException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { ROLES_KEY } from '../../../../shared/infra/http/decorators/roles.decorator';
@@ -33,7 +36,13 @@ import {
 import { ImportadorItbiService } from '../../application/services/importador-itbi.service';
 import { XlsxInspetor } from '../providers/xlsx-inspetor';
 
-const GUARDS_METODO_PERMITIDOS: unknown[] = [BiiPainelLimiteGuard, BiiAnaliseLimiteGuard, BiiItbiImportarLimiteGuard, ItbiUploadTamanhoGuard];
+const GUARDS_METODO_PERMITIDOS: unknown[] = [
+  BiiPainelLimiteGuard,
+  BiiAnaliseLimiteGuard,
+  BiiAnaliseThrottlerGuard,
+  BiiItbiImportarLimiteGuard,
+  ItbiUploadTamanhoGuard,
+];
 
 type Ctor = new (...args: never[]) => unknown;
 const CONTROLLERS = (Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, BiiModule) ?? []) as Ctor[];
@@ -99,11 +108,17 @@ const PERFIS: Record<string, { id: string; role: string; cargo: string | null }>
   cliente: { id: 'u-cliente', role: 'Cliente', cargo: null },
   super: { id: 'u-super', role: SUPER_USUARIO_ROLE_NAME, cargo: null },
 };
+// perfis extras de Administrador (usuarios diferentes) so para o throttle por usuario
+const PERFIS_EXTRAS: Record<string, { id: string; role: string; cargo: string | null }> = {
+  'gerente-admin': { id: 'u-admin-2', role: 'Administrador', cargo: null },
+  'throttle-a': { id: 'u-throttle-a', role: 'Administrador', cargo: null },
+  'throttle-b': { id: 'u-throttle-b', role: 'Administrador', cargo: null },
+};
 
 class FakeAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
-    const p = PERFIS[req.headers['x-perfil'] as string];
+    const p = PERFIS[req.headers['x-perfil'] as string] ?? PERFIS_EXTRAS[req.headers['x-perfil'] as string];
     req.user = { ...p, tenantId: 'tenant-a', standId: null, impersonadoPor: req.headers['x-impersonado'] ?? null };
     return true;
   }
@@ -129,6 +144,7 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
+      imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 10_000 }])],
       controllers: CONTROLLERS,
       providers: [
         { provide: GetPainelVendasUseCase, useValue: { execute: mocks.painel } },
@@ -197,13 +213,34 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     });
   });
 
-  it('Administrador impersonado PODE analisar e o impersonadoPor chega ao use case; tenant/role de req.user', async () => {
+  it('impersonadoPor chega ao use case (que responde 403 BII_SOMENTE_LEITURA); tenant/role de req.user', async () => {
     mocks.analisar.mockClear();
-    const res = await fetch(`${base}/bii/analises/endereco`, json('admin', { endereco: 'Rua X, 10, São Paulo', raioMetros: 2000, meses: 36, tipo: 'casa', somenteCompraVenda: false }, { 'x-impersonado': 'su-1' }));
+    const res = await fetch(`${base}/bii/analises/endereco`, json('gerente-admin', { endereco: 'Rua X, 10, São Paulo', raioMetros: 2000, meses: 36, tipo: 'casa', somenteCompraVenda: false }, { 'x-impersonado': 'su-1' }));
     expect(res.status).toBe(201);
     expect(mocks.analisar).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-a', requesterRole: 'Administrador', requesterUserId: 'u-admin', impersonadoPor: 'su-1', raioMetros: 2000, meses: 36, tipo: 'casa', somenteCompraVenda: false }),
+      expect.objectContaining({ tenantId: 'tenant-a', requesterRole: 'Administrador', requesterUserId: 'u-admin-2', impersonadoPor: 'su-1', raioMetros: 2000, meses: 36, tipo: 'casa', somenteCompraVenda: false }),
     );
+  });
+
+  it.each([
+    [new ForbiddenException({ statusCode: 403, code: 'BII_SOMENTE_LEITURA', message: 'somente leitura' }), 403, 'BII_SOMENTE_LEITURA'],
+    [new HttpException({ statusCode: 429, code: 'BII_COTA_DIARIA', message: 'cota' }, 429), 429, 'BII_COTA_DIARIA'],
+  ])('corpo do erro do use case chega intacto com code estavel (%#)', async (erro, status, code) => {
+    mocks.analisar.mockRejectedValueOnce(erro);
+    const res = await fetch(`${base}/bii/analises/endereco`, json('admin', { endereco: 'Rua X, 10, São Paulo' }));
+    expect(res.status).toBe(status);
+    expect(await res.json()).toEqual(expect.objectContaining({ statusCode: status, code }));
+  });
+
+  it('M2: throttle POR USUARIO na analise (10/min): 11a do mesmo usuario -> 429; outro usuario segue', async () => {
+    const quem = 'throttle-a';
+    let ultimo = 0;
+    for (let i = 0; i < 11; i++) {
+      ultimo = (await fetch(`${base}/bii/analises/endereco`, json(quem, { endereco: 'Rua X, 10, São Paulo' }))).status;
+      if (i < 10) expect(ultimo).toBe(201);
+    }
+    expect(ultimo).toBe(429);
+    expect((await fetch(`${base}/bii/analises/endereco`, json('throttle-b', { endereco: 'Rua X, 10, São Paulo' }))).status).toBe(201);
   });
 
   it.each([

@@ -64,4 +64,8 @@ export class PrismaBiiAnaliseRepository implements IBiiAnaliseRepository {
     if (!r) return null;
     return { id: r.id, resultado: (r.resultado ?? {}) as Record<string, unknown>, createdAt: r.createdAt };
   }
+
+  async contarDesde(tenantId: string, desde: Date): Promise<number> {
+    return this.prisma.biiAnalise.count({ where: { tenantId, createdAt: { gte: desde } } });
+  }
 }

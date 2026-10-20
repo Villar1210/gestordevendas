@@ -8,7 +8,8 @@ export interface GeocodeCacheRegistro {
   lat: number | null;
   lng: number | null;
   precisao: PrecisaoGeocode | null;
-  enderecoFormatado: string | null;
+  cep: string | null;
+  enderecoFormatado: string | null; // so chaves itbi: (txt: guarda null)
   criadoEm: Date;
 }
 

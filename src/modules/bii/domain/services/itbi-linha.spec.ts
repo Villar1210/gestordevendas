@@ -91,4 +91,16 @@ describe('itbi-linha - montarTransacaoItbi', () => {
     expect(textoParaHash(a.transacao)).toBe(textoParaHash(b.transacao));
     expect(textoParaHash(a.transacao)).not.toBe(textoParaHash(c.transacao));
   });
+
+  it('QA-2: bairro que e complemento ("E 3 VAGAS") vira nulo, sem guardar o valor cru', () => {
+    const l = [...LINHA];
+    l[4] = 'E 3 VAGAS';
+    const r = montarTransacaoItbi(l, MAPA_PADRAO);
+    expect(r.ok && r.transacao.bairro).toBeNull();
+    expect(r.ok && r.transacao.bairroNormalizado).toBeNull();
+    expect(JSON.stringify(r)).not.toContain('VAGAS');
+    l[4] = 'EDIFICIO ARTE BL 2';
+    const r2 = montarTransacaoItbi(l, MAPA_PADRAO);
+    expect(r2.ok && r2.transacao.bairro).toBe('EDIFICIO ARTE BL 2');
+  });
 });

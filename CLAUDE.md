@@ -1910,17 +1910,31 @@ Prefeitura e diferencas entre os anos: docs/bii/fatia2/ITBI_COLUNAS.md.
 - POR TENANT: `BiiAnalise` (bii_analises, FK Tenant Cascade, indice
   (tenantId, createdAt)); resultado = snapshot Json da resposta; transacoes e
   precoM2Mediano duplicados em coluna para a listagem. Sempre lida por
-  { id, tenantId }. impersonadoPor gravado quando a analise e feita pelo Super
-  Usuario impersonando (ele e Administrador do tenant e PODE analisar).
-- Cache de texto digitado guarda so `txt:<sha256 do texto normalizado>` (nao
-  revela o que foi pesquisado); ITBI usa `itbi:<enderecoChave>`.
+  { id, tenantId }. Coluna impersonadoPor existe mas fica nula: Super Usuario
+  impersonando NAO cria analise (BII somente leitura - ver Rotas).
+- Cache: chave de texto digitado = `txt:<sha256 do texto normalizado>` e guarda
+  SO lat, lng, precisao e CEP (coluna geocode_cache.cep) - nem o texto nem o
+  endereco formatado (esse fica so na BiiAnalise do tenant; num acerto de
+  cache o formatado vira o texto digitado). ITBI usa `itbi:<enderecoChave>`
+  (com endereco formatado).
 
 ### Rotas
 - Tenant (`BiiAnaliseController`, @Controller('bii'), classe
   JwtAuthGuard+RolesGuard+@Roles('Administrador'), checado de novo no use
-  case): POST /bii/analises/endereco (throttle 10/min + BiiAnaliseLimiteGuard
-  = 2 simultaneas), GET /bii/analises, GET /bii/analises/:id (ParseUUID),
-  GET /bii/itbi/cobertura.
+  case): POST /bii/analises/endereco (throttle 10/min por IP +
+  BiiAnaliseThrottlerGuard 10/min POR USUARIO, tracker req.user.id, molde do
+  PdfToolsBatchThrottlerGuard + BiiAnaliseLimiteGuard = 2 simultaneas + cota
+  diaria por tenant no use case: BII_ANALISES_POR_DIA, padrao 200, contando
+  BiiAnalise desde a meia-noite local pelo indice (tenantId, createdAt) ->
+  429 { statusCode, code: 'BII_COTA_DIARIA', message }), GET /bii/analises,
+  GET /bii/analises/:id (ParseUUID), GET /bii/itbi/cobertura (cache em memoria
+  de 10 min, CoberturaItbiCache, invalidado quando importacao/geocodificacao
+  termina).
+- Impersonacao do Super Usuario (decisao do Villar na Fase 1): BII SOMENTE
+  LEITURA. POST /bii/analises/endereco com req.user.impersonadoPor -> 403
+  { statusCode, code: 'BII_SOMENTE_LEITURA', message } (checado no use case,
+  antes de geocodificar). Painel, listar/abrir analises e cobertura liberados.
+  Erros com `code` estavel: o frontend decide pelo code, nao pelo texto.
 - Plataforma (`BiiPlataformaController`, @Controller('bii-plataforma'), classe
   @Roles(SUPER_USUARIO_ROLE_NAME), checado de novo no use case): POST
   itbi/importar (202), GET itbi/importacoes, POST itbi/geocodificar (202), GET
@@ -1928,8 +1942,10 @@ Prefeitura e diferencas entre os anos: docs/bii/fatia2/ITBI_COLUNAS.md.
 - Meta-teste permissoes-bii.http.spec.ts cobre TODOS os controllers do
   BiiModule: prefixo 'bii-plataforma' -> so Super Usuario, resto -> so
   Administrador; guards de metodo aceitos so BiiPainelLimiteGuard,
-  BiiAnaliseLimiteGuard, BiiItbiImportarLimiteGuard e ItbiUploadTamanhoGuard
-  (exportados como constantes). Rota nova com outro guard falha o teste.
+  BiiAnaliseLimiteGuard, BiiAnaliseThrottlerGuard, BiiItbiImportarLimiteGuard
+  e ItbiUploadTamanhoGuard (exportados). Rota nova com outro guard falha o
+  teste. Teste de integracao que sobe o BiiModule sozinho precisa importar
+  ThrottlerModule.forRoot (no app ele e global).
 
 ### Como importar o ITBI (Super Usuario)
 Tela /super-usuario (frontend) ou POST /bii-plataforma/itbi/importar,
@@ -1937,16 +1953,23 @@ multipart "file" (.xlsx da Prefeitura, ate 120 MB) + campo "ano". Responde 202
 com { importacaoId }; acompanhar em GET /bii-plataforma/itbi/importacoes
 (linhas lidas/inseridas/duplicadas/descartadas e status de cada aba). Uma por
 vez (409; "processando" sem atualizar ha 30 min = processo caiu -> marcada
-erro e liberada). Reimportar o mesmo arquivo e seguro: hashLinha (sha256 dos
+erro e liberada; e no onModuleInit do ImportadorItbiService TODAS as
+"processando" viram erro "Interrompida por reinício do servidor" - uma
+instancia so no PM2; com cluster, trocar por trava no banco). Reimportar o mesmo arquivo e seguro: hashLinha (sha256 dos
 campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
 - Upload: throttle 2/hora; ItbiUploadTamanhoGuard (Content-Length obrigatorio
   -> 411, > 120 MB -> 413, ANTES do multer); BiiItbiImportarLimiteGuard (1 upload
   por processo, 503); storage proprio do multer (itbi-upload.ts, sem
-  @types/multer) gravando em os.tmpdir()/gestordevendas-bii-itbi (0o700,
-  arquivo 0o600, nome UUID - NUNCA em /uploads, que e publico); assinatura ZIP
-  PK\x03\x04 + extensao .xlsx; diretorio central do ZIP inspecionado antes de
-  abrir (xlsx-arquivo.ts: <= 1000 entradas, <= 2 GiB declarados, razao <= 200
-  em entradas > 10 MB, sem vbaProject.bin/macro, sem criptografia, sem ZIP64);
+  @types/multer) gravando o UPLOAD em os.tmpdir()/gestordevendas-bii-itbi
+  (0o700, arquivo 0o600, nome UUID - NUNCA em /uploads, que e publico);
+  assinatura ZIP PK\x03\x04 + extensao .xlsx; ZIP inspecionado antes de abrir
+  (xlsx-arquivo.ts): diretorio central (<= 1000 entradas, <= 2 GiB declarados,
+  razao <= 200 em entradas > 10 MB, sem vbaProject.bin/macro, sem
+  criptografia, sem ZIP64, so STORE/DEFLATE), entradas CONTIGUAS (nada
+  escondido fora do diretorio central - o exceljs le os cabecalhos locais) e
+  DESCOMPACTACAO REAL em streaming (createInflateRaw, sem guardar) contando os
+  bytes de verdade: > 1,5 GiB no total ou > 300 MB no xl/sharedStrings.xml ->
+  400 (o tamanho declarado pode mentir; ~1 s por arquivo real);
   arquivo temporario SEMPRE apagado (use case em erro de validacao, importador
   no finally; esquecidos > 6 h sao varridos no proximo upload). Nome original
   so sanitizado para o registro.
@@ -1954,6 +1977,20 @@ campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
   stream.xlsx.WorkbookReader, todas as abas; formula NUNCA avaliada (so o
   result guardado); limites anti-bomba 1,5 milhao de linhas e 300 MB de dados
   lidos (aborta com erro claro).
+- Temporarios do exceljs: quando a aba vem antes do sharedStrings no ZIP (caso
+  do arquivo da Prefeitura), o exceljs descompacta cada aba num arquivo do
+  pacote tmp em os.tmpdir() (/tmp, modo 0o600) - NAO na pasta 0o700 do upload.
+  Tentado e descartado: passar a opcao tmpdir ao tmp.file (ou mudar TMPDIR)
+  faz o WorkbookReader perder a ultima entrada do ZIP (xl/workbook.xml) e
+  quebrar - reproduzido de forma deterministica (o realpath extra atrasa o
+  callback). O que foi feito (exceljs-tmp.ts): os caminhos criados durante a
+  leitura sao REGISTRADOS (AsyncLocalStorage, sem mudar opcoes nem tempo) e
+  apagados pelo leitor: leitura completa -> na hora; erro/abort/consumidor
+  parou -> TRUNCA na hora (libera o disco) e apaga 30 s depois (apagar na hora
+  gerava ENOENT sem ouvinte num ReadStream ainda nao aberto do exceljs =
+  excecao nao tratada; coberto por teste). Na saida do processo o
+  tmp.setGracefulCleanup do exceljs apaga o que restar. Disco maximo = 1,5 GiB
+  (limite real da inspecao).
 - Regras do importador (importador-itbi.service.ts + domain/services
   itbi-colunas.ts / itbi-linha.ts / itbi-valores.ts): abas de apoio (LEGENDA,
   EXPLICACOES, Tabela de USOS/PADROES) ignoradas pelo nome; cabecalho
@@ -1962,7 +1999,15 @@ campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
   (IPTU)" duplicado); aba MMM-AAAA sem cabecalho com 1a linha "cara de dado"
   (coluna 2 texto, coluna 9 numero) -> ordem padrao por posicao (2024:
   JAN/OUT); "Descricao do pardao" (FEV-2026) aceito; linhas vazias nao contam;
-  linha de 27 colunas ok. Obrigatorios: logradouro, valor (> 0) e data; sem
+  linha de 27 colunas ok. Bairro que parece complemento vira NULO (valor cru
+  nao guardado; endereco.ts bairroPareceComplemento): 1a palavra TORRE, TR,
+  BLOCO, BL, APTO, AP, VAGA, VGS; "E " + digito; so digitos; CASA/CJ so
+  sozinhos ou seguidos de numero ("CASA 02", "CJ 221") - "CASA VERDE",
+  "CASA VERDE ALTA", "CJ HAB ...", "CJ RES ..." sao bairros reais (3.726 guias
+  no ITBI 2022-2026) e ficam; "EDIFICIO ARTE BL 2" fica (nao comeca com BL).
+  No bii_dev 60.762 linhas foram corrigidas pontualmente (UPDATE + hash_linha
+  recalculado com textoParaHash; reimportacao de 2024 depois: 0 inseridas).
+  Obrigatorios: logradouro, valor (> 0) e data; sem
   eles a linha e descartada (contada; o log mostra so a quantidade por
   motivo). CEP e SQL vem como numero: padStart 8 e 11. Numero 99999/0 -> null.
   Natureza e financiamento "1.Compra e venda" -> codigo + descricao. Data:
@@ -2009,7 +2054,11 @@ campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
   daquele prefixo de CEP (5 digitos) e/ou bairro normalizado, geocodifica em
   segundo plano a 1 req/s (2000 enderecos ~ 35 min; cache nao conta) e grava
   lat/lng em TODAS as guias da chave. Sem numero (99999/0) -> precisao no
-  maximo "rua". 5 falhas seguidas do provedor encerram o job com erro. Um job
+  maximo "rua". 5 falhas seguidas do provedor encerram o job com erro. Teto
+  DIARIO de consultas reais ao Nominatim do job: BII_GEOCODIFICACAO_POR_DIA
+  (padrao 10.000; contador em memoria por dia local, por processo; acerto de
+  cache nao conta; a analise de endereco nao entra) -> status "pausado" com a
+  mensagem "Pausado: limite diário de N consultas...". Um job
   por vez (409); progresso em memoria (GET .../geocodificacao, some ao
   reiniciar). Desligamento do Nest (onModuleDestroy) cancela o job e a
   importacao sem travar (timers unref, espera maxima 3-5 s).
@@ -2030,10 +2079,13 @@ privativa (fonte.observacao fixa na resposta).
 
 ### Variaveis novas (opcionais, ver .env.example)
 NOMINATIM_URL, BII_CONTATO_EMAIL (recomendado preencher - politica do
-Nominatim). Nenhuma dependencia nova.
+Nominatim), BII_ANALISES_POR_DIA (padrao 200), BII_GEOCODIFICACAO_POR_DIA
+(padrao 10.000). Nenhuma dependencia nova. DTOs do BII com mensagens de
+validacao em portugues (o "property X should not exist" do whitelist continua
+o padrao global do ValidationPipe).
 
 ### Testes
-`DATABASE_URL=postgresql://... npx jest src/modules/bii --runInBand` (317
+`DATABASE_URL=postgresql://... npx jest src/modules/bii --runInBand` (365
 testes; os de integracao - importador com planilhas SINTETICAS geradas com
 exceljs, repositorios, job de geocodificacao com geocodificador fake e
 isolamento de tenant - pulam sem DATABASE_URL). Nominatim sempre com fetch

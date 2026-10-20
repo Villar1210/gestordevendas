@@ -1,9 +1,9 @@
 // src/modules/bii/infra/http/bii-analise.controller.ts
 // Fatia 2 - Analise por Endereco (tenant). So Administrador (classe), reforcado
 // nos use cases. tenantId/role/usuario sempre de req.user. Impersonacao do
-// Super Usuario: e Administrador do tenant, pode analisar (consome
-// geocodificacao, dentro do throttle) - fica registrado em
-// BiiAnalise.impersonadoPor e no log.
+// Super Usuario (decisao do Villar na Fase 1): BII SOMENTE LEITURA - pode ver
+// painel, listar/abrir analises e cobertura; criar analise -> 403
+// BII_SOMENTE_LEITURA (checado no use case).
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
@@ -15,6 +15,7 @@ import { AnalisarEnderecoUseCase } from '../../application/use-cases/analisar-en
 import { GetAnaliseUseCase, ListAnalisesUseCase } from '../../application/use-cases/analises-salvas.use-case';
 import { GetItbiCoberturaUseCase } from '../../application/use-cases/itbi-cobertura.use-case';
 import { AnalisarEnderecoDto } from './dtos/analisar-endereco.dto';
+import { BiiAnaliseThrottlerGuard } from './bii-analise-throttler.guard';
 
 // Exportado para o meta-teste de permissoes (aditivo aos guards da classe).
 export const BiiAnaliseLimiteGuard = LimiteConcorrenciaGuard('bii-analise', 2);
@@ -30,11 +31,13 @@ export class BiiAnaliseController {
     private readonly getItbiCoberturaUseCase: GetItbiCoberturaUseCase,
   ) {}
 
-  // POST /bii/analises/endereco - 10/min por IP, no maximo 2 simultaneas por
-  // processo (503 acima disso).
+  // POST /bii/analises/endereco - 10/min por IP e 10/min por USUARIO, no
+  // maximo 2 simultaneas por processo (503 acima disso) e cota diaria por
+  // tenant (429 BII_COTA_DIARIA, no use case). Impersonacao: 403
+  // BII_SOMENTE_LEITURA (no use case).
   @Post('analises/endereco')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @UseGuards(BiiAnaliseLimiteGuard)
+  @UseGuards(BiiAnaliseThrottlerGuard, BiiAnaliseLimiteGuard)
   async analisar(@Body() dto: AnalisarEnderecoDto, @Req() req: Request) {
     return this.analisarEnderecoUseCase.execute({
       tenantId: req.user!.tenantId,

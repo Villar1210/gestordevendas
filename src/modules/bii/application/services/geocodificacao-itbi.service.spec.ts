@@ -1,7 +1,8 @@
 import { ConflictException, Logger } from '@nestjs/common';
 import { GeocodingIndisponivelError, IGeocodingComCache, ResultadoComFonte } from '../../domain/ports/geocoding-provider.interface';
 import { IItbiRepository } from '../../domain/repositories/itbi-repository.interface';
-import { GeocodificacaoItbiService } from './geocodificacao-itbi.service';
+import { geocodificacoesPorDia, GeocodificacaoItbiService } from './geocodificacao-itbi.service';
+import { CoberturaItbiCache } from './cobertura-itbi.cache';
 
 const PONTO = { lat: -23.59, lng: -46.56, precisao: 'rooftop' as const, enderecoFormatado: 'x', cep: null };
 
@@ -19,7 +20,9 @@ function montar(chaves: string[], resposta: (consulta: string, signal?: AbortSig
     geocodificar: async () => null,
     geocodificarComFonte: jest.fn((c: string, o?: { signal?: AbortSignal }) => resposta(c, o?.signal)),
   };
-  return { svc: new GeocodificacaoItbiService(repo, geo), aplicadas, geo };
+  const cobertura = new CoberturaItbiCache();
+  jest.spyOn(cobertura, 'invalidar');
+  return { svc: new GeocodificacaoItbiService(repo, geo, cobertura), aplicadas, geo, cobertura };
 }
 
 describe('GeocodificacaoItbiService', () => {
@@ -71,5 +74,33 @@ describe('GeocodificacaoItbiService', () => {
     // depois de terminar, pode iniciar outro
     await expect(svc.iniciar({ ceps: ['03277'], bairros: [], max: 10 })).resolves.toMatchObject({ status: 'processando' });
     await svc.onModuleDestroy();
+  });
+
+  it('B3: teto diario de consultas REAIS ao Nominatim -> status "pausado" com mensagem; cache nao conta; zera no dia seguinte', async () => {
+    const chaves = Array.from({ length: 6 }, (_, i) => `rua ${i}|1|`);
+    const { svc, geo, cobertura } = montar(chaves, async (c) => ({ fonte: c.startsWith('rua 0') ? 'cache' : 'provedor', resultado: PONTO }));
+    svc.limitePorDia = () => 3;
+    svc.agora = () => new Date(2026, 9, 20, 10);
+    await svc.iniciar({ ceps: ['03277'], bairros: [], max: 10 });
+    await svc.aguardar();
+    expect(svc.status()).toMatchObject({ status: 'pausado', processados: 4, doCache: 1, consultasProvedor: 3 });
+    expect(svc.status()!.mensagemErro).toMatch(/^Pausado: limite diário de 3 consultas ao Nominatim/);
+    expect(geo.geocodificarComFonte).toHaveBeenCalledTimes(4);
+    expect(cobertura.invalidar).toHaveBeenCalled();
+    // mesmo dia: pausa logo no 1o item
+    await svc.iniciar({ ceps: ['03277'], bairros: [], max: 10 });
+    await svc.aguardar();
+    expect(svc.status()).toMatchObject({ status: 'pausado', processados: 0 });
+    // dia seguinte: contador zera
+    svc.agora = () => new Date(2026, 9, 21, 1);
+    await svc.iniciar({ ceps: ['03277'], bairros: [], max: 10 });
+    await svc.aguardar();
+    expect(svc.status()).toMatchObject({ status: 'pausado', consultasProvedor: 3 });
+  });
+
+  it('geocodificacoesPorDia: env BII_GEOCODIFICACAO_POR_DIA opcional, padrao 10.000', () => {
+    expect(geocodificacoesPorDia(undefined)).toBe(10_000);
+    expect(geocodificacoesPorDia('500')).toBe(500);
+    expect(geocodificacoesPorDia('-1')).toBe(10_000);
   });
 });

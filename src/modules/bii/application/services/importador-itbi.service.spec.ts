@@ -37,4 +37,15 @@ describe('ImportadorItbiService - desligamento (unitario)', () => {
     expect(svc.ocupado).toBe(false);
     rmSync(dir, { recursive: true, force: true });
   });
+
+  it('B4: onModuleInit marca as "processando" como erro "Interrompida por reinício do servidor"', async () => {
+    const marcar = jest.fn(async () => 2);
+    const importacoes = { marcarTodasProcessandoComoErro: marcar } as unknown as IItbiImportacaoRepository;
+    const svc = new ImportadorItbiService({} as IItbiPlanilhaReader, {} as IItbiRepository, importacoes);
+    await svc.onModuleInit();
+    expect(marcar).toHaveBeenCalledWith('Interrompida por reinício do servidor');
+    // falha do banco no inicio nao derruba o boot
+    marcar.mockRejectedValueOnce(new Error('db'));
+    await expect(svc.onModuleInit()).resolves.toBeUndefined();
+  });
 });

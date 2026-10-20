@@ -7,13 +7,13 @@
 // qualquer erro; o importador apaga no finally. Arquivos esquecidos (processo
 // caiu no meio) sao varridos depois de 6 h.
 import { randomUUID } from 'crypto';
-import { createWriteStream, mkdirSync, readdirSync, statSync, unlink, unlinkSync } from 'fs';
+import { createWriteStream, mkdirSync, readdirSync, rmSync, statSync, unlink } from 'fs';
 import { Readable } from 'stream';
-import { tmpdir } from 'os';
 import { join } from 'path';
 import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable, PayloadTooLargeException } from '@nestjs/common';
 import { Request } from 'express';
 import { LimiteConcorrenciaGuard } from '../../../../shared/infra/http/limite-concorrencia';
+import { tmpdir } from 'os';
 
 const MB = 1024 * 1024;
 export const ITBI_UPLOAD_MAX_BYTES = 120 * MB;
@@ -47,7 +47,7 @@ export function varrerTemporariosAntigos(agora = Date.now()): void {
     for (const nome of readdirSync(PASTA_TEMP_ITBI)) {
       const caminho = join(PASTA_TEMP_ITBI, nome);
       try {
-        if (agora - statSync(caminho).mtimeMs > VALIDADE_TEMP_MS) unlinkSync(caminho);
+        if (agora - statSync(caminho).mtimeMs > VALIDADE_TEMP_MS) rmSync(caminho, { force: true });
       } catch {
         // ignorado
       }

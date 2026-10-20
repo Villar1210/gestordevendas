@@ -29,11 +29,21 @@ describe('GeocodingComCacheProvider', () => {
   it('1a vez consulta o provedor e grava; 2a vem do cache (sem nova consulta)', async () => {
     const { svc, geocodificar, cache } = montar(ACHOU);
     expect(await svc.geocodificarComFonte('Rua X, 10')).toEqual({ fonte: 'provedor', resultado: ACHOU });
-    expect(await svc.geocodificarComFonte('rua x 10')).toEqual({ fonte: 'cache', resultado: ACHOU });
+    expect(await svc.geocodificarComFonte('rua x 10')).toEqual({ fonte: 'cache', resultado: { ...ACHOU, enderecoFormatado: '' } });
     expect(geocodificar).toHaveBeenCalledTimes(1);
     const [salvo] = [...cache.dados.values()];
     expect(salvo.chave).toBe(chaveCacheTexto('Rua X, 10'));
     expect(salvo.chave).toMatch(/^txt:[0-9a-f]{64}$/); // texto pesquisado nao fica em claro
+    // B2: chave txt: guarda so lat, lng, precisao e CEP
+    expect(salvo).toMatchObject({ lat: ACHOU.lat, lng: ACHOU.lng, precisao: 'rua', cep: '03277000', enderecoFormatado: null });
+    expect(JSON.stringify(salvo)).not.toMatch(/Rua X/);
+  });
+
+  it('acerto de cache txt: devolve o CEP guardado e formatado vazio', async () => {
+    const { svc } = montar(ACHOU);
+    await svc.geocodificar('Rua X, 10');
+    const r = await svc.geocodificarComFonte('Rua X, 10');
+    expect(r).toEqual({ fonte: 'cache', resultado: { ...ACHOU, enderecoFormatado: '' } });
   });
 
   it('"nao achou" tambem vai para o cache e evita repetir', async () => {
@@ -61,6 +71,6 @@ describe('GeocodingComCacheProvider', () => {
   it('chave do ITBI explicita', async () => {
     const { svc, cache } = montar(ACHOU);
     await svc.geocodificar('rua x 10, Sao Paulo', { chaveCache: chaveCacheItbi('rua x|10|03277000') });
-    expect(cache.dados.has('itbi:rua x|10|03277000')).toBe(true);
+    expect(cache.dados.get('itbi:rua x|10|03277000')).toMatchObject({ enderecoFormatado: ACHOU.enderecoFormatado, cep: '03277000' });
   });
 });

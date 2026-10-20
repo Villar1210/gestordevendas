@@ -23,6 +23,7 @@ import {
 } from './application/use-cases/itbi-plataforma.use-cases';
 import { ImportadorItbiService } from './application/services/importador-itbi.service';
 import { GeocodificacaoItbiService } from './application/services/geocodificacao-itbi.service';
+import { CoberturaItbiCache } from './application/services/cobertura-itbi.cache';
 import { CardStageChangedListener } from './infra/listeners/card-stage-changed.listener';
 import { PrismaPainelVendasRepository } from './infra/database/prisma-painel-vendas.repository';
 import { PrismaCardStageEventoRepository } from './infra/database/prisma-card-stage-evento.repository';
@@ -61,6 +62,7 @@ import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-reposi
     GetGeocodificacaoItbiUseCase,
     ImportadorItbiService,
     GeocodificacaoItbiService,
+    CoberturaItbiCache,
     NominatimGeocodingProvider,
     GeocodingComCacheProvider,
     { provide: GEOCODING_PROVIDER, useExisting: GeocodingComCacheProvider },

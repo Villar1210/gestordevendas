@@ -21,6 +21,7 @@ export class PrismaGeocodeCacheRepository implements IGeocodeCacheRepository {
       lat: r.latitude,
       lng: r.longitude,
       precisao: r.precisao as PrecisaoGeocode | null,
+      cep: r.cep,
       enderecoFormatado: r.enderecoFormatado,
       criadoEm: r.criadoEm,
     };
@@ -32,6 +33,7 @@ export class PrismaGeocodeCacheRepository implements IGeocodeCacheRepository {
       latitude: reg.lat,
       longitude: reg.lng,
       precisao: reg.precisao,
+      cep: reg.cep,
       enderecoFormatado: reg.enderecoFormatado?.slice(0, 500) ?? null,
       criadoEm: new Date(),
     };

@@ -85,9 +85,29 @@ export function prefixoCep(cep: string | null | undefined): string | null {
   return cep && /^\d{8}$/.test(cep) ? cep.slice(0, 5) : null;
 }
 
+// Campo "Bairro" do ITBI as vezes traz pedaco do complemento ("E 3 VAGAS",
+// "TORRE B", "BL 02", "123"). Esses viram bairro NULO (o valor cru nao e
+// guardado). Regra (QA-2): 1a palavra TORRE, TR, BLOCO, BL, APTO, AP, VAGA,
+// VGS -> invalido; "E " + digito ou so digitos -> invalido. CASA e CJ so quando
+// sozinhos ou seguidos de numero ("CASA 02", "CJ 221"): "CASA VERDE",
+// "CASA VERDE ALTA", "CJ HAB JOSE BONIFACIO" e "CJ RES ..." sao bairros reais
+// de SP (3.726 guias no ITBI 2022-2026).
+const PREFIXOS_COMPLEMENTO = new Set(['torre', 'tr', 'bloco', 'bl', 'apto', 'ap', 'vaga', 'vgs']);
+const PREFIXOS_SO_COM_NUMERO = new Set(['casa', 'cj']);
+
+export function bairroPareceComplemento(normalizado: string): boolean {
+  if (!normalizado) return true;
+  if (/^[0-9 ]+$/.test(normalizado)) return true;
+  if (/^e \d/.test(normalizado)) return true;
+  const [primeira, segunda] = normalizado.split(' ');
+  if (PREFIXOS_COMPLEMENTO.has(primeira)) return true;
+  if (PREFIXOS_SO_COM_NUMERO.has(primeira)) return segunda === undefined || /^\d/.test(segunda);
+  return false;
+}
+
 export function normalizarBairro(bairro: string | null | undefined): string | null {
   const b = normalizarBasico(bairro);
-  return b ? b.slice(0, 100) : null;
+  return b && !bairroPareceComplemento(b) ? b.slice(0, 100) : null;
 }
 
 export function montarEnderecoChave(logradouro: string, numero: string | null, cep: string | null): string {

@@ -6,8 +6,14 @@
 // arquivo ("result"); sem resultado -> null. Hyperlink -> texto exibido.
 // Limites anti-"bomba": maximo de linhas no arquivo inteiro e de bytes LIDOS
 // (soma aproximada do tamanho dos valores) - estourou, aborta com erro claro.
+// Os temporarios do exceljs (abas descompactadas, em os.tmpdir() - ver por que
+// nao na pasta 0o700 em exceljs-tmp.ts) sao REGISTRADOS durante a leitura e
+// apagados no fim, em erro, em abort e quando o consumidor para de ler
+// (return()). O tamanho real ja foi limitado antes (inspecionarZip: 1,5 GiB).
 import { Injectable } from '@nestjs/common';
+import { truncate, unlink } from 'fs/promises';
 import * as ExcelJS from 'exceljs';
+import { comRegistroDeTemporarios } from './exceljs-tmp';
 import {
   EventoPlanilha,
   IItbiPlanilhaReader,
@@ -41,9 +47,71 @@ function tamanhoAproximado(v: ValorCelula): number {
 
 type LeitorAba = AsyncIterable<ExcelJS.Row> & { name?: string };
 
+// Leitura interrompida no meio: o exceljs pode ter acabado de criar o
+// ReadStream (abertura preguicosa, no proximo tick) de uma aba que ninguem vai
+// consumir - apagar o arquivo nessa hora gera um 'error' ENOENT sem ouvinte
+// (excecao nao tratada, derruba o processo). Por isso: TRUNCA na hora (libera
+// o disco; uma abertura atrasada so le vazio) e apaga depois deste prazo
+// (timer unref; na saida do processo o tmp.setGracefulCleanup do exceljs
+// tambem apaga). Leitura completa: apaga na hora.
+export const ATRASO_APAGAR_TEMPORARIO_MS = 30_000;
+
 @Injectable()
 export class ExceljsItbiPlanilhaReader implements IItbiPlanilhaReader {
-  async *ler(caminho: string, limites: LimitesLeitura, signal?: AbortSignal): AsyncIterable<EventoPlanilha> {
+  // temporarios do exceljs da ultima leitura (so para teste)
+  ultimosTemporarios: string[] = [];
+  atrasoApagarMs = ATRASO_APAGAR_TEMPORARIO_MS;
+
+  // Cada next()/return() do gerador interno roda DENTRO do contexto de
+  // registro: o exceljs chama tmp.file durante essas continuacoes.
+  ler(caminho: string, limites: LimitesLeitura, signal?: AbortSignal): AsyncIterable<EventoPlanilha> {
+    const leitor = this;
+    return {
+      [Symbol.asyncIterator]() {
+        const registrados = new Set<string>();
+        let interno: AsyncGenerator<EventoPlanilha> | null = null;
+        let limpo = false;
+        const limpar = async (completa: boolean) => {
+          if (limpo) return;
+          limpo = true;
+          const lista = [...registrados];
+          leitor.ultimosTemporarios = lista;
+          if (completa) {
+            await Promise.all(lista.map((p) => unlink(p).catch(() => undefined)));
+            return;
+          }
+          await Promise.all(lista.map((p) => truncate(p, 0).catch(() => undefined)));
+          const t = setTimeout(() => {
+            for (const p of lista) unlink(p).catch(() => undefined);
+          }, leitor.atrasoApagarMs);
+          t.unref?.();
+        };
+        return {
+          async next() {
+            interno ??= leitor.lerInterno(caminho, limites, signal);
+            try {
+              const r = await comRegistroDeTemporarios(registrados, () => interno!.next());
+              if (r.done) await limpar(true);
+              return r;
+            } catch (erro) {
+              await limpar(false);
+              throw erro;
+            }
+          },
+          async return() {
+            try {
+              if (interno) await comRegistroDeTemporarios(registrados, () => interno!.return(undefined));
+            } finally {
+              await limpar(false);
+            }
+            return { done: true, value: undefined };
+          },
+        };
+      },
+    };
+  }
+
+  private async *lerInterno(caminho: string, limites: LimitesLeitura, signal?: AbortSignal): AsyncGenerator<EventoPlanilha> {
     const leitor = new ExcelJS.stream.xlsx.WorkbookReader(caminho, {
       worksheets: 'emit',
       sharedStrings: 'cache',

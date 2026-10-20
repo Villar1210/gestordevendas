@@ -20,7 +20,7 @@ import { TIPOS_IMOVEL_ANALISE, TipoImovelAnalise } from '../../../domain/service
 const SEM_CONTROLE = /^[^\u0000-\u001f\u007f]*$/;
 
 export class AnalisarEnderecoDto {
-  @IsString()
+  @IsString({ message: 'Informe o endereço como texto.' })
   @MinLength(5, { message: 'Informe um endereço com pelo menos 5 caracteres.' })
   @MaxLength(200, { message: 'O endereço pode ter no máximo 200 caracteres.' })
   @Matches(SEM_CONTROLE, { message: 'O endereço tem caracteres inválidos.' })
@@ -35,15 +35,15 @@ export class AnalisarEnderecoDto {
   meses?: number;
 
   @IsOptional()
-  @IsNumber({ allowNaN: false, allowInfinity: false })
-  @Min(0)
-  @Max(100_000)
+  @IsNumber({ allowNaN: false, allowInfinity: false }, { message: 'A área mínima deve ser um número.' })
+  @Min(0, { message: 'A área mínima não pode ser negativa.' })
+  @Max(100_000, { message: 'A área mínima pode ser no máximo 100.000 m².' })
   areaMin?: number;
 
   @IsOptional()
-  @IsNumber({ allowNaN: false, allowInfinity: false })
-  @Min(0)
-  @Max(100_000)
+  @IsNumber({ allowNaN: false, allowInfinity: false }, { message: 'A área máxima deve ser um número.' })
+  @Min(0, { message: 'A área máxima não pode ser negativa.' })
+  @Max(100_000, { message: 'A área máxima pode ser no máximo 100.000 m².' })
   areaMax?: number;
 
   @IsOptional()
@@ -51,28 +51,29 @@ export class AnalisarEnderecoDto {
   tipo?: TipoImovelAnalise;
 
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({ message: 'somenteCompraVenda deve ser verdadeiro ou falso.' })
   somenteCompraVenda?: boolean;
 }
 
 export class GeocodificarItbiDto {
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(200)
+  @IsArray({ message: 'ceps deve ser uma lista.' })
+  @ArrayMaxSize(200, { message: 'Informe no máximo 200 prefixos de CEP.' })
+  @IsString({ each: true, message: 'Cada prefixo de CEP deve ser um texto.' })
   @Matches(/^\d{5}$/, { each: true, message: 'Use prefixos de CEP com 5 dígitos (ex.: 03277).' })
   ceps?: string[];
 
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(200)
-  @IsString({ each: true })
-  @MaxLength(100, { each: true })
-  @Matches(SEM_CONTROLE, { each: true })
+  @IsArray({ message: 'bairros deve ser uma lista.' })
+  @ArrayMaxSize(200, { message: 'Informe no máximo 200 bairros.' })
+  @IsString({ each: true, message: 'Cada bairro deve ser um texto.' })
+  @MaxLength(100, { each: true, message: 'Cada bairro pode ter no máximo 100 caracteres.' })
+  @Matches(SEM_CONTROLE, { each: true, message: 'O bairro tem caracteres inválidos.' })
   bairros?: string[];
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(5000)
+  @IsInt({ message: 'O máximo deve ser um número inteiro.' })
+  @Min(1, { message: 'O mínimo é 1 endereço.' })
+  @Max(5000, { message: 'O máximo é 5000 endereços.' })
   max?: number;
 }

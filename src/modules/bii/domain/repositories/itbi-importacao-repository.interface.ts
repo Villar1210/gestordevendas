@@ -43,6 +43,8 @@ export interface IItbiImportacaoRepository {
   finalizar(id: string, status: 'concluida' | 'erro', p: ProgressoImportacao, mensagemErro: string | null): Promise<void>;
   // "processando" sem atualizacao ha muito tempo (processo caiu) -> erro
   marcarAbandonada(id: string, mensagem: string): Promise<void>;
+  // no inicio do processo: todas as "processando" -> erro (devolve quantas)
+  marcarTodasProcessandoComoErro(mensagem: string): Promise<number>;
   listar(limite: number): Promise<ItbiImportacaoRegistro[]>;
   anosConcluidos(): Promise<number[]>;
   ultimaConcluida(): Promise<Date | null>;

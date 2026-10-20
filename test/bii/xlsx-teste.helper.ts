@@ -1,29 +1,45 @@
 // Helpers de TESTE: ZIP minimo (STORE + CRC32) e planilha sintetica do ITBI.
 // Nao e usado em producao.
-import { crc32 } from 'zlib';
+import { crc32, deflateRawSync } from 'zlib';
 import * as ExcelJS from 'exceljs';
 
-export function zipMinimo(entradas: { nome: string; dados: Buffer }[]): Buffer {
+// deflate: grava comprimido (metodo 8). declararDescompactado: MENTE o
+// tamanho descompactado no diretorio central e no cabecalho local (forja).
+// lixoAntes: bytes soltos antes da 1a entrada (dado fora do diretorio).
+export function zipMinimo(
+  entradas: { nome: string; dados: Buffer; deflate?: boolean; declararDescompactado?: number }[],
+  opcoes: { lixoAntes?: Buffer } = {},
+): Buffer {
   const locais: Buffer[] = [];
   const centrais: Buffer[] = [];
   let offset = 0;
-  for (const e of entradas) {
+  if (opcoes.lixoAntes) {
+    locais.push(opcoes.lixoAntes);
+    offset += opcoes.lixoAntes.length;
+  }
+  for (const original of entradas) {
+    const dadosComp = original.deflate ? deflateRawSync(original.dados) : original.dados;
+    const metodo = original.deflate ? 8 : 0;
+    const desc = original.declararDescompactado ?? original.dados.length;
+    const e = { nome: original.nome, dados: dadosComp };
     const nome = Buffer.from(e.nome);
-    const crc = crc32(e.dados);
+    const crc = crc32(original.dados);
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(metodo, 8);
     local.writeUInt32LE(crc, 14);
     local.writeUInt32LE(e.dados.length, 18);
-    local.writeUInt32LE(e.dados.length, 22);
+    local.writeUInt32LE(desc, 22);
     local.writeUInt16LE(nome.length, 26);
     const central = Buffer.alloc(46);
     central.writeUInt32LE(0x02014b50, 0);
     central.writeUInt16LE(20, 4);
     central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(metodo, 10);
     central.writeUInt32LE(crc, 16);
     central.writeUInt32LE(e.dados.length, 20);
-    central.writeUInt32LE(e.dados.length, 24);
+    central.writeUInt32LE(desc, 24);
     central.writeUInt16LE(nome.length, 28);
     central.writeUInt32LE(offset, 42);
     locais.push(local, nome, e.dados);

@@ -4,9 +4,13 @@
 // Fluxo: geocodifica (cache -> Nominatim) -> confere Grande SP -> periodo ->
 // bounding box -> ITBI do bbox (limite defensivo 20 mil) -> raio/estatistica
 // (dominio puro) -> grava BiiAnalise (snapshot) -> resposta.
-// Log de auditoria sem o endereco (so tenant, usuario, impersonadoPor, raio).
+// Super Usuario impersonando -> 403 BII_SOMENTE_LEITURA; cota diaria por
+// tenant -> 429 BII_COTA_DIARIA. Log de auditoria sem o endereco.
 import {
   BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -33,6 +37,19 @@ export const MESES_PERMITIDOS = [6, 12, 24, 36] as const;
 export const MENSAGEM_ENDERECO_NAO_ENCONTRADO = 'Não encontramos esse endereço. Inclua número, bairro e cidade.';
 export const MENSAGEM_MAPAS_INDISPONIVEL = 'O serviço de mapas está indisponível agora. Tente em instantes.';
 export const FONTE_ITBI = 'ITBI — Prefeitura de São Paulo' as const;
+export const CODIGO_COTA_DIARIA = 'BII_COTA_DIARIA';
+export const MENSAGEM_COTA_DIARIA = 'Limite diário de análises da empresa atingido. Tente amanhã.';
+export const CODIGO_SOMENTE_LEITURA = 'BII_SOMENTE_LEITURA';
+export const MENSAGEM_SOMENTE_LEITURA =
+  'No modo de acesso do Super Usuário o BII é somente leitura. Entre com um Administrador da empresa para criar análises.';
+export const ANALISES_POR_DIA_PADRAO = 200;
+
+// BII_ANALISES_POR_DIA (opcional): inteiro >= 1; invalido/ausente -> 200.
+export function analisesPorDia(valor = process.env.BII_ANALISES_POR_DIA): number {
+  const n = Number(valor);
+  return Number.isInteger(n) && n >= 1 ? n : ANALISES_POR_DIA_PADRAO;
+}
+
 export const OBSERVACAO_FONTE =
   'Área construída do IPTU inclui a parte das áreas comuns; o R$/m² fica abaixo do de área privativa.';
 
@@ -77,6 +94,8 @@ export interface AnaliseEnderecoResponse {
 @Injectable()
 export class AnalisarEnderecoUseCase {
   private readonly logger = new Logger(AnalisarEnderecoUseCase.name);
+  // lido a cada chamada (env pode mudar com pm2 --update-env); substituivel em teste
+  limitePorDia: () => number = () => analisesPorDia();
 
   constructor(
     @Inject(GEOCODING_PROVIDER) private readonly geocoder: IGeocodingProvider,
@@ -86,6 +105,11 @@ export class AnalisarEnderecoUseCase {
 
   async execute(input: AnalisarEnderecoInput): Promise<AnaliseEnderecoResponse> {
     exigirAdministrador(input.requesterRole);
+    // Super Usuario impersonando: BII so leitura (decisao do Villar, Fase 1).
+    // Corpo com code estavel para o frontend nao depender do texto.
+    if (input.impersonadoPor) {
+      throw new ForbiddenException({ statusCode: 403, code: CODIGO_SOMENTE_LEITURA, message: MENSAGEM_SOMENTE_LEITURA });
+    }
 
     const raioMetros = input.raioMetros ?? 1000;
     const meses = input.meses ?? 12;
@@ -103,6 +127,19 @@ export class AnalisarEnderecoUseCase {
       throw new BadRequestException('Informe um endereço entre 5 e 200 caracteres.');
     }
 
+    // Cota diaria por tenant (antes de gastar geocodificacao). Dia = calendario
+    // local do servidor. Duas analises simultaneas podem passar 1 acima do
+    // limite (no maximo 2 por processo) - aceito.
+    const agora = input.agora ?? new Date();
+    const inicioDoDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const limiteDia = this.limitePorDia();
+    if ((await this.analiseRepo.contarDesde(input.tenantId, inicioDoDia)) >= limiteDia) {
+      throw new HttpException(
+        { statusCode: HttpStatus.TOO_MANY_REQUESTS, code: CODIGO_COTA_DIARIA, message: MENSAGEM_COTA_DIARIA },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     let ponto;
     try {
       ponto = await this.geocoder.geocodificar(digitado);
@@ -114,7 +151,7 @@ export class AnalisarEnderecoUseCase {
 
     // Periodo termina no ultimo dia com dado do ITBI (a Prefeitura publica com
     // atraso) - senao "ultimos 12 meses" ficaria vazio no fim.
-    const hoje = hojeUtc(input.agora ?? new Date());
+    const hoje = hojeUtc(agora);
     const atualizadoAte = await this.itbiRepo.maiorDataTransacao();
     const ate = atualizadoAte && atualizadoAte.getTime() < hoje.getTime() ? atualizadoAte : hoje;
     const { de } = periodoDeMeses(ate, meses);
@@ -150,8 +187,11 @@ export class AnalisarEnderecoUseCase {
       ? await this.itbiRepo.contarSemLocalizacao({ cepPrefixo, de, ateExclusivo, naturezaCodigo })
       : 0;
 
+    // cache de texto digitado nao guarda endereco por extenso (B2): num acerto
+    // de cache o formatado vem vazio e vale o texto digitado
+    const formatado = ponto.enderecoFormatado || digitado;
     const corpo: Omit<AnaliseEnderecoResponse, 'id' | 'criadoEm'> = {
-      endereco: { digitado, formatado: ponto.enderecoFormatado, lat: ponto.lat, lng: ponto.lng, precisao: ponto.precisao },
+      endereco: { digitado, formatado, lat: ponto.lat, lng: ponto.lng, precisao: ponto.precisao },
       parametros: { raioMetros, meses, areaMin, areaMax, tipo, somenteCompraVenda, de: formatarDataUtc(de), ate: formatarDataUtc(ate) },
       cobertura: { transacoesNoPeriodoNaRegiao: calc.noRaio + semLocalizacao, semLocalizacao },
       resumo: calc.resumo,
@@ -167,7 +207,7 @@ export class AnalisarEnderecoUseCase {
       createdById: input.requesterUserId,
       impersonadoPor: input.impersonadoPor,
       enderecoDigitado: digitado,
-      enderecoFormatado: ponto.enderecoFormatado.slice(0, 500),
+      enderecoFormatado: formatado.slice(0, 500),
       lat: ponto.lat,
       lng: ponto.lng,
       precisao: ponto.precisao,

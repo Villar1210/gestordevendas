@@ -78,7 +78,11 @@ export function montarTransacaoItbi(valores: ValorCelula[], mapa: MapaColunas): 
   const numeroTexto = parseNumeroImovel(v('numero'));
   const numeroNorm = normalizarNumero(numeroTexto);
   const cep = normalizarCep(parseCodigoComZeros(v('cep'), 8));
-  const bairro = parseTexto(v('bairro'), 100);
+  const bairroCru = parseTexto(v('bairro'), 100);
+  // bairro que parece complemento ("E 3 VAGAS", "TORRE B") vira nulo - o
+  // valor cru nao e guardado
+  const bairroNormalizado = normalizarBairro(bairroCru);
+  const bairro = bairroNormalizado ? bairroCru : null;
   const natureza = parseCodigoDescricao(v('naturezaTransacao'), 120);
   const financiamento = parseCodigoDescricao(v('tipoFinanciamento'), 120);
 
@@ -91,7 +95,7 @@ export function montarTransacaoItbi(valores: ValorCelula[], mapa: MapaColunas): 
       complemento: parseTexto(v('complemento'), 100),
       referencia: parseTexto(v('referencia'), 150),
       bairro,
-      bairroNormalizado: normalizarBairro(bairro),
+      bairroNormalizado,
       cep,
       cepPrefixo: prefixoCep(cep),
       enderecoChave: montarEnderecoChave(logradouro, numeroNorm, cep),

@@ -8,7 +8,8 @@
 // leitura (status "erro", sem travar o processo).
 import { createHash } from 'crypto';
 import { unlink } from 'fs/promises';
-import { ConflictException, Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { CoberturaItbiCache } from './cobertura-itbi.cache';
 import {
   IItbiPlanilhaReader,
   ITBI_PLANILHA_READER,
@@ -39,6 +40,8 @@ export const ITBI_MAX_BYTES_LIDOS = 300 * 1024 * 1024;
 // "processando" sem atualizar ha mais que isso = processo caiu no meio.
 export const ITBI_IMPORTACAO_ABANDONADA_MS = 30 * 60 * 1000;
 
+export const MENSAGEM_INTERROMPIDA_REINICIO = 'Interrompida por reinício do servidor';
+
 export const MENSAGEM_IMPORTACAO_EM_ANDAMENTO = 'Já existe uma importação do ITBI em andamento. Aguarde terminar.';
 
 export interface IniciarImportacaoInput {
@@ -49,7 +52,7 @@ export interface IniciarImportacaoInput {
 }
 
 @Injectable()
-export class ImportadorItbiService implements OnModuleDestroy {
+export class ImportadorItbiService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ImportadorItbiService.name);
   private emAndamento: { id: string; controle: AbortController; promessa: Promise<void> } | null = null;
   // relogio substituivel em teste
@@ -59,7 +62,20 @@ export class ImportadorItbiService implements OnModuleDestroy {
     @Inject(ITBI_PLANILHA_READER) private readonly reader: IItbiPlanilhaReader,
     @Inject(ITBI_REPOSITORY) private readonly itbiRepo: IItbiRepository,
     @Inject(ITBI_IMPORTACAO_REPOSITORY) private readonly importacaoRepo: IItbiImportacaoRepository,
+    @Optional() private readonly cobertura?: CoberturaItbiCache,
   ) {}
+
+  // B4: ao subir, nenhuma importacao pode estar rodando neste processo - as
+  // que ficaram "processando" no banco morreram com o processo anterior.
+  // (Uma instancia so no PM2; com cluster, trocar por trava no banco.)
+  async onModuleInit(): Promise<void> {
+    try {
+      const n = await this.importacaoRepo.marcarTodasProcessandoComoErro(MENSAGEM_INTERROMPIDA_REINICIO);
+      if (n > 0) this.logger.warn(`ITBI: ${n} importacao(oes) interrompida(s) pelo reinicio marcada(s) como erro`);
+    } catch {
+      this.logger.warn('ITBI: nao foi possivel conferir importacoes interrompidas no inicio');
+    }
+  }
 
   get ocupado(): boolean {
     return this.emAndamento !== null;
@@ -217,6 +233,7 @@ export class ImportadorItbiService implements OnModuleDestroy {
       }
     } finally {
       await apagarSilencioso(caminho);
+      this.cobertura?.invalidar();
     }
   }
 }

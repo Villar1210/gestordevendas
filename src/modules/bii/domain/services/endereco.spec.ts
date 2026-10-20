@@ -60,6 +60,34 @@ describe('endereco - normalizacao', () => {
     expect(normalizarBairro('  ')).toBeNull();
   });
 
+  // QA-2: exemplos reais do ITBI 2022-2026
+  it.each([
+    ['E 3 VAGAS', null],
+    ['TORRE B', null],
+    ['123', null],
+    ['70 80 90 100', null],
+    ['BL 02 ED TUCKER', null],
+    ['BLOCO 01', null],
+    ['TR 134700', null],
+    ['AP 102 E 2VGS', null],
+    ['APTO 151', null],
+    ['VAGA 02', null],
+    ['VGS 01 16 17', null],
+    ['CASA 02', null],
+    ['CASA', null],
+    ['CJ 221', null],
+    ['TORRE RESIDENCIAL', null],
+    ['EDIFICIO ARTE BL 2', 'edificio arte bl 2'], // nao COMECA com bloco: fica
+    ['CASA VERDE', 'casa verde'], // bairro real
+    ['CASA VERDE ALTA', 'casa verde alta'],
+    ['CJ HAB JOSE BONIFACIO', 'cj hab jose bonifacio'], // Conjunto Habitacional: bairro real
+    ['CJ RES PQ DOS PASSAROS', 'cj res pq dos passaros'],
+    ['ESTACAO', 'estacao'], // "E" so conta seguido de digito
+    ['JD MORUMBI', 'jd morumbi'],
+  ])('bairro "%s" -> %p', (entrada, saida) => {
+    expect(normalizarBairro(entrada)).toBe(saida);
+  });
+
   it('enderecoChave: abreviacoes e acentos diferentes viram a mesma chave', () => {
     const a = montarEnderecoChave('R TERESINA', '71', '05662000');
     const b = montarEnderecoChave('Rua Teresína', '71', '05662000');

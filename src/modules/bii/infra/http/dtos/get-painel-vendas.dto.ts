@@ -15,15 +15,15 @@ export class GetPainelVendasDto {
   ate?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID(undefined, { message: 'pipelineId deve ser um identificador válido.' })
   pipelineId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID(undefined, { message: 'corretorId deve ser um identificador válido.' })
   corretorId?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
+  @IsString({ message: 'origem deve ser um texto.' })
+  @MaxLength(20, { message: 'origem pode ter no máximo 20 caracteres.' })
   origem?: string;
 }

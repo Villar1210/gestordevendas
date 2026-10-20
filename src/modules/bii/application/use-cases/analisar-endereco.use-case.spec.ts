@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import { ForbiddenException, HttpException, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import {
   GeocodeResultado,
   GeocodingIndisponivelError,
@@ -13,7 +13,14 @@ import {
 import { FiltroBbox, IItbiRepository } from '../../domain/repositories/itbi-repository.interface';
 import { TransacaoParaAnalise } from '../../domain/services/analise-endereco';
 import { dataUtc } from '../../domain/services/data-utc';
-import { AnalisarEnderecoUseCase, MENSAGEM_ENDERECO_NAO_ENCONTRADO, OBSERVACAO_FONTE } from './analisar-endereco.use-case';
+import {
+  AnalisarEnderecoUseCase,
+  analisesPorDia,
+  MENSAGEM_COTA_DIARIA,
+  MENSAGEM_ENDERECO_NAO_ENCONTRADO,
+  MENSAGEM_SOMENTE_LEITURA,
+  OBSERVACAO_FONTE,
+} from './analisar-endereco.use-case';
 import { GetAnaliseUseCase, ListAnalisesUseCase } from './analises-salvas.use-case';
 
 const PONTO: GeocodeResultado = {
@@ -70,6 +77,12 @@ class AnaliseFake implements IBiiAnaliseRepository {
   async buscarPorIdETenant(id: string, tenantId: string): Promise<BiiAnaliseCompleta | null> {
     const s = this.salvas.find((x) => x.id === id && x.tenantId === tenantId);
     return s ? { id: s.id, resultado: s.resultado, createdAt: s.createdAt } : null;
+  }
+  contagens: { tenantId: string; desde: Date }[] = [];
+  doDia = 0;
+  async contarDesde(tenantId: string, desde: Date) {
+    this.contagens.push({ tenantId, desde });
+    return this.doDia;
   }
 }
 
@@ -182,15 +195,52 @@ describe('AnalisarEnderecoUseCase', () => {
     await expect(uc.execute({ ...BASE, endereco: ' \n a \u202e ' })).rejects.toThrow('endereço');
   });
 
-  it('impersonacao: grava impersonadoPor e loga sem o endereco', async () => {
-    const { uc, analises } = montar();
+  it('B1: Super Usuario impersonando -> 403 BII_SOMENTE_LEITURA, sem geocodificar nem gravar', async () => {
+    const { uc, geo, analises } = montar();
+    const erro = await uc.execute({ ...BASE, impersonadoPor: 'su-1' }).catch((e) => e);
+    expect(erro).toBeInstanceOf(ForbiddenException);
+    expect((erro as HttpException).getResponse()).toEqual({ statusCode: 403, code: 'BII_SOMENTE_LEITURA', message: MENSAGEM_SOMENTE_LEITURA });
+    expect(geo.consultas).toHaveLength(0);
+    expect(analises.salvas).toHaveLength(0);
+  });
+
+  it('log de auditoria sem o endereco', async () => {
+    const { uc } = montar();
     const log = jest.spyOn((uc as unknown as { logger: { log: (m: string) => void } }).logger, 'log').mockImplementation(() => undefined);
-    await uc.execute({ ...BASE, impersonadoPor: 'su-1' });
-    expect(analises.salvas[0].impersonadoPor).toBe('su-1');
+    await uc.execute(BASE);
     const msg = log.mock.calls.map((c) => String(c[0])).join('\n');
     expect(msg).toContain('tenant=tenant-a');
-    expect(msg).toContain('impersonadoPor=su-1');
     expect(msg).not.toMatch(/Ibitirama/i);
+  });
+
+  it('M2: cota diaria por tenant -> 429 BII_COTA_DIARIA antes de geocodificar; conta desde a meia-noite local', async () => {
+    const { uc, geo, analises } = montar();
+    uc.limitePorDia = () => 3;
+    analises.doDia = 2;
+    await expect(uc.execute(BASE)).resolves.toBeDefined();
+    expect(analises.contagens[0]).toEqual({ tenantId: 'tenant-a', desde: new Date(2026, 9, 20) });
+    analises.doDia = 3;
+    geo.consultas = [];
+    const erro = await uc.execute(BASE).catch((e) => e);
+    expect(erro).toBeInstanceOf(HttpException);
+    expect((erro as HttpException).getStatus()).toBe(429);
+    expect((erro as HttpException).getResponse()).toEqual({ statusCode: 429, code: 'BII_COTA_DIARIA', message: MENSAGEM_COTA_DIARIA });
+    expect(geo.consultas).toHaveLength(0);
+  });
+
+  it('analisesPorDia: env BII_ANALISES_POR_DIA opcional, padrao 200', () => {
+    expect(analisesPorDia(undefined)).toBe(200);
+    expect(analisesPorDia('50')).toBe(50);
+    expect(analisesPorDia('0')).toBe(200);
+    expect(analisesPorDia('abc')).toBe(200);
+  });
+
+  it('B2: acerto de cache sem endereco formatado -> usa o texto digitado', async () => {
+    const { uc, geo, analises } = montar();
+    geo.resposta = { ...PONTO, enderecoFormatado: '' };
+    const r = await uc.execute(BASE);
+    expect(r.endereco.formatado).toBe(BASE.endereco);
+    expect(analises.salvas[0].enderecoFormatado).toBe(BASE.endereco);
   });
 });
 

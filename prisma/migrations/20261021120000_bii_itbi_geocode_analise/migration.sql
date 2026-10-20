@@ -74,6 +74,7 @@ CREATE TABLE "geocode_cache" (
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
     "precisao" VARCHAR(10),
+    "cep" VARCHAR(8),
     "endereco_formatado" VARCHAR(500),
     "criado_em" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

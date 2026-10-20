@@ -4,6 +4,10 @@
 // nulos) - para nao repetir a mesma consulta. "Nao achou" vale 30 dias (o
 // OpenStreetMap ganha enderecos novos); achado vale para sempre. Falha
 // temporaria (GeocodingIndisponivelError) nao vai para o cache.
+// Chave txt: (endereco digitado numa analise) guarda SO lat, lng, precisao e
+// CEP: nem o texto pesquisado (a chave e hash) nem o endereco formatado - esse
+// fica so na BiiAnalise do tenant que pesquisou. Num acerto de cache txt: o
+// formatado volta vazio e a analise usa o texto digitado.
 import { createHash } from 'crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
@@ -52,7 +56,7 @@ export class GeocodingComCacheProvider implements IGeocodingComCache {
             lng: salvo.lng,
             precisao: salvo.precisao,
             enderecoFormatado: salvo.enderecoFormatado ?? '',
-            cep: extrairCep(salvo.enderecoFormatado),
+            cep: salvo.cep ?? extrairCep(salvo.enderecoFormatado),
           },
         };
       }
@@ -67,7 +71,8 @@ export class GeocodingComCacheProvider implements IGeocodingComCache {
       lat: resultado?.lat ?? null,
       lng: resultado?.lng ?? null,
       precisao: resultado?.precisao ?? null,
-      enderecoFormatado: resultado?.enderecoFormatado ?? null,
+      cep: resultado?.cep ?? null,
+      enderecoFormatado: chave.startsWith('txt:') ? null : (resultado?.enderecoFormatado ?? null),
     });
     return { fonte: 'provedor', resultado };
   }

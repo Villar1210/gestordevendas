@@ -147,8 +147,8 @@ descrever('BII Fatia 2 - repositorios (integracao - banco real)', () => {
   });
 
   it('GeocodeCache: upsert por chave, inclusive "nao achou"', async () => {
-    await cache.gravar({ chave: 'itbi:teste bii repo x', provedor: 'nominatim', lat: null, lng: null, precisao: null, enderecoFormatado: null });
-    await cache.gravar({ chave: 'itbi:teste bii repo x', provedor: 'nominatim', lat: -23.6, lng: -46.5, precisao: 'rua', enderecoFormatado: 'R X' });
+    await cache.gravar({ chave: 'itbi:teste bii repo x', provedor: 'nominatim', lat: null, lng: null, precisao: null, cep: null, enderecoFormatado: null });
+    await cache.gravar({ chave: 'itbi:teste bii repo x', provedor: 'nominatim', lat: -23.6, lng: -46.5, precisao: 'rua', cep: '03277000', enderecoFormatado: 'R X' });
     expect(await cache.buscar('itbi:teste bii repo x')).toMatchObject({ lat: -23.6, lng: -46.5, precisao: 'rua' });
     expect(await cache.buscar('itbi:teste bii repo nada')).toBeNull();
   });
@@ -159,9 +159,10 @@ descrever('BII Fatia 2 - repositorios (integracao - banco real)', () => {
     tenantIds.push(tA.id, tB.id);
     const geo = { nome: 'fake', geocodificar: async () => ({ lat: CENTRO.lat, lng: CENTRO.lng, precisao: 'rooftop' as const, enderecoFormatado: 'Centro teste', cep: `${CEP_PREFIXO}000` }) };
     const uc = new AnalisarEnderecoUseCase(geo, itbi, analises);
-    const base = { requesterRole: 'Administrador', requesterUserId: randomUUID(), impersonadoPor: null, agora: new Date(2026, 9, 20) };
+    const base = { requesterRole: 'Administrador', requesterUserId: randomUUID(), impersonadoPor: null };
     const a = await uc.execute({ ...base, tenantId: tA.id, endereco: 'Endereco A, 1, Sao Paulo' });
     const b = await uc.execute({ ...base, tenantId: tB.id, endereco: 'Endereco B, 2, Sao Paulo', meses: 6 });
+    expect(a.parametros.ate).toBe('2026-09-07'); // ultimo dia com dado do ITBI real do banco de dev
     expect(a.resumo.transacoes).toBe(7);
     expect(a.resumo.precoM2Mediano).toBeGreaterThan(8000);
     expect(a.cobertura.semLocalizacao).toBe(3);
@@ -173,6 +174,12 @@ descrever('BII Fatia 2 - repositorios (integracao - banco real)', () => {
     await expect(get.execute({ tenantId: tA.id, requesterRole: 'Administrador', id: b.id })).rejects.toThrow('não encontrada');
     const aberta = await get.execute({ tenantId: tA.id, requesterRole: 'Administrador', id: a.id });
     expect(aberta).toMatchObject({ id: a.id, resumo: a.resumo, parametros: a.parametros, criadoEm: a.criadoEm });
+
+    // cota diaria conta so o proprio tenant (indice tenantId+createdAt)
+    const meiaNoite = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+    expect(await analises.contarDesde(tA.id, meiaNoite)).toBe(1);
+    expect(await analises.contarDesde(tB.id, meiaNoite)).toBe(1);
+    expect(await analises.contarDesde(tA.id, new Date(Date.now() + 60_000))).toBe(0);
 
     // cascata: excluir o tenant apaga as analises dele
     await prisma.tenant.delete({ where: { id: tB.id } });

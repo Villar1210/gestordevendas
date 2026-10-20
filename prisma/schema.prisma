@@ -2083,7 +2083,9 @@ model ItbiTransacao {
 // Cache de geocodificacao (inclusive "nao achou": lat/lng nulos), para nunca
 // repetir a mesma consulta ao Nominatim. chave = "itbi:<enderecoChave>" para
 // enderecos do ITBI ou "txt:<sha256 do texto normalizado>" para o endereco
-// digitado numa analise (nao guarda o texto pesquisado em claro).
+// digitado numa analise. Chave txt: guarda SO lat, lng, precisao e CEP -
+// nem o texto pesquisado nem o endereco formatado (esse vai para a
+// BiiAnalise do proprio tenant). enderecoFormatado so para chaves itbi:.
 model GeocodeCache {
   id                String   @id @default(uuid()) @db.Uuid
   chave             String   @unique @db.VarChar(300)
@@ -2091,6 +2093,7 @@ model GeocodeCache {
   latitude          Float?
   longitude         Float?
   precisao          String?  @db.VarChar(10)
+  cep               String?  @db.VarChar(8)
   enderecoFormatado String?  @map("endereco_formatado") @db.VarChar(500)
   criadoEm          DateTime @default(now()) @map("criado_em")
 

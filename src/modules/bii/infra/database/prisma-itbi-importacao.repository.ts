@@ -73,6 +73,14 @@ export class PrismaItbiImportacaoRepository implements IItbiImportacaoRepository
     });
   }
 
+  async marcarTodasProcessandoComoErro(mensagem: string): Promise<number> {
+    const r = await this.prisma.itbiImportacao.updateMany({
+      where: { status: 'processando' },
+      data: { status: 'erro', mensagemErro: mensagem, concluidoEm: new Date() },
+    });
+    return r.count;
+  }
+
   async listar(limite: number) {
     const rows = await this.prisma.itbiImportacao.findMany({ orderBy: { iniciadoEm: 'desc' }, take: limite });
     return rows.map(paraRegistro);

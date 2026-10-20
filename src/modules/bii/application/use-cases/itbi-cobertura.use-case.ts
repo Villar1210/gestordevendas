@@ -8,6 +8,7 @@ import {
   ITBI_IMPORTACAO_REPOSITORY,
 } from '../../domain/repositories/itbi-importacao-repository.interface';
 import { exigirAdministrador } from './permissoes-bii';
+import { CoberturaItbiCache } from '../services/cobertura-itbi.cache';
 
 export interface CoberturaItbiResponse {
   anos: number[];
@@ -21,10 +22,16 @@ export class GetItbiCoberturaUseCase {
   constructor(
     @Inject(ITBI_REPOSITORY) private readonly itbiRepo: IItbiRepository,
     @Inject(ITBI_IMPORTACAO_REPOSITORY) private readonly importacaoRepo: IItbiImportacaoRepository,
+    private readonly cache: CoberturaItbiCache,
   ) {}
 
+  // Cache de 10 min (QA-4), invalidado ao concluir importacao/geocodificacao.
   async execute(input: { requesterRole: string }): Promise<CoberturaItbiResponse> {
     exigirAdministrador(input.requesterRole);
+    return this.cache.obter(() => this.calcular());
+  }
+
+  private async calcular(): Promise<CoberturaItbiResponse> {
     const [cobertura, anos, ultima] = await Promise.all([
       this.itbiRepo.cobertura(),
       this.importacaoRepo.anosConcluidos(),

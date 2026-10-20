@@ -40,6 +40,8 @@ export interface IBiiAnaliseRepository {
   criar(dados: NovaBiiAnalise): Promise<{ id: string; createdAt: Date }>;
   listarPorTenant(tenantId: string, limite: number): Promise<BiiAnaliseResumo[]>;
   buscarPorIdETenant(id: string, tenantId: string): Promise<BiiAnaliseCompleta | null>;
+  // quantas analises o tenant criou desde 'desde' (cota diaria; indice tenantId+createdAt)
+  contarDesde(tenantId: string, desde: Date): Promise<number>;
 }
 
 export const BII_ANALISE_REPOSITORY = 'IBiiAnaliseRepository';
