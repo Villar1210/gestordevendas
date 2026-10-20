@@ -2,12 +2,15 @@
 // Rotulos, abas, presets de periodo e formatadores pt-BR do BII.
 import type { PainelFiltrosState, PeriodoPreset } from "./types";
 
-export const BII_ABAS: { id: string; label: string; disponivel: boolean }[] = [
-  { id: "vendas", label: "Painel de Vendas", disponivel: true },
-  { id: "endereco", label: "Análise por Endereço", disponivel: false },
-  { id: "concorrentes", label: "Concorrentes", disponivel: false },
-  { id: "viabilidade", label: "Viabilidade", disponivel: false },
-  { id: "historico", label: "Histórico", disponivel: false },
+// Abas como rotas reais (link compartilhavel, botao voltar funciona).
+// href null = ainda "em breve". exato = so ativa na rota exata (o Painel
+// mora em /dashboard/bii, prefixo de todas as outras).
+export const BII_ABAS: { id: string; label: string; href: string | null; exato?: boolean }[] = [
+  { id: "vendas", label: "Painel de Vendas", href: "/dashboard/bii", exato: true },
+  { id: "endereco", label: "Análise por Endereço", href: "/dashboard/bii/endereco" },
+  { id: "concorrentes", label: "Concorrentes", href: null },
+  { id: "viabilidade", label: "Viabilidade", href: null },
+  { id: "historico", label: "Histórico", href: "/dashboard/bii/historico" },
 ];
 
 export const PERIODO_PRESETS: { value: PeriodoPreset; label: string }[] = [
