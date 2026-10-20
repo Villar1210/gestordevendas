@@ -18,7 +18,7 @@ Conferido em 20/10/2026 no arquivo `GUIAS DE ITBI PAGAS (30092026).xlsx` (31,9 M
 | 7 | CEP | número **sem zero à esquerda** (5662000 = 05662-000) | sim (padStart 8) |
 | 8 | Natureza de Transação | texto "1.Compra e venda", "20.Realização ou integralização de capital " (com espaço no fim) | sim (código numérico + descrição) |
 | 9 | Valor de Transação (declarado pelo contribuinte) | número | sim (obrigatório) |
-| 10 | Data de Transação | **número serial do Excel** (46010 = 2025-12-18) | sim (obrigatório) |
+| 10 | Data de Transação | **número serial do Excel** (46010 = 19/12/2025) | sim (obrigatório) |
 | 11 | Valor Venal de Referência | número | sim |
 | 12 | Proporção Transmitida (%) | número 0–100 | sim |
 | 13 | Valor Venal de Referência (proporcional) | número | não |

@@ -1893,3 +1893,159 @@ milhares de cards): levar a agregacao para o banco (groupBy de 1a entrada por
 card/etapa, somas de VGV) e devolver so agregados. Fora do escopo, ja existia:
 promover-lead-minimo.use-case.ts loga o telefone do lead - corrigir numa
 tarefa separada.
+
+## Modulo BII - Fatia 2 (Analise por Endereco + ITBI) - CONCLUIDA
+Contrato (autoritativo, atualizado apos a planilha real):
+docs/bii/fatia2/CONTRATO_ANALISE_ENDERECO.md. Estrutura real do arquivo da
+Prefeitura e diferencas entre os anos: docs/bii/fatia2/ITBI_COLUNAS.md.
+
+### Tabelas (migration 20261021120000_bii_itbi_geocode_analise, so CREATE)
+- GLOBAIS, SEM tenantId e SEM FK para tabela de tenant, de proposito: e dado
+  PUBLICO, igual para todo tenant; escrita so pelo Super Usuario/job, o tenant
+  so le. `ItbiTransacao` (itbi_transacoes, uma guia por linha, hashLinha
+  unique, indices (lat,lng), (dataTransacao), (enderecoChave),
+  (cepPrefixo,dataTransacao), (bairroNormalizado)), `GeocodeCache`
+  (geocode_cache, chave unique; lat/lng nulos = "nao achou") e
+  `ItbiImportacao` (itbi_importacoes, historico; o arquivo NAO e guardado).
+- POR TENANT: `BiiAnalise` (bii_analises, FK Tenant Cascade, indice
+  (tenantId, createdAt)); resultado = snapshot Json da resposta; transacoes e
+  precoM2Mediano duplicados em coluna para a listagem. Sempre lida por
+  { id, tenantId }. impersonadoPor gravado quando a analise e feita pelo Super
+  Usuario impersonando (ele e Administrador do tenant e PODE analisar).
+- Cache de texto digitado guarda so `txt:<sha256 do texto normalizado>` (nao
+  revela o que foi pesquisado); ITBI usa `itbi:<enderecoChave>`.
+
+### Rotas
+- Tenant (`BiiAnaliseController`, @Controller('bii'), classe
+  JwtAuthGuard+RolesGuard+@Roles('Administrador'), checado de novo no use
+  case): POST /bii/analises/endereco (throttle 10/min + BiiAnaliseLimiteGuard
+  = 2 simultaneas), GET /bii/analises, GET /bii/analises/:id (ParseUUID),
+  GET /bii/itbi/cobertura.
+- Plataforma (`BiiPlataformaController`, @Controller('bii-plataforma'), classe
+  @Roles(SUPER_USUARIO_ROLE_NAME), checado de novo no use case): POST
+  itbi/importar (202), GET itbi/importacoes, POST itbi/geocodificar (202), GET
+  itbi/geocodificacao.
+- Meta-teste permissoes-bii.http.spec.ts cobre TODOS os controllers do
+  BiiModule: prefixo 'bii-plataforma' -> so Super Usuario, resto -> so
+  Administrador; guards de metodo aceitos so BiiPainelLimiteGuard,
+  BiiAnaliseLimiteGuard, BiiItbiImportarLimiteGuard e ItbiUploadTamanhoGuard
+  (exportados como constantes). Rota nova com outro guard falha o teste.
+
+### Como importar o ITBI (Super Usuario)
+Tela /super-usuario (frontend) ou POST /bii-plataforma/itbi/importar,
+multipart "file" (.xlsx da Prefeitura, ate 120 MB) + campo "ano". Responde 202
+com { importacaoId }; acompanhar em GET /bii-plataforma/itbi/importacoes
+(linhas lidas/inseridas/duplicadas/descartadas e status de cada aba). Uma por
+vez (409; "processando" sem atualizar ha 30 min = processo caiu -> marcada
+erro e liberada). Reimportar o mesmo arquivo e seguro: hashLinha (sha256 dos
+campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
+- Upload: throttle 2/hora; ItbiUploadTamanhoGuard (Content-Length obrigatorio
+  -> 411, > 120 MB -> 413, ANTES do multer); BiiItbiImportarLimiteGuard (1 upload
+  por processo, 503); storage proprio do multer (itbi-upload.ts, sem
+  @types/multer) gravando em os.tmpdir()/gestordevendas-bii-itbi (0o700,
+  arquivo 0o600, nome UUID - NUNCA em /uploads, que e publico); assinatura ZIP
+  PK\x03\x04 + extensao .xlsx; diretorio central do ZIP inspecionado antes de
+  abrir (xlsx-arquivo.ts: <= 1000 entradas, <= 2 GiB declarados, razao <= 200
+  em entradas > 10 MB, sem vbaProject.bin/macro, sem criptografia, sem ZIP64);
+  arquivo temporario SEMPRE apagado (use case em erro de validacao, importador
+  no finally; esquecidos > 6 h sao varridos no proximo upload). Nome original
+  so sanitizado para o registro.
+- Leitura (itbi-planilha.reader.ts, unico lugar com exceljs):
+  stream.xlsx.WorkbookReader, todas as abas; formula NUNCA avaliada (so o
+  result guardado); limites anti-bomba 1,5 milhao de linhas e 300 MB de dados
+  lidos (aborta com erro claro).
+- Regras do importador (importador-itbi.service.ts + domain/services
+  itbi-colunas.ts / itbi-linha.ts / itbi-valores.ts): abas de apoio (LEGENDA,
+  EXPLICACOES, Tabela de USOS/PADROES) ignoradas pelo nome; cabecalho
+  reconhecido por NOME normalizado (sem acento/caixa/pontuacao) via
+  ITBI_COLUNAS; nome repetido -> vale a POSICAO da ordem padrao (2022: "ACC
+  (IPTU)" duplicado); aba MMM-AAAA sem cabecalho com 1a linha "cara de dado"
+  (coluna 2 texto, coluna 9 numero) -> ordem padrao por posicao (2024:
+  JAN/OUT); "Descricao do pardao" (FEV-2026) aceito; linhas vazias nao contam;
+  linha de 27 colunas ok. Obrigatorios: logradouro, valor (> 0) e data; sem
+  eles a linha e descartada (contada; o log mostra so a quantidade por
+  motivo). CEP e SQL vem como numero: padStart 8 e 11. Numero 99999/0 -> null.
+  Natureza e financiamento "1.Compra e venda" -> codigo + descricao. Data:
+  Date do exceljs, serial do Excel ou dd/mm/aaaa, sempre meia-noite UTC
+  (coluna @db.Date - domain/services/data-utc.ts).
+- LGPD/minimizacao: SO colunas do mapa entram. NAO importar (nao acrescentar
+  sem o Villar): Matricula do Imovel, Cartorio de Registro, Testada, Base de
+  Calculo adotada, Valor Venal de Referencia (proporcional) - e qualquer coluna
+  desconhecida (ex. nome de comprador).
+- Insercao: UM $executeRaw com template tag (parametrizado) por lote de 1000:
+  INSERT ... SELECT FROM unnest(arrays por coluna) ON CONFLICT (hash_linha) DO
+  NOTHING (prisma-itbi.repository.ts). Excecao DELIBERADA a "so Prisma
+  tipado": com createMany o arquivo de 2026 levava 125 s e 1,6 GB de pico;
+  com unnest, 23-47 s por arquivo. $queryRawUnsafe/Prisma.raw continuam
+  proibidos.
+- Medido no bii_dev (2 vCPU de dev) com os 5 arquivos reais (20/10/2026):
+  2022 163.903 lidas / 162.671 inseridas / 1.231 duplicadas / 1 descartada /
+  30 s; 2023 175.459 / 174.168 / 1.289 / 2 / 33 s; 2024 217.746 / 216.361 /
+  1.348 / 37 / 47 s; 2025 230.525 / 228.970 / 1.548 / 7 / 47 s; 2026 155.906 /
+  155.296 / 607 / 3 / 31 s. Reimportar um arquivo ja carregado: 0 inseridas,
+  ~23-37 s. Total 937.466 linhas; tabela 405 MB + indices 233 MB = 638 MB
+  (pg_total_relation_size, carga limpa). Pico de RSS ~760 MB com o heap padrao, mas
+  e GC preguicoso: com --max-old-space-size=384 o mesmo arquivo (2025) roda
+  com heap de 186 MB e RSS de 419 MB. Rodar `ANALYZE itbi_transacoes;` depois
+  de uma carga grande.
+
+### Geocodificacao (Nominatim/OpenStreetMap)
+- IGeocodingProvider (dominio) -> NominatimGeocodingProvider (infra): host
+  fixo (NOMINATIM_URL opcional, so https; http so localhost), endereco so como
+  parametro codificado, format=jsonv2&limit=1&countrycodes=br&addressdetails=0
+  &viewbox=cidade de SP&bounded=0, User-Agent "gestordevendas-bii/1.0
+  (contato: BII_CONTATO_EMAIL)", redirect nao seguido, timeout 10 s,
+  resposta <= 2 MB, FILA GLOBAL de 1 req/s por processo (fila-taxa.ts,
+  compartilhada pela analise e pelo job). Precisao pelo tipo devolvido
+  (rooftop/rua/cep/bairro); resultado de cidade/estado = nao achou. Falha de
+  rede/429/5xx = GeocodingIndisponivelError (analise -> 503; nao vai para o
+  cache).
+- GeocodingComCacheProvider decora: GeocodeCache primeiro, grava inclusive
+  "nao achou" (vale 30 dias). Resultado fora do retangulo da Grande SP = nao
+  encontrado (analise -> 422).
+- Geocodificar por regiao (Super Usuario): POST
+  /bii-plataforma/itbi/geocodificar { ceps: ["03277","03278"], bairros?:
+  ["Vila Ema"], max?: 2000 (<= 5000) }. Pega enderecoChave UNICOS sem ponto
+  daquele prefixo de CEP (5 digitos) e/ou bairro normalizado, geocodifica em
+  segundo plano a 1 req/s (2000 enderecos ~ 35 min; cache nao conta) e grava
+  lat/lng em TODAS as guias da chave. Sem numero (99999/0) -> precisao no
+  maximo "rua". 5 falhas seguidas do provedor encerram o job com erro. Um job
+  por vez (409); progresso em memoria (GET .../geocodificacao, some ao
+  reiniciar). Desligamento do Nest (onModuleDestroy) cancela o job e a
+  importacao sem travar (timers unref, espera maxima 3-5 s).
+
+### Analise (AnalisarEnderecoUseCase)
+Geocodifica -> periodo de N meses terminando no ULTIMO DIA COM DADO do ITBI (ou
+hoje) -> bounding box (dominio puro, geo.ts) -> ITBI do bbox no SQL (limite
+defensivo 20 mil linhas, natureza 1 por padrao) -> haversine corta o raio ->
+estatistica pura (analise-endereco.ts): planta (uso 0 + area 0) separada, R$/m2
+so usos residenciais do tipo com area > 0 e faixa 500..60.000, mediana/p25/p75
+(percentil com interpolacao linear em estatistica.ts), porMes com todos os
+meses, amostra 200 mais proximas, financiamento (2 MCMV, 1 SFH, outro codigo =
+outros, vazio = sem). semLocalizacao = ITBI do periodo com o mesmo prefixo de
+CEP sem ponto (so se o Nominatim devolveu CEP no display_name; senao 0). Log
+de auditoria com tenantId/usuario/impersonadoPor/raio/meses, NUNCA o endereco.
+Area construida do IPTU inclui areas comuns: o R$/m2 fica abaixo do de area
+privativa (fonte.observacao fixa na resposta).
+
+### Variaveis novas (opcionais, ver .env.example)
+NOMINATIM_URL, BII_CONTATO_EMAIL (recomendado preencher - politica do
+Nominatim). Nenhuma dependencia nova.
+
+### Testes
+`DATABASE_URL=postgresql://... npx jest src/modules/bii --runInBand` (317
+testes; os de integracao - importador com planilhas SINTETICAS geradas com
+exceljs, repositorios, job de geocodificacao com geocodificador fake e
+isolamento de tenant - pulam sem DATABASE_URL). Nominatim sempre com fetch
+mockado (nunca rede). Helper de teste (zip minimo, planilha sintetica,
+cabecalho real) em test/bii/xlsx-teste.helper.ts (fora do build).
+Para mudar o layout da planilha: ajustar SO ITBI_COLUNAS / ORDEM_PADRAO em
+src/modules/bii/domain/services/itbi-colunas.ts (+ o teste itbi-colunas.spec).
+
+### Deploy
+Backend: `npx prisma migrate deploy` + `npm run db:generate` + `npm run build`
++ `pm2 restart gestordevendas --update-env`. Frontend: `rm -rf .next` antes do
+`npm run build` (deps leaflet/react-leaflet ja aprovadas). NUNCA
+`pm2 restart all`. Depois do deploy: importar os 5 arquivos (um por vez) pela
+tela do Super Usuario, `ANALYZE itbi_transacoes;`, e geocodificar a regiao
+de interesse por prefixo de CEP (ex.: Vila Ema/Vila Prudente/Sao Lucas).
