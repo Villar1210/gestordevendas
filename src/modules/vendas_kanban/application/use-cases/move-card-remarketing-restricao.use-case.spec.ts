@@ -7,6 +7,7 @@
 // importa aqui: updateStageAndPosition nunca altera pipelineId (ver
 // investigacao registrada no historico da tarefa), entao nao ha "lado de
 // destino" a checar para fins de RBAC.
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MoveCardUseCase } from './move-card.use-case';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
@@ -25,6 +26,7 @@ function setup(pipelineName: string) {
     stageRepository as unknown as IStageRepository,
     cardRepository as unknown as ICardRepository,
     pipelineRepository as unknown as IPipelineRepository,
+    { emit: jest.fn() } as unknown as EventEmitter2,
   );
 
   cardRepository.findByIdAndTenant.mockResolvedValue({

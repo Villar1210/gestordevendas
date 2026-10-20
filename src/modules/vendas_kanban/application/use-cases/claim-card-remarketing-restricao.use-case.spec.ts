@@ -3,6 +3,7 @@
 // mesmo sabendo o cardId diretamente (sem passar pelo board, ja bloqueado
 // em GetBoardUseCase). Mesma checagem, mesma funcao de dominio
 // (podeAcessarPipelineRemarketing) - ver get-board-remarketing-restricao.use-case.spec.ts.
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ClaimCardUseCase } from './claim-card.use-case';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
@@ -21,6 +22,7 @@ function setup(pipelineName: string) {
     pipelineRepository as unknown as IPipelineRepository,
     stageRepository as unknown as IStageRepository,
     cardRepository as unknown as ICardRepository,
+    { emit: jest.fn() } as unknown as EventEmitter2,
   );
 
   cardRepository.findByIdAndTenant.mockResolvedValue({

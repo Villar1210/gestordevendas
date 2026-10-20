@@ -1,7 +1,12 @@
 // src/modules/vendas_kanban/application/use-cases/create-card.use-case.ts
 import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
+import {
+  CARD_STAGE_CHANGED_EVENT,
+  CardStageChangedEvent,
+} from '../../domain/events/card-stage-changed.event';
 
 const POSITION_STEP = 1000;
 
@@ -27,6 +32,7 @@ export class CreateCardUseCase {
   constructor(
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: CreateCardInput): Promise<CardRecord> {
@@ -49,7 +55,7 @@ export class CreateCardUseCase {
       ? existingCards[existingCards.length - 1].position
       : 0;
 
-    return this.cardRepository.create({
+    const card = await this.cardRepository.create({
       tenantId: input.tenantId,
       pipelineId: targetStage.pipelineId,
       stageId: targetStage.id,
@@ -63,5 +69,20 @@ export class CreateCardUseCase {
       customFields: input.customFields,
       position: lastPosition + POSITION_STEP,
     });
+
+    // Historico de etapas (BII): card ja nasce numa stage (entrada no funil).
+    const evento: CardStageChangedEvent = {
+      tenantId: input.tenantId,
+      cardId: card.id,
+      pipelineId: card.pipelineId,
+      fromStageId: null,
+      toStageId: targetStage.id,
+      userId: input.ownerId,
+      origem: 'criacao',
+      ocorridoEm: new Date(),
+    };
+    this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
+
+    return card;
   }
 }

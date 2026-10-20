@@ -20,6 +20,7 @@ import { AtendimentoModule } from './modules/atendimento/atendimento.module';
 import { ConfiguracoesModule } from './modules/configuracoes/configuracoes.module';
 import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 import { PlantaoModule } from './modules/plantao/plantao.module';
+import { BiiModule } from './modules/bii/bii.module';
 import { SuperUsuarioModule } from './modules/super_usuario/super-usuario.module';
 import { SocialMediaModule } from './modules/social_media/social-media.module';
 import { ViviIntegrationModule } from './modules/vivi-integration/vivi-integration.module';
@@ -75,6 +76,9 @@ import { validateEnv } from './config/env.validation';
     // Ferramentas PDF (juntar/dividir/comprimir/converter...) - sem banco,
     // processamento em memoria/pasta temporaria (ver modules/pdf_tools).
     PdfToolsModule,
+    // BII (Business Intelligence Imobiliario) - historico de etapas + Painel
+    // de Vendas (so Administrador). Ver modules/bii e CLAUDE.md.
+    BiiModule,
     // Abstracao ADITIVA de canais (dispatcher + evento agnostico) - ver
     // shared/canais.module.ts. Nao consumida por nenhum modulo de negocio
     // ainda; existe pronta para features futuras (ex: Repique).

@@ -2,6 +2,7 @@
 // "Assumir o lead": atribui o usuario logado como dono e move o card da
 // Caixa de Entrada direto para a primeira stage do pipeline, em uma unica acao.
 import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
@@ -9,6 +10,10 @@ import {
   REMARKETING_PIPELINE_NOME,
   podeAcessarPipelineRemarketing,
 } from '../../domain/services/remarketing-pipeline';
+import {
+  CARD_STAGE_CHANGED_EVENT,
+  CardStageChangedEvent,
+} from '../../domain/events/card-stage-changed.event';
 
 const POSITION_STEP = 1000;
 
@@ -26,6 +31,7 @@ export class ClaimCardUseCase {
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: ClaimCardInput): Promise<CardRecord> {
@@ -60,10 +66,28 @@ export class ClaimCardUseCase {
       ? existingCards[existingCards.length - 1].position
       : 0;
 
-    return this.cardRepository.assignOwnerAndStage(card.id, {
+    const assumido = await this.cardRepository.assignOwnerAndStage(card.id, {
       ownerId: input.userId,
       stageId: firstStage.id,
       position: lastPosition + POSITION_STEP,
     });
+
+    // Historico de etapas (BII) - ver MoveCardUseCase. Roleta automatica
+    // tambem passa por aqui (userId = corretor sorteado).
+    if (card.stageId !== firstStage.id) {
+      const evento: CardStageChangedEvent = {
+        tenantId: input.tenantId,
+        cardId: card.id,
+        pipelineId: card.pipelineId,
+        fromStageId: card.stageId ?? null,
+        toStageId: firstStage.id,
+        userId: input.userId,
+        origem: 'claim',
+        ocorridoEm: new Date(),
+      };
+      this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
+    }
+
+    return assumido;
   }
 }
