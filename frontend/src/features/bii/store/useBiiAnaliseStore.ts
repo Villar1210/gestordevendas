@@ -24,16 +24,23 @@ export const ANALISE_FORM_PADRAO: AnaliseFormState = {
   areaMax: "",
 };
 
+// Motivo para travar o botao Analisar depois de uma resposta do backend:
+// "cota" = limite diario da empresa (429); "somente_leitura" = 403 (modo de
+// acesso do Super Usuario).
+export type BloqueioAnalise = "cota" | "somente_leitura" | null;
+
 interface BiiAnaliseState {
   form: AnaliseFormState;
   resultado: AnaliseEnderecoResponse | null;
   isLoading: boolean;
   erro: string | null;
+  bloqueio: BloqueioAnalise;
 
   setCampo: <K extends keyof AnaliseFormState>(campo: K, valor: AnaliseFormState[K]) => void;
   setResultado: (resultado: AnaliseEnderecoResponse | null) => void;
   setLoading: (isLoading: boolean) => void;
   setErro: (erro: string | null) => void;
+  setBloqueio: (bloqueio: BloqueioAnalise) => void;
 }
 
 export const useBiiAnaliseStore = create<BiiAnaliseState>((set) => ({
@@ -41,9 +48,11 @@ export const useBiiAnaliseStore = create<BiiAnaliseState>((set) => ({
   resultado: null,
   isLoading: false,
   erro: null,
+  bloqueio: null,
 
   setCampo: (campo, valor) => set((state) => ({ form: { ...state.form, [campo]: valor } })),
   setResultado: (resultado) => set({ resultado }),
   setLoading: (isLoading) => set({ isLoading }),
   setErro: (erro) => set({ erro }),
+  setBloqueio: (bloqueio) => set({ bloqueio }),
 }));

@@ -21,15 +21,17 @@ function lerArea(texto: string): number | null | "invalida" {
 interface AnaliseEnderecoFormProps {
   onAnalisar: (input: AnaliseEnderecoInput) => void;
   carregando: boolean;
+  bloqueadoMotivo?: string | null; // trava o botao Analisar e explica o porque
 }
 
-export function AnaliseEnderecoForm({ onAnalisar, carregando }: AnaliseEnderecoFormProps) {
+export function AnaliseEnderecoForm({ onAnalisar, carregando, bloqueadoMotivo }: AnaliseEnderecoFormProps) {
   const form = useBiiAnaliseStore((s) => s.form);
   const setCampo = useBiiAnaliseStore((s) => s.setCampo);
   const [erros, setErros] = useState<{ endereco?: string; area?: string }>({});
 
   function enviar(e: React.FormEvent) {
     e.preventDefault();
+    if (bloqueadoMotivo) return;
     const endereco = form.endereco.trim().replace(/\s+/g, " ");
     const areaMin = lerArea(form.areaMin);
     const areaMax = lerArea(form.areaMax);
@@ -194,7 +196,8 @@ export function AnaliseEnderecoForm({ onAnalisar, carregando }: AnaliseEnderecoF
         <div className="col-span-2 sm:col-span-1 sm:pt-5">
           <button
             type="submit"
-            disabled={carregando}
+            disabled={carregando || !!bloqueadoMotivo}
+            aria-describedby={bloqueadoMotivo ? "bii-analisar-bloqueio" : undefined}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {carregando ? (
@@ -207,6 +210,11 @@ export function AnaliseEnderecoForm({ onAnalisar, carregando }: AnaliseEnderecoF
         </div>
       </div>
       {erros.area && <p className="mt-1 text-xs text-red-600">{erros.area}</p>}
+      {bloqueadoMotivo && (
+        <p id="bii-analisar-bloqueio" className="mt-2 text-xs font-medium text-slate-600">
+          {bloqueadoMotivo}
+        </p>
+      )}
       <p className="mt-3 text-xs text-slate-400">
         Endereço convertido em coordenadas pelo OpenStreetMap (Nominatim). Cada análise fica salva no Histórico.
       </p>

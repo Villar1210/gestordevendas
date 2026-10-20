@@ -14,8 +14,15 @@ const ERRO_GENERICO = "Não foi possível concluir agora. Verifique sua conexão
 
 // Traduz o erro da API para uma frase para o usuario. 422 (endereco nao
 // encontrado) e 400 (validacao) trazem mensagem propria do backend.
+// 429 por cota diaria da empresa (diferente do limite por minuto): o
+// backend manda uma mensagem propria que fala em "diario".
+export function ehCotaDiaria(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 429 && /di[aá]ri/i.test(err.message);
+}
+
 export function mensagemErroAnalise(err: unknown): string {
   if (!(err instanceof ApiError)) return ERRO_GENERICO;
+  if (ehCotaDiaria(err)) return err.message;
   if (err.status === 429) return "Muitas análises em pouco tempo. Aguarde um minuto e tente de novo.";
   if (err.status === 503)
     return "O serviço de localização está ocupado no momento. Tente de novo em alguns instantes.";
@@ -40,6 +47,7 @@ export function useBiiAnaliseIntegration() {
   const setResultado = useBiiAnaliseStore((s) => s.setResultado);
   const setLoading = useBiiAnaliseStore((s) => s.setLoading);
   const setErro = useBiiAnaliseStore((s) => s.setErro);
+  const setBloqueio = useBiiAnaliseStore((s) => s.setBloqueio);
   const enviando = useRef(false);
 
   const analisar = useCallback(
@@ -56,12 +64,15 @@ export function useBiiAnaliseIntegration() {
         setResultado(resultado);
       } catch (err) {
         setErro(mensagemErroAnalise(err));
+        // Nos dois casos tentar de novo nao adianta: trava o botao.
+        if (ehCotaDiaria(err)) setBloqueio("cota");
+        else if (err instanceof ApiError && err.status === 403) setBloqueio("somente_leitura");
       } finally {
         enviando.current = false;
         setLoading(false);
       }
     },
-    [setResultado, setLoading, setErro],
+    [setResultado, setLoading, setErro, setBloqueio],
   );
 
   return { analisar };

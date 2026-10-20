@@ -3,6 +3,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useMe } from "@/core/hooks/useMe";
 import Link from "next/link";
 import { AlertCircle, Database, History, Loader2, MapPinned } from "lucide-react";
 import { formatDataIso, formatNumero } from "../../constants";
@@ -16,7 +17,9 @@ import { AnaliseResultado } from "./AnaliseResultado";
 function resumoCobertura(c: CoberturaItbi): string {
   const anos = [...c.anos].sort((a, b) => a - b);
   const anosTexto = anos.length === 0 ? "" : anos.length === 1 ? `${anos[0]}` : `${anos[0]}–${anos[anos.length - 1]}`;
-  const pct = c.totalTransacoes > 0 ? Math.round((c.geocodificadas / c.totalTransacoes) * 100) : 0;
+  const fracao = c.totalTransacoes > 0 ? (c.geocodificadas / c.totalTransacoes) * 100 : 0;
+  // Ex.: 4.361 de 937 mil = 0,47%: "<1%" em vez de "0%" (que sugere nenhuma).
+  const pct = fracao > 0 && fracao < 1 ? "<1" : String(Math.round(fracao));
   return [
     anosTexto && `anos ${anosTexto}`,
     `${formatNumero(c.totalTransacoes)} transações`,
@@ -31,6 +34,16 @@ export function AnaliseEndereco() {
   const resultado = useBiiAnaliseStore((s) => s.resultado);
   const isLoading = useBiiAnaliseStore((s) => s.isLoading);
   const erro = useBiiAnaliseStore((s) => s.erro);
+  const bloqueio = useBiiAnaliseStore((s) => s.bloqueio);
+  // Modo de acesso do Super Usuario (impersonacao): mesmo sinal do
+  // ImpersonationBanner (/auth/me.impersonadoPor). O backend responde 403.
+  const { me } = useMe();
+  const somenteLeitura = !!me?.impersonadoPor || bloqueio === "somente_leitura";
+  const bloqueadoMotivo = somenteLeitura
+    ? "Somente leitura no modo de acesso do Super Usuário."
+    : bloqueio === "cota"
+      ? "Limite diário de análises da empresa atingido."
+      : null;
   const { analisar } = useBiiAnaliseIntegration();
 
   const [cobertura, setCobertura] = useState<CoberturaItbi | null>(null);
@@ -89,7 +102,17 @@ export function AnaliseEndereco() {
         </div>
       )}
 
-      <AnaliseEnderecoForm onAnalisar={analisar} carregando={isLoading} />
+      {somenteLeitura && !erro && (
+        <div role="status" className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p className="min-w-0 flex-1">
+            No modo de acesso do Super Usuário o BII é somente leitura. Entre com um Administrador da empresa para criar
+            análises.
+          </p>
+        </div>
+      )}
+
+      <AnaliseEnderecoForm onAnalisar={analisar} carregando={isLoading} bloqueadoMotivo={bloqueadoMotivo} />
 
       {isLoading && (
         <div
