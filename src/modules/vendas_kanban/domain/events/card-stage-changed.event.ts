@@ -5,6 +5,9 @@
 // unico consumidor e o modulo BII (historico de etapas / Painel de Vendas),
 // que tem a propria copia desta interface (modulos nao importam arquivos uns
 // dos outros). Ver docs/bii/fatia1/CONTRATO_PAINEL.md e CLAUDE.md.
+// IMPORTANTE: emitir so DEPOIS do commit - nunca de dentro de um $transaction
+// ainda aberto. O listener confere se o card existe no tenant e descarta o
+// evento se nao achar (o movimento sumiria do historico em silencio).
 export const CARD_STAGE_CHANGED_EVENT = 'card.stage.changed';
 
 export type CardStageChangedOrigem = 'move' | 'claim' | 'job_repique' | 'promocao' | 'criacao';

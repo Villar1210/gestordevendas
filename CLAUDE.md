@@ -1882,3 +1882,14 @@ vivi_sdr (factory vivi-config-record sem diasParaRotting).
 `npx prisma migrate deploy` + `npm run db:generate` + `npm run build` +
 `pm2 restart gestordevendas --update-env`. NUNCA `pm2 restart all`.
 Nenhuma variavel de ambiente nova, nenhuma dependencia nova.
+
+### Revisao de seguranca (independente) - pode ir para PR
+Sem achado critico/alto. Aplicado na hora: GET /bii/painel com
+@Throttle 20/min e `BiiPainelLimiteGuard` (LimiteConcorrenciaGuard
+'bii-painel', 2 simultaneos por processo -> 503), porque o painel carrega os
+eventos do periodo (e do periodo anterior) em memoria. O meta-teste aceita so
+esse guard de metodo (aditivo). PENDENCIA antes de tenants grandes (dezenas de
+milhares de cards): levar a agregacao para o banco (groupBy de 1a entrada por
+card/etapa, somas de VGV) e devolver so agregados. Fora do escopo, ja existia:
+promover-lead-minimo.use-case.ts loga o telefone do lead - corrigir numa
+tarefa separada.

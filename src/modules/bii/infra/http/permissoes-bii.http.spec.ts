@@ -8,7 +8,9 @@ import { CanActivate, ExecutionContext, INestApplication, RequestMethod } from '
 import { GUARDS_METADATA, METHOD_METADATA, MODULE_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { Test } from '@nestjs/testing';
 import { BiiModule } from '../../bii.module';
-import { BiiPainelController } from './bii-painel.controller';
+import { BiiPainelController, BiiPainelLimiteGuard } from './bii-painel.controller';
+
+const GUARDS_METODO_PERMITIDOS: unknown[] = [BiiPainelLimiteGuard];
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { ROLES_KEY } from '../../../../shared/infra/http/decorators/roles.decorator';
@@ -56,8 +58,9 @@ describe('Permissoes BII - META-TESTE (metadata)', () => {
 
       it.each(rotas.map((r) => [`${r.metodo} ${r.path} (${r.nome})`, r] as const))('%s e so Administrador', (_r, rota) => {
         expect(rota.roles).toEqual(['Administrador']);
-        // nenhuma rota troca os guards da classe por outros
-        expect(rota.guardsMetodo).toEqual([]);
+        // guards de metodo sao aditivos no Nest; so os de limite conhecidos
+        // sao aceitos (nenhum guard de auth/role alternativo por rota)
+        expect(rota.guardsMetodo.filter((g: unknown) => !GUARDS_METODO_PERMITIDOS.includes(g))).toEqual([]);
       });
     });
   }
