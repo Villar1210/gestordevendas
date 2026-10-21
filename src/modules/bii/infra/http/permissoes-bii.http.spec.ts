@@ -17,6 +17,15 @@ import { BiiAnaliseController, BiiAnaliseLimiteGuard } from './bii-analise.contr
 import { BiiPlataformaController } from './bii-plataforma.controller';
 import { BiiItbiImportarLimiteGuard, ItbiUploadTamanhoGuard, PASTA_TEMP_ITBI } from './itbi-upload';
 import { BiiAnaliseThrottlerGuard } from './bii-analise-throttler.guard';
+import { BiiConcorrenteThrottlerGuard } from './bii-concorrente-throttler.guard';
+import { BiiConcorrenteController } from './bii-concorrente.controller';
+import {
+  CreateConcorrenteUseCase,
+  DeleteConcorrenteUseCase,
+  GetConcorrenteUseCase,
+  ListConcorrentesUseCase,
+  UpdateConcorrenteUseCase,
+} from '../../application/use-cases/concorrentes.use-cases';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ForbiddenException, HttpException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
@@ -40,6 +49,7 @@ const GUARDS_METODO_PERMITIDOS: unknown[] = [
   BiiPainelLimiteGuard,
   BiiAnaliseLimiteGuard,
   BiiAnaliseThrottlerGuard,
+  BiiConcorrenteThrottlerGuard,
   BiiItbiImportarLimiteGuard,
   ItbiUploadTamanhoGuard,
 ];
@@ -74,7 +84,8 @@ function rotasDoController(controller: Ctor) {
 
 describe('Permissoes BII - META-TESTE (metadata)', () => {
   it('o modulo registra os controllers do painel, da analise e da plataforma', () => {
-    expect(CONTROLLERS).toEqual(expect.arrayContaining([BiiPainelController, BiiAnaliseController, BiiPlataformaController]));
+    expect(CONTROLLERS).toEqual(expect.arrayContaining([BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController]));
+    expect(roleEsperada(BiiConcorrenteController)).toBe('Administrador');
     expect(roleEsperada(BiiPlataformaController)).toBe(SUPER_USUARIO_ROLE_NAME);
     expect(roleEsperada(BiiAnaliseController)).toBe('Administrador');
   });
@@ -125,6 +136,12 @@ class FakeAuthGuard implements CanActivate {
 }
 
 const ID = '11111111-1111-4111-8111-111111111111';
+const CONCORRENTE_OK = {
+  nome: 'Residencial Vista',
+  endereco: 'Rua Ibitirama, 200, São Paulo',
+  fase: 'lancamento',
+  tipologias: [{ descricao: '2 dorm.', areaPrivativa: 42, precoDe: 289000 }],
+};
 
 describe('Permissoes BII - HTTP (RolesGuard real)', () => {
   let app: INestApplication;
@@ -139,6 +156,11 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     importacoes: ok([]),
     geocodificar: ok({ id: 'g1' }),
     geocodificacao: jest.fn(() => ({ atual: null })),
+    concListar: ok([]),
+    concAbrir: ok(),
+    concCriar: ok(),
+    concAtualizar: ok(),
+    concExcluir: jest.fn(async () => undefined),
   };
   const importador = { iniciar: jest.fn(async () => ({ importacaoId: 'imp-1' })) };
 
@@ -155,6 +177,11 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
         { provide: ListImportacoesItbiUseCase, useValue: { execute: mocks.importacoes } },
         { provide: IniciarGeocodificacaoItbiUseCase, useValue: { execute: mocks.geocodificar } },
         { provide: GetGeocodificacaoItbiUseCase, useValue: { execute: mocks.geocodificacao } },
+        { provide: ListConcorrentesUseCase, useValue: { execute: mocks.concListar } },
+        { provide: GetConcorrenteUseCase, useValue: { execute: mocks.concAbrir } },
+        { provide: CreateConcorrenteUseCase, useValue: { execute: mocks.concCriar } },
+        { provide: UpdateConcorrenteUseCase, useValue: { execute: mocks.concAtualizar } },
+        { provide: DeleteConcorrenteUseCase, useValue: { execute: mocks.concExcluir } },
         // upload: use case REAL + inspetor REAL; so o importador e fake
         { provide: ImportarItbiUseCase, useFactory: () => new ImportarItbiUseCase(importador as unknown as ImportadorItbiService, new XlsxInspetor()) },
       ],
@@ -184,13 +211,20 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     ['GET', '/bii/analises', {}],
     ['GET', `/bii/analises/${ID}`, {}],
     ['GET', '/bii/itbi/cobertura', {}],
+    ['GET', '/bii/concorrentes', {}],
+    ['GET', `/bii/concorrentes/${ID}`, {}],
+    ['POST', '/bii/concorrentes', (p) => json(p, CONCORRENTE_OK)],
+    ['PATCH', `/bii/concorrentes/${ID}`, (p) => ({ ...json(p, CONCORRENTE_OK), method: 'PATCH' })],
+    ['DELETE', `/bii/concorrentes/${ID}`, (p) => ({ method: 'DELETE', headers: { 'x-perfil': p } })],
   ];
+
+  const STATUS_OK: Record<string, number> = { GET: 200, POST: 201, PATCH: 200, DELETE: 204 };
 
   describe.each(ROTAS_TENANT)('%s %s', (_m, rota, init) => {
     it.each(Object.keys(PERFIS))('como %s', async (perfil) => {
       const i = typeof init === 'function' ? init(perfil) : { ...init, headers: { 'x-perfil': perfil } };
       const res = await fetch(`${base}${rota}`, i);
-      expect(res.status).toBe(perfil === 'admin' ? (i.method === 'POST' ? 201 : 200) : 403);
+      expect(res.status).toBe(perfil === 'admin' ? STATUS_OK[i.method ?? 'GET'] : 403);
     });
   });
 
@@ -252,6 +286,39 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     [{ endereco: 'Rua X, 10', tenantId: 'tenant-b' }],
   ])('POST /bii/analises/endereco com corpo invalido %p -> 400', async (corpo) => {
     const res = await fetch(`${base}/bii/analises/endereco`, json('admin', corpo));
+    expect(res.status).toBe(400);
+  });
+
+  it('concorrente: impersonadoPor, tenant e usuario chegam ao use case de req.user', async () => {
+    mocks.concCriar.mockClear();
+    const res = await fetch(`${base}/bii/concorrentes`, json('gerente-admin', CONCORRENTE_OK, { 'x-impersonado': 'su-1' }));
+    expect(res.status).toBe(201);
+    expect(mocks.concCriar).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-a', requesterRole: 'Administrador', requesterUserId: 'u-admin-2', impersonadoPor: 'su-1' }),
+    );
+  });
+
+  it.each([
+    [{ ...CONCORRENTE_OK, tenantId: 'tenant-b' }],
+    [{ ...CONCORRENTE_OK, fase: 'vendido' }],
+    [{ ...CONCORRENTE_OK, nome: 'A' }],
+    [{ ...CONCORRENTE_OK, nome: 'Nome\nquebrado' }],
+    [{ ...CONCORRENTE_OK, tipologias: [] }],
+    [{ ...CONCORRENTE_OK, tipologias: Array.from({ length: 11 }, () => CONCORRENTE_OK.tipologias[0]) }],
+    [{ ...CONCORRENTE_OK, tipologias: [{ descricao: '2d', areaPrivativa: 5, precoDe: 289000 }] }],
+    [{ ...CONCORRENTE_OK, tipologias: [{ descricao: '2d', areaPrivativa: 42, precoDe: 1000 }] }],
+    [{ ...CONCORRENTE_OK, tipologias: [{ descricao: '2d', areaPrivativa: 42, precoDe: 289000, corretor: 'Fulano' }] }],
+    [{ ...CONCORRENTE_OK, dataLancamento: '01/05/2026' }],
+    [{ ...CONCORRENTE_OK, totalUnidades: 0 }],
+    [{ ...CONCORRENTE_OK, latitude: 'abc' }],
+    [{ ...CONCORRENTE_OK, telefoneCorretor: '11999999999' }],
+  ])('POST /bii/concorrentes com corpo invalido %p -> 400', async (corpo) => {
+    const res = await fetch(`${base}/bii/concorrentes`, json('admin', corpo));
+    expect(res.status).toBe(400);
+  });
+
+  it('GET /bii/concorrentes/:id com id que nao e UUID -> 400', async () => {
+    const res = await fetch(`${base}/bii/concorrentes/abc`, { headers: { 'x-perfil': 'admin' } });
     expect(res.status).toBe(400);
   });
 
