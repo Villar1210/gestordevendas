@@ -74,16 +74,24 @@ function lerAnalise(resultado: Record<string, unknown>): AnaliseParaEstudo & { e
     r.endereco &&
     typeof r.endereco.formatado === 'string';
   if (!ok) throw new BadRequestException('Esta análise está num formato que o estudo não lê. Faça uma análise nova.');
-  return r as AnaliseParaEstudo & { endereco: { formatado: string } };
+  // campos numericos opcionais ausentes viram null (nunca undefined no dominio)
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const resumo = r.resumo!;
+  return {
+    ...(r as AnaliseParaEstudo & { endereco: { formatado: string } }),
+    parametros: { ...r.parametros!, de: String(r.parametros!.de ?? ''), ate: String(r.parametros!.ate ?? '') },
+    resumo: { transacoes: resumo.transacoes, precoM2Mediano: n(resumo.precoM2Mediano), precoM2P25: n(resumo.precoM2P25), precoM2P75: n(resumo.precoM2P75) },
+  };
 }
 
 export function montarRespostaEstudo(e: EstudoCompleto) {
+  // snapshot primeiro: as colunas reais sempre prevalecem sobre chaves do Json
   return {
+    ...e.resultado,
     id: e.id,
     nome: e.nome,
     conclusao: e.conclusao,
     analiseId: e.analiseId,
-    ...e.resultado,
     criadoEm: e.createdAt.toISOString(),
     atualizadoEm: e.updatedAt.toISOString(),
   };
@@ -191,7 +199,10 @@ export class AtualizarEstudoUseCase {
     exigirAdministrador(input.requesterRole);
     bloquearImpersonacao(input.impersonadoPor, MENSAGEM_SOMENTE_LEITURA_ESTUDOS);
     const dados: { nome?: string; conclusao?: string | null } = {};
-    if (input.nome !== undefined) dados.nome = limparNome(input.nome);
+    if (input.nome !== undefined) {
+      if (typeof input.nome !== 'string') throw new BadRequestException('Dê um nome ao estudo.');
+      dados.nome = limparNome(input.nome);
+    }
     if (input.conclusao !== undefined) dados.conclusao = limparConclusao(input.conclusao);
     if (!Object.keys(dados).length) throw new BadRequestException('Informe o nome ou a conclusão.');
     const ok = await this.repo.atualizarTextos(input.id, input.tenantId, input.requesterUserId, dados);

@@ -12,14 +12,14 @@ Fora do escopo: parecer/recomendação gerada por IA, PDF gerado no servidor (o 
 
 ## 2. Regras novas (domínio puro: `domain/services/estudo.ts`)
 
-- **Posicionamento de preço** de cada tipologia contra a **mediana de R$/m² dos concorrentes no raio** (mesma base: preço de tabela ÷ área privativa): diferença em % e classe `abaixo` (< −5%), `alinhado` (−5% a +5%) ou `acima` (> +5%). Sem concorrente com R$/m² no raio → `null` ("sem concorrentes para comparar").
+- **Posicionamento de preço** de cada tipologia contra a **mediana de R$/m² dos concorrentes no raio** (mesma base: preço de tabela ÷ área privativa): diferença em % e classe `abaixo` (< −5%), `alinhado` (−5% a +5%) ou `acima` (> +5%). Sem concorrente com R$/m² no raio → `null` ("sem concorrentes para comparar"). A diferença é arredondada para 1 casa **antes** de classificar (coerente com o número mostrado: −5,04% vira −5,0% = alinhado). A "posição média" é a posição do R$/m² médio das tipologias (não a média das posições).
 - **ITBI só lado a lado**, nunca em %: o relatório mostra a mediana e a faixa p25–p75 do ITBI ao lado do R$/m² da tipologia, com a observação de que as bases são diferentes (valor pago × área construída do IPTU com áreas comuns vs. preço de tabela × área privativa) — mesma decisão da Fatia 3.
 - **Resumo executivo** (só fatos, sem recomendação): transações ITBI no raio e período; R$/m² mediano ITBI (p25–p75); concorrentes no raio e R$/m² mediano deles; quantas tipologias ficam `ok`/`atencao`/`fora`; quantas enquadram no MCMV; R$/m² médio das tipologias e posição média contra os concorrentes.
 - **Alertas de qualidade** automáticos: amostra ITBI pequena (< 30 transações no raio); nenhum concorrente no raio ("cadastre os concorrentes da região"); análise feita antes da Fatia 3 (sem concorrentes no snapshot); análise com mais de 90 dias.
 
 ## 3. Banco (migration `20261023120000_bii_estudos`, só CREATE)
 
-`BiiEstudo` (`bii_estudos`, **por tenant**, FK Tenant Cascade): `nome` (3–120), `analiseId` (FK `BiiAnalise` **SetNull** — o estudo guarda a própria cópia), `enderecoFormatado` (cópia, para a listagem), `raioMetros`, `meses`, `tipologias` (Json, entrada), `premissas` (Json), `conclusao` (≤ 5000, texto livre, opcional), `situacaoResumo` (Json `{ ok, atencao, fora }`, para a listagem), `resultado` (Json, snapshot completo), `createdById`/`updatedById` (sem FK), `createdAt`/`updatedAt`. Índice `(tenantId, createdAt)`. Sempre lido por `{ id, tenantId }`. Limite: **500 estudos por tenant** (409).
+`BiiEstudo` (`bii_estudos`, **por tenant**, FK Tenant Cascade): `nome` (3–120), `analiseId` (FK `BiiAnalise` **SetNull** — o estudo guarda a própria cópia), `enderecoFormatado` (cópia, para a listagem), `raioMetros`, `meses`, `tipologias` (Json, entrada), `premissas` (Json), `conclusao` (≤ 5000, texto livre, opcional), `situacaoResumo` (Json `{ ok, atencao, fora }`, para a listagem), `resultado` (Json, snapshot completo), `createdById`/`updatedById` (sem FK), `createdAt`/`updatedAt`. Índice `(tenantId, createdAt)`. Sempre lido por `{ id, tenantId }`. Limite: **500 estudos por tenant** (409). Cada estudo guarda o snapshot inteiro da análise (amostra de até 200 transações, até 50 concorrentes): ~50–150 KB, ou seja, até ~75 MB por tenant no teto.
 
 ## 4. Rotas (`BiiEstudoController`, `@Controller('bii')`, só Administrador, reforçado no use case)
 
@@ -27,9 +27,9 @@ Fora do escopo: parecer/recomendação gerada por IA, PDF gerado no servidor (o 
 |---|---|---|
 | `GET /bii/estudos` | últimos 100 (id, nome, endereço, raio, situação, criado/atualizado) | — |
 | `GET /bii/estudos/:id` | estudo completo (snapshot) | — |
-| `POST /bii/estudos` | cria a partir de `analiseId` + tipologias + premissas + nome + conclusão | 30/min por IP |
-| `PATCH /bii/estudos/:id` | altera **só** nome e conclusão (o snapshot não é recalculado) | 30/min por IP |
-| `DELETE /bii/estudos/:id` | exclui (204) | 30/min por IP |
+| `POST /bii/estudos` | cria a partir de `analiseId` + tipologias + premissas + nome + conclusão | 30/min por IP + 30/min por usuário somando POST/PATCH/DELETE |
+| `PATCH /bii/estudos/:id` | altera **só** nome e conclusão (o snapshot não é recalculado); `nome: null` → 400 | idem |
+| `DELETE /bii/estudos/:id` | exclui (204) | idem |
 
 - Análise de outro tenant ou inexistente → 404 "Análise não encontrada." (mesma resposta, sem revelar existência).
 - Impersonação do Super Usuário: GET liberado; POST/PATCH/DELETE → 403 `BII_SOMENTE_LEITURA`.

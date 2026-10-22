@@ -38,7 +38,12 @@ export function EstudosPage() {
   return (
     <div className="space-y-4">
       {novo ? (
-        <NovoEstudo analiseInicial={analiseParam && UUID.test(analiseParam) ? analiseParam : null} onCancelar={() => setNovo(false)} />
+        <NovoEstudo analiseInicial={analiseParam && UUID.test(analiseParam) ? analiseParam : null} onCancelar={() => {
+            setNovo(false);
+            // tira ?novo=1&analise=... da URL (reload nao reabre o assistente)
+            if (busca?.get("novo") || busca?.get("analise")) router.replace("/dashboard/bii/estudos");
+          }}
+        />
       ) : null}
 
       <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">

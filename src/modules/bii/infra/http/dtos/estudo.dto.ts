@@ -53,7 +53,8 @@ export class CriarEstudoDto {
 }
 
 export class AtualizarEstudoDto {
-  @IsOptional()
+  // null nao e "ausente": so pula a validacao quando o campo nao veio
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString({ message: 'Dê um nome ao estudo.' })
   @MinLength(3, { message: 'O nome do estudo deve ter ao menos 3 caracteres.' })
   @MaxLength(120, { message: 'O nome do estudo pode ter no máximo 120 caracteres.' })

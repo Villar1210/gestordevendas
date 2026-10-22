@@ -18,6 +18,7 @@ import {
   ListEstudosUseCase,
 } from '../../application/use-cases/estudos.use-cases';
 import { AtualizarEstudoDto, CriarEstudoDto } from './dtos/estudo.dto';
+import { BiiEstudoThrottlerGuard } from './bii-estudo-throttler.guard';
 
 function requisitante(req: Request) {
   return {
@@ -50,8 +51,10 @@ export class BiiEstudoController {
     return this.getUseCase.execute({ tenantId: req.user!.tenantId, requesterRole: req.user!.role, id });
   }
 
+  // Escrita: 30/min por IP e 30/min por USUARIO somando POST/PATCH/DELETE.
   @Post('estudos')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UseGuards(BiiEstudoThrottlerGuard)
   async criar(@Body() dto: CriarEstudoDto, @Req() req: Request) {
     return this.criarUseCase.execute({
       ...requisitante(req),
@@ -72,6 +75,7 @@ export class BiiEstudoController {
 
   @Patch('estudos/:id')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UseGuards(BiiEstudoThrottlerGuard)
   async atualizar(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: AtualizarEstudoDto, @Req() req: Request) {
     return this.atualizarUseCase.execute({ ...requisitante(req), id, nome: dto.nome, conclusao: dto.conclusao });
   }
@@ -79,6 +83,7 @@ export class BiiEstudoController {
   @Delete('estudos/:id')
   @HttpCode(204)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UseGuards(BiiEstudoThrottlerGuard)
   async excluir(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: Request) {
     await this.excluirUseCase.execute({ ...requisitante(req), id });
   }

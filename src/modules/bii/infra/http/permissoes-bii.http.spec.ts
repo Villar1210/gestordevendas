@@ -18,6 +18,7 @@ import { BiiPlataformaController } from './bii-plataforma.controller';
 import { BiiItbiImportarLimiteGuard, ItbiUploadTamanhoGuard, PASTA_TEMP_ITBI } from './itbi-upload';
 import { BiiAnaliseThrottlerGuard } from './bii-analise-throttler.guard';
 import { BiiConcorrenteThrottlerGuard } from './bii-concorrente-throttler.guard';
+import { BiiEstudoThrottlerGuard } from './bii-estudo-throttler.guard';
 import { BiiConcorrenteController, BiiConcorrenteLimiteGuard } from './bii-concorrente.controller';
 import { BiiViabilidadeController } from './bii-viabilidade.controller';
 import { BiiEstudoController } from './bii-estudo.controller';
@@ -60,6 +61,7 @@ const GUARDS_METODO_PERMITIDOS: unknown[] = [
   BiiAnaliseLimiteGuard,
   BiiAnaliseThrottlerGuard,
   BiiConcorrenteThrottlerGuard,
+  BiiEstudoThrottlerGuard,
   BiiConcorrenteLimiteGuard,
   BiiItbiImportarLimiteGuard,
   ItbiUploadTamanhoGuard,
@@ -136,6 +138,7 @@ const PERFIS_EXTRAS: Record<string, { id: string; role: string; cargo: string | 
   'throttle-a': { id: 'u-throttle-a', role: 'Administrador', cargo: null },
   'throttle-b': { id: 'u-throttle-b', role: 'Administrador', cargo: null },
   'throttle-c': { id: 'u-throttle-c', role: 'Administrador', cargo: null },
+  'throttle-e': { id: 'u-throttle-e', role: 'Administrador', cargo: null },
 };
 
 class FakeAuthGuard implements CanActivate {
@@ -385,6 +388,18 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
   ])('POST /bii/estudos com corpo invalido %p -> 400', async (corpo) => {
     const res = await fetch(`${base}/bii/estudos`, json('admin', corpo));
     expect(res.status).toBe(400);
+  });
+
+  it('PATCH /bii/estudos com nome null -> 400 (nao 500)', async () => {
+    const res = await fetch(`${base}/bii/estudos/${ID}`, { ...json('admin', { nome: null }), method: 'PATCH' });
+    expect(res.status).toBe(400);
+  });
+
+  it('throttle POR USUARIO dos estudos SOMA POST/PATCH/DELETE (30/min no total)', async () => {
+    const quem = 'throttle-e';
+    for (let i = 0; i < 15; i++) expect((await fetch(`${base}/bii/estudos`, json(quem, ESTUDO_OK))).status).toBe(201);
+    for (let i = 0; i < 15; i++) expect((await fetch(`${base}/bii/estudos/${ID}`, { ...json(quem, { nome: 'Outro nome' }), method: 'PATCH' })).status).toBe(200);
+    expect((await fetch(`${base}/bii/estudos/${ID}`, { method: 'DELETE', headers: { 'x-perfil': quem } })).status).toBe(429);
   });
 
   it('PATCH /bii/estudos nao aceita tipologias nem resultado (so nome/conclusao) -> 400', async () => {
