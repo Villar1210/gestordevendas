@@ -10,6 +10,7 @@ export const BII_ABAS: { id: string; label: string; href: string | null; exato?:
   { id: "endereco", label: "Análise por Endereço", href: "/dashboard/bii/endereco" },
   { id: "concorrentes", label: "Concorrentes", href: "/dashboard/bii/concorrentes" },
   { id: "viabilidade", label: "Viabilidade", href: "/dashboard/bii/viabilidade" },
+  { id: "estudos", label: "Estudos", href: "/dashboard/bii/estudos" },
   { id: "historico", label: "Histórico", href: "/dashboard/bii/historico" },
 ];
 

@@ -20,6 +20,14 @@ import { BiiAnaliseThrottlerGuard } from './bii-analise-throttler.guard';
 import { BiiConcorrenteThrottlerGuard } from './bii-concorrente-throttler.guard';
 import { BiiConcorrenteController, BiiConcorrenteLimiteGuard } from './bii-concorrente.controller';
 import { BiiViabilidadeController } from './bii-viabilidade.controller';
+import { BiiEstudoController } from './bii-estudo.controller';
+import {
+  AtualizarEstudoUseCase,
+  CriarEstudoUseCase,
+  ExcluirEstudoUseCase,
+  GetEstudoUseCase,
+  ListEstudosUseCase,
+} from '../../application/use-cases/estudos.use-cases';
 import { CalcularViabilidadeUseCase, GetParametrosViabilidadeUseCase } from '../../application/use-cases/viabilidade.use-cases';
 import {
   CreateConcorrenteUseCase,
@@ -141,6 +149,7 @@ class FakeAuthGuard implements CanActivate {
 
 const ID = '11111111-1111-4111-8111-111111111111';
 const VIAB_OK = { tipologias: [{ descricao: '2 dorm.', areaPrivativa: 40, preco: 250000 }] };
+const ESTUDO_OK = { analiseId: '6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4b', nome: 'Terreno Vila Ema', ...VIAB_OK };
 const CONCORRENTE_OK = {
   nome: 'Residencial Vista',
   endereco: 'Rua Ibitirama, 200, São Paulo',
@@ -168,6 +177,11 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     concExcluir: jest.fn(async () => undefined),
     viabParametros: jest.fn(() => ({ ok: true })),
     viabCalcular: jest.fn(() => ({ ok: true })),
+    estListar: ok([]),
+    estAbrir: ok(),
+    estCriar: ok(),
+    estAtualizar: ok(),
+    estExcluir: jest.fn(async () => undefined),
   };
   const importador = { iniciar: jest.fn(async () => ({ importacaoId: 'imp-1' })) };
 
@@ -191,6 +205,11 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
         { provide: DeleteConcorrenteUseCase, useValue: { execute: mocks.concExcluir } },
         { provide: GetParametrosViabilidadeUseCase, useValue: { execute: mocks.viabParametros } },
         { provide: CalcularViabilidadeUseCase, useValue: { execute: mocks.viabCalcular } },
+        { provide: ListEstudosUseCase, useValue: { execute: mocks.estListar } },
+        { provide: GetEstudoUseCase, useValue: { execute: mocks.estAbrir } },
+        { provide: CriarEstudoUseCase, useValue: { execute: mocks.estCriar } },
+        { provide: AtualizarEstudoUseCase, useValue: { execute: mocks.estAtualizar } },
+        { provide: ExcluirEstudoUseCase, useValue: { execute: mocks.estExcluir } },
         // upload: use case REAL + inspetor REAL; so o importador e fake
         { provide: ImportarItbiUseCase, useFactory: () => new ImportarItbiUseCase(importador as unknown as ImportadorItbiService, new XlsxInspetor()) },
       ],
@@ -227,6 +246,11 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     ['DELETE', `/bii/concorrentes/${ID}`, (p) => ({ method: 'DELETE', headers: { 'x-perfil': p } })],
     ['GET', '/bii/viabilidade/parametros', {}],
     ['POST', '/bii/viabilidade', (p) => ({ ...json(p, VIAB_OK), method: 'PUT_OK' })],
+    ['GET', '/bii/estudos', {}],
+    ['GET', `/bii/estudos/${ID}`, {}],
+    ['POST', '/bii/estudos', (p) => json(p, ESTUDO_OK)],
+    ['PATCH', `/bii/estudos/${ID}`, (p) => ({ ...json(p, { conclusao: 'Vale lançar.' }), method: 'PATCH' })],
+    ['DELETE', `/bii/estudos/${ID}`, (p) => ({ method: 'DELETE', headers: { 'x-perfil': p } })],
   ];
 
   const STATUS_OK: Record<string, number> = { GET: 200, POST: 201, PATCH: 200, DELETE: 204, PUT_OK: 200 };
@@ -347,6 +371,35 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
   ])('POST /bii/viabilidade com corpo invalido %p -> 400', async (corpo) => {
     const res = await fetch(`${base}/bii/viabilidade`, json('admin', corpo));
     expect(res.status).toBe(400);
+  });
+
+  it.each([
+    [{ ...ESTUDO_OK, analiseId: 'abc' }],
+    [{ ...ESTUDO_OK, nome: 'ab' }],
+    [{ ...ESTUDO_OK, nome: 'x'.repeat(121) }],
+    [{ ...ESTUDO_OK, conclusao: 'x'.repeat(5001) }],
+    [{ ...ESTUDO_OK, conclusao: 'tem\u0007sino' }],
+    [{ ...ESTUDO_OK, tipologias: [] }],
+    [{ ...ESTUDO_OK, tenantId: 'outro' }],
+    [{ ...ESTUDO_OK, resultado: { falso: true } }],
+  ])('POST /bii/estudos com corpo invalido %p -> 400', async (corpo) => {
+    const res = await fetch(`${base}/bii/estudos`, json('admin', corpo));
+    expect(res.status).toBe(400);
+  });
+
+  it('PATCH /bii/estudos nao aceita tipologias nem resultado (so nome/conclusao) -> 400', async () => {
+    const res = await fetch(`${base}/bii/estudos/${ID}`, { ...json('admin', { tipologias: VIAB_OK.tipologias }), method: 'PATCH' });
+    expect(res.status).toBe(400);
+  });
+
+  it('estudo: impersonadoPor, tenant e usuario chegam ao use case de req.user', async () => {
+    mocks.estCriar.mockClear();
+    const res = await fetch(`${base}/bii/estudos`, json('gerente-admin', ESTUDO_OK, { 'x-impersonado': 'su-1' }));
+    expect(res.status).toBe(201);
+    const arg = (mocks.estCriar.mock.calls[0] as unknown[])[0] as Record<string, unknown>;
+    expect(arg).toMatchObject({ impersonadoPor: 'su-1', nome: 'Terreno Vila Ema', analiseId: ESTUDO_OK.analiseId });
+    expect(arg.tenantId).toBeTruthy();
+    expect(arg.requesterUserId).toBeTruthy();
   });
 
   it('GET /bii/concorrentes/:id com id que nao e UUID -> 400', async () => {

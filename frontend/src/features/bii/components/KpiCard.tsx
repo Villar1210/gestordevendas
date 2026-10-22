@@ -19,7 +19,7 @@ interface KpiCardProps {
   sub?: string;
   // undefined = card sem linha de comparacao (ex.: ITBI); null = "sem base".
   variacao?: Variacao | null;
-  fonte?: FonteDado;
+  fonte?: FonteDado | null;
 }
 
 const TOM_CLASSE: Record<Variacao["tom"], string> = {

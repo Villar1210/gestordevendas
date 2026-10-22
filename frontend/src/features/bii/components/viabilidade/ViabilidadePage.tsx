@@ -21,7 +21,7 @@ const INPUT =
 const LABEL = "text-xs font-medium text-slate-600";
 const MAX_TIPOLOGIAS = 20;
 
-const SITUACAO: Record<Situacao, { label: string; classe: string }> = {
+export const SITUACAO: Record<Situacao, { label: string; classe: string }> = {
   ok: { label: "OK", classe: "border-green-200 bg-green-50 text-green-700" },
   atencao: { label: "Atenção", classe: "border-amber-200 bg-amber-50 text-amber-700" },
   fora: { label: "Fora", classe: "border-red-200 bg-red-50 text-red-700" },
@@ -45,7 +45,7 @@ let seq = 1;
 const nova = (d = "", a = "", p = ""): Linha => ({ chave: seq++, descricao: d, area: a, preco: p });
 const br = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
-function Pill({ classe, children }: { classe: string; children: React.ReactNode }) {
+export function Pill({ classe, children }: { classe: string; children: React.ReactNode }) {
   return <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-px text-[11px] font-semibold ${classe}`}>{children}</span>;
 }
 
@@ -279,7 +279,7 @@ export function ViabilidadePage() {
   );
 }
 
-function Resultado({ r }: { r: ViabilidadeResposta }) {
+export function Resultado({ r }: { r: ViabilidadeResposta }) {
   return (
     <ChartCard
       titulo="Enquadramento por tipologia"
@@ -371,7 +371,7 @@ function LinhaResultado({ t }: { t: ResultadoTipologia }) {
   );
 }
 
-function ParametrosCard({ p }: { p: ParametrosVigentes }) {
+export function ParametrosCard({ p }: { p: ParametrosVigentes }) {
   return (
     <ChartCard titulo="Parâmetros vigentes" fonte="Oficial" dica={`Valores usados no cálculo em ${formatDateOnlyBr(p.dataReferencia)}.`}>
       <div className="grid gap-4 lg:grid-cols-2">

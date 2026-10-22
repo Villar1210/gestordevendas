@@ -4,7 +4,7 @@ import { SourceBadge, type FonteDado } from "./SourceBadge";
 
 interface ChartCardProps {
   titulo: string;
-  fonte?: FonteDado;
+  fonte?: FonteDado | null;
   fonteDetalhe?: string;
   dica?: React.ReactNode;
   acoes?: React.ReactNode;
