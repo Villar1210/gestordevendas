@@ -2207,12 +2207,16 @@ referencia = maior taxa da faixa, nao cotista: 5,25 / 7 / 8,16 / 10,5; SBPE 12).
 Correcao pelo INCC e subsidio do MCMV: fora do escopo (avisado na tela).
 
 ### Regras (domain/services/viabilidade.ts, puras)
-Teto e renda com fronteira INCLUSIVA. Renda necessaria = parcela Price
-(juros anual efetivo -> mensal equivalente) / comprometimento; juros da faixa
-em que a propria renda cai (iterativo a partir da faixa do preco, max 4
-voltas) ou taxa fixa informada. MCMV enquadra se o teto da faixa da renda
-cobre o preco. Situacao: ok = enquadra no MCMV e renda <= renda max da
-categoria; fora = acima de HMP e fora do MCMV; resto = atencao.
+Teto e renda com fronteira INCLUSIVA. Renda necessaria = renda MINIMA do
+comprador: percorre em ordem crescente as faixas MCMV cujo TETO cobre o preco;
+em cada uma, renda pela parcela Price (juros anual efetivo -> mensal
+equivalente; juros da faixa ou taxa fixa) / comprometimento, elevada ao PISO da
+faixa (rendaPeloPiso); a primeira em que cabe (<= rendaMax) e a faixa. Nenhuma
+-> fora do MCMV (SBPE 12% ou taxa fixa). NAO voltar ao criterio antigo "faixa
+em que a renda cai" (revisao: R$ 400-417 mil saiam "nao enquadra" na F3 quando
+enquadram na F4). Situacao: ok = enquadra no MCMV E e HIS/HMP com renda <=
+renda max da categoria; fora = acima de HMP e fora do MCMV; resto = atencao
+(inclusive acima de HMP na Faixa 4 - decisao: perde incentivo municipal).
 
 ### Rotas (BiiViabilidadeController, @Controller('bii'), classe Administrador)
 GET /bii/viabilidade/parametros; POST /bii/viabilidade (200, 30/min por IP;
@@ -2227,6 +2231,11 @@ premissas, tabela de enquadramento, avisos (amber) e quadro "Parametros
 vigentes" com as fontes. Selo novo "Tabela oficial" no SourceBadge.
 
 ### Testes
-Fronteiras exatas, iteracao de juros, Price conferida com calculo
-independente, Faixa 4 acima do teto HMP, meta-teste do controller, E2E da tela
-(incluindo trazer de concorrente e 360 px).
+Fronteiras exatas, piso de faixa, Price conferida com calculo independente,
+Faixa 4 acima do teto HMP, meta-teste do controller, E2E da tela (incluindo
+trazer de concorrente e 360 px).
+
+### Revisao independente
+Achado ALTO corrigido (criterio de faixa do MCMV, acima). Corrigido tambem:
+tela mostra "preco cabe a partir da Faixa X" e "piso da faixa"; premissas so
+como objeto (@IsObject); renda arredondada antes de comparar com fronteiras.

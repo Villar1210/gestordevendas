@@ -49,10 +49,11 @@ export interface ResultadoTipologia {
   };
   mcmv: {
     faixaPeloPreco: FaixaMcmv | null; // menor faixa cujo teto cobre o preco
-    faixaPelaRenda: FaixaMcmv | null; // null = renda acima da Faixa 4
+    faixaPelaRenda: FaixaMcmv | null; // faixa em que o comprador financia; null = fora do MCMV
     rotuloFaixaPelaRenda: string;
     tetoFaixaPelaRenda: number | null;
     enquadra: boolean;
+    rendaPeloPiso: boolean; // renda minima veio do piso da faixa, nao da parcela
   };
   financiamento: {
     valorFinanciado: number;
@@ -87,34 +88,35 @@ export function faixaPorPreco(preco: number, mcmv: VersaoMcmv): ParametroMcmv | 
   return mcmv.faixas.find((f) => preco <= f.tetoImovel) ?? null;
 }
 
-// Renda necessaria com juros da faixa em que a propria renda cai (iterativo:
-// comeca pela faixa do preco; no maximo 4 voltas - converge porque juros maior
-// so empurra para faixa maior).
+// Enquadramento no MCMV + renda necessaria (minima do comprador).
+// Percorre, em ordem crescente, as faixas cujo TETO cobre o preco: em cada
+// uma calcula a renda pela parcela (juros da faixa, ou a taxa fixa) e a eleva
+// ao PISO da faixa (rendaMin) se ficar abaixo - quem ganha menos que o piso
+// esta numa faixa cujo teto nao cobre o preco. A primeira faixa em que essa
+// renda cabe (<= rendaMax) e a resposta. Nenhuma -> fora do MCMV (SBPE ou
+// taxa fixa). Renda arredondada ANTES de comparar com as fronteiras.
 export function calcularFinanciamento(preco: number, p: Premissas, mcmv: VersaoMcmv) {
   const entrada = preco * (p.entradaPercentual / 100);
   const financiado = preco - entrada;
   const calc = (juros: number) => {
     const parcela = parcelaPrice(financiado, juros, p.prazoMeses);
-    return { juros, parcela, renda: parcela / (p.comprometimentoPercentual / 100) };
+    return { juros, parcela, rendaPelaParcela: arredondar2(parcela / (p.comprometimentoPercentual / 100)) };
   };
-  if (p.jurosAnual !== null) {
-    const r = calc(p.jurosAnual);
-    return { entrada, financiado, ...r };
+  for (const f of mcmv.faixas) {
+    if (preco > f.tetoImovel) continue;
+    const r = calc(p.jurosAnual ?? f.jurosReferenciaAnual);
+    const renda = Math.max(r.rendaPelaParcela, f.rendaMin);
+    if (renda <= f.rendaMax) {
+      return { entrada, financiado, ...r, renda, faixa: f as ParametroMcmv | null, pelaPiso: renda > r.rendaPelaParcela };
+    }
   }
-  let juros = faixaPorPreco(preco, mcmv)?.jurosReferenciaAnual ?? mcmv.jurosForaAnual;
-  let r = calc(juros);
-  for (let volta = 0; volta < 4; volta++) {
-    const novo = faixaPorRenda(r.renda, mcmv)?.jurosReferenciaAnual ?? mcmv.jurosForaAnual;
-    if (novo === juros) break;
-    juros = novo;
-    r = calc(juros);
-  }
-  return { entrada, financiado, ...r };
+  const r = calc(p.jurosAnual ?? mcmv.jurosForaAnual);
+  return { entrada, financiado, ...r, renda: r.rendaPelaParcela, faixa: null as ParametroMcmv | null, pelaPiso: false };
 }
 
 export function avaliarTipologia(t: TipologiaViabilidade, p: Premissas, mun: VersaoMunicipal, mcmv: VersaoMcmv): ResultadoTipologia {
   const fin = calcularFinanciamento(t.preco, p, mcmv);
-  const renda = arredondar2(fin.renda);
+  const renda = fin.renda;
   const avisos: string[] = [];
 
   const cat = mun.categorias.find((c) => t.preco <= c.tetoVenda) ?? null;
@@ -130,20 +132,28 @@ export function avaliarTipologia(t: TipologiaViabilidade, p: Premissas, mun: Ver
   }
 
   const peloPreco = faixaPorPreco(t.preco, mcmv);
-  const pelaRenda = faixaPorRenda(renda, mcmv);
-  const enquadra = !!pelaRenda && t.preco <= pelaRenda.tetoImovel;
-  if (!pelaRenda) {
+  const faixa = fin.faixa;
+  const enquadra = faixa !== null;
+  if (!peloPreco) {
     const f4 = mcmv.faixas[mcmv.faixas.length - 1];
-    avisos.push(`A renda necessária (${moeda(renda)}) passa do limite da ${f4.rotulo} (${moeda(f4.rendaMax)}): financiamento fora do MCMV (SBPE).`);
+    avisos.push(`O preço passa do teto da ${f4.rotulo} (${moedaMil(f4.tetoImovel)}): financiamento fora do MCMV (SBPE).`);
   } else if (!enquadra) {
+    const ultima = mcmv.faixas[mcmv.faixas.length - 1];
     avisos.push(
-      `A renda necessária cai na ${pelaRenda.rotulo}, cujo teto (${moedaMil(pelaRenda.tetoImovel)}) não cobre o preço (${moeda(t.preco)}).`,
+      `A renda necessária (${moeda(renda)}) passa do limite de renda da ${ultima.rotulo} (${moeda(ultima.rendaMax)}): com essas premissas o financiamento sai do MCMV (SBPE).`,
+    );
+  } else if (fin.pelaPiso) {
+    avisos.push(
+      `Pela parcela bastaria renda de ${moeda(fin.rendaPelaParcela)}, mas o preço só cabe a partir da ${faixa.rotulo}, que começa em ${moeda(Math.ceil(faixa.rendaMin))}: essa é a renda mínima do comprador.`,
     );
   }
 
+  // ok = enquadra no MCMV E e HIS/HMP com a renda dentro; acima de HMP que
+  // enquadra no MCMV (Faixa 4) fica "atencao" de proposito: perde os
+  // incentivos municipais de HIS/HMP. fora = acima de HMP e fora do MCMV.
   let situacao: Situacao;
   if (!cat && !enquadra) situacao = 'fora';
-  else if (enquadra && (cat === null ? true : rendaDentro === true)) situacao = cat === null ? 'atencao' : 'ok';
+  else if (enquadra && cat !== null && rendaDentro === true) situacao = 'ok';
   else situacao = 'atencao';
 
   const folga = cat ? arredondar2(cat.tetoVenda - t.preco) : null;
@@ -163,10 +173,11 @@ export function avaliarTipologia(t: TipologiaViabilidade, p: Premissas, mun: Ver
     },
     mcmv: {
       faixaPeloPreco: peloPreco?.faixa ?? null,
-      faixaPelaRenda: pelaRenda?.faixa ?? null,
-      rotuloFaixaPelaRenda: pelaRenda?.rotulo ?? 'Fora do MCMV',
-      tetoFaixaPelaRenda: pelaRenda?.tetoImovel ?? null,
+      faixaPelaRenda: faixa?.faixa ?? null,
+      rotuloFaixaPelaRenda: faixa?.rotulo ?? 'Fora do MCMV',
+      tetoFaixaPelaRenda: faixa?.tetoImovel ?? null,
       enquadra,
+      rendaPeloPiso: fin.pelaPiso,
     },
     financiamento: {
       valorFinanciado: arredondar2(fin.financiado),

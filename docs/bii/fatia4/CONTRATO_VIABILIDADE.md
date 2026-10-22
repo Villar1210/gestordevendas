@@ -31,9 +31,9 @@ Os juros são **referência** para estimar a renda (o maior da faixa, conservado
 ## 2. Regras (domínio puro: `domain/services/viabilidade.ts`)
 
 - **Municipal pelo preço**: menor categoria cujo teto ≥ preço (fronteira inclusiva: R$ 276.102,20 = HIS-1; +0,01 = HIS-2). Acima do teto HMP → "Mercado (acima de HMP)". Folga = teto − preço (R$ e %).
-- **Renda necessária** (estimativa): financiado = preço × (1 − entrada%); parcela pela Tabela Price com juros mensal equivalente ao anual e prazo em meses; renda = parcela ÷ comprometimento%. Juros = da faixa MCMV em que a renda cai (iterativo: começa pela faixa do preço, recalcula até estabilizar, no máximo 4 voltas) ou o valor fixo informado.
-- **MCMV**: faixa pela renda necessária; enquadra se o teto dessa faixa ≥ preço. Também mostra a faixa mínima pelo preço.
-- **Situação**: `ok` (enquadra no MCMV e, se for HIS/HMP, a renda necessária ≤ renda máxima da categoria); `atencao` (alguma das duas falha, mas o produto ainda cabe numa categoria/faixa); `fora` (acima de HMP **e** fora do MCMV).
+- **Renda necessária** (estimativa = renda **mínima** do comprador): financiado = preço × (1 − entrada%); parcela pela Tabela Price com juros mensal equivalente ao anual e prazo em meses; renda pela parcela = parcela ÷ comprometimento%.
+- **MCMV** (corrigido na revisão independente): percorre, em ordem crescente, as faixas **cujo teto cobre o preço**. Em cada uma, calcula a renda pela parcela com os juros da faixa (ou a taxa fixa informada) e eleva ao **piso da faixa** se ficar abaixo (quem ganha menos está numa faixa cujo teto não cobre o preço). A primeira faixa em que essa renda cabe é a resposta (`rendaPeloPiso` indica quando o piso mandou). Nenhuma → fora do MCMV (SBPE 12% a.a. ou a taxa fixa). Também mostra a faixa mínima pelo preço.
+- **Situação**: `ok` = enquadra no MCMV **e** é HIS/HMP com a renda necessária ≤ renda máxima da categoria; `atencao` = qualquer outro caso que ainda cabe numa categoria ou faixa — inclusive produto **acima de HMP que enquadra na Faixa 4** (decisão: perde os incentivos municipais de HIS/HMP, por isso não é "ok"); `fora` = acima de HMP **e** fora do MCMV.
 - **Avisos** em linguagem de incorporador (ex.: "o preço cabe no teto HIS-1, mas a renda necessária (R$ 5.027) passa do limite de renda HIS-1 (R$ 4.863)"; "a renda cai na Faixa 3, cujo teto (R$ 400 mil) não cobre o preço").
 - R$/m² = preço ÷ área privativa.
 

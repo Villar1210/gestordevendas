@@ -61,17 +61,38 @@ describe('faixas MCMV', () => {
   });
 });
 
-describe('renda necessaria (iterativa pela faixa)', () => {
-  it('R$ 239 mil: comeca na F1 (5,25%), renda cai na F2 -> recalcula com 7% e estabiliza', () => {
+describe('renda necessaria (faixas que cobrem o preco, com piso)', () => {
+  it('R$ 239 mil: F1 cobre o preco mas a renda (5,25%) passa da F1 -> F2 com 7%', () => {
     const f = calcularFinanciamento(239_000, P, MCMV);
+    expect(f.faixa?.faixa).toBe('F2');
     expect(f.juros).toBe(7);
     expect(f.parcela).toBeCloseTo(1192.79, 2);
     expect(f.renda).toBeCloseTo(3975.98, 2);
+    expect(f.pelaPiso).toBe(false);
   });
-  it('juros informado pelo usuario: sem iteracao', () => {
-    const f = calcularFinanciamento(239_000, { ...P, jurosAnual: 5.25 }, MCMV);
-    expect(f.juros).toBe(5.25);
-    expect(f.renda).toBeCloseTo(3268.66, 2);
+  it('R$ 410 mil (padrao): so a F4 cobre; parcela pede R$ 9.421 -> renda minima = piso da F4', () => {
+    const f = calcularFinanciamento(410_000, P, MCMV);
+    expect(f.faixa?.faixa).toBe('F4');
+    expect(f.rendaPelaParcela).toBeCloseTo(9421.0, 2);
+    expect(f.renda).toBe(9600.01);
+    expect(f.pelaPiso).toBe(true);
+  });
+  it('R$ 290 mil com 40% de entrada: F3 com o piso de R$ 5.000,01', () => {
+    const f = calcularFinanciamento(290_000, { ...P, entradaPercentual: 40 }, MCMV);
+    expect(f.faixa?.faixa).toBe('F3');
+    expect(f.rendaPelaParcela).toBeCloseTo(4064.79, 2);
+    expect(f.renda).toBe(5000.01);
+  });
+  it('juros fixo 0%: R$ 350 mil enquadra na F3 (nao na F1, cujo teto nao cobre)', () => {
+    const f = calcularFinanciamento(350_000, { ...P, jurosAnual: 0 }, MCMV);
+    expect(f.faixa?.faixa).toBe('F3');
+    expect(f.juros).toBe(0);
+  });
+  it('renda passa da F4 em todas as faixas que cobrem -> fora do MCMV, juros SBPE', () => {
+    const f = calcularFinanciamento(590_000, { ...P, entradaPercentual: 0 }, MCMV);
+    expect(f.faixa).toBeNull();
+    expect(f.juros).toBe(12);
+    expect(f.renda).toBeCloseTo(19021.55, 2);
   });
 });
 
@@ -104,13 +125,27 @@ describe('avaliarTipologia', () => {
     expect(r.avisos[0]).toContain('passa do limite de renda HIS-1 (R$ 4.863)');
   });
 
-  it('renda cai numa faixa cujo teto nao cobre o preco -> atencao', () => {
+  it('renda pela parcela abaixo do piso da unica faixa que cobre -> enquadra pelo piso, com aviso', () => {
     const r = avaliarTipologia(tip(450_000, 65), { ...P, jurosAnual: 5 }, MUN, MCMV);
-    expect(r.financiamento.rendaNecessaria).toBeCloseTo(5971.53, 2);
-    expect(r.mcmv).toMatchObject({ faixaPeloPreco: 'F4', faixaPelaRenda: 'F3', enquadra: false });
-    expect(r.municipal.categoria).toBe('HMP');
-    expect(r.situacao).toBe('atencao');
-    expect(r.avisos.join(' ')).toContain('cai na Faixa 3, cujo teto (R$ 400 mil) não cobre o preço');
+    expect(r.financiamento.rendaNecessaria).toBe(9600.01);
+    expect(r.mcmv).toMatchObject({ faixaPeloPreco: 'F4', faixaPelaRenda: 'F4', enquadra: true, rendaPeloPiso: true });
+    expect(r.municipal).toMatchObject({ categoria: 'HMP', rendaDentro: true });
+    expect(r.situacao).toBe('ok');
+    expect(r.avisos.join(' ')).toContain('só cabe a partir da Faixa 4, que começa em R$ 9.601');
+  });
+
+  it('R$ 545 mil com 50% de entrada: HMP + Faixa 4 (antes saia "fora")', () => {
+    const r = avaliarTipologia(tip(545_000, 70), { ...P, entradaPercentual: 50 }, MUN, MCMV);
+    expect(r.mcmv.enquadra).toBe(true);
+    expect(r.mcmv.faixaPelaRenda).toBe('F4');
+    expect(r.situacao).toBe('atencao'); // acima de HMP (537.672,71)
+  });
+
+  it('renda acima da F4 com preco coberto -> aviso de SBPE e fora (se acima de HMP)', () => {
+    const r = avaliarTipologia(tip(590_000, 80), { ...P, entradaPercentual: 0 }, MUN, MCMV);
+    expect(r.mcmv).toMatchObject({ faixaPeloPreco: 'F4', faixaPelaRenda: null, enquadra: false });
+    expect(r.situacao).toBe('fora');
+    expect(r.avisos.join(' ')).toContain('passa do limite de renda da Faixa 4');
   });
 
   it('Faixa 4 acima do teto HMP: cabe no MCMV, mas e mercado no municipal -> atencao', () => {

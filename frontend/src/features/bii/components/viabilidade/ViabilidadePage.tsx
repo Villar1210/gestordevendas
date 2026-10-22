@@ -148,7 +148,7 @@ export function ViabilidadePage() {
               <p className="text-sm text-slate-600">Nenhum concorrente cadastrado. Cadastre na aba Concorrentes.</p>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-slate-500">Copiar as tipologias de:</span>
+                <span className="text-xs text-slate-500">Copiar as tipologias (preço “a partir de”) de:</span>
                 {concorrentes.map((c) => (
                   <button
                     key={c.id}
@@ -348,10 +348,17 @@ function LinhaResultado({ t }: { t: ResultadoTipologia }) {
       <td className="px-2 py-2.5">
         <Pill classe={t.mcmv.enquadra ? "border-violet-100 bg-violet-50 text-violet-700" : "border-slate-200 bg-white text-slate-500"}>{t.mcmv.rotuloFaixaPelaRenda}</Pill>
         {t.mcmv.tetoFaixaPelaRenda !== null && <p className="mt-0.5 text-xs text-slate-500">teto {formatMoeda(t.mcmv.tetoFaixaPelaRenda)}</p>}
+        {!t.mcmv.enquadra && (
+          <p className="mt-0.5 text-xs text-slate-500">
+            {t.mcmv.faixaPeloPreco ? `preço cabe a partir da ${t.mcmv.faixaPeloPreco.replace("F", "Faixa ")}` : "preço acima do teto do MCMV"}
+          </p>
+        )}
       </td>
       <td className="whitespace-nowrap px-2 py-2.5 font-medium text-slate-800">
         {formatMoeda(t.financiamento.rendaNecessaria)}
-        <span className="block text-xs font-normal text-slate-500">juros {br(t.financiamento.jurosAnual)}% a.a.</span>
+        <span className="block text-xs font-normal text-slate-500">
+          {t.mcmv.rendaPeloPiso ? "piso da faixa · " : ""}juros {br(t.financiamento.jurosAnual)}% a.a.
+        </span>
       </td>
       <td className="whitespace-nowrap px-2 py-2.5 text-slate-700">
         {formatMoeda(t.financiamento.parcela)}

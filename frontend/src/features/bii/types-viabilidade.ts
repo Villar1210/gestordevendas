@@ -30,6 +30,7 @@ export interface ResultadoTipologia {
     rotuloFaixaPelaRenda: string;
     tetoFaixaPelaRenda: number | null;
     enquadra: boolean;
+    rendaPeloPiso: boolean;
   };
   financiamento: { valorFinanciado: number; entrada: number; jurosAnual: number; parcela: number; rendaNecessaria: number };
   situacao: Situacao;

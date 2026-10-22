@@ -342,6 +342,7 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     [{ ...VIAB_OK, premissas: { prazoMeses: 500 } }],
     [{ ...VIAB_OK, premissas: { jurosAnual: 'dez' } }],
     [{ ...VIAB_OK, tenantId: 'x' }],
+    [{ ...VIAB_OK, premissas: [] }],
     [{ tipologias: Array.from({ length: 21 }, () => VIAB_OK.tipologias[0]) }],
   ])('POST /bii/viabilidade com corpo invalido %p -> 400', async (corpo) => {
     const res = await fetch(`${base}/bii/viabilidade`, json('admin', corpo));

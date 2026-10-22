@@ -6,6 +6,7 @@ import {
   IsArray,
   IsInt,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -72,6 +73,7 @@ export class CalcularViabilidadeDto {
   tipologias!: TipologiaViabilidadeDto[];
 
   @IsOptional()
+  @IsObject({ message: 'premissas deve ser um objeto.' })
   @ValidateNested()
   @Type(() => PremissasDto)
   premissas?: PremissasDto;
