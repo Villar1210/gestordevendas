@@ -41,7 +41,7 @@ export function precoM2(preco: number | null, area: number | null): number | nul
   return v >= PRECO_M2_MIN && v <= PRECO_M2_MAX ? v : null;
 }
 
-export function formatFaixaPreco(c: Concorrente): string {
+export function formatFaixaPreco(c: Pick<Concorrente, "calculado">): string {
   const { precoMin, precoMax } = c.calculado;
   if (precoMin === null) return "—";
   if (precoMax === null || precoMax === precoMin) return `${formatMoedaCompacta(precoMin)}`;

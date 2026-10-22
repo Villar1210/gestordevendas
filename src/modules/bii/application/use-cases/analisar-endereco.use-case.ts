@@ -31,7 +31,7 @@ import { limparEnderecoDigitado, prefixoCep } from '../../domain/services/endere
 import { boundingBox, dentroDaGrandeSP, distanciaMetros } from '../../domain/services/geo';
 import { NATUREZA_COMPRA_E_VENDA, TipoImovelAnalise } from '../../domain/services/itbi-classificacao';
 import { bloquearImpersonacao, exigirAdministrador } from './permissoes-bii';
-import { ConcorrenteResposta, montarConcorrenteResposta } from './concorrentes.use-cases';
+import { ConcorrenteNoSnapshot, montarConcorrenteResposta, paraSnapshot } from './concorrentes.use-cases';
 
 export const ANALISE_LIMITE_LINHAS = 20_000;
 export const RAIOS_PERMITIDOS = [500, 1000, 2000] as const;
@@ -92,7 +92,7 @@ export interface AnaliseEnderecoResponse {
   financiamento: ResultadoCalculo['financiamento'];
   // Fatia 3 - concorrentes do PROPRIO tenant no raio (snapshot)
   concorrentes: {
-    itens: Array<ConcorrenteResposta & { distanciaMetros: number }>;
+    itens: Array<ConcorrenteNoSnapshot & { distanciaMetros: number }>; // sem textos livres
     resumo: { quantidade: number; precoM2Mediano: number | null; unidadesTotais: number | null };
   };
   fonte: { nome: typeof FONTE_ITBI; atualizadoAte: string | null; observacao: string };
@@ -197,7 +197,7 @@ export class AnalisarEnderecoUseCase {
     // raio em memoria.
     const doBbox = await this.concorrenteRepo.buscarNoBbox(input.tenantId, boundingBox(centro, raioMetros), CONCORRENTES_BBOX_LIMITE);
     const itensConcorrentes = concorrentesNoRaio(
-      doBbox.map((c) => montarConcorrenteResposta(c, agora)),
+      doBbox.map((c) => paraSnapshot(montarConcorrenteResposta(c, agora))),
       centro,
       raioMetros,
       distanciaMetros,

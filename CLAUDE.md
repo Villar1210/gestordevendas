@@ -2132,7 +2132,11 @@ entre R$ 500 e 60.000 (mesma faixa do ITBI). R$/m2 do concorrente = mediana dos
 GET /bii/concorrentes, GET /bii/concorrentes/:id, POST, PATCH (tipologias
 SUBSTITUIDAS numa transacao, updateMany condicional where {tenantId, id}),
 DELETE (204). Escrita: throttle 30/min por IP + BiiConcorrenteThrottlerGuard
-30/min por USUARIO. Impersonacao do Super Usuario: GET liberado; POST/PATCH/
+30/min por USUARIO SOMANDO POST/PATCH/DELETE (generateKey sem o handler) +
+BiiConcorrenteLimiteGuard (2 simultaneas no POST/PATCH, 503) + cota DIARIA de
+geocodificacoes por tenant (BII_CONCORRENTE_GEOCODIFICACOES_POR_DIA, padrao
+100, contador em memoria no ConcorrenteGeocodificador -> 429
+{ code: 'BII_COTA_DIARIA' }; pino manual nao gasta cota). Impersonacao do Super Usuario: GET liberado; POST/PATCH/
 DELETE -> 403 { code: 'BII_SOMENTE_LEITURA' } (bloquearImpersonacao em
 permissoes-bii.ts, agora compartilhado com a analise). Geocodifica na criacao
 e so quando o endereco muda (mesmo provedor/cache da Fatia 2; 422 nao achou,
@@ -2142,9 +2146,11 @@ e so quando o endereco muda (mesmo provedor/cache da Fatia 2; 422 nao achou,
 ### Integracao com a Analise por Endereco
 AnalisarEnderecoUseCase busca concorrentes do PROPRIO tenant no bbox (limite
 500), corta pelo raio (haversine) e devolve `concorrentes: { itens (ate 50,
-mais proximos primeiro, com distanciaMetros), resumo { quantidade,
-precoM2Mediano, unidadesTotais } }` - tambem no snapshot salvo (foto do dia:
-editar o concorrente depois nao muda a analise salva). Analise salva antes da
+mais proximos primeiro, com distanciaMetros, SEM observacoes/fonte/fonteUrl -
+paraSnapshot, LGPD), resumo { quantidade, precoM2Mediano, unidadesTotais } }`
+- tambem no snapshot salvo (foto do dia: editar o concorrente depois nao muda
+a analise salva). Popup do mapa tem "Ver concorrente"
+(/dashboard/bii/concorrentes?id=...). Analise salva antes da
 Fatia 3 nao tem o campo (tela trata). Comparacao com o ITBI SO lado a lado,
 sem "diferenca %" (bases diferentes: valor pago x area do IPTU vs preco de
 tabela x area privativa).
@@ -2170,5 +2176,14 @@ na tabela, isolamento entre 2 tenants via API, exclusao, 360 px sem rolagem.
 NAO fazer enquanto a VPS nao for reconstruida (incidente de 21/10/2026).
 Depois: `npx prisma migrate deploy` + `npm run db:generate` + build +
 `pm2 restart gestordevendas --update-env`; frontend `rm -rf .next` + build +
-`pm2 restart gestordevendas-frontend --update-env`. Nenhuma dependencia nova,
-nenhuma variavel nova.
+`pm2 restart gestordevendas-frontend --update-env`. Nenhuma dependencia nova;
+variavel nova opcional BII_CONCORRENTE_GEOCODIFICACOES_POR_DIA.
+
+### Revisao de seguranca (independente) - pode ir para PR
+Sem achado critico/alto. Corrigido na hora: (M1) fila do Nominatim podia ser
+lotada por PATCH com enderecos novos -> throttle somado por usuario, limite de
+2 simultaneas e cota diaria; (B2) pino manual + endereco novo guardava o
+formatado antigo -> null; (B4) snapshot da analise sem textos livres; (B5) link
+"Ver concorrente" no popup; (B6) limpeza de texto remove tambem U+061C,
+U+2060-2064 e U+FEFF. Aceito: limite de 300 pode passar por rajada (no maximo
+~2 com o limite de simultaneidade).

@@ -18,7 +18,7 @@ import { BiiPlataformaController } from './bii-plataforma.controller';
 import { BiiItbiImportarLimiteGuard, ItbiUploadTamanhoGuard, PASTA_TEMP_ITBI } from './itbi-upload';
 import { BiiAnaliseThrottlerGuard } from './bii-analise-throttler.guard';
 import { BiiConcorrenteThrottlerGuard } from './bii-concorrente-throttler.guard';
-import { BiiConcorrenteController } from './bii-concorrente.controller';
+import { BiiConcorrenteController, BiiConcorrenteLimiteGuard } from './bii-concorrente.controller';
 import {
   CreateConcorrenteUseCase,
   DeleteConcorrenteUseCase,
@@ -50,6 +50,7 @@ const GUARDS_METODO_PERMITIDOS: unknown[] = [
   BiiAnaliseLimiteGuard,
   BiiAnaliseThrottlerGuard,
   BiiConcorrenteThrottlerGuard,
+  BiiConcorrenteLimiteGuard,
   BiiItbiImportarLimiteGuard,
   ItbiUploadTamanhoGuard,
 ];
@@ -124,6 +125,7 @@ const PERFIS_EXTRAS: Record<string, { id: string; role: string; cargo: string | 
   'gerente-admin': { id: 'u-admin-2', role: 'Administrador', cargo: null },
   'throttle-a': { id: 'u-throttle-a', role: 'Administrador', cargo: null },
   'throttle-b': { id: 'u-throttle-b', role: 'Administrador', cargo: null },
+  'throttle-c': { id: 'u-throttle-c', role: 'Administrador', cargo: null },
 };
 
 class FakeAuthGuard implements CanActivate {
@@ -315,6 +317,13 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
   ])('POST /bii/concorrentes com corpo invalido %p -> 400', async (corpo) => {
     const res = await fetch(`${base}/bii/concorrentes`, json('admin', corpo));
     expect(res.status).toBe(400);
+  });
+
+  it('throttle POR USUARIO dos concorrentes SOMA POST/PATCH/DELETE (30/min no total)', async () => {
+    const quem = 'throttle-c';
+    for (let i = 0; i < 15; i++) expect((await fetch(`${base}/bii/concorrentes`, json(quem, CONCORRENTE_OK))).status).toBe(201);
+    for (let i = 0; i < 15; i++) expect((await fetch(`${base}/bii/concorrentes/${ID}`, { ...json(quem, CONCORRENTE_OK), method: 'PATCH' })).status).toBe(200);
+    expect((await fetch(`${base}/bii/concorrentes/${ID}`, { method: 'DELETE', headers: { 'x-perfil': quem } })).status).toBe(429);
   });
 
   it('GET /bii/concorrentes/:id com id que nao e UUID -> 400', async () => {

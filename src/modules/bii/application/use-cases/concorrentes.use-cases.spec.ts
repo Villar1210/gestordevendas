@@ -68,6 +68,7 @@ function montar() {
   return {
     repo,
     geo,
+    geoc,
     criar: new CreateConcorrenteUseCase(repo, geoc),
     atualizar: new UpdateConcorrenteUseCase(repo, geoc),
     excluir: new DeleteConcorrenteUseCase(repo),
@@ -151,7 +152,35 @@ describe('CreateConcorrenteUseCase', () => {
   });
 });
 
+describe('Cota diaria de geocodificacao de concorrentes (por tenant)', () => {
+  it('passou do limite -> 429 BII_COTA_DIARIA; outro tenant e pino manual seguem; vira o dia, zera', async () => {
+    const { criar, geoc, geo } = montar();
+    geoc.limitePorDia = () => 2;
+    let dia = new Date(2026, 9, 20, 10);
+    geoc.agora = () => dia;
+    await criar.execute({ ...REQ, dados: DADOS });
+    await criar.execute({ ...REQ, dados: DADOS });
+    const erro = await criar.execute({ ...REQ, dados: DADOS }).catch((e) => e);
+    expect(erro).toBeInstanceOf(HttpException);
+    expect((erro as HttpException).getStatus()).toBe(429);
+    expect((erro as HttpException).getResponse()).toMatchObject({ code: 'BII_COTA_DIARIA' });
+    expect(geo.consultas).toHaveLength(2);
+    await expect(criar.execute({ ...REQ, tenantId: 'tenant-b', dados: DADOS })).resolves.toBeTruthy();
+    await expect(criar.execute({ ...REQ, dados: { ...DADOS, latitude: -23.6, longitude: -46.57 } })).resolves.toMatchObject({ precisao: 'manual' });
+    dia = new Date(2026, 9, 21, 0, 5);
+    await expect(criar.execute({ ...REQ, dados: DADOS })).resolves.toBeTruthy();
+  });
+});
+
 describe('UpdateConcorrenteUseCase', () => {
+  it('pino manual com endereco NOVO: formatado antigo e descartado', async () => {
+    const { criar, atualizar } = montar();
+    const c = await criar.execute({ ...REQ, dados: DADOS });
+    expect(c.enderecoFormatado).toBe(PONTO.enderecoFormatado);
+    const r = await atualizar.execute({ ...REQ, id: c.id, dados: { ...DADOS, endereco: 'Rua Nova, 10, São Paulo', latitude: -23.6, longitude: -46.57 } });
+    expect(r).toMatchObject({ endereco: 'Rua Nova, 10, São Paulo', enderecoFormatado: null, precisao: 'manual' });
+  });
+
   it('endereco igual: mantem o ponto (inclusive ajuste manual) e nao geocodifica', async () => {
     const { criar, atualizar, geo } = montar();
     const c = await criar.execute({ ...REQ, dados: { ...DADOS, latitude: -23.6, longitude: -46.57 } });

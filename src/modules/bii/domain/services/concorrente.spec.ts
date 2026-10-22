@@ -152,6 +152,7 @@ describe('validarFonteUrl', () => {
 describe('limpeza de texto', () => {
   it('curto: tira controle/bidi e colapsa espacos', () => {
     expect(limparTextoCurto('  Resid‮encial\n  Vista\t ')).toBe('Resid encial Vista');
+    expect(limparTextoCurto('A\u061cB\u2060C\u2064D\ufeffE')).toBe('A B C D E');
   });
   it('longo: mantem quebra de linha simples, no maximo uma linha em branco', () => {
     expect(limparTextoLongo('linha 1\r\nlinha 2\n\n\n\nlinha 3​ ')).toBe('linha 1\nlinha 2\n\nlinha 3');

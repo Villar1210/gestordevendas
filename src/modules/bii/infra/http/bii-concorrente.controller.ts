@@ -20,6 +20,11 @@ import {
 } from '../../application/use-cases/concorrentes.use-cases';
 import { ConcorrenteDto } from './dtos/concorrente.dto';
 import { BiiConcorrenteThrottlerGuard } from './bii-concorrente-throttler.guard';
+import { LimiteConcorrenciaGuard } from '../../../../shared/infra/http/limite-concorrencia';
+
+// Exportado para o meta-teste. Criar/editar podem geocodificar (fila global
+// de 1 req/s): no maximo 2 simultaneas por processo (503 acima disso).
+export const BiiConcorrenteLimiteGuard = LimiteConcorrenciaGuard('bii-concorrente', 2);
 
 function entrada(dto: ConcorrenteDto): ConcorrenteEntrada {
   return {
@@ -76,17 +81,18 @@ export class BiiConcorrenteController {
     return this.getUseCase.execute({ tenantId: req.user!.tenantId, requesterRole: req.user!.role, id });
   }
 
-  // 30/min por IP e 30/min por USUARIO (pode geocodificar).
+  // 30/min por IP e 30/min por USUARIO (somando POST/PATCH/DELETE), 2
+  // simultaneas e cota diaria de geocodificacao por tenant (no use case).
   @Post('concorrentes')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @UseGuards(BiiConcorrenteThrottlerGuard)
+  @UseGuards(BiiConcorrenteThrottlerGuard, BiiConcorrenteLimiteGuard)
   async criar(@Body() dto: ConcorrenteDto, @Req() req: Request) {
     return this.createUseCase.execute({ ...requisitante(req), dados: entrada(dto) });
   }
 
   @Patch('concorrentes/:id')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @UseGuards(BiiConcorrenteThrottlerGuard)
+  @UseGuards(BiiConcorrenteThrottlerGuard, BiiConcorrenteLimiteGuard)
   async atualizar(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: ConcorrenteDto, @Req() req: Request) {
     return this.updateUseCase.execute({ ...requisitante(req), id, dados: entrada(dto) });
   }

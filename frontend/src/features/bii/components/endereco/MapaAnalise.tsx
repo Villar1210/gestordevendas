@@ -133,7 +133,12 @@ export default function MapaAnalise({ analise }: MapaAnaliseProps) {
                 <dt className="text-slate-500">Distância</dt>
                 <dd>{formatDistancia(c.distanciaMetros)}</dd>
               </dl>
-              <p className="mt-1 text-[11px] text-slate-400">Concorrente cadastrado pela empresa</p>
+              <a
+                href={`/dashboard/bii/concorrentes?id=${encodeURIComponent(c.id)}`}
+                className="mt-1 inline-block font-medium text-blue-700 hover:underline"
+              >
+                Ver concorrente
+              </a>
             </div>
           </Popup>
         </Marker>

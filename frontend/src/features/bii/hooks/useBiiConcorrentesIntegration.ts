@@ -10,7 +10,11 @@ const ERRO_GENERICO = "Não foi possível concluir agora. Verifique sua conexão
 export function mensagemErroConcorrente(err: unknown): string {
   if (!(err instanceof ApiError)) return ERRO_GENERICO;
   if (ehSomenteLeitura(err)) return err.message;
-  if (err.status === 429) return "Muitas alterações em pouco tempo. Aguarde um minuto e tente de novo.";
+  if (err.status === 429) {
+    const code = err.body && typeof err.body === "object" ? (err.body as { code?: unknown }).code : null;
+    if (code === "BII_COTA_DIARIA") return err.message; // cota diaria de buscas de endereco
+    return "Muitas alterações em pouco tempo. Aguarde um minuto e tente de novo.";
+  }
   if (err.status === 503) return "O serviço de mapas está ocupado no momento. Tente de novo em alguns instantes.";
   if (err.status === 404) return "Concorrente não encontrado. Ele pode ter sido excluído.";
   if ([400, 403, 409, 422].includes(err.status)) return err.message;

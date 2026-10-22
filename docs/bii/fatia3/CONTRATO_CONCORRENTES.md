@@ -75,10 +75,11 @@ Classe `JwtAuthGuard + RolesGuard + @Roles('Administrador')`; use cases repetem 
 |---|---|---|
 | `GET /bii/concorrentes` | lista do tenant (com tipologias e números calculados), mais recentes primeiro | — |
 | `GET /bii/concorrentes/:id` | um concorrente (404 se for de outro tenant) | — |
-| `POST /bii/concorrentes` | cria (geocodifica) | 30/min por IP + por usuário |
+| `POST /bii/concorrentes` | cria (geocodifica) | 30/min por IP + 30/min por usuário somando POST/PATCH/DELETE; 2 simultâneas |
 | `PATCH /bii/concorrentes/:id` | edita; tipologias enviadas **substituem** as anteriores (recria, numa transação) | 30/min |
 | `DELETE /bii/concorrentes/:id` | exclui (cascata nas tipologias) | 30/min |
 
+- **Cota diária de buscas de endereço** por empresa (`BII_CONCORRENTE_GEOCODIFICACOES_POR_DIA`, padrão 100) → **429** `{ code: "BII_COTA_DIARIA" }`. Protege a fila global do Nominatim, que a análise de todos os tenants usa. Pino manual não gasta cota.
 - **Impersonação do Super Usuário**: POST/PATCH/DELETE → **403** `{ code: "BII_SOMENTE_LEITURA" }` (mesma regra da Fatia 2). GET liberado.
 - Escrita/remoção sempre `updateMany`/`deleteMany where { id, tenantId }`; `count === 0` → 404.
 - DTO com `whitelist` + `forbidNonWhitelisted` (global). Campos de texto: sem caracteres de controle, `trim`. `fonteUrl`: `https://` apenas, ≤ 500; o servidor **nunca** busca a URL (só exibida com `rel="noopener noreferrer"`).
@@ -106,7 +107,7 @@ Formato de cada concorrente na resposta:
 
 ```ts
 concorrentes: {
-  itens: Array<ConcorrenteResposta & { distanciaMetros: number }>, // mais próximos primeiro, até 50
+  itens: Array<ConcorrenteResposta sem observacoes/fonte/fonteUrl & { distanciaMetros: number }>, // mais próximos primeiro, até 50 (sem textos livres no snapshot: LGPD)
   resumo: { quantidade: number, precoM2Mediano: number | null /* mediana dos concorrentes */, unidadesTotais: number | null },
 }
 ```

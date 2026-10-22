@@ -55,6 +55,19 @@ export function ConcorrentesPage() {
     void carregar();
   }, [carregar]);
 
+  // ?id=<concorrente> (link "Ver concorrente" do mapa da analise): abre o
+  // painel dele assim que a lista carrega. Lido do location (sem
+  // useSearchParams, que exigiria Suspense na pagina estatica).
+  const [idDaUrl] = useState(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id")));
+  const [abriuDaUrl, setAbriuDaUrl] = useState(false);
+  useEffect(() => {
+    if (!idDaUrl || abriuDaUrl || !itens) return;
+    setAbriuDaUrl(true);
+    const c = itens.find((x) => x.id === idDaUrl);
+    if (c) setAberto({ concorrente: c });
+    else setErro("Esse concorrente não existe mais ou é de outra empresa.");
+  }, [idDaUrl, abriuDaUrl, itens]);
+
   function aoSalvar(c: Concorrente, aviso?: string) {
     setItens((lista) => {
       const sem = (lista ?? []).filter((x) => x.id !== c.id);

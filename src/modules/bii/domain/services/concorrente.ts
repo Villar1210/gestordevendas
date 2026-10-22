@@ -179,7 +179,7 @@ export function validarFonteUrl(url: string): string | null {
 // (observacoes mantem quebra de linha simples).
 export function limparTextoCurto(texto: string): string {
   return texto
-    .replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, ' ')
+    .replace(/[\u0000-\u001f\u007f-\u009f؜​-‏‪-‮⁠-⁤⁦-⁩﻿]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -187,7 +187,7 @@ export function limparTextoCurto(texto: string): string {
 export function limparTextoLongo(texto: string): string {
   return texto
     .replace(/\r\n?/g, '\n')
-    .replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, ' ')
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f؜​-‏‪-‮⁠-⁤⁦-⁩﻿]/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

@@ -8,6 +8,8 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -51,6 +53,16 @@ import { bloquearImpersonacao, exigirAdministrador, MENSAGEM_SOMENTE_LEITURA_CON
 export const MENSAGEM_CONCORRENTE_NAO_ENCONTRADO = 'Concorrente não encontrado.';
 export const MENSAGEM_LIMITE_CONCORRENTES = `A empresa já tem ${MAX_CONCORRENTES_POR_TENANT} concorrentes cadastrados (o limite). Exclua os que não usa mais.`;
 export const MENSAGEM_PONTO_FORA = 'A posição informada no mapa está fora da Grande São Paulo.';
+export const CODIGO_COTA_GEOCODIFICACAO = 'BII_COTA_DIARIA';
+export const GEOCODIFICACOES_CONCORRENTE_POR_DIA_PADRAO = 100;
+export const MENSAGEM_COTA_GEOCODIFICACAO =
+  'Limite diário de buscas de endereço de concorrentes da empresa atingido. Tente amanhã, ou ajuste a posição direto no mapa.';
+
+// BII_CONCORRENTE_GEOCODIFICACOES_POR_DIA (opcional): inteiro >= 1; padrao 100.
+export function geocodificacoesConcorrentePorDia(valor = process.env.BII_CONCORRENTE_GEOCODIFICACOES_POR_DIA): number {
+  const n = Number(valor);
+  return Number.isInteger(n) && n >= 1 ? n : GEOCODIFICACOES_CONCORRENTE_POR_DIA_PADRAO;
+}
 
 export interface ConcorrenteResposta {
   id: string;
@@ -104,6 +116,16 @@ export function montarConcorrenteResposta(r: ConcorrenteRegistro, agora: Date): 
     criadoEm: r.createdAt.toISOString(),
     atualizadoEm: r.updatedAt.toISOString(),
   };
+}
+
+// Versao para o SNAPSHOT da analise (BiiAnalise.resultado): sem os campos de
+// texto livre (observacoes, fonte, fonteUrl) - excluir o concorrente depois
+// nao deixa esses textos guardados nas analises antigas (LGPD).
+export type ConcorrenteNoSnapshot = Omit<ConcorrenteResposta, 'observacoes' | 'fonte' | 'fonteUrl'>;
+
+export function paraSnapshot(c: ConcorrenteResposta): ConcorrenteNoSnapshot {
+  const { observacoes: _o, fonte: _f, fonteUrl: _u, ...resto } = c;
+  return resto;
 }
 
 export interface ConcorrenteEntrada {
@@ -196,11 +218,39 @@ function pontoManual(e: ConcorrenteEntrada): { lat: number; lng: number } | null
   return p;
 }
 
+// Cota DIARIA de geocodificacoes de concorrente por tenant (protege a fila
+// global do Nominatim, compartilhada com a analise de todos os tenants).
+// Contador em memoria por dia local e por processo (uma instancia no PM2;
+// reiniciar zera - aceito, e anti-abuso). Conta toda tentativa (inclusive
+// acerto de cache: conservador).
 @Injectable()
 export class ConcorrenteGeocodificador {
+  limitePorDia: () => number = () => geocodificacoesConcorrentePorDia();
+  agora: () => Date = () => new Date();
+  private dia = '';
+  private porTenant = new Map<string, number>();
+
   constructor(@Inject(GEOCODING_PROVIDER) private readonly geocoder: IGeocodingProvider) {}
 
-  async localizar(endereco: string): Promise<{ lat: number; lng: number; precisao: string; enderecoFormatado: string | null }> {
+  private consumirCota(tenantId: string): void {
+    const d = this.agora();
+    const hoje = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (hoje !== this.dia) {
+      this.dia = hoje;
+      this.porTenant.clear();
+    }
+    const usados = this.porTenant.get(tenantId) ?? 0;
+    if (usados >= this.limitePorDia()) {
+      throw new HttpException(
+        { statusCode: HttpStatus.TOO_MANY_REQUESTS, code: CODIGO_COTA_GEOCODIFICACAO, message: MENSAGEM_COTA_GEOCODIFICACAO },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    this.porTenant.set(tenantId, usados + 1);
+  }
+
+  async localizar(tenantId: string, endereco: string): Promise<{ lat: number; lng: number; precisao: string; enderecoFormatado: string | null }> {
+    this.consumirCota(tenantId);
     let ponto;
     try {
       ponto = await this.geocoder.geocodificar(endereco);
@@ -263,7 +313,7 @@ export class CreateConcorrenteUseCase {
     }
     const local = manual
       ? { ...manual, precisao: 'manual', enderecoFormatado: null }
-      : await this.geocodificador.localizar(base.endereco);
+      : await this.geocodificador.localizar(input.tenantId, base.endereco);
     const salvo = await this.repo.criar(input.tenantId, input.requesterUserId, { ...base, ...local });
     this.logger.log(`BII concorrente criado ${salvo.id} tenant=${input.tenantId} user=${input.requesterUserId}`);
     return montarConcorrenteResposta(salvo, input.agora ?? new Date());
@@ -289,12 +339,13 @@ export class UpdateConcorrenteUseCase {
 
     let local: { lat: number; lng: number; precisao: string; enderecoFormatado: string | null };
     if (manual) {
-      local = { ...manual, precisao: 'manual', enderecoFormatado: atual.enderecoFormatado };
+      // endereco novo + pino manual: o formatado antigo nao vale mais
+      local = { ...manual, precisao: 'manual', enderecoFormatado: base.endereco === atual.endereco ? atual.enderecoFormatado : null };
     } else if (base.endereco === atual.endereco) {
       // endereco igual: mantem o ponto (inclusive um ajuste manual anterior)
       local = { lat: atual.lat, lng: atual.lng, precisao: atual.precisao, enderecoFormatado: atual.enderecoFormatado };
     } else {
-      local = await this.geocodificador.localizar(base.endereco);
+      local = await this.geocodificador.localizar(input.tenantId, base.endereco);
     }
 
     const ok = await this.repo.atualizar(input.id, input.tenantId, input.requesterUserId, { ...base, ...local });

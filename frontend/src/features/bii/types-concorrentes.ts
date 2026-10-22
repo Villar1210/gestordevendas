@@ -46,7 +46,9 @@ export interface Concorrente {
   atualizadoEm: string;
 }
 
-export interface ConcorrenteNoRaio extends Concorrente {
+// Na analise (e no snapshot salvo) o concorrente vem SEM os textos livres
+// (observacoes, fonte, fonteUrl).
+export interface ConcorrenteNoRaio extends Omit<Concorrente, "observacoes" | "fonte" | "fonteUrl"> {
   distanciaMetros: number;
 }
 
