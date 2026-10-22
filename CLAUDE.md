@@ -2101,3 +2101,74 @@ Backend: `npx prisma migrate deploy` + `npm run db:generate` + `npm run build`
 `pm2 restart all`. Depois do deploy: importar os 5 arquivos (um por vez) pela
 tela do Super Usuario, `ANALYZE itbi_transacoes;`, e geocodificar a regiao
 de interesse por prefixo de CEP (ex.: Vila Ema/Vila Prudente/Sao Lucas).
+
+## Modulo BII - Fatia 3 (Concorrentes) - CONCLUIDA (sem deploy)
+Contrato: docs/bii/fatia3/CONTRATO_CONCORRENTES.md. Cadastro MANUAL de
+empreendimentos concorrentes (coleta automatica via Apify/portais so depois de
+revisao juridica - SEGURANCA_TESTES A10).
+
+### Tabelas (migration 20261022120000_bii_concorrentes, so CREATE)
+- `BiiConcorrente` (bii_concorrentes, POR TENANT, FK Tenant Cascade): nome,
+  construtora?, endereco (digitado), enderecoFormatado?, lat/lng, precisao
+  (rooftop|rua|cep|bairro|manual), fase (lancamento|obras|pronto),
+  dataLancamento? (@db.Date, meia-noite UTC como o resto do BII - data-utc.ts),
+  totalUnidades?, unidadesVendidas?, fonte?, fonteUrl? (so https, SO exibida -
+  o servidor nunca busca), observacoes?, origem 'manual', createdById/
+  updatedById SEM FK. Indices (tenantId, lat, lng) e (tenantId, updatedAt).
+- `BiiConcorrenteTipologia` (bii_concorrente_tipologias, FK concorrente
+  Cascade, SEM tenantId proprio - sempre acessada ATRAVES do concorrente, como
+  SignatureRecipient do E-doc): ordem, descricao, dormitorios?, areaPrivativa,
+  precoDe, precoAte?. R$/m2 nunca guardado (calculado).
+
+### Regras (dominio puro: domain/services/concorrente.ts)
+1 a 10 tipologias; area 10-1.000 m2; preco R$ 10 mil-100 mi; precoAte >=
+precoDe; vendidas <= total. R$/m2 da tipologia = preco / area privativa, so
+entre R$ 500 e 60.000 (mesma faixa do ITBI). R$/m2 do concorrente = mediana dos
+"a partir de". % vendido; vendas/mes = vendidas / meses desde o lancamento
+(minimo 1; lancamento futuro = null). `desatualizado` = updatedAt > 90 dias
+(selo amber "mais de 3 meses"). Limite 300 por tenant (409).
+
+### Rotas (BiiConcorrenteController, @Controller('bii'), classe Administrador)
+GET /bii/concorrentes, GET /bii/concorrentes/:id, POST, PATCH (tipologias
+SUBSTITUIDAS numa transacao, updateMany condicional where {tenantId, id}),
+DELETE (204). Escrita: throttle 30/min por IP + BiiConcorrenteThrottlerGuard
+30/min por USUARIO. Impersonacao do Super Usuario: GET liberado; POST/PATCH/
+DELETE -> 403 { code: 'BII_SOMENTE_LEITURA' } (bloquearImpersonacao em
+permissoes-bii.ts, agora compartilhado com a analise). Geocodifica na criacao
+e so quando o endereco muda (mesmo provedor/cache da Fatia 2; 422 nao achou,
+503 provedor fora); latitude+longitude no corpo = pino ajustado a mao
+(precisao "manual", sem geocodificar, conferido na Grande SP).
+
+### Integracao com a Analise por Endereco
+AnalisarEnderecoUseCase busca concorrentes do PROPRIO tenant no bbox (limite
+500), corta pelo raio (haversine) e devolve `concorrentes: { itens (ate 50,
+mais proximos primeiro, com distanciaMetros), resumo { quantidade,
+precoM2Mediano, unidadesTotais } }` - tambem no snapshot salvo (foto do dia:
+editar o concorrente depois nao muda a analise salva). Analise salva antes da
+Fatia 3 nao tem o campo (tela trata). Comparacao com o ITBI SO lado a lado,
+sem "diferenca %" (bases diferentes: valor pago x area do IPTU vs preco de
+tabela x area privativa).
+
+### Frontend
+Aba "Concorrentes" (/dashboard/bii/concorrentes) deixou de ser "em breve":
+tabela + painel lateral (ConcorrenteForm) com tipologias (R$/m2 na hora),
+vendas, fonte e - depois de salvo - mapa com "Ajustar posicao no mapa"
+(clique ou arraste). Aviso fixo para nao registrar dado pessoal de corretor.
+Analise por Endereco: marcador violeta de concorrente (icones-mapa.ts, acima do
+pino do endereco para continuar clicavel) e card "Concorrentes no raio". Selo
+de fonte novo "Manual" (violeta) no SourceBadge.
+
+### Testes
+`DATABASE_URL=postgresql://... npx jest src/modules/bii --runInBand` (repo
+fake de concorrentes em test/bii/concorrente-repo.fake.ts; integracao em
+prisma-concorrente.repository.integration.spec.ts). E2E Playwright (local,
+geocodificacao pelo GeocodeCache semeado, sem rede): cadastro pela tela,
+erro inline, pino ajustado (PATCH manual), analise com o concorrente no mapa e
+na tabela, isolamento entre 2 tenants via API, exclusao, 360 px sem rolagem.
+
+### Deploy
+NAO fazer enquanto a VPS nao for reconstruida (incidente de 21/10/2026).
+Depois: `npx prisma migrate deploy` + `npm run db:generate` + build +
+`pm2 restart gestordevendas --update-env`; frontend `rm -rf .next` + build +
+`pm2 restart gestordevendas-frontend --update-env`. Nenhuma dependencia nova,
+nenhuma variavel nova.
