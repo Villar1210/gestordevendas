@@ -19,6 +19,8 @@ import { BiiItbiImportarLimiteGuard, ItbiUploadTamanhoGuard, PASTA_TEMP_ITBI } f
 import { BiiAnaliseThrottlerGuard } from './bii-analise-throttler.guard';
 import { BiiConcorrenteThrottlerGuard } from './bii-concorrente-throttler.guard';
 import { BiiConcorrenteController, BiiConcorrenteLimiteGuard } from './bii-concorrente.controller';
+import { BiiViabilidadeController } from './bii-viabilidade.controller';
+import { CalcularViabilidadeUseCase, GetParametrosViabilidadeUseCase } from '../../application/use-cases/viabilidade.use-cases';
 import {
   CreateConcorrenteUseCase,
   DeleteConcorrenteUseCase,
@@ -85,7 +87,7 @@ function rotasDoController(controller: Ctor) {
 
 describe('Permissoes BII - META-TESTE (metadata)', () => {
   it('o modulo registra os controllers do painel, da analise e da plataforma', () => {
-    expect(CONTROLLERS).toEqual(expect.arrayContaining([BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController]));
+    expect(CONTROLLERS).toEqual(expect.arrayContaining([BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController, BiiViabilidadeController]));
     expect(roleEsperada(BiiConcorrenteController)).toBe('Administrador');
     expect(roleEsperada(BiiPlataformaController)).toBe(SUPER_USUARIO_ROLE_NAME);
     expect(roleEsperada(BiiAnaliseController)).toBe('Administrador');
@@ -138,6 +140,7 @@ class FakeAuthGuard implements CanActivate {
 }
 
 const ID = '11111111-1111-4111-8111-111111111111';
+const VIAB_OK = { tipologias: [{ descricao: '2 dorm.', areaPrivativa: 40, preco: 250000 }] };
 const CONCORRENTE_OK = {
   nome: 'Residencial Vista',
   endereco: 'Rua Ibitirama, 200, São Paulo',
@@ -163,6 +166,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     concCriar: ok(),
     concAtualizar: ok(),
     concExcluir: jest.fn(async () => undefined),
+    viabParametros: jest.fn(() => ({ ok: true })),
+    viabCalcular: jest.fn(() => ({ ok: true })),
   };
   const importador = { iniciar: jest.fn(async () => ({ importacaoId: 'imp-1' })) };
 
@@ -184,6 +189,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
         { provide: CreateConcorrenteUseCase, useValue: { execute: mocks.concCriar } },
         { provide: UpdateConcorrenteUseCase, useValue: { execute: mocks.concAtualizar } },
         { provide: DeleteConcorrenteUseCase, useValue: { execute: mocks.concExcluir } },
+        { provide: GetParametrosViabilidadeUseCase, useValue: { execute: mocks.viabParametros } },
+        { provide: CalcularViabilidadeUseCase, useValue: { execute: mocks.viabCalcular } },
         // upload: use case REAL + inspetor REAL; so o importador e fake
         { provide: ImportarItbiUseCase, useFactory: () => new ImportarItbiUseCase(importador as unknown as ImportadorItbiService, new XlsxInspetor()) },
       ],
@@ -218,14 +225,16 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     ['POST', '/bii/concorrentes', (p) => json(p, CONCORRENTE_OK)],
     ['PATCH', `/bii/concorrentes/${ID}`, (p) => ({ ...json(p, CONCORRENTE_OK), method: 'PATCH' })],
     ['DELETE', `/bii/concorrentes/${ID}`, (p) => ({ method: 'DELETE', headers: { 'x-perfil': p } })],
+    ['GET', '/bii/viabilidade/parametros', {}],
+    ['POST', '/bii/viabilidade', (p) => ({ ...json(p, VIAB_OK), method: 'PUT_OK' })],
   ];
 
-  const STATUS_OK: Record<string, number> = { GET: 200, POST: 201, PATCH: 200, DELETE: 204 };
+  const STATUS_OK: Record<string, number> = { GET: 200, POST: 201, PATCH: 200, DELETE: 204, PUT_OK: 200 };
 
   describe.each(ROTAS_TENANT)('%s %s', (_m, rota, init) => {
     it.each(Object.keys(PERFIS))('como %s', async (perfil) => {
       const i = typeof init === 'function' ? init(perfil) : { ...init, headers: { 'x-perfil': perfil } };
-      const res = await fetch(`${base}${rota}`, i);
+      const res = await fetch(`${base}${rota}`, i.method === 'PUT_OK' ? { ...i, method: 'POST' } : i);
       expect(res.status).toBe(perfil === 'admin' ? STATUS_OK[i.method ?? 'GET'] : 403);
     });
   });
@@ -324,6 +333,19 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     for (let i = 0; i < 15; i++) expect((await fetch(`${base}/bii/concorrentes`, json(quem, CONCORRENTE_OK))).status).toBe(201);
     for (let i = 0; i < 15; i++) expect((await fetch(`${base}/bii/concorrentes/${ID}`, { ...json(quem, CONCORRENTE_OK), method: 'PATCH' })).status).toBe(200);
     expect((await fetch(`${base}/bii/concorrentes/${ID}`, { method: 'DELETE', headers: { 'x-perfil': quem } })).status).toBe(429);
+  });
+
+  it.each([
+    [{ tipologias: [] }],
+    [{ tipologias: [{ descricao: 'x', areaPrivativa: 5, preco: 250000 }] }],
+    [{ ...VIAB_OK, premissas: { entradaPercentual: 95 } }],
+    [{ ...VIAB_OK, premissas: { prazoMeses: 500 } }],
+    [{ ...VIAB_OK, premissas: { jurosAnual: 'dez' } }],
+    [{ ...VIAB_OK, tenantId: 'x' }],
+    [{ tipologias: Array.from({ length: 21 }, () => VIAB_OK.tipologias[0]) }],
+  ])('POST /bii/viabilidade com corpo invalido %p -> 400', async (corpo) => {
+    const res = await fetch(`${base}/bii/viabilidade`, json('admin', corpo));
+    expect(res.status).toBe(400);
   });
 
   it('GET /bii/concorrentes/:id com id que nao e UUID -> 400', async () => {
