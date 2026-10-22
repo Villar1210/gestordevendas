@@ -7,6 +7,8 @@
 // Fatia 3: Concorrentes (cadastro manual, /bii/concorrentes, tenant) - entram
 // tambem na Analise por Endereco.
 // Fatia 4: Viabilidade HIS/HMP/MCMV (/bii/viabilidade, so calculo).
+// Fatia 5: Estudo de terreno (/bii/estudos, tenant) - snapshot de analise +
+// viabilidade + posicionamento.
 // Nao importa nenhum outro modulo de negocio. EventEmitterModule ja e global.
 import { Module } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
@@ -15,6 +17,16 @@ import { BiiAnaliseController } from './infra/http/bii-analise.controller';
 import { BiiPlataformaController } from './infra/http/bii-plataforma.controller';
 import { BiiConcorrenteController } from './infra/http/bii-concorrente.controller';
 import { BiiViabilidadeController } from './infra/http/bii-viabilidade.controller';
+import { BiiEstudoController } from './infra/http/bii-estudo.controller';
+import {
+  AtualizarEstudoUseCase,
+  CriarEstudoUseCase,
+  ExcluirEstudoUseCase,
+  GetEstudoUseCase,
+  ListEstudosUseCase,
+} from './application/use-cases/estudos.use-cases';
+import { PrismaEstudoRepository } from './infra/database/prisma-estudo.repository';
+import { ESTUDO_REPOSITORY } from './domain/repositories/estudo-repository.interface';
 import { CalcularViabilidadeUseCase, GetParametrosViabilidadeUseCase } from './application/use-cases/viabilidade.use-cases';
 import {
   ConcorrenteGeocodificador,
@@ -59,7 +71,7 @@ import { GEOCODE_CACHE_REPOSITORY } from './domain/repositories/geocode-cache-re
 import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-repository.interface';
 
 @Module({
-  controllers: [BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController, BiiViabilidadeController],
+  controllers: [BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController, BiiViabilidadeController, BiiEstudoController],
   providers: [
     PrismaService,
     // Fatia 1
@@ -100,6 +112,13 @@ import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-reposi
     // Fatia 4
     GetParametrosViabilidadeUseCase,
     CalcularViabilidadeUseCase,
+    // Fatia 5
+    ListEstudosUseCase,
+    GetEstudoUseCase,
+    CriarEstudoUseCase,
+    AtualizarEstudoUseCase,
+    ExcluirEstudoUseCase,
+    { provide: ESTUDO_REPOSITORY, useClass: PrismaEstudoRepository },
   ],
 })
 export class BiiModule {}

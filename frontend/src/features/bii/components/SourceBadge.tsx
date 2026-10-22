@@ -26,7 +26,9 @@ const FONTES: Record<FonteDado, { rotulo: string; titulo: string; classe: string
   },
 };
 
-export function SourceBadge({ fonte = "CRM", detalhe }: { fonte?: FonteDado; detalhe?: string }) {
+// fonte null = sem selo (dado digitado pelo proprio usuario, ex.: estudo).
+export function SourceBadge({ fonte = "CRM", detalhe }: { fonte?: FonteDado | null; detalhe?: string }) {
+  if (fonte === null) return null;
   const f = FONTES[fonte];
   return (
     <span

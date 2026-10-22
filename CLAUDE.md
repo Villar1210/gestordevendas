@@ -2239,3 +2239,46 @@ trazer de concorrente e 360 px).
 Achado ALTO corrigido (criterio de faixa do MCMV, acima). Corrigido tambem:
 tela mostra "preco cabe a partir da Faixa X" e "piso da faixa"; premissas so
 como objeto (@IsObject); renda arredondada antes de comparar com fronteiras.
+
+## Modulo BII - Fatia 5 (Estudo de terreno) - CONCLUIDA (sem deploy)
+Contrato: docs/bii/fatia5/CONTRATO_ESTUDO.md. Relatorio unico, salvo e
+imprimivel, que junta Analise por Endereco (ITBI + concorrentes no raio) +
+Viabilidade HIS/HMP/MCMV das tipologias + posicionamento de preco + conclusao
+do Administrador.
+
+- Tabela `BiiEstudo` (bii_estudos, migration 20261023120000_bii_estudos, so
+  CREATE): POR TENANT (FK Tenant Cascade); `analiseId` FK BiiAnalise SetNull -
+  o estudo guarda a PROPRIA copia (snapshot Json em `resultado`, versao 1),
+  ~50-150 KB cada; limite 500 por tenant (409). Sempre lido/escrito por
+  { id, tenantId } (updateMany/deleteMany condicionais).
+- O estudo NUNCA geocodifica nem le ITBI: parte de uma BiiAnalise do proprio
+  tenant (de outro tenant = 404 "Analise nao encontrada.", igual a inexistente).
+  `calcularViabilidade` (viabilidade.use-cases.ts) e a mesma conta da Fatia 4.
+- Dominio puro em domain/services/estudo.ts: posicionamento contra a mediana de
+  R$/m2 dos concorrentes (mesma base) - diferenca arredondada a 1 casa e entao
+  abaixo (< -5) / alinhado / acima (> +5); ITBI SO lado a lado (nunca %);
+  resumo executivo, alertas (AMOSTRA_PEQUENA < 30, SEM_CONCORRENTES,
+  ANALISE_SEM_CONCORRENTES, ANALISE_ANTIGA > 90 dias) e destaques (so fatos).
+- Rotas (BiiEstudoController, classe Administrador): GET /bii/estudos (100),
+  GET /bii/estudos/:id, POST, PATCH (so nome/conclusao; snapshot nao e
+  recalculado; nome null -> 400), DELETE (204). Escrita: 30/min por IP +
+  BiiEstudoThrottlerGuard 30/min POR USUARIO somando POST/PATCH/DELETE.
+  Impersonacao: GET liberado, escrita -> 403 BII_SOMENTE_LEITURA. Log sem
+  endereco, nome ou conclusao.
+- Frontend: aba "Estudos" (/dashboard/bii/estudos, assistente de 3 passos;
+  ?novo=1&analise=<id> abre ja com a analise - botao "Criar estudo de terreno
+  com esta analise" na Analise por Endereco), relatorio em
+  /dashboard/bii/estudos/[id] (editar nome/conclusao, excluir com confirmacao
+  na tela) e versao para impressao FORA do dashboard em
+  /impressao/bii/estudos/[id] (A4, window.print -> "Salvar como PDF"; sem
+  menu, que cortaria a pagina). Conclusao sempre texto puro. SourceBadge/
+  ChartCard/KpiCard aceitam fonte={null} (sem selo); ausente continua "CRM".
+- Testes: estudo.spec, estudos.use-cases.spec, integracao
+  prisma-estudo.repository (isolamento, SetNull, cascata), meta-teste de
+  permissoes com o controller novo; E2E Playwright (24 verificacoes, PDF A4
+  gerado, isolamento A/B, 360 px).
+- Revisao independente: sem critico/alto/medio; corrigidos B1 (nome null dava
+  500), B2 (throttle por usuario), B3 (colunas prevalecem sobre o Json) e
+  snapshot com campos numericos ausentes -> null.
+- Deploy: junto com as Fatias 1-4 (migrate deploy + db:generate + build).
+  Nenhuma dependencia nova, nenhuma variavel nova.

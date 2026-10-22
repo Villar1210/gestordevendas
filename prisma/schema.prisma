@@ -126,6 +126,7 @@ model Tenant {
   // Modulo BII (Fatia 2) - analises por endereco salvas (ver BiiAnalise).
   biiAnalises BiiAnalise[]
   biiConcorrentes BiiConcorrente[]
+  biiEstudos BiiEstudo[]
   @@map("tenants")
 }
 
@@ -2152,7 +2153,8 @@ model BiiAnalise {
   resultado         Json
   createdAt         DateTime @default(now()) @map("created_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  estudos BiiEstudo[]
 
   @@index([tenantId, createdAt])
   @@map("bii_analises")
@@ -2208,4 +2210,32 @@ model BiiConcorrenteTipologia {
 
   @@index([concorrenteId])
   @@map("bii_concorrente_tipologias")
+}
+
+// BII Fatia 5 - Estudo de terreno (POR TENANT). Parte de uma BiiAnalise do
+// mesmo tenant e guarda a PROPRIA copia (snapshot) do resultado: a FK e SetNull.
+// Contrato: docs/bii/fatia5/CONTRATO_ESTUDO.md
+model BiiEstudo {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  analiseId         String?  @map("analise_id") @db.Uuid
+  nome              String   @db.VarChar(120)
+  enderecoFormatado String   @map("endereco_formatado") @db.VarChar(500)
+  raioMetros        Int      @map("raio_metros")
+  meses             Int
+  tipologias        Json
+  premissas         Json
+  conclusao         String?  @db.VarChar(5000)
+  situacaoResumo    Json     @map("situacao_resumo")
+  resultado         Json
+  createdById       String   @map("created_by_id") @db.Uuid
+  updatedById       String   @map("updated_by_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  analise BiiAnalise? @relation(fields: [analiseId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@map("bii_estudos")
 }

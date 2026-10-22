@@ -4,7 +4,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Building2, Info, Loader2, MapPin, TriangleAlert } from "lucide-react";
+import Link from "next/link";
+import { Building2, FileText, Info, Loader2, MapPin, TriangleAlert } from "lucide-react";
 import { formatDataIso, formatMoeda, formatNumero } from "../../constants";
 import {
   COR_SEM_PRECO,
@@ -119,6 +120,15 @@ export function AnaliseResultado({ analise, salvaEm }: AnaliseResultadoProps) {
         <SourceBadge fonte="ITBI" detalhe={fonteDetalhe} />
         {salvaEm && <span className="text-[11px] text-slate-400">salva em {formatDataIso(salvaEm)}</span>}
       </div>
+
+      {analise.id && (
+        <Link
+          href={`/dashboard/bii/estudos?novo=1&analise=${encodeURIComponent(analise.id)}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50"
+        >
+          <FileText className="h-4 w-4" aria-hidden="true" /> Criar estudo de terreno com esta análise
+        </Link>
+      )}
 
       {salvaEm && (
         <Alerta tom="info">

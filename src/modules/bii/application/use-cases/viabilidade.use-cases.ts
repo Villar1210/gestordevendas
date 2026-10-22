@@ -46,25 +46,34 @@ export interface ViabilidadeResposta {
 export const OBSERVACAO_VIABILIDADE =
   'Estimativa pela Tabela Price, sem subsídio do MCMV e sem custos de cartório/ITBI. A Caixa faz a análise final de renda e crédito.';
 
+// Calculo puro reaproveitado pela Fatia 5 (Estudo de terreno).
+export function calcularViabilidade(
+  tipologias: TipologiaViabilidade[],
+  entradaPremissas: Partial<Premissas> | undefined,
+  agora: Date,
+): ViabilidadeResposta {
+  const parametros = vigentes(agora);
+  const premissas: Premissas = {
+    entradaPercentual: entradaPremissas?.entradaPercentual ?? PREMISSAS_PADRAO.entradaPercentual,
+    prazoMeses: entradaPremissas?.prazoMeses ?? PREMISSAS_PADRAO.prazoMeses,
+    comprometimentoPercentual: entradaPremissas?.comprometimentoPercentual ?? PREMISSAS_PADRAO.comprometimentoPercentual,
+    jurosAnual: entradaPremissas?.jurosAnual ?? null,
+  };
+  const resultados = tipologias.map((t) =>
+    avaliarTipologia(
+      { descricao: limparTextoCurto(t.descricao).slice(0, 100) || 'Tipologia', areaPrivativa: t.areaPrivativa, preco: t.preco },
+      premissas,
+      parametros.municipal,
+      parametros.mcmv,
+    ),
+  );
+  return { premissas, resultados, parametros, observacao: OBSERVACAO_VIABILIDADE };
+}
+
 @Injectable()
 export class CalcularViabilidadeUseCase {
   execute(input: CalcularViabilidadeInput): ViabilidadeResposta {
     exigirAdministrador(input.requesterRole);
-    const parametros = vigentes(input.agora ?? new Date());
-    const premissas: Premissas = {
-      entradaPercentual: input.premissas?.entradaPercentual ?? PREMISSAS_PADRAO.entradaPercentual,
-      prazoMeses: input.premissas?.prazoMeses ?? PREMISSAS_PADRAO.prazoMeses,
-      comprometimentoPercentual: input.premissas?.comprometimentoPercentual ?? PREMISSAS_PADRAO.comprometimentoPercentual,
-      jurosAnual: input.premissas?.jurosAnual ?? null,
-    };
-    const resultados = input.tipologias.map((t) =>
-      avaliarTipologia(
-        { descricao: limparTextoCurto(t.descricao).slice(0, 100) || 'Tipologia', areaPrivativa: t.areaPrivativa, preco: t.preco },
-        premissas,
-        parametros.municipal,
-        parametros.mcmv,
-      ),
-    );
-    return { premissas, resultados, parametros, observacao: OBSERVACAO_VIABILIDADE };
+    return calcularViabilidade(input.tipologias, input.premissas, input.agora ?? new Date());
   }
 }
