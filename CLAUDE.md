@@ -2187,3 +2187,55 @@ formatado antigo -> null; (B4) snapshot da analise sem textos livres; (B5) link
 "Ver concorrente" no popup; (B6) limpeza de texto remove tambem U+061C,
 U+2060-2064 e U+FEFF. Aceito: limite de 300 pode passar por rajada (no maximo
 ~2 com o limite de simultaneidade).
+
+## Modulo BII - Fatia 4 (Viabilidade HIS/HMP/MCMV) - CONCLUIDA (sem deploy)
+Contrato: docs/bii/fatia4/CONTRATO_VIABILIDADE.md. Para cada tipologia
+(preco + area privativa): categoria municipal (HIS-1/HIS-2/HMP/mercado) com teto
+e folga, faixa do MCMV, renda necessaria estimada (Tabela Price), parcela,
+situacao (ok/atencao/fora) e avisos. So CALCULO: sem banco, sem migration, sem
+servico externo, sem dependencia/variavel nova.
+
+### Parametros oficiais VERSIONADOS NO CODIGO
+`domain/services/parametros-habitacionais.ts` (VERSOES_MUNICIPAIS / VERSOES_MCMV,
+cada uma com vigenteDesde + fonte; versaoVigente escolhe pela data). Mudou a
+regra oficial -> ACRESCENTAR uma versao nova (historico no git), nunca editar a
+antiga. Hoje: Decreto 64.895/2026 da Prefeitura de SP (HIS-1 renda 4.863 /
+teto 276.102,20; HIS-2 9.726 / 383.636,74; HMP 16.210 / 537.672,71; SM
+1.621) e MCMV desde 22/04/2026 (F1 ate 3.200, F2 ate 5.000 teto 275 mil na
+capital, F3 ate 9.600 teto 400 mil, F4 ate 13.000 teto 600 mil; juros de
+referencia = maior taxa da faixa, nao cotista: 5,25 / 7 / 8,16 / 10,5; SBPE 12).
+Correcao pelo INCC e subsidio do MCMV: fora do escopo (avisado na tela).
+
+### Regras (domain/services/viabilidade.ts, puras)
+Teto e renda com fronteira INCLUSIVA. Renda necessaria = renda MINIMA do
+comprador: percorre em ordem crescente as faixas MCMV cujo TETO cobre o preco;
+em cada uma, renda pela parcela Price (juros anual efetivo -> mensal
+equivalente; juros da faixa ou taxa fixa) / comprometimento, elevada ao PISO da
+faixa (rendaPeloPiso); a primeira em que cabe (<= rendaMax) e a faixa. Nenhuma
+-> fora do MCMV (SBPE 12% ou taxa fixa). NAO voltar ao criterio antigo "faixa
+em que a renda cai" (revisao: R$ 400-417 mil saiam "nao enquadra" na F3 quando
+enquadram na F4). Situacao: ok = enquadra no MCMV E e HIS/HMP com renda <=
+renda max da categoria; fora = acima de HMP e fora do MCMV; resto = atencao
+(inclusive acima de HMP na Faixa 4 - decisao: perde incentivo municipal).
+
+### Rotas (BiiViabilidadeController, @Controller('bii'), classe Administrador)
+GET /bii/viabilidade/parametros; POST /bii/viabilidade (200, 30/min por IP;
+1-20 tipologias; premissas entrada 0-90%, prazo 60-420 meses, comprometimento
+10-50%, jurosAnual 0-30 opcional). Impersonacao do Super Usuario LIBERADA (so
+calculo, sem gravar e sem custo).
+
+### Frontend
+Aba "Viabilidade" (/dashboard/bii/viabilidade): tipologias (ate 20; botao
+"Trazer de um concorrente" copia as tipologias de um concorrente cadastrado),
+premissas, tabela de enquadramento, avisos (amber) e quadro "Parametros
+vigentes" com as fontes. Selo novo "Tabela oficial" no SourceBadge.
+
+### Testes
+Fronteiras exatas, piso de faixa, Price conferida com calculo independente,
+Faixa 4 acima do teto HMP, meta-teste do controller, E2E da tela (incluindo
+trazer de concorrente e 360 px).
+
+### Revisao independente
+Achado ALTO corrigido (criterio de faixa do MCMV, acima). Corrigido tambem:
+tela mostra "preco cabe a partir da Faixa X" e "piso da faixa"; premissas so
+como objeto (@IsObject); renda arredondada antes de comparar com fronteiras.

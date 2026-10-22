@@ -6,6 +6,7 @@
 // dados publicos do ITBI (/bii-plataforma/itbi/*, so Super Usuario).
 // Fatia 3: Concorrentes (cadastro manual, /bii/concorrentes, tenant) - entram
 // tambem na Analise por Endereco.
+// Fatia 4: Viabilidade HIS/HMP/MCMV (/bii/viabilidade, so calculo).
 // Nao importa nenhum outro modulo de negocio. EventEmitterModule ja e global.
 import { Module } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
@@ -13,6 +14,8 @@ import { BiiPainelController } from './infra/http/bii-painel.controller';
 import { BiiAnaliseController } from './infra/http/bii-analise.controller';
 import { BiiPlataformaController } from './infra/http/bii-plataforma.controller';
 import { BiiConcorrenteController } from './infra/http/bii-concorrente.controller';
+import { BiiViabilidadeController } from './infra/http/bii-viabilidade.controller';
+import { CalcularViabilidadeUseCase, GetParametrosViabilidadeUseCase } from './application/use-cases/viabilidade.use-cases';
 import {
   ConcorrenteGeocodificador,
   CreateConcorrenteUseCase,
@@ -56,7 +59,7 @@ import { GEOCODE_CACHE_REPOSITORY } from './domain/repositories/geocode-cache-re
 import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-repository.interface';
 
 @Module({
-  controllers: [BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController],
+  controllers: [BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController, BiiViabilidadeController],
   providers: [
     PrismaService,
     // Fatia 1
@@ -94,6 +97,9 @@ import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-reposi
     DeleteConcorrenteUseCase,
     ConcorrenteGeocodificador,
     { provide: CONCORRENTE_REPOSITORY, useClass: PrismaConcorrenteRepository },
+    // Fatia 4
+    GetParametrosViabilidadeUseCase,
+    CalcularViabilidadeUseCase,
   ],
 })
 export class BiiModule {}

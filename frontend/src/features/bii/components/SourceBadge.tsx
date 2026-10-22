@@ -1,7 +1,7 @@
 // Selo de fonte do dado (honestidade do numero): CRM (Fatia 1) e
 // ITBI/Prefeitura (Fatia 2) e Manual (concorrentes cadastrados pela empresa,
 // Fatia 3), com cor propria por fonte.
-export type FonteDado = "CRM" | "ITBI" | "Manual";
+export type FonteDado = "CRM" | "ITBI" | "Manual" | "Oficial";
 
 const FONTES: Record<FonteDado, { rotulo: string; titulo: string; classe: string }> = {
   CRM: {
@@ -18,6 +18,11 @@ const FONTES: Record<FonteDado, { rotulo: string; titulo: string; classe: string
     rotulo: "Manual",
     titulo: "Cadastrado pela própria empresa (visita, site, material de vendas). Preço anunciado, área privativa.",
     classe: "border-violet-100 bg-violet-50 text-violet-700",
+  },
+  Oficial: {
+    rotulo: "Tabela oficial",
+    titulo: "Parâmetros oficiais: Prefeitura de São Paulo (HIS/HMP) e Minha Casa, Minha Vida (federal).",
+    classe: "border-slate-200 bg-slate-100 text-slate-700",
   },
 };
 
