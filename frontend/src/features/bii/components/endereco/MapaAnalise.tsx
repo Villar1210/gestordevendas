@@ -21,6 +21,8 @@ import {
   MAP_TILE_URL,
 } from "../../constants-endereco";
 import type { AnaliseEnderecoResponse } from "../../types-endereco";
+import { getFase } from "../../constants-concorrentes";
+import { iconeConcorrente } from "../concorrentes/icones-mapa";
 
 interface MapaAnaliseProps {
   analise: AnaliseEnderecoResponse;
@@ -116,6 +118,25 @@ export default function MapaAnalise({ analise }: MapaAnaliseProps) {
             </div>
           </Popup>
         </CircleMarker>
+      ))}
+      {(analise.concorrentes?.itens ?? []).map((c) => (
+        <Marker key={c.id} position={[c.lat, c.lng]} icon={iconeConcorrente} zIndexOffset={1500} keyboard={false}>
+          <Popup>
+            <div className="min-w-[180px] text-xs leading-relaxed text-slate-700">
+              <p className="font-semibold text-slate-900">{c.nome}</p>
+              <p className="text-slate-500">{[c.construtora, getFase(c.fase).label].filter(Boolean).join(" · ")}</p>
+              <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2">
+                <dt className="text-slate-500">R$/m²</dt>
+                <dd>{formatPrecoM2(c.calculado.precoM2Mediano)}</dd>
+                <dt className="text-slate-500">A partir de</dt>
+                <dd>{c.calculado.precoMin === null ? "—" : formatMoeda(c.calculado.precoMin)}</dd>
+                <dt className="text-slate-500">Distância</dt>
+                <dd>{formatDistancia(c.distanciaMetros)}</dd>
+              </dl>
+              <p className="mt-1 text-[11px] text-slate-400">Concorrente cadastrado pela empresa</p>
+            </div>
+          </Popup>
+        </Marker>
       ))}
       <Marker position={centro} icon={pinoIcon} zIndexOffset={1000} keyboard={false}>
         <Popup>

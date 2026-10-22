@@ -23,6 +23,8 @@ import { KpiCard } from "../KpiCard";
 import { SourceBadge } from "../SourceBadge";
 import { AmostraTable } from "./AmostraTable";
 import { FinanciamentoCard, PlantaCard } from "./PlantaFinanciamento";
+import { ConcorrentesNoRaio } from "../concorrentes/ConcorrentesNoRaio";
+import { COR_CONCORRENTE } from "../../constants-concorrentes";
 
 function Carregando({ texto }: { texto: string }) {
   return (
@@ -202,7 +204,7 @@ export function AnaliseResultado({ analise, salvaEm }: AnaliseResultadoProps) {
         titulo={`Mapa do entorno (raio ${formatRaio(parametros.raioMetros)})`}
         fonte="ITBI"
         fonteDetalhe={fonteDetalhe}
-        dica="Cada ponto é uma transação no raio. Clique num ponto para ver data, valor, área e distância."
+        dica="Cada ponto é uma transação no raio; o marcador roxo é um concorrente cadastrado. Clique para ver os detalhes."
       >
         <div className="relative isolate -mx-4 h-[320px] overflow-hidden sm:mx-0 sm:h-[420px] sm:rounded-xl lg:h-[480px]">
           <MapaAnalise analise={analise} />
@@ -226,8 +228,21 @@ export function AnaliseResultado({ analise, salvaEm }: AnaliseResultadoProps) {
             <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: COR_SEM_PRECO }} aria-hidden="true" />
             sem área informada
           </li>
+          {(analise.concorrentes?.itens.length ?? 0) > 0 && (
+            <li className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-2.5 rounded-t-full rounded-b-sm" style={{ backgroundColor: COR_CONCORRENTE }} aria-hidden="true" />
+              concorrente cadastrado
+            </li>
+          )}
         </ul>
       </ChartCard>
+
+      <ConcorrentesNoRaio
+        concorrentes={analise.concorrentes}
+        precoM2ItbiMediano={resumo.precoM2Mediano}
+        raioTexto={formatRaio(parametros.raioMetros)}
+        salva={!!salvaEm}
+      />
 
       {semTransacoes ? (
         <section className="rounded-2xl border border-slate-200 bg-white">

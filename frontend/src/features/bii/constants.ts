@@ -8,7 +8,7 @@ import type { PainelFiltrosState, PeriodoPreset } from "./types";
 export const BII_ABAS: { id: string; label: string; href: string | null; exato?: boolean }[] = [
   { id: "vendas", label: "Painel de Vendas", href: "/dashboard/bii", exato: true },
   { id: "endereco", label: "Análise por Endereço", href: "/dashboard/bii/endereco" },
-  { id: "concorrentes", label: "Concorrentes", href: null },
+  { id: "concorrentes", label: "Concorrentes", href: "/dashboard/bii/concorrentes" },
   { id: "viabilidade", label: "Viabilidade", href: null },
   { id: "historico", label: "Histórico", href: "/dashboard/bii/historico" },
 ];

@@ -1,6 +1,7 @@
 // Tipos da Analise por Endereco (BII Fatia 2) - copia do contrato em
 // docs/bii/fatia2/CONTRATO_ANALISE_ENDERECO.md (frontend e backend sao
 // projetos separados, sem compartilhamento de codigo).
+import type { ConcorrentesDaAnalise } from "./types-concorrentes";
 
 // Filtro de uso do IPTU (ver docs/bii/fatia2/ITBI_COLUNAS.md).
 export type TipoImovelItbi = "residencial" | "apartamento" | "casa" | "todos";
@@ -51,6 +52,9 @@ export interface AnaliseEnderecoResponse {
   financiamento: { mcmv: number; sfh: number; outros: number; semFinanciamento: number };
   porMes: { mes: string /* YYYY-MM */; transacoes: number; precoM2Mediano: number | null }[];
   amostra: TransacaoAmostra[]; // ate 200, mais proximas primeiro
+  // Fatia 3: concorrentes do proprio tenant no raio. Ausente em analise
+  // salva antes dela.
+  concorrentes?: ConcorrentesDaAnalise;
   fonte: { nome: string; atualizadoAte: string | null; observacao: string };
   criadoEm: string;
 }

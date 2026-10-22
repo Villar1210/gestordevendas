@@ -1,6 +1,7 @@
 // Selo de fonte do dado (honestidade do numero): CRM (Fatia 1) e
-// ITBI/Prefeitura (Fatia 2), com cor propria por fonte.
-export type FonteDado = "CRM" | "ITBI";
+// ITBI/Prefeitura (Fatia 2) e Manual (concorrentes cadastrados pela empresa,
+// Fatia 3), com cor propria por fonte.
+export type FonteDado = "CRM" | "ITBI" | "Manual";
 
 const FONTES: Record<FonteDado, { rotulo: string; titulo: string; classe: string }> = {
   CRM: {
@@ -12,6 +13,11 @@ const FONTES: Record<FonteDado, { rotulo: string; titulo: string; classe: string
     rotulo: "ITBI/Prefeitura",
     titulo: "Guias de ITBI pagas — Prefeitura de São Paulo (base aberta). Valores declarados na guia.",
     classe: "border-green-100 bg-green-50 text-green-700",
+  },
+  Manual: {
+    rotulo: "Manual",
+    titulo: "Cadastrado pela própria empresa (visita, site, material de vendas). Preço anunciado, área privativa.",
+    classe: "border-violet-100 bg-violet-50 text-violet-700",
   },
 };
 
