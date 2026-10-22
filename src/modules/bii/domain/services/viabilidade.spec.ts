@@ -122,7 +122,7 @@ describe('avaliarTipologia', () => {
     expect(r.municipal.rendaDentro).toBe(false);
     expect(r.mcmv).toMatchObject({ faixaPelaRenda: 'F3', enquadra: true });
     expect(r.situacao).toBe('atencao');
-    expect(r.avisos[0]).toContain('passa do limite de renda HIS-1 (R$ 4.863)');
+    expect(r.avisos[0]).toContain('passa do limite de renda HIS-1 (R$ 4.863,00)');
   });
 
   it('renda pela parcela abaixo do piso da unica faixa que cobre -> enquadra pelo piso, com aviso', () => {
@@ -131,7 +131,7 @@ describe('avaliarTipologia', () => {
     expect(r.mcmv).toMatchObject({ faixaPeloPreco: 'F4', faixaPelaRenda: 'F4', enquadra: true, rendaPeloPiso: true });
     expect(r.municipal).toMatchObject({ categoria: 'HMP', rendaDentro: true });
     expect(r.situacao).toBe('ok');
-    expect(r.avisos.join(' ')).toContain('só cabe a partir da Faixa 4, que começa em R$ 9.601');
+    expect(r.avisos.join(' ')).toContain('só cabe a partir da Faixa 4, que começa em R$ 9.600,01');
   });
 
   it('R$ 545 mil com 50% de entrada: HMP + Faixa 4 (antes saia "fora")', () => {
@@ -145,7 +145,7 @@ describe('avaliarTipologia', () => {
     const r = avaliarTipologia(tip(590_000, 80), { ...P, entradaPercentual: 0 }, MUN, MCMV);
     expect(r.mcmv).toMatchObject({ faixaPeloPreco: 'F4', faixaPelaRenda: null, enquadra: false });
     expect(r.situacao).toBe('fora');
-    expect(r.avisos.join(' ')).toContain('passa do limite de renda da Faixa 4');
+    expect(r.avisos.join(' ')).toContain('Mesmo na Faixa 4 a renda necessária passa do limite');
   });
 
   it('Faixa 4 acima do teto HMP: cabe no MCMV, mas e mercado no municipal -> atencao', () => {

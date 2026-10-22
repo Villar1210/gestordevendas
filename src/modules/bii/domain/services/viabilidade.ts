@@ -70,6 +70,9 @@ const moeda = (v: number) =>
   v
     .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, minimumFractionDigits: 0 })
     .replace(/\u00a0/g, ' ');
+// renda sempre com centavos (piso da faixa e R$ 5.000,01 / R$ 9.600,01)
+const renda2 = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\u00a0/g, ' ');
 const moedaMil = (v: number) => (v >= 1000 && v % 1000 === 0 ? `R$ ${(v / 1000).toLocaleString('pt-BR')} mil` : moeda(v));
 
 // Parcela da Tabela Price. Juros anual efetivo -> mensal equivalente.
@@ -123,7 +126,7 @@ export function avaliarTipologia(t: TipologiaViabilidade, p: Premissas, mun: Ver
   const rendaDentro = cat ? renda <= cat.rendaMax : null;
   if (cat && rendaDentro === false) {
     avisos.push(
-      `O preço cabe no teto ${cat.rotulo}, mas a renda necessária (${moeda(renda)}) passa do limite de renda ${cat.rotulo} (${moeda(cat.rendaMax)}).`,
+      `O preço cabe no teto ${cat.rotulo}, mas a renda necessária (${renda2(renda)}) passa do limite de renda ${cat.rotulo} (${renda2(cat.rendaMax)}).`,
     );
   }
   if (!cat) {
@@ -140,11 +143,11 @@ export function avaliarTipologia(t: TipologiaViabilidade, p: Premissas, mun: Ver
   } else if (!enquadra) {
     const ultima = mcmv.faixas[mcmv.faixas.length - 1];
     avisos.push(
-      `A renda necessária (${moeda(renda)}) passa do limite de renda da ${ultima.rotulo} (${moeda(ultima.rendaMax)}): com essas premissas o financiamento sai do MCMV (SBPE).`,
+      `Mesmo na ${ultima.rotulo} a renda necessária passa do limite de renda (${renda2(ultima.rendaMax)}): com essas premissas o financiamento sai do MCMV. A renda mostrada usa juros de ${String(fin.juros).replace('.', ',')}% a.a.${p.jurosAnual === null ? ' (SBPE)' : ''}.`,
     );
   } else if (fin.pelaPiso) {
     avisos.push(
-      `Pela parcela bastaria renda de ${moeda(fin.rendaPelaParcela)}, mas o preço só cabe a partir da ${faixa.rotulo}, que começa em ${moeda(Math.ceil(faixa.rendaMin))}: essa é a renda mínima do comprador.`,
+      `Pela parcela bastaria renda de ${renda2(fin.rendaPelaParcela)}, mas o preço só cabe a partir da ${faixa.rotulo}, que começa em ${renda2(faixa.rendaMin)}: essa é a renda mínima do comprador.`,
     );
   }
 
