@@ -4,12 +4,25 @@
 // Vendas (GET /bii/painel).
 // Fatia 2: Analise por Endereco (ITBI no raio, /bii/analises/*, tenant) e
 // dados publicos do ITBI (/bii-plataforma/itbi/*, so Super Usuario).
+// Fatia 3: Concorrentes (cadastro manual, /bii/concorrentes, tenant) - entram
+// tambem na Analise por Endereco.
 // Nao importa nenhum outro modulo de negocio. EventEmitterModule ja e global.
 import { Module } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service';
 import { BiiPainelController } from './infra/http/bii-painel.controller';
 import { BiiAnaliseController } from './infra/http/bii-analise.controller';
 import { BiiPlataformaController } from './infra/http/bii-plataforma.controller';
+import { BiiConcorrenteController } from './infra/http/bii-concorrente.controller';
+import {
+  ConcorrenteGeocodificador,
+  CreateConcorrenteUseCase,
+  DeleteConcorrenteUseCase,
+  GetConcorrenteUseCase,
+  ListConcorrentesUseCase,
+  UpdateConcorrenteUseCase,
+} from './application/use-cases/concorrentes.use-cases';
+import { PrismaConcorrenteRepository } from './infra/database/prisma-concorrente.repository';
+import { CONCORRENTE_REPOSITORY } from './domain/repositories/concorrente-repository.interface';
 import { GetPainelVendasUseCase } from './application/use-cases/get-painel-vendas.use-case';
 import { AnalisarEnderecoUseCase } from './application/use-cases/analisar-endereco.use-case';
 import { GetAnaliseUseCase, ListAnalisesUseCase } from './application/use-cases/analises-salvas.use-case';
@@ -43,7 +56,7 @@ import { GEOCODE_CACHE_REPOSITORY } from './domain/repositories/geocode-cache-re
 import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-repository.interface';
 
 @Module({
-  controllers: [BiiPainelController, BiiAnaliseController, BiiPlataformaController],
+  controllers: [BiiPainelController, BiiAnaliseController, BiiPlataformaController, BiiConcorrenteController],
   providers: [
     PrismaService,
     // Fatia 1
@@ -73,6 +86,14 @@ import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-reposi
     { provide: ITBI_IMPORTACAO_REPOSITORY, useClass: PrismaItbiImportacaoRepository },
     { provide: GEOCODE_CACHE_REPOSITORY, useClass: PrismaGeocodeCacheRepository },
     { provide: BII_ANALISE_REPOSITORY, useClass: PrismaBiiAnaliseRepository },
+    // Fatia 3
+    ListConcorrentesUseCase,
+    GetConcorrenteUseCase,
+    CreateConcorrenteUseCase,
+    UpdateConcorrenteUseCase,
+    DeleteConcorrenteUseCase,
+    ConcorrenteGeocodificador,
+    { provide: CONCORRENTE_REPOSITORY, useClass: PrismaConcorrenteRepository },
   ],
 })
 export class BiiModule {}

@@ -22,6 +22,7 @@ import {
   OBSERVACAO_FONTE,
 } from './analisar-endereco.use-case';
 import { GetAnaliseUseCase, ListAnalisesUseCase } from './analises-salvas.use-case';
+import { ConcorrenteRepoFake } from '../../../../../test/bii/concorrente-repo.fake';
 
 const PONTO: GeocodeResultado = {
   lat: -23.5934,
@@ -108,8 +109,9 @@ function montar() {
   const geo = new GeoFake();
   const itbi = new ItbiFake();
   const analises = new AnaliseFake();
-  const uc = new AnalisarEnderecoUseCase(geo, itbi as unknown as IItbiRepository, analises);
-  return { geo, itbi, analises, uc };
+  const concorrentes = new ConcorrenteRepoFake();
+  const uc = new AnalisarEnderecoUseCase(geo, itbi as unknown as IItbiRepository, analises, concorrentes);
+  return { geo, itbi, analises, concorrentes, uc };
 }
 
 const BASE = {
@@ -241,6 +243,34 @@ describe('AnalisarEnderecoUseCase', () => {
     const r = await uc.execute(BASE);
     expect(r.endereco.formatado).toBe(BASE.endereco);
     expect(analises.salvas[0].enderecoFormatado).toBe(BASE.endereco);
+  });
+});
+
+describe('AnalisarEnderecoUseCase - concorrentes no raio (Fatia 3)', () => {
+  it('devolve so concorrentes do PROPRIO tenant dentro do raio, mais proximos primeiro, e grava no snapshot', async () => {
+    const { uc, concorrentes, analises } = montar();
+    // ~111 m por 0.001 grau de latitude
+    concorrentes.semear('tenant-a', { nome: 'Perto', lat: PONTO.lat + 0.002, lng: PONTO.lng, totalUnidades: 200, observacoes: 'texto livre', fonte: 'stand', fonteUrl: 'https://x.com.br' });
+    concorrentes.semear('tenant-a', { nome: 'Pertissimo', lat: PONTO.lat + 0.001, lng: PONTO.lng, totalUnidades: 100 });
+    concorrentes.semear('tenant-a', { nome: 'Fora do raio', lat: PONTO.lat + 0.02, lng: PONTO.lng });
+    concorrentes.semear('tenant-b', { nome: 'Outro tenant', lat: PONTO.lat, lng: PONTO.lng });
+    const r = await uc.execute(BASE);
+    expect(r.concorrentes.itens.map((c) => c.nome)).toEqual(['Pertissimo', 'Perto']);
+    expect(r.concorrentes.itens[0].distanciaMetros).toBeGreaterThan(100);
+    expect(r.concorrentes.itens[0].distanciaMetros).toBeLessThan(120);
+    expect(r.concorrentes.itens[0].calculado.precoM2Mediano).toBe(7000);
+    expect(r.concorrentes.resumo).toEqual({ quantidade: 2, precoM2Mediano: 7000, unidadesTotais: 300 });
+    expect((analises.salvas[0].resultado as { concorrentes: unknown }).concorrentes).toEqual(r.concorrentes);
+    // snapshot sem textos livres (LGPD: excluir o concorrente nao deixa esses textos nas analises)
+    expect(r.concorrentes.itens[0]).not.toHaveProperty('observacoes');
+    expect(r.concorrentes.itens[0]).not.toHaveProperty('fonte');
+    expect(r.concorrentes.itens[0]).not.toHaveProperty('fonteUrl');
+  });
+
+  it('sem concorrentes cadastrados -> lista vazia e resumo zerado', async () => {
+    const { uc } = montar();
+    const r = await uc.execute(BASE);
+    expect(r.concorrentes).toEqual({ itens: [], resumo: { quantidade: 0, precoM2Mediano: null, unidadesTotais: null } });
   });
 });
 

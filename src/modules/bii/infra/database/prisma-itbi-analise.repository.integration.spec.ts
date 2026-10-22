@@ -7,6 +7,7 @@ import { Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
 import { PrismaItbiRepository } from './prisma-itbi.repository';
 import { PrismaBiiAnaliseRepository } from './prisma-bii-analise.repository';
+import { PrismaConcorrenteRepository } from './prisma-concorrente.repository';
 import { PrismaGeocodeCacheRepository } from './prisma-geocode-cache.repository';
 import { PrismaItbiImportacaoRepository } from './prisma-itbi-importacao.repository';
 import { LinhaItbiParaGravar } from '../../domain/repositories/itbi-repository.interface';
@@ -158,14 +159,23 @@ descrever('BII Fatia 2 - repositorios (integracao - banco real)', () => {
     const tB = await prisma.tenant.create({ data: { name: 'BII F2 teste B' } });
     tenantIds.push(tA.id, tB.id);
     const geo = { nome: 'fake', geocodificar: async () => ({ lat: CENTRO.lat, lng: CENTRO.lng, precisao: 'rooftop' as const, enderecoFormatado: 'Centro teste', cep: `${CEP_PREFIXO}000` }) };
-    const uc = new AnalisarEnderecoUseCase(geo, itbi, analises);
+    const concRepo = new PrismaConcorrenteRepository(prisma);
+    const uc = new AnalisarEnderecoUseCase(geo, itbi, analises, concRepo);
     const base = { requesterRole: 'Administrador', requesterUserId: randomUUID(), impersonadoPor: null };
+    const tip = [{ descricao: '2 dorm.', dormitorios: 2, areaPrivativa: 40, precoDe: 280_000, precoAte: null }];
+    const conc = { construtora: null, endereco: 'Rua C, 1', enderecoFormatado: null, precisao: 'manual', fase: 'lancamento' as const, dataLancamento: null, totalUnidades: 100, unidadesVendidas: null, fonte: null, fonteUrl: null, observacoes: null, tipologias: tip };
+    await concRepo.criar(tA.id, base.requesterUserId, { ...conc, nome: 'Concorrente do A', lat: CENTRO.lat + 0.001, lng: CENTRO.lng });
+    await concRepo.criar(tB.id, base.requesterUserId, { ...conc, nome: 'Concorrente do B', lat: CENTRO.lat + 0.001, lng: CENTRO.lng });
     const a = await uc.execute({ ...base, tenantId: tA.id, endereco: 'Endereco A, 1, Sao Paulo' });
     const b = await uc.execute({ ...base, tenantId: tB.id, endereco: 'Endereco B, 2, Sao Paulo', meses: 6 });
     expect(a.parametros.ate).toBe('2026-09-07'); // ultimo dia com dado do ITBI real do banco de dev
     expect(a.resumo.transacoes).toBe(7);
     expect(a.resumo.precoM2Mediano).toBeGreaterThan(8000);
     expect(a.cobertura.semLocalizacao).toBe(3);
+    // Fatia 3: so o concorrente do proprio tenant, com distancia e R$/m2
+    expect(a.concorrentes.itens.map((c) => c.nome)).toEqual(['Concorrente do A']);
+    expect(a.concorrentes.resumo).toEqual({ quantidade: 1, precoM2Mediano: 7000, unidadesTotais: 100 });
+    expect(b.concorrentes.itens.map((c) => c.nome)).toEqual(['Concorrente do B']);
 
     const list = new ListAnalisesUseCase(analises);
     const get = new GetAnaliseUseCase(analises);

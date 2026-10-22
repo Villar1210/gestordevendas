@@ -8,7 +8,6 @@
 // tenant -> 429 BII_COTA_DIARIA. Log de auditoria sem o endereco.
 import {
   BadRequestException,
-  ForbiddenException,
   HttpException,
   HttpStatus,
   Inject,
@@ -23,26 +22,30 @@ import {
   IGeocodingProvider,
 } from '../../domain/ports/geocoding-provider.interface';
 import { BII_ANALISE_REPOSITORY, IBiiAnaliseRepository } from '../../domain/repositories/bii-analise-repository.interface';
+import { CONCORRENTE_REPOSITORY, IConcorrenteRepository } from '../../domain/repositories/concorrente-repository.interface';
+import { concorrentesNoRaio, resumirConcorrentes } from '../../domain/services/concorrente';
 import { IItbiRepository, ITBI_REPOSITORY } from '../../domain/repositories/itbi-repository.interface';
 import { calcularAnaliseEndereco, ResultadoCalculo } from '../../domain/services/analise-endereco';
 import { formatarDataUtc, hojeUtc, periodoDeMeses, somarDiasUtc } from '../../domain/services/data-utc';
 import { limparEnderecoDigitado, prefixoCep } from '../../domain/services/endereco';
-import { boundingBox, dentroDaGrandeSP } from '../../domain/services/geo';
+import { boundingBox, dentroDaGrandeSP, distanciaMetros } from '../../domain/services/geo';
 import { NATUREZA_COMPRA_E_VENDA, TipoImovelAnalise } from '../../domain/services/itbi-classificacao';
-import { exigirAdministrador } from './permissoes-bii';
+import { bloquearImpersonacao, exigirAdministrador } from './permissoes-bii';
+import { ConcorrenteNoSnapshot, montarConcorrenteResposta, paraSnapshot } from './concorrentes.use-cases';
 
 export const ANALISE_LIMITE_LINHAS = 20_000;
 export const RAIOS_PERMITIDOS = [500, 1000, 2000] as const;
 export const MESES_PERMITIDOS = [6, 12, 24, 36] as const;
-export const MENSAGEM_ENDERECO_NAO_ENCONTRADO = 'Não encontramos esse endereço. Inclua número, bairro e cidade.';
-export const MENSAGEM_MAPAS_INDISPONIVEL = 'O serviço de mapas está indisponível agora. Tente em instantes.';
+import { MENSAGEM_ENDERECO_NAO_ENCONTRADO, MENSAGEM_MAPAS_INDISPONIVEL } from './mensagens-geo';
+export { MENSAGEM_ENDERECO_NAO_ENCONTRADO, MENSAGEM_MAPAS_INDISPONIVEL };
 export const FONTE_ITBI = 'ITBI — Prefeitura de São Paulo' as const;
 export const CODIGO_COTA_DIARIA = 'BII_COTA_DIARIA';
 export const MENSAGEM_COTA_DIARIA = 'Limite diário de análises da empresa atingido. Tente amanhã.';
-export const CODIGO_SOMENTE_LEITURA = 'BII_SOMENTE_LEITURA';
-export const MENSAGEM_SOMENTE_LEITURA =
-  'No modo de acesso do Super Usuário o BII é somente leitura. Entre com um Administrador da empresa para criar análises.';
+export { CODIGO_SOMENTE_LEITURA, MENSAGEM_SOMENTE_LEITURA } from './permissoes-bii';
 export const ANALISES_POR_DIA_PADRAO = 200;
+// concorrentes do tenant lidos do bbox (defensivo) e devolvidos no raio
+export const CONCORRENTES_BBOX_LIMITE = 500;
+export const CONCORRENTES_NA_RESPOSTA = 50;
 
 // BII_ANALISES_POR_DIA (opcional): inteiro >= 1; invalido/ausente -> 200.
 export function analisesPorDia(valor = process.env.BII_ANALISES_POR_DIA): number {
@@ -87,6 +90,11 @@ export interface AnaliseEnderecoResponse {
   amostra: ResultadoCalculo['amostra'];
   planta: ResultadoCalculo['planta'];
   financiamento: ResultadoCalculo['financiamento'];
+  // Fatia 3 - concorrentes do PROPRIO tenant no raio (snapshot)
+  concorrentes: {
+    itens: Array<ConcorrenteNoSnapshot & { distanciaMetros: number }>; // sem textos livres
+    resumo: { quantidade: number; precoM2Mediano: number | null; unidadesTotais: number | null };
+  };
   fonte: { nome: typeof FONTE_ITBI; atualizadoAte: string | null; observacao: string };
   criadoEm: string;
 }
@@ -101,15 +109,13 @@ export class AnalisarEnderecoUseCase {
     @Inject(GEOCODING_PROVIDER) private readonly geocoder: IGeocodingProvider,
     @Inject(ITBI_REPOSITORY) private readonly itbiRepo: IItbiRepository,
     @Inject(BII_ANALISE_REPOSITORY) private readonly analiseRepo: IBiiAnaliseRepository,
+    @Inject(CONCORRENTE_REPOSITORY) private readonly concorrenteRepo: IConcorrenteRepository,
   ) {}
 
   async execute(input: AnalisarEnderecoInput): Promise<AnaliseEnderecoResponse> {
     exigirAdministrador(input.requesterRole);
     // Super Usuario impersonando: BII so leitura (decisao do Villar, Fase 1).
-    // Corpo com code estavel para o frontend nao depender do texto.
-    if (input.impersonadoPor) {
-      throw new ForbiddenException({ statusCode: 403, code: CODIGO_SOMENTE_LEITURA, message: MENSAGEM_SOMENTE_LEITURA });
-    }
+    bloquearImpersonacao(input.impersonadoPor);
 
     const raioMetros = input.raioMetros ?? 1000;
     const meses = input.meses ?? 12;
@@ -187,6 +193,17 @@ export class AnalisarEnderecoUseCase {
       ? await this.itbiRepo.contarSemLocalizacao({ cepPrefixo, de, ateExclusivo, naturezaCodigo })
       : 0;
 
+    // Concorrentes cadastrados pelo proprio tenant (Fatia 3): bbox no banco,
+    // raio em memoria.
+    const doBbox = await this.concorrenteRepo.buscarNoBbox(input.tenantId, boundingBox(centro, raioMetros), CONCORRENTES_BBOX_LIMITE);
+    const itensConcorrentes = concorrentesNoRaio(
+      doBbox.map((c) => paraSnapshot(montarConcorrenteResposta(c, agora))),
+      centro,
+      raioMetros,
+      distanciaMetros,
+      CONCORRENTES_NA_RESPOSTA,
+    );
+
     // cache de texto digitado nao guarda endereco por extenso (B2): num acerto
     // de cache o formatado vem vazio e vale o texto digitado
     const formatado = ponto.enderecoFormatado || digitado;
@@ -199,6 +216,7 @@ export class AnalisarEnderecoUseCase {
       amostra: calc.amostra,
       planta: calc.planta,
       financiamento: calc.financiamento,
+      concorrentes: { itens: itensConcorrentes, resumo: resumirConcorrentes(itensConcorrentes) },
       fonte: { nome: FONTE_ITBI, atualizadoAte: atualizadoAte ? formatarDataUtc(atualizadoAte) : null, observacao: OBSERVACAO_FONTE },
     };
 

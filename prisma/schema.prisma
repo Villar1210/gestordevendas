@@ -125,6 +125,7 @@ model Tenant {
   biiCardStageEventos BiiCardStageEvento[]
   // Modulo BII (Fatia 2) - analises por endereco salvas (ver BiiAnalise).
   biiAnalises BiiAnalise[]
+  biiConcorrentes BiiConcorrente[]
   @@map("tenants")
 }
 
@@ -2155,4 +2156,56 @@ model BiiAnalise {
 
   @@index([tenantId, createdAt])
   @@map("bii_analises")
+}
+
+// BII Fatia 3 - concorrentes cadastrados manualmente (POR TENANT). Toda
+// leitura/escrita por { id, tenantId }. Tipologias sem tenantId proprio:
+// sempre acessadas ATRAVES do concorrente. createdById/updatedById sem FK
+// (excluir usuario nao apaga o cadastro). Contrato:
+// docs/bii/fatia3/CONTRATO_CONCORRENTES.md
+model BiiConcorrente {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  nome              String    @db.VarChar(150)
+  construtora       String?   @db.VarChar(150)
+  endereco          String    @db.VarChar(200)
+  enderecoFormatado String?   @map("endereco_formatado") @db.VarChar(500)
+  latitude          Float
+  longitude         Float
+  precisao          String    @db.VarChar(10)
+  fase              String    @db.VarChar(20)
+  dataLancamento    DateTime? @map("data_lancamento") @db.Date
+  totalUnidades     Int?      @map("total_unidades")
+  unidadesVendidas  Int?      @map("unidades_vendidas")
+  fonte             String?   @db.VarChar(120)
+  fonteUrl          String?   @map("fonte_url") @db.VarChar(500)
+  observacoes       String?   @db.VarChar(1000)
+  origem            String    @default("manual") @db.VarChar(20)
+  createdById       String    @map("created_by_id") @db.Uuid
+  updatedById       String    @map("updated_by_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipologias BiiConcorrenteTipologia[]
+
+  @@index([tenantId, latitude, longitude])
+  @@index([tenantId, updatedAt])
+  @@map("bii_concorrentes")
+}
+
+model BiiConcorrenteTipologia {
+  id            String   @id @default(uuid()) @db.Uuid
+  concorrenteId String   @map("concorrente_id") @db.Uuid
+  ordem         Int
+  descricao     String   @db.VarChar(100)
+  dormitorios   Int?
+  areaPrivativa Decimal  @map("area_privativa") @db.Decimal(8, 2)
+  precoDe       Decimal  @map("preco_de") @db.Decimal(12, 2)
+  precoAte      Decimal? @map("preco_ate") @db.Decimal(12, 2)
+
+  concorrente BiiConcorrente @relation(fields: [concorrenteId], references: [id], onDelete: Cascade)
+
+  @@index([concorrenteId])
+  @@map("bii_concorrente_tipologias")
 }

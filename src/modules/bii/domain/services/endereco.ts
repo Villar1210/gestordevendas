@@ -132,7 +132,7 @@ export function consultaGeocodeItbi(chave: string): string | null {
 // espacos colapsados. Usado como consulta e (normalizado) como chave do cache.
 export function limparEnderecoDigitado(texto: string): string {
   return texto
-    .replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, ' ')
+    .replace(/[\u0000-\u001f\u007f-\u009f؜​-‏‪-‮⁠-⁤⁦-⁩﻿]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
