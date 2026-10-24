@@ -66,7 +66,11 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT || 3333;
-  await app.listen(port);
+  // HOST=127.0.0.1 em producao: so o nginx da propria VPS fala com a API.
+  // Sem HOST (dev local) continua escutando em todas as interfaces.
+  const host = process.env.HOST?.trim();
+  if (host) await app.listen(port, host);
+  else await app.listen(port);
   console.log(`🚀 Ecossistema gestaodevendas rodando na porta ${port}`);
 }
 
