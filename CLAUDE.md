@@ -1957,7 +1957,7 @@ erro e liberada; e no onModuleInit do ImportadorItbiService TODAS as
 "processando" viram erro "Interrompida por reinício do servidor" - uma
 instancia so no PM2; com cluster, trocar por trava no banco). Reimportar o mesmo arquivo e seguro: hashLinha (sha256 dos
 campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
-- Upload: throttle 2/hora; ItbiUploadTamanhoGuard (Content-Length obrigatorio
+- Upload: throttle 10/hora (era 2; subido em 24/10/2026 para importar os 5 anos de uma vez); ItbiUploadTamanhoGuard (Content-Length obrigatorio
   -> 411, > 120 MB -> 413, ANTES do multer); BiiItbiImportarLimiteGuard (1 upload
   por processo, 503); storage proprio do multer (itbi-upload.ts, sem
   @types/multer) gravando o UPLOAD em os.tmpdir()/gestordevendas-bii-itbi
@@ -2045,6 +2045,12 @@ campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
   (rooftop/rua/cep/bairro); resultado de cidade/estado = nao achou. Falha de
   rede/429/5xx = GeocodingIndisponivelError (analise -> 503; nao vai para o
   cache).
+- SO A CIDADE DE SAO PAULO (correcao de 24/10/2026): Nominatim com bounded=1
+  no VIEWBOX_CIDADE_SP e analise/geocodificacao do ITBI aceitam so ponto em
+  RETANGULO_CIDADE_SP (dentroDaCidadeSP). Antes, o retangulo amplo da Grande SP
+  deixou "Vila Ema" cair na Vila Ema de Sao Jose dos Campos. Concorrentes: a
+  busca tambem fica na capital; o pino manual continua aceito na Grande SP.
+  Limpeza dos dados ja gravados: docs/bii/operacao/LIMPEZA_GEOCODE_FORA_DA_CAPITAL.sql.
 - GeocodingComCacheProvider decora: GeocodeCache primeiro, grava inclusive
   "nao achou" (vale 30 dias). Resultado fora do retangulo da Grande SP = nao
   encontrado (analise -> 422).

@@ -59,7 +59,7 @@ export function montarUrlBusca(baseUrl: string, consulta: string): string {
     countrycodes: 'br',
     addressdetails: '0',
     viewbox: VIEWBOX_CIDADE_SP,
-    bounded: '0',
+    bounded: '1',
     q: consulta,
   });
   return `${baseUrl}/search?${params.toString()}`;

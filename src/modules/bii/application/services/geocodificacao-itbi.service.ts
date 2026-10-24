@@ -16,7 +16,7 @@ import {
 } from '../../domain/ports/geocoding-provider.interface';
 import { IItbiRepository, ITBI_REPOSITORY } from '../../domain/repositories/itbi-repository.interface';
 import { consultaGeocodeItbi, separarEnderecoChave } from '../../domain/services/endereco';
-import { dentroDaGrandeSP } from '../../domain/services/geo';
+import { dentroDaCidadeSP } from '../../domain/services/geo';
 
 export const GEOCODE_LOTE_MAX = 5000;
 export const GEOCODE_LOTE_PADRAO = 2000;
@@ -187,7 +187,7 @@ export class GeocodificacaoItbiService implements OnModuleDestroy {
           this.consultasDoDia().total++;
         }
         const ponto = r.resultado;
-        if (!ponto || !dentroDaGrandeSP(ponto)) {
+        if (!ponto || !dentroDaCidadeSP(ponto)) {
           p.naoEncontrados++;
           continue;
         }

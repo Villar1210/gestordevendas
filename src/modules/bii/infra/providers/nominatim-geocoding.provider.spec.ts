@@ -33,7 +33,7 @@ function provedor(fetchMock: jest.Mock, extra: Record<string, unknown> = {}) {
 }
 
 describe('NominatimGeocodingProvider (fetch mockado - sem rede)', () => {
-  it('URL: host fixo, jsonv2, limit 1, countrycodes br, addressdetails 0, viewbox SP, bounded 0, q codificado', async () => {
+  it('URL: host fixo, jsonv2, limit 1, countrycodes br, addressdetails 0, viewbox SP, bounded 1 (so a capital), q codificado', async () => {
     const f = jest.fn(async () => respostaJson([ITEM_CASA]));
     await provedor(f).geocodificar('Rua Ibitirama, 100 & x=1, São Paulo');
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
@@ -46,7 +46,7 @@ describe('NominatimGeocodingProvider (fetch mockado - sem rede)', () => {
       countrycodes: 'br',
       addressdetails: '0',
       viewbox: '-46.83,-23.35,-46.36,-24.01',
-      bounded: '0',
+      bounded: '1',
       q: 'Rua Ibitirama, 100 & x=1, São Paulo',
     });
     expect(init.redirect).toBe('error');

@@ -50,7 +50,7 @@ function mensagemErro(err: unknown, contexto: "importar" | "geocodificar" | "car
       : "Já existe uma geocodificação em andamento. Aguarde ela terminar.";
   if (err.status === 429)
     return contexto === "importar"
-      ? "Limite de importações atingido (2 por hora). Tente mais tarde."
+      ? "Limite de importações atingido (10 por hora). Tente mais tarde."
       : "Muitas solicitações em pouco tempo. Aguarde e tente de novo.";
   if (err.status === 413) return "Arquivo grande demais: o máximo é 120 MB.";
   if (err.status === 400 || err.status === 422) return err.message;
