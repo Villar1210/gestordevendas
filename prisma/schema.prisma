@@ -2076,6 +2076,7 @@ model ItbiTransacao {
 
   @@index([latitude, longitude])
   @@index([dataTransacao])
+  @@index([sqlCadastro])
   @@index([enderecoChave])
   @@index([cepPrefixo, dataTransacao])
   @@index([bairroNormalizado])
@@ -2100,6 +2101,35 @@ model GeocodeCache {
   criadoEm          DateTime @default(now()) @map("criado_em")
 
   @@map("geocode_cache")
+}
+
+// BII Fatia 6 - camadas publicas do GeoSampa (Prefeitura de SP, CC BY-SA 4.0).
+// GLOBAIS como o ITBI (dado publico, sem tenantId). Guardam SO o centroide
+// (WGS84) por setor/quadra(/lote) - nada de endereco, area ou uso.
+// Contrato: docs/bii/fatia6/CONTRATO_LOCALIZACAO_SQL.md.
+model GeoQuadraFiscal {
+  setor        String   @db.Char(3)
+  quadra       String   @db.Char(3)
+  latitude     Float
+  longitude    Float
+  atualizadoEm DateTime @default(now()) @map("atualizado_em")
+
+  @@id([setor, quadra])
+  @@map("geo_quadras_fiscais")
+}
+
+model GeoLoteFiscal {
+  setor        String   @db.Char(3)
+  quadra       String   @db.Char(3)
+  lote         String   @db.Char(4)
+  condominio   String   @db.Char(2)
+  ativo        Boolean  @default(true)
+  latitude     Float
+  longitude    Float
+  atualizadoEm DateTime @default(now()) @map("atualizado_em")
+
+  @@id([setor, quadra, lote, condominio])
+  @@map("geo_lotes_fiscais")
 }
 
 // Registro de cada importacao do ITBI (o arquivo original NAO e guardado).

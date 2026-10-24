@@ -49,7 +49,9 @@ import { GetAnaliseUseCase, ListAnalisesUseCase } from '../../application/use-ca
 import { GetItbiCoberturaUseCase } from '../../application/use-cases/itbi-cobertura.use-case';
 import {
   GetGeocodificacaoItbiUseCase,
+  GetGeoSampaUseCase,
   ImportarItbiUseCase,
+  IniciarGeoSampaUseCase,
   IniciarGeocodificacaoItbiUseCase,
   ListImportacoesItbiUseCase,
 } from '../../application/use-cases/itbi-plataforma.use-cases';
@@ -173,6 +175,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     importacoes: ok([]),
     geocodificar: ok({ id: 'g1' }),
     geocodificacao: jest.fn(() => ({ atual: null })),
+    geosampaIniciar: ok({ id: 'gs1' }),
+    geosampa: ok({ atual: null }),
     concListar: ok([]),
     concAbrir: ok(),
     concCriar: ok(),
@@ -201,6 +205,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
         { provide: ListImportacoesItbiUseCase, useValue: { execute: mocks.importacoes } },
         { provide: IniciarGeocodificacaoItbiUseCase, useValue: { execute: mocks.geocodificar } },
         { provide: GetGeocodificacaoItbiUseCase, useValue: { execute: mocks.geocodificacao } },
+        { provide: IniciarGeoSampaUseCase, useValue: { execute: mocks.geosampaIniciar } },
+        { provide: GetGeoSampaUseCase, useValue: { execute: mocks.geosampa } },
         { provide: ListConcorrentesUseCase, useValue: { execute: mocks.concListar } },
         { provide: GetConcorrenteUseCase, useValue: { execute: mocks.concAbrir } },
         { provide: CreateConcorrenteUseCase, useValue: { execute: mocks.concCriar } },
@@ -270,6 +276,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     ['GET', '/bii-plataforma/itbi/importacoes', (p) => ({ headers: { 'x-perfil': p } })],
     ['POST', '/bii-plataforma/itbi/geocodificar', (p) => json(p, { ceps: ['03277'] })],
     ['GET', '/bii-plataforma/itbi/geocodificacao', (p) => ({ headers: { 'x-perfil': p } })],
+    ['POST', '/bii-plataforma/itbi/geosampa', (p) => json(p, { modo: 'localizar' })],
+    ['GET', '/bii-plataforma/itbi/geosampa', (p) => ({ headers: { 'x-perfil': p } })],
   ];
 
   describe.each(ROTAS_PLATAFORMA)('%s %s', (_m, rota, init) => {

@@ -10,6 +10,7 @@ import { createHash } from 'crypto';
 import { unlink } from 'fs/promises';
 import { ConflictException, Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { CoberturaItbiCache } from './cobertura-itbi.cache';
+import { GeoSampaService } from './geosampa.service';
 import {
   IItbiPlanilhaReader,
   ITBI_PLANILHA_READER,
@@ -63,6 +64,9 @@ export class ImportadorItbiService implements OnModuleInit, OnModuleDestroy {
     @Inject(ITBI_REPOSITORY) private readonly itbiRepo: IItbiRepository,
     @Inject(ITBI_IMPORTACAO_REPOSITORY) private readonly importacaoRepo: IItbiImportacaoRepository,
     @Optional() private readonly cobertura?: CoberturaItbiCache,
+    // Fatia 6: guias novas ganham a localizacao pelo SQL (se a base do
+    // GeoSampa ja foi baixada). Opcional para os testes antigos.
+    @Optional() private readonly geosampa?: GeoSampaService,
   ) {}
 
   // B4: ao subir, nenhuma importacao pode estar rodando neste processo - as
@@ -217,6 +221,7 @@ export class ImportadorItbiService implements OnModuleInit, OnModuleDestroy {
         progresso,
         nenhumaAba ? 'Nenhuma aba com o cabeçalho do ITBI (logradouro, valor e data da transação).' : null,
       );
+      if (!nenhumaAba && !signal.aborted) await this.geosampa?.localizarImportacao(importacaoId);
       this.logger.log(
         `ITBI importacao ${importacaoId} ${nenhumaAba ? 'sem abas validas' : 'concluida'}: lidas=${progresso.linhasLidas} inseridas=${progresso.linhasInseridas} duplicadas=${progresso.linhasDuplicadas} descartadas=${progresso.linhasDescartadas} ${JSON.stringify(descartes)} ms=${Date.now() - inicio}`,
       );

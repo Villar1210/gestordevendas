@@ -137,7 +137,9 @@ export class PrismaItbiRepository implements IItbiRepository {
 
   async aplicarCoordenadas(enderecoChave: string, p: { lat: number; lng: number; precisao: string }): Promise<number> {
     const r = await this.prisma.itbiTransacao.updateMany({
-      where: { enderecoChave },
+      // so guias AINDA sem ponto: nunca troca a localizacao pelo SQL (lote/
+      // quadra, Fatia 6) nem outra ja gravada
+      where: { enderecoChave, latitude: null },
       data: { latitude: p.lat, longitude: p.lng, geoPrecisao: p.precisao },
     });
     return r.count;
