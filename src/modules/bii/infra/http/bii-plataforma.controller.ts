@@ -46,7 +46,7 @@ export class BiiPlataformaController {
   // deixaria o temporario no disco - o use case valida e apaga.
   @Post('itbi/importar')
   @HttpCode(HttpStatus.ACCEPTED)
-  @Throttle({ default: { limit: 2, ttl: 3_600_000 } })
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
   @UseGuards(ItbiUploadTamanhoGuard, BiiItbiImportarLimiteGuard)
   @UseInterceptors(FileInterceptor('file', opcoesMulterItbi))
   async importar(

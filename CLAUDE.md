@@ -1957,7 +1957,7 @@ erro e liberada; e no onModuleInit do ImportadorItbiService TODAS as
 "processando" viram erro "Interrompida por reinício do servidor" - uma
 instancia so no PM2; com cluster, trocar por trava no banco). Reimportar o mesmo arquivo e seguro: hashLinha (sha256 dos
 campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
-- Upload: throttle 2/hora; ItbiUploadTamanhoGuard (Content-Length obrigatorio
+- Upload: throttle 10/hora (era 2; subido em 24/10/2026 para importar os 5 anos de uma vez); ItbiUploadTamanhoGuard (Content-Length obrigatorio
   -> 411, > 120 MB -> 413, ANTES do multer); BiiItbiImportarLimiteGuard (1 upload
   por processo, 503); storage proprio do multer (itbi-upload.ts, sem
   @types/multer) gravando o UPLOAD em os.tmpdir()/gestordevendas-bii-itbi
