@@ -66,6 +66,17 @@ export function dentroDaGrandeSP(p: GeoPonto): boolean {
   return coordenadaValida(p) && p.lat >= r.sul && p.lat <= r.norte && p.lng >= r.oeste && p.lng <= r.leste;
 }
 
-// Viewbox da CIDADE de Sao Paulo para o Nominatim (oeste,norte,leste,sul) -
-// so orienta (bounded=0), nao restringe.
+// Retangulo da CIDADE de Sao Paulo (com pouca folga). O ITBI e so da capital:
+// analise e geocodificacao do ITBI aceitam so ponto aqui dentro. Bug de
+// 24/10/2026: "Vila Ema" caiu na Vila Ema de Sao Jose dos Campos, que fica
+// dentro do retangulo AMPLO da Grande SP acima.
+export const RETANGULO_CIDADE_SP: BoundingBox = { sul: -24.01, norte: -23.35, oeste: -46.83, leste: -46.36 };
+
+export function dentroDaCidadeSP(p: GeoPonto): boolean {
+  const r = RETANGULO_CIDADE_SP;
+  return coordenadaValida(p) && p.lat >= r.sul && p.lat <= r.norte && p.lng >= r.oeste && p.lng <= r.leste;
+}
+
+// Viewbox da CIDADE de Sao Paulo para o Nominatim (oeste,norte,leste,sul).
+// Usado com bounded=1: o Nominatim so devolve resultado dentro dele.
 export const VIEWBOX_CIDADE_SP = '-46.83,-23.35,-46.36,-24.01';
