@@ -2045,6 +2045,12 @@ campos normalizados) + ON CONFLICT DO NOTHING -> 0 inseridas.
   (rooftop/rua/cep/bairro); resultado de cidade/estado = nao achou. Falha de
   rede/429/5xx = GeocodingIndisponivelError (analise -> 503; nao vai para o
   cache).
+- SO A CIDADE DE SAO PAULO (correcao de 24/10/2026): Nominatim com bounded=1
+  no VIEWBOX_CIDADE_SP e analise/geocodificacao do ITBI aceitam so ponto em
+  RETANGULO_CIDADE_SP (dentroDaCidadeSP). Antes, o retangulo amplo da Grande SP
+  deixou "Vila Ema" cair na Vila Ema de Sao Jose dos Campos. Concorrentes: a
+  busca tambem fica na capital; o pino manual continua aceito na Grande SP.
+  Limpeza dos dados ja gravados: docs/bii/operacao/LIMPEZA_GEOCODE_FORA_DA_CAPITAL.sql.
 - GeocodingComCacheProvider decora: GeocodeCache primeiro, grava inclusive
   "nao achou" (vale 30 dias). Resultado fora do retangulo da Grande SP = nao
   encontrado (analise -> 422).

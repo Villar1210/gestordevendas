@@ -1,4 +1,4 @@
-import { boundingBox, dentroDaGrandeSP, dentroDoRaio, distanciaMetros, RAIO_TERRA_METROS } from './geo';
+import { boundingBox, dentroDaCidadeSP, dentroDaGrandeSP, dentroDoRaio, distanciaMetros, RAIO_TERRA_METROS } from './geo';
 
 const SE = { lat: -23.55052, lng: -46.633308 }; // Praca da Se
 const MASP = { lat: -23.561414, lng: -46.655881 }; // Av. Paulista, 1578
@@ -68,5 +68,15 @@ describe('geo - bounding box', () => {
     expect(dentroDaGrandeSP({ lat: -23.65, lng: -46.53 })).toBe(true); // Santo Andre
     expect(dentroDaGrandeSP({ lat: -22.9, lng: -43.2 })).toBe(false); // Rio
     expect(dentroDaGrandeSP({ lat: -22.9, lng: -47.06 })).toBe(false); // Campinas
+  });
+});
+
+describe('dentroDaCidadeSP', () => {
+  it('aceita a capital e recusa Vila Ema de Sao Jose dos Campos, ABC e Guarulhos centro', () => {
+    expect(dentroDaCidadeSP({ lat: -23.5505, lng: -46.6333 })).toBe(true); // Se
+    expect(dentroDaCidadeSP({ lat: -23.585, lng: -46.545 })).toBe(true); // Vila Ema (SP)
+    expect(dentroDaCidadeSP({ lat: -23.205, lng: -45.86 })).toBe(false); // Vila Ema (Sao Jose dos Campos)
+    expect(dentroDaGrandeSP({ lat: -23.205, lng: -45.86 })).toBe(true); // por isso o retangulo amplo nao servia
+    expect(dentroDaCidadeSP({ lat: -23.66, lng: -46.32 })).toBe(false); // Maua
   });
 });

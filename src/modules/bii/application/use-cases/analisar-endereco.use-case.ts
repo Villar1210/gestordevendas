@@ -28,7 +28,7 @@ import { IItbiRepository, ITBI_REPOSITORY } from '../../domain/repositories/itbi
 import { calcularAnaliseEndereco, ResultadoCalculo } from '../../domain/services/analise-endereco';
 import { formatarDataUtc, hojeUtc, periodoDeMeses, somarDiasUtc } from '../../domain/services/data-utc';
 import { limparEnderecoDigitado, prefixoCep } from '../../domain/services/endereco';
-import { boundingBox, dentroDaGrandeSP, distanciaMetros } from '../../domain/services/geo';
+import { boundingBox, dentroDaCidadeSP, distanciaMetros } from '../../domain/services/geo';
 import { NATUREZA_COMPRA_E_VENDA, TipoImovelAnalise } from '../../domain/services/itbi-classificacao';
 import { bloquearImpersonacao, exigirAdministrador } from './permissoes-bii';
 import { ConcorrenteNoSnapshot, montarConcorrenteResposta, paraSnapshot } from './concorrentes.use-cases';
@@ -153,7 +153,7 @@ export class AnalisarEnderecoUseCase {
       if (erro instanceof GeocodingIndisponivelError) throw new ServiceUnavailableException(MENSAGEM_MAPAS_INDISPONIVEL);
       throw erro;
     }
-    if (!ponto || !dentroDaGrandeSP(ponto)) throw new UnprocessableEntityException(MENSAGEM_ENDERECO_NAO_ENCONTRADO);
+    if (!ponto || !dentroDaCidadeSP(ponto)) throw new UnprocessableEntityException(MENSAGEM_ENDERECO_NAO_ENCONTRADO);
 
     // Periodo termina no ultimo dia com dado do ITBI (a Prefeitura publica com
     // atraso) - senao "ultimos 12 meses" ficaria vazio no fim.
