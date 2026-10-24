@@ -53,3 +53,29 @@ export interface ProgressoGeocodificacao {
 }
 
 export type GeocodificarResponse = ProgressoGeocodificacao;
+
+// Fatia 6 - base do GeoSampa (quadras/lotes fiscais da Prefeitura) e a
+// localizacao das guias do ITBI pelo SQL. Espelha GeoSampaService /
+// GetGeoSampaUseCase (itbi-plataforma.use-cases.ts).
+export type ModoGeoSampa = "atualizar" | "localizar";
+export type StatusJobGeoSampa = "processando" | "concluida" | "erro" | "cancelada";
+
+export interface ProgressoGeoSampa {
+  id: string;
+  modo: ModoGeoSampa;
+  status: StatusJobGeoSampa;
+  etapa: "quadras" | "lotes" | "localizando";
+  quadras: { total: number; lidas: number; gravadas: number };
+  lotes: { total: number; lidos: number; gravados: number };
+  localizacao: { setores: number; setoresFeitos: number; porLote: number; porQuadra: number };
+  iniciadoEm: string;
+  concluidoEm: string | null;
+  mensagemErro: string | null;
+}
+
+export interface GeoSampaResumo {
+  atual: ProgressoGeoSampa | null;
+  base: { quadras: number; lotes: number; atualizadoEm: string | null };
+  cobertura: { total: number; lote: number; quadra: number; endereco: number; semLocal: number };
+  atribuicao: string;
+}

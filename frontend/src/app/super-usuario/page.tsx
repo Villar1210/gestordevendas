@@ -19,6 +19,7 @@ import {
   IMPERSONANDO_TENANT_NOME_STORAGE_KEY,
 } from "@/core/api/client";
 import { ItbiDadosPublicosCard } from "@/features/bii-plataforma/components/ItbiDadosPublicosCard";
+import { GeoSampaBaseCard } from "@/features/bii-plataforma/components/GeoSampaBaseCard";
 
 interface TenantSummary {
   id: string;
@@ -174,7 +175,10 @@ export default function SuperUsuarioPage() {
 
       <div className="p-4 sm:p-6">
         {activeView === "bii" ? (
-          <ItbiDadosPublicosCard />
+          <>
+            <ItbiDadosPublicosCard />
+            <GeoSampaBaseCard />
+          </>
         ) : activeView === "tenants" ? (
           isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-24 text-slate-500">

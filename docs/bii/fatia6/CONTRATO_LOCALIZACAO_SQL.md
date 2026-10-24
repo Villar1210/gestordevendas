@@ -1,6 +1,6 @@
 # BII Fatia 6 — Localização do ITBI pelo SQL do IPTU (GeoSampa)
 
-Status: PROPOSTA (aguardando aprovação do Villar). Data: 24/10/2026.
+Status: APROVADA pelo Villar e IMPLEMENTADA (branch feat/bii-fatia6). Data: 24/10/2026.
 
 ## Objetivo
 Dar coordenadas a TODAS as ~937 mil guias do ITBI da capital sem geocodificar

@@ -18,6 +18,9 @@ import {
   ProgressoGeocodificacao,
 } from '../services/geocodificacao-itbi.service';
 import { exigirSuperUsuario } from './permissoes-bii';
+import { GeoSampaService, ProgressoGeoSampa } from '../services/geosampa.service';
+import { GEOSAMPA_REPOSITORY, IGeoSampaRepository } from '../../domain/repositories/geosampa-repository.interface';
+import { ATRIBUICAO_GEOSAMPA } from '../../domain/services/geosampa';
 
 // Conferencias do arquivo .xlsx (infra) injetadas por token para o use case
 // nao conhecer fs/zip diretamente alem de apagar/proteger o temporario.
@@ -153,5 +156,38 @@ export class GetGeocodificacaoItbiUseCase {
   execute(input: { requesterRole: string }): { atual: ProgressoGeocodificacao | null } {
     exigirSuperUsuario(input.requesterRole);
     return { atual: this.job.status() };
+  }
+}
+
+// ---------- Fatia 6: base do GeoSampa (localizacao pelo SQL do IPTU) ----------
+@Injectable()
+export class IniciarGeoSampaUseCase {
+  constructor(private readonly job: GeoSampaService) {}
+
+  async execute(input: { requesterRole: string; modo: unknown }): Promise<ProgressoGeoSampa> {
+    exigirSuperUsuario(input.requesterRole);
+    if (input.modo !== 'atualizar' && input.modo !== 'localizar') {
+      throw new BadRequestException('Modo inválido: use "atualizar" ou "localizar".');
+    }
+    return this.job.iniciar(input.modo);
+  }
+}
+
+@Injectable()
+export class GetGeoSampaUseCase {
+  constructor(
+    private readonly job: GeoSampaService,
+    @Inject(GEOSAMPA_REPOSITORY) private readonly repo: IGeoSampaRepository,
+  ) {}
+
+  async execute(input: { requesterRole: string }) {
+    exigirSuperUsuario(input.requesterRole);
+    const [base, cobertura] = await Promise.all([this.repo.contar(), this.repo.coberturaPorPrecisao()]);
+    return {
+      atual: this.job.status(),
+      base: { quadras: base.quadras, lotes: base.lotes, atualizadoEm: base.atualizadoEm?.toISOString() ?? null },
+      cobertura,
+      atribuicao: ATRIBUICAO_GEOSAMPA,
+    };
   }
 }

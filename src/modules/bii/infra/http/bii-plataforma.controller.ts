@@ -22,7 +22,9 @@ import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator'
 import { SUPER_USUARIO_ROLE_NAME } from '../../../../shared/domain/constants/super-usuario';
 import {
   GetGeocodificacaoItbiUseCase,
+  GetGeoSampaUseCase,
   ImportarItbiUseCase,
+  IniciarGeoSampaUseCase,
   IniciarGeocodificacaoItbiUseCase,
   ListImportacoesItbiUseCase,
 } from '../../application/use-cases/itbi-plataforma.use-cases';
@@ -38,6 +40,8 @@ export class BiiPlataformaController {
     private readonly listImportacoesItbiUseCase: ListImportacoesItbiUseCase,
     private readonly iniciarGeocodificacaoItbiUseCase: IniciarGeocodificacaoItbiUseCase,
     private readonly getGeocodificacaoItbiUseCase: GetGeocodificacaoItbiUseCase,
+    private readonly iniciarGeoSampaUseCase: IniciarGeoSampaUseCase,
+    private readonly getGeoSampaUseCase: GetGeoSampaUseCase,
   ) {}
 
   // POST /bii-plataforma/itbi/importar - multipart "file" (.xlsx ate 120 MB)
@@ -84,5 +88,19 @@ export class BiiPlataformaController {
   @Get('itbi/geocodificacao')
   async geocodificacao(@Req() req: Request) {
     return this.getGeocodificacaoItbiUseCase.execute({ requesterRole: req.user!.role });
+  }
+
+  // Fatia 6 - base do GeoSampa. POST { modo: "atualizar" | "localizar" }
+  // -> 202 com o progresso inicial. Um job por vez (409).
+  @Post('itbi/geosampa')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Throttle({ default: { limit: 6, ttl: 3_600_000 } })
+  async geosampa(@Body('modo') modo: unknown, @Req() req: Request) {
+    return this.iniciarGeoSampaUseCase.execute({ requesterRole: req.user!.role, modo });
+  }
+
+  @Get('itbi/geosampa')
+  async geosampaStatus(@Req() req: Request) {
+    return this.getGeoSampaUseCase.execute({ requesterRole: req.user!.role });
   }
 }

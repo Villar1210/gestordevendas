@@ -54,7 +54,8 @@ export function analisesPorDia(valor = process.env.BII_ANALISES_POR_DIA): number
 }
 
 export const OBSERVACAO_FONTE =
-  'Área construída do IPTU inclui a parte das áreas comuns; o R$/m² fica abaixo do de área privativa.';
+  'Área construída do IPTU inclui a parte das áreas comuns; o R$/m² fica abaixo do de área privativa. ' +
+  'Guias localizadas pelo endereço (OpenStreetMap) ou pelo SQL do IPTU — lote ou quadra (GeoSampa — Prefeitura de São Paulo, CC BY-SA 4.0).';
 
 export interface AnalisarEnderecoInput {
   tenantId: string;

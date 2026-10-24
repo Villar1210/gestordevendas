@@ -46,11 +46,18 @@ import {
   GetGeocodificacaoItbiUseCase,
   ImportarItbiUseCase,
   IniciarGeocodificacaoItbiUseCase,
+  IniciarGeoSampaUseCase,
+  GetGeoSampaUseCase,
   ListImportacoesItbiUseCase,
   XLSX_INSPETOR,
 } from './application/use-cases/itbi-plataforma.use-cases';
 import { ImportadorItbiService } from './application/services/importador-itbi.service';
 import { GeocodificacaoItbiService } from './application/services/geocodificacao-itbi.service';
+import { GeoSampaService } from './application/services/geosampa.service';
+import { GeoSampaWfsClient } from './infra/providers/geosampa-wfs.client';
+import { PrismaGeoSampaRepository } from './infra/database/prisma-geosampa.repository';
+import { GEOSAMPA_WFS } from './domain/ports/geosampa-wfs.interface';
+import { GEOSAMPA_REPOSITORY } from './domain/repositories/geosampa-repository.interface';
 import { CoberturaItbiCache } from './application/services/cobertura-itbi.cache';
 import { CardStageChangedListener } from './infra/listeners/card-stage-changed.listener';
 import { PrismaPainelVendasRepository } from './infra/database/prisma-painel-vendas.repository';
@@ -87,9 +94,14 @@ import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-reposi
     ImportarItbiUseCase,
     ListImportacoesItbiUseCase,
     IniciarGeocodificacaoItbiUseCase,
+    IniciarGeoSampaUseCase,
+    GetGeoSampaUseCase,
     GetGeocodificacaoItbiUseCase,
     ImportadorItbiService,
     GeocodificacaoItbiService,
+    GeoSampaService,
+    { provide: GEOSAMPA_WFS, useClass: GeoSampaWfsClient },
+    { provide: GEOSAMPA_REPOSITORY, useClass: PrismaGeoSampaRepository },
     CoberturaItbiCache,
     NominatimGeocodingProvider,
     GeocodingComCacheProvider,

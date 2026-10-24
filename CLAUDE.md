@@ -2288,3 +2288,55 @@ do Administrador.
   snapshot com campos numericos ausentes -> null.
 - Deploy: junto com as Fatias 1-4 (migrate deploy + db:generate + build).
   Nenhuma dependencia nova, nenhuma variavel nova.
+
+## Modulo BII - Fatia 6 (localizacao do ITBI pelo SQL - GeoSampa) - CONCLUIDA (sem deploy)
+Contrato: docs/bii/fatia6/CONTRATO_LOCALIZACAO_SQL.md. Da coordenada as guias
+do ITBI da cidade inteira cruzando o SQL do IPTU (sql_cadastro, 11 digitos =
+setor 3 + quadra 3 + lote 4 + DV) com as quadras/lotes fiscais do GeoSampa,
+sem geocodificar endereco (Nominatim continua para o que sobrar).
+
+- Fonte: WFS 2.0.0 https://wfs.geosampa.prefeitura.sp.gov.br/geoserver/geoportal/wfs
+  (host fixo, so https, redirect 'error', 90 s, 80 MB por pagina),
+  camadas geoportal:quadra_fiscal (~64 mil) e geoportal:lote_cidadao (~1,7 mi),
+  srsName EPSG:4326, paginas de 10 mil ordenadas por cd_identificador, 3
+  tentativas por pagina. propertyName com o nome de geometria ADIVINHADO
+  'ge_poligono': se der 400, o cliente repete sem propertyName e lembra por
+  camada (resposta maior, mas funciona). Licenca CC BY-SA 4.0: atribuicao
+  ATRIBUICAO_GEOSAMPA no GET e na observacao da Analise por Endereco.
+- Tabelas GLOBAIS (dado publico, sem tenantId), migration
+  20261024120000_bii_geosampa: geo_quadras_fiscais (PK setor+quadra, so o
+  centroide) e geo_lotes_fiscais (PK setor+quadra+lote+condominio, ativo).
+  Subquadras da mesma quadra viram 1 centroide ponderado pela area. So
+  cd_tipo_quadra/cd_tipo_lote 'F' (fiscal); lote CANCELADO = ativo false.
+  Mesma migration cria o indice itbi_transacoes(sql_cadastro): a localizacao
+  filtra por faixa BETWEEN setor00000000 AND setor99999999 (6 ms por setor
+  contra ~1 s com substr - sem o indice o job levaria ~10 min).
+- Regra de precisao (RANK_PRECISAO, dominio geosampa.ts): lote 6 > rooftop 5 >
+  quadra 4 > rua 3 > cep 2 > bairro 1. So sobrescreve local PIOR. Lote exato
+  so para condominio '00', ativo e fracao_ideal nula ou >= 0,999 (unidade de
+  condominio tem o numero da unidade no "lote" do SQL e casaria por acaso com
+  um lote vizinho) - apartamento cai na quadra. aplicarCoordenadas do job do
+  Nominatim agora so grava onde latitude e NULL (nunca pisa no GeoSampa).
+- Job (GeoSampaService, em memoria, 1 por vez - 409): 'atualizar' (baixa
+  quadras + lotes e localiza tudo) ou 'localizar' (so aplica a base ja
+  baixada; sem base -> 409 MENSAGEM_SEM_BASE). Importacao nova do ITBI chama
+  localizarImportacao(importacaoId) ao terminar (silencioso). onModuleDestroy
+  aborta.
+- Rotas (BiiPlataformaController, so Super Usuario): POST
+  /bii-plataforma/itbi/geosampa { modo } (202, 6/hora) e GET
+  /bii-plataforma/itbi/geosampa { atual, base, cobertura, atribuicao }.
+  SQL das gravacoes/updates: $executeRaw em template tag (unnest / UPDATE ...
+  FROM), mesma excecao medida do ITBI.
+- Frontend: card "Base do GeoSampa" (GeoSampaBaseCard.tsx) na aba "Dados do
+  BII" do /super-usuario: base baixada, cobertura por precisao (lote / quadra
+  / endereco / sem local), botoes "Atualizar base do GeoSampa" e "So
+  localizar as guias", progresso com polling de 10 s so durante o job.
+- Testes: geosampa.spec, geosampa-wfs.client.spec (fetch mockado, nunca
+  rede), geosampa.service.spec, integracao prisma-geosampa.repository
+  (setor sintetico 999: lote x quadra x rooftop preservado x apartamento x
+  filtro por importacao x Nominatim nao sobrescreve), meta-teste de
+  permissoes com as 2 rotas novas. Suite BII: 669 testes.
+- Deploy: migrate deploy (cria 2 tabelas + 1 indice em itbi_transacoes,
+  alguns segundos) + db:generate + build backend + frontend (rm -rf .next).
+  Depois, na tela do Super Usuario: "Baixar base do GeoSampa" (20-60 min).
+  Nenhuma dependencia nova, nenhuma variavel nova.
