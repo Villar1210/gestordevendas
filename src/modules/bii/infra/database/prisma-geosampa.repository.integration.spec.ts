@@ -97,7 +97,11 @@ descrever('PrismaGeoSampaRepository (integracao)', () => {
       ]),
     ).toBe(2);
     await repo.gravarQuadras([{ setor: SETOR, quadra: '001', lat: -23.511, lng: -46.511 }]);
-    expect((await prisma.geoQuadraFiscal.findUnique({ where: { setor_quadra: { setor: SETOR, quadra: '001' } } }))!.latitude).toBeCloseTo(-23.511);
+    const q1 = (await prisma.geoQuadraFiscal.findUnique({ where: { setor_quadra: { setor: SETOR, quadra: '001' } } }))!;
+    expect(q1.latitude).toBeCloseTo(-23.511);
+    // atualizado_em e "timestamp sem fuso" lido como UTC pelo Prisma: gravar
+    // em UTC (com o servidor em America/Sao_Paulo aparecia 3 h a menos)
+    expect(Math.abs(q1.atualizadoEm.getTime() - Date.now())).toBeLessThan(120_000);
     await repo.gravarLotes([
       { setor: SETOR, quadra: '001', lote: '0024', condominio: '00', ativo: true, lat: -23.5105, lng: -46.5105 },
       { setor: SETOR, quadra: '001', lote: '0000', condominio: '01', ativo: true, lat: -23.5106, lng: -46.5106 },

@@ -27,26 +27,26 @@ export class PrismaGeoSampaRepository implements IGeoSampaRepository {
     if (q.length === 0) return 0;
     return this.prisma.$executeRaw`
       INSERT INTO "geo_quadras_fiscais" ("setor", "quadra", "latitude", "longitude", "atualizado_em")
-      SELECT u.setor, u.quadra, u.lat, u.lng, now() FROM unnest(
+      SELECT u.setor, u.quadra, u.lat, u.lng, (now() AT TIME ZONE 'UTC') FROM unnest(
         ${q.map((x) => x.setor)}::text[], ${q.map((x) => x.quadra)}::text[],
         ${q.map((x) => x.lat)}::float8[], ${q.map((x) => x.lng)}::float8[]
       ) AS u(setor, quadra, lat, lng)
       ON CONFLICT ("setor", "quadra") DO UPDATE
-        SET "latitude" = EXCLUDED."latitude", "longitude" = EXCLUDED."longitude", "atualizado_em" = now()`;
+        SET "latitude" = EXCLUDED."latitude", "longitude" = EXCLUDED."longitude", "atualizado_em" = (now() AT TIME ZONE 'UTC')`;
   }
 
   async gravarLotes(l: LoteFiscal[]): Promise<number> {
     if (l.length === 0) return 0;
     return this.prisma.$executeRaw`
       INSERT INTO "geo_lotes_fiscais" ("setor", "quadra", "lote", "condominio", "ativo", "latitude", "longitude", "atualizado_em")
-      SELECT u.setor, u.quadra, u.lote, u.condominio, u.ativo, u.lat, u.lng, now() FROM unnest(
+      SELECT u.setor, u.quadra, u.lote, u.condominio, u.ativo, u.lat, u.lng, (now() AT TIME ZONE 'UTC') FROM unnest(
         ${l.map((x) => x.setor)}::text[], ${l.map((x) => x.quadra)}::text[], ${l.map((x) => x.lote)}::text[],
         ${l.map((x) => x.condominio)}::text[], ${l.map((x) => x.ativo)}::bool[],
         ${l.map((x) => x.lat)}::float8[], ${l.map((x) => x.lng)}::float8[]
       ) AS u(setor, quadra, lote, condominio, ativo, lat, lng)
       ON CONFLICT ("setor", "quadra", "lote", "condominio") DO UPDATE
         SET "ativo" = EXCLUDED."ativo", "latitude" = EXCLUDED."latitude", "longitude" = EXCLUDED."longitude",
-            "atualizado_em" = now()`;
+            "atualizado_em" = (now() AT TIME ZONE 'UTC')`;
   }
 
   async contar(): Promise<ContagemGeoSampa> {
