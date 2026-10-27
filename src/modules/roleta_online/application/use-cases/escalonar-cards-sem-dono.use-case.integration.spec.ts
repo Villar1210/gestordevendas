@@ -18,6 +18,9 @@ import {
   ESCALONAMENTO_MINUTOS_LIMITE,
 } from './escalonar-cards-sem-dono.use-case';
 
+// Fase B: o escalonamento so roda no horario das lojas - fixa 12h em Sao Paulo.
+const MEIO_DIA_SP = new Date(Date.UTC(2026, 9, 27, 15, 0));
+
 describe('EscalonarCardsSemDonoUseCase (integracao - banco real)', () => {
   let prisma: PrismaService;
   let useCase: EscalonarCardsSemDonoUseCase;
@@ -70,7 +73,7 @@ describe('EscalonarCardsSemDonoUseCase (integracao - banco real)', () => {
     const cardAntigo = await criarCard(ESCALONAMENTO_MINUTOS_LIMITE + 5);
     const emitSpy = jest.spyOn(emitter, 'emit');
 
-    await useCase.execute();
+    await useCase.execute(MEIO_DIA_SP);
 
     const atualizado = await prisma.card.findUnique({ where: { id: cardAntigo.id } });
     expect(atualizado?.escalonamentoNotificadoEm).not.toBeNull();
@@ -79,7 +82,7 @@ describe('EscalonarCardsSemDonoUseCase (integracao - banco real)', () => {
     // Segunda execucao (simula o proximo tick do @Cron a cada 5min) - o
     // card ja esta marcado, NAO pode gerar um segundo evento/notificacao.
     emitSpy.mockClear();
-    await useCase.execute();
+    await useCase.execute(MEIO_DIA_SP);
     expect(eventosDoCard(emitSpy, cardAntigo.id)).toHaveLength(0);
 
     emitSpy.mockRestore();
@@ -89,7 +92,7 @@ describe('EscalonarCardsSemDonoUseCase (integracao - banco real)', () => {
     const cardRecente = await criarCard(5);
     const emitSpy = jest.spyOn(emitter, 'emit');
 
-    await useCase.execute();
+    await useCase.execute(MEIO_DIA_SP);
 
     const atualizado = await prisma.card.findUnique({ where: { id: cardRecente.id } });
     expect(atualizado?.escalonamentoNotificadoEm).toBeNull();
@@ -105,7 +108,7 @@ describe('EscalonarCardsSemDonoUseCase (integracao - banco real)', () => {
     const cardComStage = await criarCard(ESCALONAMENTO_MINUTOS_LIMITE + 20, { stageId: stage.id });
     const emitSpy = jest.spyOn(emitter, 'emit');
 
-    await useCase.execute();
+    await useCase.execute(MEIO_DIA_SP);
 
     const atualizado = await prisma.card.findUnique({ where: { id: cardComStage.id } });
     expect(atualizado?.escalonamentoNotificadoEm).toBeNull();
@@ -119,7 +122,7 @@ describe('EscalonarCardsSemDonoUseCase (integracao - banco real)', () => {
     const card = await criarCard(minutosAtras, { title: 'Lead urgente de teste', phone: '5511988887777' });
     const emitSpy = jest.spyOn(emitter, 'emit');
 
-    await useCase.execute();
+    await useCase.execute(MEIO_DIA_SP);
 
     const [, payload] = eventosDoCard(emitSpy, card.id)[0] ?? [];
     expect(payload).toMatchObject({

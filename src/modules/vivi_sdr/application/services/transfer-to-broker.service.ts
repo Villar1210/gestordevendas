@@ -2,6 +2,7 @@
 // Extraido de ProcessIncomingMessageUseCase (I10 da auditoria, refactor
 // estrutural puro - comportamento inalterado). Cria (ou promove) o Card do
 // Kanban quando a tool "transferir_para_corretor" e chamada pela VIVI.
+import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
@@ -45,7 +46,8 @@ export class TransferToBrokerService {
     const { tenantId, phoneNumber, conversation, collected, motivo } = input;
 
     const pipelines = await this.pipelineRepository.findAllByTenant(tenantId);
-    const pipeline = pipelines[0];
+    // Fase B: funil de vendas, nunca o de remarketing (antes: pipelines[0]).
+    const pipeline = funilDeVendasPadrao(pipelines);
     if (!pipeline) {
       // Situacao rara: tenant sem nenhum pipeline configurado ainda. A
       // conversa e marcada como transferida mesmo assim, so sem Card.

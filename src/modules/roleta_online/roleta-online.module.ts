@@ -15,6 +15,7 @@ import { CardSemDonoCriadoListener } from './infra/listeners/card-sem-dono-criad
 import { CorretorFicouOnlineListener } from './infra/listeners/corretor-ficou-online.listener';
 import { RoletaTimeoutScheduler } from './infra/scheduler/roleta-timeout.scheduler';
 import { CardSemDonoEscalonamentoScheduler } from './infra/scheduler/card-sem-dono-escalonamento.scheduler';
+import { DistribuirCaixaDeEntradaScheduler } from './infra/scheduler/distribuir-caixa-de-entrada.scheduler';
 import { PrismaRoletaConfigRepository } from './infra/database/prisma-roleta-config.repository';
 import { PrismaService } from '../../config/prisma.service';
 
@@ -52,6 +53,7 @@ import { PrismaGestorResponsavelRepository } from './infra/database/prisma-gesto
     CorretorFicouOnlineListener,
     RoletaTimeoutScheduler,
     CardSemDonoEscalonamentoScheduler,
+    DistribuirCaixaDeEntradaScheduler,
     // Fatia 2 (Sorteio da vez)
     FilaRoletaService,
     ListRoletasUseCase,

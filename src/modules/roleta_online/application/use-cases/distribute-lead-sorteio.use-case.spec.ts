@@ -24,7 +24,7 @@ function montar(config: Record<string, unknown>, escolha: { userId: string; role
   return { useCase, claimCardUseCase, cardRepository, corretorRepository, filaRoletaService, eventEmitter };
 }
 
-const input = { tenantId: 't1', cardId: 'card-1', pipelineId: 'p1' };
+const input = { tenantId: 't1', cardId: 'card-1', pipelineId: 'p1', agora: new Date(Date.UTC(2026, 9, 27, 15, 0)) }; // 12h em Sao Paulo
 
 describe('DistributeLeadUseCase - algoritmo sorteio', () => {
   it('modo automatico: atribui ao proximo da fila da roleta', async () => {
@@ -48,5 +48,14 @@ describe('DistributeLeadUseCase - algoritmo sorteio', () => {
     await m.useCase.execute(input);
     expect(m.claimCardUseCase.execute).not.toHaveBeenCalled();
     expect(m.cardRepository.updateSuggestedOwner).not.toHaveBeenCalled();
+  });
+});
+
+describe('DistributeLeadUseCase - fora do horario (fase B)', () => {
+  it('as 22h em Sao Paulo nao distribui: o lead espera as 9h', async () => {
+    const m = montar({ ativa: true, algoritmo: 'sorteio', modo: 'automatico' }, { userId: 'u-1', roletaId: 'r-1' });
+    await m.useCase.execute({ ...input, agora: new Date(Date.UTC(2026, 9, 28, 1, 0)) });
+    expect(m.filaRoletaService.escolherParaLead).not.toHaveBeenCalled();
+    expect(m.claimCardUseCase.execute).not.toHaveBeenCalled();
   });
 });

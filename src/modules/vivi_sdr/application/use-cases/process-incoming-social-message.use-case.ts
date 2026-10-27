@@ -30,6 +30,7 @@
 // opt-out de campanha de Repique (fluxo exclusivo de WhatsApp/E-mail - ver
 // RepiqueCampanhaEnvio.canal em schema.prisma) e deliberadamente OMITIDO
 // aqui (nao existe campanha de Repique via Instagram/Facebook nesta fatia).
+import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import {
   ISocialConversationRepository,
@@ -432,7 +433,8 @@ export class ProcessIncomingSocialMessageUseCase {
     motivo: string,
   ): Promise<string | null> {
     const pipelines = await this.pipelineRepository.findAllByTenant(input.tenantId);
-    const pipeline = pipelines[0];
+    // Fase B: funil de vendas, nunca o de remarketing (antes: pipelines[0]).
+    const pipeline = funilDeVendasPadrao(pipelines);
     if (!pipeline) {
       this.logger.error(
         `Nao foi possivel criar o Card da VIVI (social): tenant ${input.tenantId} nao tem pipeline.`,

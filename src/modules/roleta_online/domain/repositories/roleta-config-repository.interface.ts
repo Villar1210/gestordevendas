@@ -30,4 +30,6 @@ export interface IRoletaConfigRepository {
     minutosInatividadeOffline?: number;
   }): Promise<RoletaConfigRecord>;
   updateUltimoCorretor(tenantId: string, corretorId: string): Promise<void>;
+  // Fase B: tenants com a Roleta ligada (distribuicao das 9h).
+  findTenantsComRoletaAtiva(): Promise<string[]>;
 }

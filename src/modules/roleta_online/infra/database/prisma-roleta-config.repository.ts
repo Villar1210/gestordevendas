@@ -49,4 +49,9 @@ export class PrismaRoletaConfigRepository implements IRoletaConfigRepository {
       data: { ultimoCorretorId: corretorId },
     });
   }
+
+  async findTenantsComRoletaAtiva(): Promise<string[]> {
+    const rows = await this.prisma.roletaConfig.findMany({ where: { ativa: true }, select: { tenantId: true } });
+    return rows.map((r) => r.tenantId);
+  }
 }

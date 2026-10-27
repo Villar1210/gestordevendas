@@ -4,6 +4,7 @@
 // sugere (semi_automatico, aguardando confirmacao). Se a Roleta estiver
 // inativa ou nao houver ninguem online, nao faz nada - o lead fica na
 // Caixa de Entrada normal, do jeito que ja funciona hoje.
+import { dentroDoHorarioDeAtendimento } from '../../domain/services/horario-atendimento';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IRoletaConfigRepository } from '../../domain/repositories/roleta-config-repository.interface';
@@ -25,6 +26,8 @@ interface DistributeLeadInput {
   tenantId: string;
   cardId: string;
   pipelineId: string;
+  // So para testes: "agora" para a checagem do horario de atendimento.
+  agora?: Date;
 }
 
 @Injectable()
@@ -55,6 +58,13 @@ export class DistributeLeadUseCase {
   private async distribuir(input: DistributeLeadInput): Promise<void> {
     const config = await this.roletaConfigRepository.findByTenant(input.tenantId);
     if (!config || !config.ativa) {
+      return;
+    }
+
+    // Fase B (27/10/2026): fora do horario das lojas o lead espera na Caixa
+    // de Entrada e entra na distribuicao das 9h (DistribuirCaixaDeEntradaScheduler).
+    if (!dentroDoHorarioDeAtendimento(input.agora ?? new Date())) {
+      this.logger.log(`Lead ${input.cardId}: fora do horario de atendimento - aguarda a distribuicao das 9h.`);
       return;
     }
 

@@ -7,6 +7,7 @@
 // emite um evento generico para o modulo notificacoes avisar os
 // Administradores do tenant - mesmo padrao cross-tenant ja usado por
 // ProcessRoletaTimeoutsUseCase.
+import { dentroDoHorarioDeAtendimento, minutosDesdeAbertura } from '../../domain/services/horario-atendimento';
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
@@ -22,7 +23,13 @@ export class EscalonarCardsSemDonoUseCase {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async execute(): Promise<void> {
+  async execute(agora: Date = new Date()): Promise<void> {
+    // Fase B (27/10/2026): fora do horario das lojas ninguem e alertado (o
+    // lead espera a distribuicao das 9h). Depois das 9h, so alerta a partir
+    // das 9h15 - da tempo da distribuicao da abertura acontecer.
+    if (!dentroDoHorarioDeAtendimento(agora) || minutosDesdeAbertura(agora) < ESCALONAMENTO_MINUTOS_LIMITE) {
+      return;
+    }
     const cutoff = new Date(Date.now() - ESCALONAMENTO_MINUTOS_LIMITE * 60_000);
     const pendentes = await this.cardRepository.findInboxUnnotifiedOlderThan(cutoff);
     if (pendentes.length === 0) {

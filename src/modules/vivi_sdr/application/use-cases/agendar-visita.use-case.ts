@@ -3,6 +3,7 @@
 // Card (Caixa de Entrada, mesmo caminho de CreateQuickCardUseCase ja usado
 // por transferir_para_corretor - dispara a Roleta Online normalmente) e uma
 // Activity tipo "visita" com a data/horario confirmados pelo lead.
+import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
@@ -77,7 +78,8 @@ export class AgendarVisitaUseCase {
 
   async execute(input: AgendarVisitaInput): Promise<AgendarVisitaOutput | null> {
     const pipelines = await this.pipelineRepository.findAllByTenant(input.tenantId);
-    const pipeline = pipelines[0];
+    // Fase B: funil de vendas, nunca o de remarketing (antes: pipelines[0]).
+    const pipeline = funilDeVendasPadrao(pipelines);
     if (!pipeline) {
       // Mesma situacao rara ja tratada em transferToBroker: tenant sem
       // pipeline configurado ainda.
