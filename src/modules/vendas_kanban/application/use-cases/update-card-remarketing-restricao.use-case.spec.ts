@@ -6,6 +6,7 @@
 import { UpdateCardUseCase } from './update-card.use-case';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
+import { acessoCardSemChecagem } from '../../../../../test/vendas_kanban/acesso-card.helper';
 
 function setup(pipelineName: string) {
   const cardRepository = { findByIdAndTenant: jest.fn(), update: jest.fn() };
@@ -14,6 +15,7 @@ function setup(pipelineName: string) {
   const useCase = new UpdateCardUseCase(
     cardRepository as unknown as ICardRepository,
     pipelineRepository as unknown as IPipelineRepository,
+    acessoCardSemChecagem(),
   );
 
   cardRepository.findByIdAndTenant.mockResolvedValue({

@@ -1,5 +1,6 @@
 // src/modules/vendas_kanban/application/use-cases/update-card.use-case.ts
 import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { AcessoCardService, RequisitanteCard } from '../services/acesso-card.service';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import {
@@ -24,6 +25,9 @@ interface UpdateCardInput {
   cep?: string | null;
   imovelId?: string | null;
   customFields?: Record<string, unknown>;
+  // Quem pediu (rota HTTP). Ausente = chamada interna do sistema (VIVI,
+  // jobs), sem checagem de dono - ver application/services/acesso-card.service.ts.
+  requisitante?: RequisitanteCard;
 }
 
 @Injectable()
@@ -31,6 +35,7 @@ export class UpdateCardUseCase {
   constructor(
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
+    private readonly acessoCardService: AcessoCardService,
   ) {}
 
   async execute(input: UpdateCardInput): Promise<CardRecord> {
@@ -38,6 +43,8 @@ export class UpdateCardUseCase {
     if (!card) {
       throw new NotFoundException('Card nao encontrado.');
     }
+
+    await this.acessoCardService.garantir(input.tenantId, card.ownerId, input.requisitante, 'alterar');
 
     const pipeline = await this.pipelineRepository.findByIdAndTenant(card.pipelineId, input.tenantId);
     if (

@@ -10,6 +10,7 @@ import { ListActivitiesByCardUseCase } from './list-activities-by-card.use-case'
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { IActivityRepository } from '../../domain/repositories/activity-repository.interface';
+import { acessoCardSemChecagem } from '../../../../../test/vendas_kanban/acesso-card.helper';
 
 function setup(pipelineName: string) {
   const cardRepository = { findByIdAndTenant: jest.fn() };
@@ -20,6 +21,7 @@ function setup(pipelineName: string) {
     cardRepository as unknown as ICardRepository,
     pipelineRepository as unknown as IPipelineRepository,
     activityRepository as unknown as IActivityRepository,
+    acessoCardSemChecagem(),
   );
 
   cardRepository.findByIdAndTenant.mockResolvedValue({

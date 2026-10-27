@@ -25,6 +25,19 @@ import { CreateQuickCardUseCase } from '../../application/use-cases/create-quick
 import { ClaimCardUseCase } from '../../application/use-cases/claim-card.use-case';
 import { DispararRepiqueManualUseCase } from '../../application/use-cases/disparar-repique-manual.use-case';
 import { ListMinhaCarteiraRepiqueUseCase } from '../../application/use-cases/list-minha-carteira-repique.use-case';
+import { RequisitanteCard } from '../../application/services/acesso-card.service';
+
+// Quem esta chamando - usado pelos use cases para conferir se o usuario pode
+// ver/alterar aquele card (dono, superiores ou Administrador; ver
+// domain/services/acesso-card.ts).
+function requisitanteDe(req: Request): RequisitanteCard {
+  return {
+    userId: req.user!.id,
+    role: req.user!.role,
+    cargo: req.user!.cargo ?? null,
+    standId: req.user!.standId ?? null,
+  };
+}
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -99,6 +112,7 @@ export class CardController {
     return this.updateCardUseCase.execute({
       cardId: id,
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
       requesterRole: req.user!.role,
       requesterCargo: req.user!.cargo,
       title: dto.title,
@@ -152,6 +166,7 @@ export class CardController {
     return this.moveCardUseCase.execute({
       cardId: id,
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
       requesterRole: req.user!.role,
       requesterCargo: req.user!.cargo,
       targetStageId: dto.targetStageId,
@@ -171,6 +186,7 @@ export class CardController {
     await this.deleteCardUseCase.execute({
       cardId: id,
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
       requesterRole: req.user!.role,
       requesterCargo: req.user!.cargo,
     });
@@ -186,6 +202,7 @@ export class CardController {
   ) {
     return this.createActivityUseCase.execute({
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
       cardId,
       type: dto.type,
       subject: dto.subject,
@@ -198,6 +215,7 @@ export class CardController {
   async listActivities(@Param('cardId') cardId: string, @Req() req: Request) {
     return this.listActivitiesByCardUseCase.execute({
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
       cardId,
       requesterRole: req.user!.role,
       requesterCargo: req.user!.cargo,
@@ -210,6 +228,7 @@ export class CardController {
     return this.toggleActivityDoneUseCase.execute({
       activityId: id,
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
     });
   }
 
@@ -222,6 +241,7 @@ export class CardController {
   ) {
     return this.createNoteUseCase.execute({
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
       cardId,
       body: dto.body,
     });
@@ -232,6 +252,7 @@ export class CardController {
   async listNotes(@Param('cardId') cardId: string, @Req() req: Request) {
     return this.listNotesByCardUseCase.execute({
       tenantId: req.user!.tenantId,
+      requisitante: requisitanteDe(req),
       cardId,
       requesterRole: req.user!.role,
       requesterCargo: req.user!.cargo,

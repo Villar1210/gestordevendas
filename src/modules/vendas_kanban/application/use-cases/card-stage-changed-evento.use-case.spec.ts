@@ -12,6 +12,7 @@ import { MoverLeadsInativosParaRepiqueUseCase } from './mover-leads-inativos-par
 import { PromoverLeadMinimoUseCase } from './promover-lead-minimo.use-case';
 import { buildCardRecord } from '../../../../../test/factories/card-record.factory';
 import { CARD_STAGE_CHANGED_EVENT } from '../../domain/events/card-stage-changed.event';
+import { acessoCardSemChecagem } from '../../../../../test/vendas_kanban/acesso-card.helper';
 
 function novoEmitter() {
   return { emit: jest.fn(), emitAsync: jest.fn().mockResolvedValue([]) };
@@ -41,6 +42,7 @@ describe('card.stage.changed - MoveCardUseCase', () => {
       qualquer(cardRepository),
       qualquer({ findByIdAndTenant: jest.fn().mockResolvedValue({ id: 'p-1', name: 'Vendas' }) }),
       comoEmitter(emitter),
+      acessoCardSemChecagem(),
     );
     return { useCase, emitter, ordem };
   }

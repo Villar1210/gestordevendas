@@ -1,4 +1,5 @@
 // src/modules/vendas_kanban/vendas-kanban.module.ts
+import { AcessoCardService } from './application/services/acesso-card.service';
 import { Module } from '@nestjs/common';
 import { PipelineController } from './infra/http/pipeline.controller';
 import { CardController } from './infra/http/card.controller';
@@ -63,6 +64,7 @@ import { CanaisModule } from '../../shared/canais.module';
   controllers: [PipelineController, CardController, RepiqueDescadastroPublicController],
   providers: [
     PrismaService,
+    AcessoCardService,
     CreatePipelineUseCase,
     CreateDefaultPipelineUseCase,
     ListPipelinesUseCase,

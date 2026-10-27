@@ -13,6 +13,7 @@ import { MoveCardUseCase } from './move-card.use-case';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
+import { acessoCardSemChecagem } from '../../../../../test/vendas_kanban/acesso-card.helper';
 
 function setup(options: { cardPipelineId: string; targetStagePipelineId: string; targetStageName?: string }) {
   const stageRepository = { findByIdAndTenant: jest.fn() };
@@ -28,6 +29,7 @@ function setup(options: { cardPipelineId: string; targetStagePipelineId: string;
     cardRepository as unknown as ICardRepository,
     pipelineRepository as unknown as IPipelineRepository,
     { emit: jest.fn() } as unknown as EventEmitter2,
+    acessoCardSemChecagem(),
   );
 
   cardRepository.findByIdAndTenant.mockResolvedValue({

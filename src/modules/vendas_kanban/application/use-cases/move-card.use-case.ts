@@ -1,5 +1,6 @@
 // src/modules/vendas_kanban/application/use-cases/move-card.use-case.ts
 import { Injectable, Inject, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { AcessoCardService, RequisitanteCard } from '../services/acesso-card.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
@@ -33,6 +34,9 @@ interface MoveCardInput {
   // Quem moveu (evento card.stage.changed, consumido pelo BII). Opcional:
   // chamadores de sistema (ex: MoverCardViviUseCase) nao informam -> null.
   requesterUserId?: string | null;
+  // Quem pediu (rota HTTP). Ausente = chamada interna do sistema (VIVI,
+  // jobs), sem checagem de dono - ver application/services/acesso-card.service.ts.
+  requisitante?: RequisitanteCard;
 }
 
 @Injectable()
@@ -42,6 +46,7 @@ export class MoveCardUseCase {
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly acessoCardService: AcessoCardService,
   ) {}
 
   async execute(input: MoveCardInput): Promise<{ newPosition: number }> {
@@ -49,6 +54,8 @@ export class MoveCardUseCase {
     if (!card) {
       throw new NotFoundException('Card nao encontrado.');
     }
+
+    await this.acessoCardService.garantir(input.tenantId, card.ownerId, input.requisitante, 'alterar');
 
     // Restricao de acesso ao pipeline de remarketing (ver
     // domain/services/remarketing-pipeline.ts) - so o lado do card de
