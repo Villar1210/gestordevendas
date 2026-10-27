@@ -500,6 +500,8 @@ export class PrismaCardRepository implements ICardRepository {
         pipelineId: input.pipelineId,
         stageId: input.stageId,
         position: input.position,
+        // Fase B: entrou na Caixa de Entrada agora (alerta de 15 min conta daqui).
+        ...(input.stageId === null ? { caixaEntradaDesde: new Date(), escalonamentoNotificadoEm: null } : {}),
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.origem !== undefined ? { origem: input.origem } : {}),
@@ -607,9 +609,16 @@ export class PrismaCardRepository implements ICardRepository {
     await this.prisma.card.update({ where: { id }, data });
   }
 
-  async reatribuirSeAindaPendente(id: string, novoDonoId: string, quando: Date): Promise<boolean> {
+  async reatribuirSeAindaPendente(
+    id: string,
+    novoDonoId: string,
+    quando: Date,
+    donoAtual: string | null,
+  ): Promise<boolean> {
     const r = await this.prisma.card.updateMany({
-      where: { id, aceitoEm: null },
+      // Ainda aguardando aceite E com o mesmo dono lido (ninguem aceitou nem
+      // repassou a mao no meio do caminho).
+      where: { id, aceitoEm: null, ownerId: donoAtual, atribuidoAutomaticamenteEm: { not: null } },
       data: { ownerId: novoDonoId, atribuidoAutomaticamenteEm: quando, aceitoEm: null },
     });
     return r.count > 0;

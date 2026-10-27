@@ -82,8 +82,8 @@ export class ProcessRoletaTimeoutsUseCase {
     }
 
     const limiteMs = config.timeoutAceiteMinutos * 60_000;
-    // O prazo conta so dentro do horario: lead atribuido as 19h58 tem os
-    // minutos restantes a partir das 9h do dia seguinte.
+    // O prazo conta so dentro do horario: lead atribuido perto das 20h tem o
+    // prazo de aceite contado de novo, inteiro, a partir das 9h do dia seguinte.
     const aberturaHoje = agora.getTime() - minutosDesdeAbertura(agora) * 60_000;
     const inicioDoPrazo = Math.max(card.atribuidoAutomaticamenteEm!.getTime(), aberturaHoje);
     const decorridoMs = agora.getTime() - inicioDoPrazo;
@@ -104,7 +104,7 @@ export class ProcessRoletaTimeoutsUseCase {
         return;
       }
       // So se o corretor ainda nao aceitou (pode ter aceitado agora).
-      if (!(await this.cardRepository.reatribuirSeAindaPendente(card.id, escolha.userId, new Date()))) return;
+      if (!(await this.cardRepository.reatribuirSeAindaPendente(card.id, escolha.userId, new Date(), card.ownerId))) return;
       this.logger.log(`Card ${card.id} reatribuido de ${card.ownerId} para ${escolha.userId} (sorteio da vez) apos timeout.`);
       this.eventEmitter.emit('lead.atribuido', { tenantId: card.tenantId, cardId: card.id, ownerId: escolha.userId });
       return;
@@ -136,7 +136,7 @@ export class ProcessRoletaTimeoutsUseCase {
       await this.roletaConfigRepository.updateUltimoCorretor(card.tenantId, novoDono.id);
     }
 
-    if (!(await this.cardRepository.reatribuirSeAindaPendente(card.id, novoDono.id, new Date()))) return;
+    if (!(await this.cardRepository.reatribuirSeAindaPendente(card.id, novoDono.id, new Date(), card.ownerId))) return;
     this.logger.log(
       `Card ${card.id} reatribuido de ${card.ownerId} para ${novoDono.id} apos timeout de aceite.`,
     );
@@ -190,7 +190,7 @@ export class ProcessRoletaTimeoutsUseCase {
       return;
     }
 
-    if (!(await this.cardRepository.reatribuirSeAindaPendente(card.id, gestor.id, new Date()))) return;
+    if (!(await this.cardRepository.reatribuirSeAindaPendente(card.id, gestor.id, new Date(), card.ownerId))) return;
     await this.cardRepository.clearAtribuidoAutomaticamente(card.id);
     this.logger.warn(`Card ${card.id} sem aceite e sem outro corretor - escalado para a gestao (${gestor.id}).`);
 

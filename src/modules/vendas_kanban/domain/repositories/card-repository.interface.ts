@@ -292,7 +292,7 @@ export interface ICardRepository {
   // Fase B (revisao, M6): reatribui so se o card AINDA estiver aguardando
   // aceite (aceitoEm nulo) - evita passar adiante um lead que o corretor
   // acabou de aceitar. true = reatribuiu.
-  reatribuirSeAindaPendente(id: string, novoDonoId: string, quando: Date): Promise<boolean>;
+  reatribuirSeAindaPendente(id: string, novoDonoId: string, quando: Date, donoAtual: string | null): Promise<boolean>;
   // Fase B (revisao): 7 dias sem resposta na coluna Atendimento VIVI ->
   // etapa Repique, numa unica escrita (sai da coluna e entra na etapa juntos).
   moverDoAtendimentoViviParaRepique(id: string, repiqueStageId: string, quando: Date): Promise<void>;

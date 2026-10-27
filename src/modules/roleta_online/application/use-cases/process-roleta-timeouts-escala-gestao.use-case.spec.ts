@@ -30,7 +30,7 @@ describe('Timeout da Roleta sem outro corretor', () => {
   it('round robin sem ninguem online: lead vai para o gestor, sem novo prazo, com avisos', async () => {
     const { useCase, cardRepository, emitter } = montar({ algoritmo: 'round_robin' }, { online: [{ id: 'corretor-a' }] });
     await useCase.execute(AGORA);
-    expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'gerente', expect.any(Date));
+    expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'gerente', expect.any(Date), 'corretor-a');
     expect(cardRepository.clearAtribuidoAutomaticamente).toHaveBeenCalledWith('c-1');
     expect(emitter.emit).toHaveBeenCalledWith('lead.atribuido', expect.objectContaining({ ownerId: 'gerente' }));
     expect(emitter.emit).toHaveBeenCalledWith(LEAD_ESCALADO_GESTAO_EVENT, expect.objectContaining({ gestorId: 'gerente', corretorAnteriorId: 'corretor-a' }));
@@ -39,13 +39,13 @@ describe('Timeout da Roleta sem outro corretor', () => {
   it('sorteio sem outro corretor presente: tambem vai para o gestor', async () => {
     const { useCase, cardRepository } = montar({ algoritmo: 'sorteio' }, { escolha: null });
     await useCase.execute(AGORA);
-    expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'gerente', expect.any(Date));
+    expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'gerente', expect.any(Date), 'corretor-a');
   });
 
   it('com outro corretor online continua reatribuindo para ele (sem mudar)', async () => {
     const { useCase, cardRepository, emitter } = montar({ algoritmo: 'round_robin' }, { online: [{ id: 'corretor-a' }, { id: 'corretor-b' }] });
     await useCase.execute(AGORA);
-    expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'corretor-b', expect.any(Date));
+    expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'corretor-b', expect.any(Date), 'corretor-a');
     expect(emitter.emit).not.toHaveBeenCalledWith(LEAD_ESCALADO_GESTAO_EVENT, expect.anything());
   });
 
