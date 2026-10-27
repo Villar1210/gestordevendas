@@ -19,6 +19,9 @@ import { GetMeUseCase } from '../../application/use-cases/get-me.use-case';
 import { UpdateMyProfileUseCase } from '../../application/use-cases/update-my-profile.use-case';
 import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
+import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
+import { SUPER_USUARIO_ROLE_NAME } from '../../../../shared/domain/constants/super-usuario';
 
 @Controller('auth')
 export class AuthController {
@@ -53,7 +56,15 @@ export class AuthController {
     return { message: 'Perfil atualizado com sucesso.' };
   }
 
+  // POST /auth/register - cria uma EMPRESA (tenant) nova + o Administrador
+  // dela. Era publica e sem tela: qualquer pessoa na internet podia criar
+  // empresas na plataforma. Fechada em 27/10/2026 (mapa de processos, fase
+  // A): so o Super Usuario cria empresas, ate o dono decidir como uma nova
+  // empresa entra (cadastro com aprovacao, plano, cobranca).
   @Post('register')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(SUPER_USUARIO_ROLE_NAME)
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
   async register(@Body() dto: RegisterDto) {
     const result = await this.registerTenantUseCase.execute(dto);
     return {

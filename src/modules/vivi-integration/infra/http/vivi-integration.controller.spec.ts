@@ -19,7 +19,6 @@ function montar(owner: { name: string; whatsapp: string | null; telefone: string
     prisma as any,
     chatwoot as any,
     config as any,
-    {} as any, // FollowUpService (nao usado em agendarVisita)
     {} as any, // MoverCardViviUseCase
     {} as any, // SimularCreditoUseCase
   );
