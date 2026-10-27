@@ -14,6 +14,25 @@ import {
   CARD_STAGE_CHANGED_EVENT,
   CardStageChangedEvent,
 } from '../../domain/events/card-stage-changed.event';
+import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
+import { INoteRepository } from '../../domain/repositories/note-repository.interface';
+import { chaveTelefone, trechoBuscaTelefone } from '../../domain/services/telefone';
+import { REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
+
+// Evento emitido quando um cliente que JA tem card aberto entra de novo
+// (site, WhatsApp, rede social, cadastro rapido). Escutado pelo modulo
+// notificacoes para avisar o corretor dono.
+export const LEAD_REENTRADA_EVENT = 'lead.reentrada';
+export interface LeadReentradaEvent {
+  tenantId: string;
+  cardId: string;
+  ownerId: string;
+  origem: string;
+}
+
+// Retorno: o card criado OU, quando o telefone ja tinha card aberto, o card
+// existente com reaproveitado=true (nenhum card novo foi criado).
+export type QuickCardResult = CardRecord & { reaproveitado?: boolean };
 
 interface CreateQuickCardInput {
   tenantId: string;
@@ -55,6 +74,11 @@ interface CreateQuickCardInput {
   // movidoParaRepiqueEm e derivado automaticamente (momento da criacao),
   // nao precisa ser passado pelo chamador.
   motivoRepique?: string;
+  // Fase B (27/10/2026): por padrao, um lead que chega para a Caixa de
+  // Entrada (sem stageId) com telefone que JA tem card aberto NAO cria card
+  // novo - entra no card existente (nota + aviso ao dono). false desliga
+  // (nenhum chamador usa hoje; existe para casos excepcionais/testes).
+  deduplicarPorTelefone?: boolean;
 }
 
 @Injectable()
@@ -63,9 +87,11 @@ export class CreateQuickCardUseCase {
     @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     private readonly eventEmitter: EventEmitter2,
+    @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
+    @Inject('INoteRepository') private readonly noteRepository: INoteRepository,
   ) {}
 
-  async execute(input: CreateQuickCardInput): Promise<CardRecord> {
+  async execute(input: CreateQuickCardInput): Promise<QuickCardResult> {
     const pipeline = await this.pipelineRepository.findByIdAndTenant(
       input.pipelineId,
       input.tenantId,
@@ -80,6 +106,20 @@ export class CreateQuickCardUseCase {
       !podeAcessarPipelineRemarketing(input.requesterRole ?? '', input.requesterCargo ?? null)
     ) {
       throw new ForbiddenException('Voce nao tem acesso a este funil.');
+    }
+
+    // Fase B: mesmo cliente nao vira 2 cards. So para entrada na Caixa de
+    // Entrada (sem stage explicita) e fora do funil de remarketing.
+    if (
+      input.deduplicarPorTelefone !== false &&
+      !input.stageId &&
+      input.phone &&
+      pipeline.name !== REMARKETING_PIPELINE_NOME
+    ) {
+      const existente = await this.encontrarCardAberto(input.tenantId, input.phone);
+      if (existente) {
+        return this.registrarReentrada(existente, input);
+      }
     }
 
     const card = await this.cardRepository.create({
@@ -143,5 +183,79 @@ export class CreateQuickCardUseCase {
     }
 
     return card;
+  }
+
+  private async encontrarCardAberto(tenantId: string, phone: string): Promise<CardRecord | null> {
+    const chave = chaveTelefone(phone);
+    if (!chave) return null;
+    const candidatos = await this.cardRepository.findAbertosPorTrechoTelefone(
+      tenantId,
+      trechoBuscaTelefone(phone),
+    );
+    // Ja vem do mais recente para o mais antigo.
+    return candidatos.find((c) => chaveTelefone(c.phone) === chave) ?? null;
+  }
+
+  // Cliente que ja tem card aberto entrou de novo: registra a entrada no card
+  // existente e:
+  // - card com corretor: avisa o dono (evento lead.reentrada); se estava no
+  //   Repique, volta para a 1a etapa do funil com o mesmo corretor
+  //   (Etapa 5 do mapa: "volta ao corretor dono");
+  // - card sem corretor no Repique: volta para a Caixa de Entrada e passa
+  //   pela Roleta;
+  // - card sem corretor na Caixa de Entrada: so a nota (ja esta na fila).
+  private async registrarReentrada(
+    existente: CardRecord,
+    input: CreateQuickCardInput,
+  ): Promise<QuickCardResult> {
+    const origem = input.origem ?? 'webhook';
+    const detalhe = input.description?.trim() ? `\n${input.description.trim().slice(0, 1000)}` : '';
+    await this.noteRepository.create({
+      tenantId: input.tenantId,
+      cardId: existente.id,
+      body: `Cliente entrou em contato de novo (origem: ${origem}).${detalhe}`,
+    });
+
+    const noRepique = existente.stageName === REPIQUE_STAGE_NAME;
+
+    if (existente.ownerId) {
+      if (noRepique) {
+        const stages = await this.stageRepository.findAllByPipeline(existente.pipelineId);
+        const primeira = [...stages].sort((a, b) => a.position - b.position)[0];
+        if (primeira && primeira.id !== existente.stageId) {
+          await this.cardRepository.updateStageAndPosition(existente.id, primeira.id, 0);
+          const evento: CardStageChangedEvent = {
+            tenantId: input.tenantId,
+            cardId: existente.id,
+            pipelineId: existente.pipelineId,
+            fromStageId: existente.stageId,
+            toStageId: primeira.id,
+            userId: null,
+            origem: 'promocao',
+            ocorridoEm: new Date(),
+          };
+          this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
+        }
+      }
+      const aviso: LeadReentradaEvent = {
+        tenantId: input.tenantId,
+        cardId: existente.id,
+        ownerId: existente.ownerId,
+        origem,
+      };
+      this.eventEmitter.emit(LEAD_REENTRADA_EVENT, aviso);
+    } else if (existente.stageId) {
+      // Sem dono e fora da Caixa de Entrada (ex.: Repique sem corretor):
+      // volta para a fila da Roleta.
+      await this.cardRepository.moverParaCaixaDeEntrada(existente.id);
+      await this.eventEmitter.emitAsync('card.sem_dono.criado', {
+        tenantId: input.tenantId,
+        cardId: existente.id,
+        pipelineId: existente.pipelineId,
+      });
+    }
+
+    const atualizado = await this.cardRepository.findByIdAndTenant(existente.id, input.tenantId);
+    return { ...(atualizado ?? existente), reaproveitado: true };
   }
 }

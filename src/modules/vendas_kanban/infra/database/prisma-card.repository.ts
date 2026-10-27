@@ -8,7 +8,7 @@ import {
   ICardRepository,
   CardRecord,
 } from '../../domain/repositories/card-repository.interface';
-import { PROTECTED_STAGE_NAMES, REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
+import { FECHAMENTO_STAGE_NAME, PROTECTED_STAGE_NAMES, REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
 import { REMARKETING_PIPELINE_NOME } from '../../domain/services/remarketing-pipeline';
 
 type PrismaCardRow = {
@@ -495,5 +495,34 @@ export class PrismaCardRepository implements ICardRepository {
       },
     });
     return this.toRecord(row);
+  }
+
+  async findAbertosPorTrechoTelefone(tenantId: string, trecho: string): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: {
+        tenantId,
+        phone: { contains: trecho },
+        pipeline: { name: { not: REMARKETING_PIPELINE_NOME } },
+        OR: [{ stageId: null }, { stage: { name: { not: FECHAMENTO_STAGE_NAME } } }],
+      },
+      include: { stage: { select: { name: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+    return rows.map((row) => ({ ...this.toRecord(row), stageName: row.stage?.name ?? null }));
+  }
+
+  async moverParaCaixaDeEntrada(id: string): Promise<void> {
+    await this.prisma.card.update({
+      where: { id },
+      data: {
+        stageId: null,
+        ownerId: null,
+        suggestedOwnerId: null,
+        atribuidoAutomaticamenteEm: null,
+        aceitoEm: null,
+        escalonamentoNotificadoEm: null,
+      },
+    });
   }
 }

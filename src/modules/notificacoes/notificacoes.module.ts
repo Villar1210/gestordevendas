@@ -7,6 +7,7 @@ import { CreateNotificationUseCase } from './application/use-cases/create-notifi
 import { CadastroPendenteCriadoListener } from './infra/listeners/cadastro-pendente-criado.listener';
 import { ContratoParceriaAssinadoNotificaListener } from './infra/listeners/contrato-parceria-assinado.listener';
 import { LeadAtribuidoListener } from './infra/listeners/lead-atribuido.listener';
+import { LeadReentradaListener } from './infra/listeners/lead-reentrada.listener';
 import { AtendimentoClassificadoListener } from './infra/listeners/atendimento-classificado.listener';
 import { CardSemDonoEscalonadoListener } from './infra/listeners/card-sem-dono-escalonado.listener';
 import { AtendimentoSemDonoEscalonadoListener } from './infra/listeners/atendimento-sem-dono-escalonado.listener';
@@ -49,6 +50,7 @@ import { AtendimentoModule } from '../atendimento/atendimento.module';
     CadastroPendenteCriadoListener,
     ContratoParceriaAssinadoNotificaListener,
     LeadAtribuidoListener,
+    LeadReentradaListener,
     AtendimentoClassificadoListener,
     CardSemDonoEscalonadoListener,
     AtendimentoSemDonoEscalonadoListener,

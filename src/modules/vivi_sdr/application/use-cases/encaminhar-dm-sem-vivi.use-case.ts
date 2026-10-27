@@ -13,7 +13,7 @@ import { Canal } from '../../../../shared/domain/enums/canal.enum';
 import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
-import { REMARKETING_PIPELINE_NOME } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
+import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 
 export interface EncaminharDmSemViviInput {
   tenantId: string;
@@ -59,7 +59,7 @@ export class EncaminharDmSemViviUseCase {
     }
 
     const pipelines = await this.pipelineRepository.findAllByTenant(input.tenantId);
-    const pipeline = pipelines.find((p) => p.name !== REMARKETING_PIPELINE_NOME);
+    const pipeline = funilDeVendasPadrao(pipelines);
     if (!pipeline) {
       this.logger.error(`DM sem VIVI: tenant ${input.tenantId} sem funil de vendas - card nao criado.`);
       return null;

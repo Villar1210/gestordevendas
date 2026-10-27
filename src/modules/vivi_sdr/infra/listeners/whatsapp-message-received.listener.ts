@@ -16,6 +16,9 @@ import { IWhatsAppSessionRepository } from '../../../whatsappmarketing/domain/re
 import { ProcessIncomingMessageUseCase } from '../../application/use-cases/process-incoming-message.use-case';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
 import { VIVI_INTERNA_ATIVA } from '../../constants/vivi-interna';
+import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
+import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
+import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 
 interface WhatsAppMessageReceivedEvent {
   tenantId: string;
@@ -38,6 +41,8 @@ export class WhatsAppMessageReceivedListener {
     private readonly sessionRepository: IWhatsAppSessionRepository,
     private readonly processIncomingMessageUseCase: ProcessIncomingMessageUseCase,
     private readonly getOrCreateAtendimentoUseCase: GetOrCreateAtendimentoUseCase,
+    private readonly createQuickCardUseCase: CreateQuickCardUseCase,
+    @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
   ) {}
 
   @OnEvent('whatsapp.message.received')
@@ -54,12 +59,18 @@ export class WhatsAppMessageReceivedListener {
       if (VIVI_INTERNA_ATIVA && session.isAiEnabled) {
         await this.processIncomingMessageUseCase.execute(event);
       } else {
-        await this.getOrCreateAtendimentoUseCase.execute({
+        const atendimento = await this.getOrCreateAtendimentoUseCase.execute({
           tenantId: event.tenantId,
           sessionId: event.sessionId,
           remoteJid: event.remoteJid,
           phoneNumber: event.phoneNumber,
         });
+        // Fase B (Q4, 27/10/2026): a 1a mensagem de cada conversa tambem
+        // entra no Kanban - card na Caixa de Entrada (Roleta) ou, se o
+        // cliente ja tem card aberto, nota + aviso ao corretor dono.
+        if (atendimento.criadoAgora) {
+          await this.registrarLeadNoKanban(event);
+        }
       }
     } catch (error) {
       // Nunca deixa uma falha na VIVI/Central de Atendimento derrubar o
@@ -70,5 +81,24 @@ export class WhatsAppMessageReceivedListener {
         }`,
       );
     }
+  }
+
+  private async registrarLeadNoKanban(event: WhatsAppMessageReceivedEvent): Promise<void> {
+    const pipelines = await this.pipelineRepository.findAllByTenant(event.tenantId);
+    const funil = funilDeVendasPadrao(pipelines);
+    if (!funil) {
+      this.logger.warn(`WhatsApp sem VIVI: tenant ${event.tenantId} sem funil de vendas - card nao criado.`);
+      return;
+    }
+    const trecho = (event.messageBody ?? '').trim().slice(0, 500);
+    await this.createQuickCardUseCase.execute({
+      tenantId: event.tenantId,
+      pipelineId: funil.id,
+      isSystemCall: true,
+      title: event.pushName?.trim() || 'Contato pelo WhatsApp',
+      origem: 'whatsapp',
+      phone: event.phoneNumber,
+      description: trecho ? `Primeira mensagem pelo WhatsApp: "${trecho}"` : undefined,
+    });
   }
 }

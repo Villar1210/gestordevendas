@@ -168,6 +168,7 @@ describe('card.stage.changed - CreateCardUseCase', () => {
       qualquer({ findByIdAndTenant: jest.fn().mockResolvedValue({ id: 's-1', pipelineId: 'p-1', tenantId: 't-1' }) }),
       qualquer({
         findAllByStage: jest.fn().mockResolvedValue([]),
+        findAbertosPorTrechoTelefone: jest.fn().mockResolvedValue([]),
         create: jest.fn().mockImplementation(async (d: object) => ({ id: 'card-novo', ...d })),
       }),
       comoEmitter(emitter),
@@ -193,8 +194,13 @@ describe('card.stage.changed - CreateQuickCardUseCase', () => {
     const emitter = novoEmitter();
     const useCase = new CreateQuickCardUseCase(
       qualquer({ findByIdAndTenant: jest.fn().mockResolvedValue({ id: 'p-1', name: 'Vendas' }) }),
-      qualquer({ create: jest.fn().mockImplementation(async (d: object) => ({ id: 'card-q', ...d })) }),
+      qualquer({
+        create: jest.fn().mockImplementation(async (d: object) => ({ id: 'card-q', ...d })),
+        findAbertosPorTrechoTelefone: jest.fn().mockResolvedValue([]),
+      }),
       comoEmitter(emitter),
+      qualquer({ findAllByPipeline: jest.fn().mockResolvedValue([]) }),
+      qualquer({ create: jest.fn() }),
     );
     return { useCase, emitter };
   }

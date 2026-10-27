@@ -23,3 +23,13 @@ export const REMARKETING_STAGE_NOME = 'Aguardando Reengajamento';
 export function podeAcessarPipelineRemarketing(role: string, cargo: string | null): boolean {
   return role === 'Administrador' || cargo === 'coordenador';
 }
+
+// Fase B (27/10/2026): o funil de VENDAS padrao do tenant = o mais antigo que
+// NAO e o funil de remarketing. Usado por quem cria card "do sistema" (VIVI,
+// WhatsApp sem VIVI, redes sociais) - antes alguns usavam pipelines[0] e,
+// se o remarketing fosse o mais antigo, o lead caia no funil errado.
+// `pipelines` deve vir ordenado do mais antigo para o mais novo
+// (IPipelineRepository.findAllByTenant ja ordena por createdAt).
+export function funilDeVendasPadrao<T extends { name: string }>(pipelines: T[]): T | undefined {
+  return pipelines.find((p) => p.name !== REMARKETING_PIPELINE_NOME);
+}

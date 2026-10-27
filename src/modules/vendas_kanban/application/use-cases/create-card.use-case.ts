@@ -1,5 +1,5 @@
 // src/modules/vendas_kanban/application/use-cases/create-card.use-case.ts
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
@@ -7,6 +7,7 @@ import {
   CARD_STAGE_CHANGED_EVENT,
   CardStageChangedEvent,
 } from '../../domain/events/card-stage-changed.event';
+import { chaveTelefone, trechoBuscaTelefone } from '../../domain/services/telefone';
 
 const POSITION_STEP = 1000;
 
@@ -50,6 +51,10 @@ export class CreateCardUseCase {
       );
     }
 
+    // Fase B (27/10/2026): "+ Novo Negocio" nao duplica cliente que ja tem
+    // negocio aberto (de qualquer corretor ou na Caixa de Entrada).
+    await this.garantirTelefoneSemNegocioAberto(input.tenantId, input.ownerId, input.phone);
+
     const existingCards = await this.cardRepository.findAllByStage(targetStage.id);
     const lastPosition = existingCards.length
       ? existingCards[existingCards.length - 1].position
@@ -84,5 +89,28 @@ export class CreateCardUseCase {
     this.eventEmitter.emit(CARD_STAGE_CHANGED_EVENT, evento);
 
     return card;
+  }
+
+  private async garantirTelefoneSemNegocioAberto(
+    tenantId: string,
+    ownerId: string,
+    phone: string | undefined,
+  ): Promise<void> {
+    const chave = chaveTelefone(phone);
+    if (!phone || !chave) return;
+    const candidatos = await this.cardRepository.findAbertosPorTrechoTelefone(
+      tenantId,
+      trechoBuscaTelefone(phone),
+    );
+    const aberto = candidatos.find((c) => chaveTelefone(c.phone) === chave);
+    if (!aberto) return;
+    if (aberto.ownerId === ownerId) {
+      throw new ConflictException('Este cliente já tem um negócio aberto na sua carteira.');
+    }
+    throw new ConflictException(
+      aberto.ownerId
+        ? 'Este cliente já está em atendimento com outro corretor.'
+        : 'Este cliente já está na Caixa de Entrada aguardando distribuição.',
+    );
   }
 }

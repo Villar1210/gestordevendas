@@ -28,7 +28,10 @@ export class GetOrCreateAtendimentoUseCase {
     private readonly eventoRepository: IAtendimentoEventoRepository,
   ) {}
 
-  async execute(input: GetOrCreateAtendimentoInput): Promise<AtendimentoRecord> {
+  // criadoAgora=true quando esta chamada abriu um atendimento NOVO (1a
+  // mensagem da conversa) - usado pelo WhatsApp sem VIVI para registrar a
+  // entrada do lead no Kanban uma vez por conversa (fase B, 27/10/2026).
+  async execute(input: GetOrCreateAtendimentoInput): Promise<AtendimentoRecord & { criadoAgora?: boolean }> {
     const existing = await this.atendimentoRepository.findActiveBySessionAndRemoteJid(
       input.sessionId,
       input.remoteJid,
@@ -75,7 +78,7 @@ export class GetOrCreateAtendimentoUseCase {
 
     await this.eventoRepository.create({ atendimentoId: atendimento.id, tipo: 'criado' });
 
-    return atendimento;
+    return { ...atendimento, criadoAgora: true };
   }
 
   // Evita depender de setup manual: a primeira vez que um tenant precisa de

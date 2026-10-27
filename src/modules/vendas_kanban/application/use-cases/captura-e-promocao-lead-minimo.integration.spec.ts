@@ -44,7 +44,13 @@ describe('Captura automatica de lead minimo + promocao para o funil de vendas (i
       pipelineRepository,
       stageRepository,
     );
-    const createQuickCardUseCase = new CreateQuickCardUseCase(pipelineRepository, cardRepository, eventEmitter);
+    const createQuickCardUseCase = new CreateQuickCardUseCase(
+      pipelineRepository,
+      cardRepository,
+      eventEmitter,
+      {} as never, // IStageRepository (funil de remarketing nao deduplica)
+      {} as never, // INoteRepository
+    );
     capturarLeadMinimoUseCase = new CapturarLeadMinimoUseCase(
       cardRepository,
       getOrCreateRemarketingPipelineUseCase,

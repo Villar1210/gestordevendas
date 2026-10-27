@@ -20,6 +20,8 @@ function setup(pipelineName: string) {
     pipelineRepository as unknown as IPipelineRepository,
     cardRepository as unknown as ICardRepository,
     eventEmitter as unknown as EventEmitter2,
+    { findAllByPipeline: jest.fn().mockResolvedValue([]) } as never,
+    { create: jest.fn() } as never,
   );
 
   pipelineRepository.findByIdAndTenant.mockResolvedValue({

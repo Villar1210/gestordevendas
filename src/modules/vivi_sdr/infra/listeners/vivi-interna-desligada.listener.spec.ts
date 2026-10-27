@@ -22,6 +22,8 @@ describe('VIVI interna desligada', () => {
       { findById: jest.fn().mockResolvedValue({ id: 's-1', isAiEnabled: true }) } as unknown as IWhatsAppSessionRepository,
       processar as unknown as ProcessIncomingMessageUseCase,
       atendimento as unknown as GetOrCreateAtendimentoUseCase,
+      { execute: jest.fn() } as never,
+      { findAllByTenant: jest.fn().mockResolvedValue([]) } as never,
     );
 
     await listener.handle({ tenantId: 't-1', sessionId: 's-1', phoneNumber: '5511', remoteJid: '5511@s.whatsapp.net', messageBody: 'oi' });

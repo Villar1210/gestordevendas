@@ -36,7 +36,13 @@ describe('CapturarLeadMinimoUseCase - corrida entre mensagens concorrentes (inte
       pipelineRepository,
       stageRepository,
     );
-    const createQuickCardUseCase = new CreateQuickCardUseCase(pipelineRepository, cardRepository, eventEmitter);
+    const createQuickCardUseCase = new CreateQuickCardUseCase(
+      pipelineRepository,
+      cardRepository,
+      eventEmitter,
+      {} as never, // IStageRepository (funil de remarketing nao deduplica)
+      {} as never, // INoteRepository
+    );
     capturarLeadMinimoUseCase = new CapturarLeadMinimoUseCase(
       cardRepository,
       getOrCreateRemarketingPipelineUseCase,

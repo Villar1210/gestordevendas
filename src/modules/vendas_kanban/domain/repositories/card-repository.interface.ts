@@ -248,4 +248,16 @@ export interface ICardRepository {
       empreendimentoId?: string | null;
     },
   ): Promise<CardRecord>;
+
+  // Fase B (27/10/2026) - "mesmo cliente nao vira 2 cards": cards ABERTOS do
+  // tenant cujo telefone casa com `chave` (ver domain/services/telefone.ts).
+  // Aberto = fora da etapa "Fechamento" (venda) e fora do funil de
+  // remarketing. Vem com stageName preenchido, mais recente primeiro.
+  // `trecho` pre-filtra no banco (contains); a comparacao final pela chave e
+  // feita pelo chamador.
+  findAbertosPorTrechoTelefone(tenantId: string, trecho: string): Promise<CardRecord[]>;
+  // Fase B: devolve o card para a Caixa de Entrada (sem etapa e sem dono,
+  // limpando sugestao/aceite/escalonamento da Roleta) - usado quando um lead
+  // sem corretor volta (Repique sem dono) ou sai do Atendimento VIVI.
+  moverParaCaixaDeEntrada(id: string): Promise<void>;
 }
