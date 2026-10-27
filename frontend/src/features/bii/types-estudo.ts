@@ -1,6 +1,7 @@
 // Tipos do Estudo de terreno (BII Fatia 5) - copia do contrato em
 // docs/bii/fatia5/CONTRATO_ESTUDO.md.
 import type { AnaliseEnderecoResponse } from "./types-endereco";
+import type { PremissasFinanceirasInput, ResultadoFinanceiro, SituacaoFinanceira } from "./types-financeiro";
 import type { Premissas, ViabilidadeResposta } from "./types-viabilidade";
 
 export type ClassePosicao = "abaixo" | "alinhado" | "acima";
@@ -27,6 +28,17 @@ export interface ResumoExecutivo {
   concorrentes: { quantidade: number; precoM2Mediano: number | null } | null;
   viabilidade: { tipologias: number; ok: number; atencao: number; fora: number; enquadramMcmv: number };
   tipologias: { precoM2Medio: number; posicaoMedia: Posicao | null };
+  // Fatia 7 (ausente em estudos antigos; null = sem viabilidade financeira)
+  financeiro?: {
+    vgvTotal: number;
+    lucro: number;
+    margemVgvPercentual: number;
+    margemAlvoPercentual: number;
+    valorMaximoTerreno: number | null;
+    valorCompraTerreno: number;
+    permutaPercentual: number;
+    situacao: SituacaoFinanceira;
+  } | null;
 }
 
 export interface Estudo {
@@ -37,6 +49,7 @@ export interface Estudo {
   versao: number;
   analise: AnaliseEnderecoResponse;
   viabilidade: ViabilidadeResposta;
+  financeiro?: ResultadoFinanceiro | null; // Fatia 7 (ausente em estudos antigos)
   resumoExecutivo: ResumoExecutivo;
   posicionamento: PosicionamentoTipologia[];
   alertas: AlertaEstudo[];
@@ -60,6 +73,7 @@ export interface CriarEstudoInput {
   analiseId: string;
   nome: string;
   conclusao: string | null;
-  tipologias: { descricao: string; areaPrivativa: number; preco: number }[];
+  tipologias: { descricao: string; areaPrivativa: number; preco: number; quantidade?: number }[];
   premissas: Partial<Premissas>;
+  financeiro?: PremissasFinanceirasInput;
 }

@@ -111,6 +111,35 @@ describe('CriarEstudoUseCase', () => {
     expect(repo.itens[0]).toMatchObject({ enderecoFormatado: SNAPSHOT.endereco.formatado, raioMetros: 1000, meses: 12, situacaoResumo: { ok: 1, atencao: 0, fora: 0 } });
   });
 
+  it('sem bloco financeiro: financeiro null no snapshot e no resumo', async () => {
+    const { criar } = montar();
+    const r = (await criar.execute(ENTRADA)) as Record<string, any>;
+    expect(r.financeiro).toBeNull();
+    expect(r.resumoExecutivo.financeiro).toBeNull();
+  });
+
+  it('Fatia 7: com financeiro e quantidades, grava o resultado final e os destaques do terreno', async () => {
+    const { criar } = montar();
+    const r = (await criar.execute({
+      ...ENTRADA,
+      tipologias: [{ descricao: '2 dorm.', areaPrivativa: 36, preco: 239_000, quantidade: 120 }],
+      financeiro: { obra: { custoM2: 2600 }, terreno: { valorCompra: 2_000_000 }, comercial: { impostoRegime: 'ret1' } },
+    })) as Record<string, any>;
+    expect(r.financeiro.vgv.total).toBe(120 * 239_000);
+    expect(r.financeiro.premissas.comercial).toMatchObject({ impostoRegime: 'ret1', impostoPercentual: 1 });
+    expect(r.resumoExecutivo.financeiro).toMatchObject({ vgvTotal: 120 * 239_000, valorCompraTerreno: 2_000_000, margemAlvoPercentual: 15 });
+    expect(r.destaques.join(' ')).toMatch(/Financeiro: VGV de R\$ 28\.680\.000/);
+    expect(r.destaques.join(' ')).toMatch(/Terreno:/);
+  });
+
+  it('Fatia 7: financeiro sem quantidade em alguma tipologia -> 400 claro', async () => {
+    const { criar, repo } = montar();
+    await expect(criar.execute({ ...ENTRADA, financeiro: { obra: { custoM2: 2600 } } })).rejects.toThrow(
+      'Para incluir a viabilidade financeira, informe a quantidade de unidades de todas as tipologias.',
+    );
+    expect(repo.itens).toHaveLength(0);
+  });
+
   it('analise de OUTRO tenant -> 404 igual a inexistente', async () => {
     const { criar } = montar();
     await expect(criar.execute({ ...ENTRADA, tenantId: 'tenant-b' })).rejects.toThrow(NotFoundException);

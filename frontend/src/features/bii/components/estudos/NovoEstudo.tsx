@@ -1,6 +1,7 @@
 // Assistente "Novo estudo" (BII Fatia 5) em 3 passos: (1) analise de mercado
 // salva ou nova, (2) tipologias + premissas, (3) nome + conclusao -> salvar.
 // O servidor monta o relatorio a partir da analise (nao geocodifica de novo).
+// Fatia 7: no passo 2, "Incluir viabilidade financeira" (quantidades + premissas).
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,6 +14,10 @@ import { carregarAnalise, ehCotaDiaria, listarAnalises, mensagemErroAnalise } fr
 import { criarEstudo, mensagemErroEstudo } from "../../hooks/useBiiEstudosIntegration";
 import type { AnaliseEnderecoInput, AnaliseEnderecoResponse, AnaliseResumoItem } from "../../types-endereco";
 import { lerNumeroBr } from "../concorrentes/ConcorrenteForm";
+import { carregarParametrosFinanceiros } from "../../hooks/useBiiFinanceiroIntegration";
+import type { ReferenciaCub } from "../../types-financeiro";
+import { estadoFinanceiroInicial, lerEstadoFinanceiro, PremissasFinanceirasCampos } from "../financeiro/PremissasFinanceirasCampos";
+import { lerQuantidade } from "../viabilidade/ViabilidadePage";
 import { AnaliseEnderecoForm } from "../endereco/AnaliseEnderecoForm";
 
 const INPUT =
@@ -30,9 +35,10 @@ interface Linha {
   descricao: string;
   area: string;
   preco: string;
+  qtd: string;
 }
 let seq = 1;
-const nova = (d = "", a = "", p = ""): Linha => ({ chave: seq++, descricao: d, area: a, preco: p });
+const nova = (d = "", a = "", p = ""): Linha => ({ chave: seq++, descricao: d, area: a, preco: p, qtd: "" });
 const br = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
 function nomePadrao(endereco: string): string {
@@ -62,11 +68,20 @@ export function NovoEstudo({ analiseInicial, onCancelar }: { analiseInicial?: st
   const [jurosFixo, setJurosFixo] = useState(false);
   const [juros, setJuros] = useState("");
   const [escolhendo, setEscolhendo] = useState(false);
+  const [incluirFinanceiro, setIncluirFinanceiro] = useState(false);
+  const [financeiro, setFinanceiro] = useState(estadoFinanceiroInicial);
+  const [cub, setCub] = useState<ReferenciaCub | null>(null);
 
   // passo 3
   const [nome, setNome] = useState("");
   const [conclusao, setConclusao] = useState("");
   const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    carregarParametrosFinanceiros()
+      .then((p) => setCub(p.cub))
+      .catch(() => setCub(null));
+  }, []);
 
   useEffect(() => {
     listarAnalises()
@@ -137,17 +152,28 @@ export function NovoEstudo({ analiseInicial, onCancelar }: { analiseInicial?: st
     setEscolhendo(false);
   }
 
-  const setLinha = (chave: number, campo: "descricao" | "area" | "preco", v: string) =>
+  const setLinha = (chave: number, campo: "descricao" | "area" | "preco" | "qtd", v: string) =>
     setLinhas((ls) => ls.map((l) => (l.chave === chave ? { ...l, [campo]: v } : l)));
 
   function lerTipologias() {
-    const tipologias: { descricao: string; areaPrivativa: number; preco: number }[] = [];
+    const tipologias: { descricao: string; areaPrivativa: number; preco: number; quantidade?: number }[] = [];
     for (const [i, l] of linhas.entries()) {
       const area = lerNumeroBr(l.area);
       const preco = lerNumeroBr(l.preco);
       if (typeof area !== "number" || area < 10 || area > 1000) return `Tipologia nº ${i + 1}: informe a área privativa entre 10 e 1.000 m².`;
       if (typeof preco !== "number" || preco < 10_000 || preco > 100_000_000) return `Tipologia nº ${i + 1}: informe o preço em reais (ex.: 269.000).`;
-      tipologias.push({ descricao: l.descricao.trim() || `Tipologia ${i + 1}`, areaPrivativa: area, preco });
+      const t: (typeof tipologias)[number] = { descricao: l.descricao.trim() || `Tipologia ${i + 1}`, areaPrivativa: area, preco };
+      if (incluirFinanceiro) {
+        const q = lerQuantidade(l.qtd);
+        if (q === null) return `Tipologia nº ${i + 1}: informe a quantidade de unidades (1 a 5.000) para a viabilidade financeira.`;
+        t.quantidade = q;
+      }
+      tipologias.push(t);
+    }
+    let fin: ReturnType<typeof lerEstadoFinanceiro> | null = null;
+    if (incluirFinanceiro) {
+      fin = lerEstadoFinanceiro(financeiro);
+      if ("erro" in fin) return fin.erro;
     }
     const ent = lerNumeroBr(entrada);
     const com = lerNumeroBr(comprometimento);
@@ -158,6 +184,7 @@ export function NovoEstudo({ analiseInicial, onCancelar }: { analiseInicial?: st
     return {
       tipologias,
       premissas: { entradaPercentual: ent, prazoMeses: Number(prazo), comprometimentoPercentual: com, jurosAnual: jurosFixo ? (jur as number) : null },
+      ...(fin && "premissas" in fin ? { financeiro: fin.premissas } : {}),
     };
   }
 
@@ -308,7 +335,7 @@ export function NovoEstudo({ analiseInicial, onCancelar }: { analiseInicial?: st
 
           <ul className="mt-3 space-y-2">
             {linhas.map((l, i) => (
-              <li key={l.chave} className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_10rem_auto] sm:items-end">
+              <li key={l.chave} className={`grid grid-cols-2 gap-2 sm:items-end ${incluirFinanceiro ? "sm:grid-cols-[minmax(0,1fr)_7rem_9rem_6rem_auto]" : "sm:grid-cols-[minmax(0,1fr)_8rem_10rem_auto]"}`}>
                 <div className="col-span-2 sm:col-span-1">
                   <label className={LABEL} htmlFor={`e-desc-${l.chave}`}>
                     Tipologia
@@ -327,11 +354,19 @@ export function NovoEstudo({ analiseInicial, onCancelar }: { analiseInicial?: st
                   </label>
                   <input id={`e-preco-${l.chave}`} className={`mt-1 ${INPUT}`} inputMode="decimal" value={l.preco} placeholder="269.000" onChange={(e) => setLinha(l.chave, "preco", e.target.value)} />
                 </div>
+                {incluirFinanceiro && (
+                  <div>
+                    <label className={LABEL} htmlFor={`e-qtd-${l.chave}`}>
+                      Unidades
+                    </label>
+                    <input id={`e-qtd-${l.chave}`} className={`mt-1 ${INPUT}`} inputMode="numeric" value={l.qtd} placeholder="80" onChange={(e) => setLinha(l.chave, "qtd", e.target.value)} />
+                  </div>
+                )}
                 <button
                   type="button"
                   disabled={linhas.length === 1}
                   onClick={() => setLinhas((ls) => ls.filter((x) => x.chave !== l.chave))}
-                  className="col-span-2 justify-self-end rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 sm:col-span-1"
+                  className={`justify-self-end self-end rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 ${incluirFinanceiro ? "" : "col-span-2 sm:col-span-1"}`}
                   aria-label={`Remover tipologia ${i + 1}`}
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -388,6 +423,19 @@ export function NovoEstudo({ analiseInicial, onCancelar }: { analiseInicial?: st
                 )}
               </div>
             </div>
+          </fieldset>
+
+          <fieldset className="mt-5 rounded-xl border border-slate-200 p-3 sm:p-4">
+            <legend className="px-1 text-sm font-semibold text-slate-700">Viabilidade financeira</legend>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="h-4 w-4 accent-blue-700" checked={incluirFinanceiro} onChange={(e) => setIncluirFinanceiro(e.target.checked)} />
+              Incluir viabilidade financeira (VGV, custos, lucro e valor máximo do terreno)
+            </label>
+            {incluirFinanceiro && (
+              <div className="mt-3">
+                <PremissasFinanceirasCampos estado={financeiro} onChange={setFinanceiro} cub={cub} prefixo="ef" />
+              </div>
+            )}
           </fieldset>
         </div>
       )}

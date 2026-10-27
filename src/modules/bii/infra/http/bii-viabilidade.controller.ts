@@ -2,6 +2,8 @@
 // Fatia 4 - Viabilidade HIS/HMP/MCMV. So Administrador (classe), reforcado
 // nos use cases. So calculo (sem banco, sem servico externo): liberado na
 // impersonacao do Super Usuario. Contrato: docs/bii/fatia4/CONTRATO_VIABILIDADE.md
+// Fatia 7: /bii/viabilidade-financeira (resultado final do empreendimento),
+// mesmas regras. Contrato: docs/bii/fatia7/CONTRATO_VIABILIDADE_FINANCEIRA.md
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
@@ -9,7 +11,11 @@ import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guar
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
 import { CalcularViabilidadeUseCase, GetParametrosViabilidadeUseCase } from '../../application/use-cases/viabilidade.use-cases';
-import { CalcularViabilidadeDto } from './dtos/viabilidade.dto';
+import {
+  CalcularViabilidadeFinanceiraUseCase,
+  GetParametrosFinanceirosUseCase,
+} from '../../application/use-cases/viabilidade-financeira.use-cases';
+import { CalcularViabilidadeDto, CalcularViabilidadeFinanceiraDto, premissasFinanceirasDoDto } from './dtos/viabilidade.dto';
 
 @Controller('bii')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -18,6 +24,8 @@ export class BiiViabilidadeController {
   constructor(
     private readonly parametrosUseCase: GetParametrosViabilidadeUseCase,
     private readonly calcularUseCase: CalcularViabilidadeUseCase,
+    private readonly parametrosFinanceirosUseCase: GetParametrosFinanceirosUseCase,
+    private readonly calcularFinanceiroUseCase: CalcularViabilidadeFinanceiraUseCase,
   ) {}
 
   @Get('viabilidade/parametros')
@@ -40,6 +48,22 @@ export class BiiViabilidadeController {
             jurosAnual: dto.premissas.jurosAnual ?? null,
           }
         : undefined,
+    });
+  }
+
+  @Get('viabilidade-financeira/parametros')
+  parametrosFinanceiros(@Req() req: Request) {
+    return this.parametrosFinanceirosUseCase.execute({ requesterRole: req.user!.role });
+  }
+
+  @Post('viabilidade-financeira')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  calcularFinanceiro(@Body() dto: CalcularViabilidadeFinanceiraDto, @Req() req: Request) {
+    return this.calcularFinanceiroUseCase.execute({
+      requesterRole: req.user!.role,
+      tipologias: dto.tipologias.map((t) => ({ descricao: t.descricao, areaPrivativa: t.areaPrivativa, preco: t.preco, quantidade: t.quantidade })),
+      premissas: premissasFinanceirasDoDto(dto.premissas),
     });
   }
 }

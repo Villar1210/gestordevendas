@@ -15,6 +15,7 @@ import { KpiCard } from "../KpiCard";
 import { SourceBadge } from "../SourceBadge";
 import { ConcorrentesNoRaio } from "../concorrentes/ConcorrentesNoRaio";
 import { ParametrosCard, Pill, Resultado } from "../viabilidade/ViabilidadePage";
+import { ResultadoFinanceiroCard, SITUACAO_FINANCEIRA } from "../financeiro/ResultadoFinanceiroCard";
 
 function Carregando({ texto }: { texto: string }) {
   return (
@@ -135,6 +136,24 @@ export function RelatorioEstudo({ estudo }: { estudo: Estudo }) {
             sub={re.tipologias.posicaoMedia ? `${FRASE_POSICAO[re.tipologias.posicaoMedia.classe]} (${formatDiferenca(re.tipologias.posicaoMedia)})` : "sem concorrentes para comparar"}
           />
         </div>
+        {re.financeiro && (
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <KpiCard label="VGV" fonte={null} valor={formatMoeda(re.financeiro.vgvTotal)} sub={re.financeiro.permutaPercentual > 0 ? `${re.financeiro.permutaPercentual.toLocaleString("pt-BR")}% em permuta` : "sem permuta"} />
+            <KpiCard
+              label={re.financeiro.permutaPercentual > 0 ? "Margem sobre o VGV vendável" : "Margem sobre o VGV"}
+              fonte={null}
+              valor={`${re.financeiro.margemVgvPercentual.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+              sub={`${SITUACAO_FINANCEIRA[re.financeiro.situacao].label} · desejada ${re.financeiro.margemAlvoPercentual.toLocaleString("pt-BR")}%`}
+            />
+            <KpiCard label={re.financeiro.lucro >= 0 ? "Lucro estimado" : "Prejuízo estimado"} fonte={null} valor={formatMoeda(Math.abs(re.financeiro.lucro))} />
+            <KpiCard
+              label="Terreno máximo (dinheiro)"
+              fonte={null}
+              valor={re.financeiro.valorMaximoTerreno === null ? "Não fecha" : formatMoeda(re.financeiro.valorMaximoTerreno)}
+              sub={re.financeiro.valorCompraTerreno > 0 ? `pedido: ${formatMoeda(re.financeiro.valorCompraTerreno)}` : "sem valor de compra informado"}
+            />
+          </div>
+        )}
         {estudo.destaques.length > 0 && (
           <ul className="space-y-1.5 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
             {estudo.destaques.map((d, i) => (
@@ -210,6 +229,17 @@ export function RelatorioEstudo({ estudo }: { estudo: Estudo }) {
         </div>
       </ChartCard>
 
+      {/* Viabilidade financeira (Fatia 7; estudos antigos nao tem) */}
+      {estudo.financeiro ? (
+        <div className={SECAO}>
+          <ResultadoFinanceiroCard r={estudo.financeiro} titulo="Viabilidade financeira" />
+        </div>
+      ) : (
+        <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 print:hidden">
+          Este estudo foi salvo sem viabilidade financeira. Para incluir, crie um estudo novo e marque “Incluir viabilidade financeira”.
+        </p>
+      )}
+
       {/* Viabilidade */}
       <div className={SECAO}>
         <Resultado r={viabilidade} />
@@ -256,6 +286,7 @@ export function RelatorioEstudo({ estudo }: { estudo: Estudo }) {
           </li>
           <li>Concorrentes: cadastrados pela própria empresa (preço anunciado “a partir de”, área privativa).</li>
           <li>{viabilidade.observacao}</li>
+          {estudo.financeiro && <li>{estudo.financeiro.observacao} Custo de obra digitado; CUB-SP só como referência.</li>}
           <li>Mapa: © OpenStreetMap contributors.</li>
         </ul>
       </section>

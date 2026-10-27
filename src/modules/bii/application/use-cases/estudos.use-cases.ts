@@ -13,6 +13,7 @@ import { AnaliseParaEstudo, contarSituacoes, LIMITE_ESTUDOS_POR_TENANT, montarEs
 import type { Premissas, TipologiaViabilidade } from '../../domain/services/viabilidade';
 import { bloquearImpersonacao, exigirAdministrador } from './permissoes-bii';
 import { calcularViabilidade } from './viabilidade.use-cases';
+import { calcularViabilidadeFinanceira, PremissasFinanceirasEntrada } from './viabilidade-financeira.use-cases';
 
 export const LIMITE_LISTA_ESTUDOS = 100;
 export const VERSAO_ESTUDO = 1;
@@ -33,10 +34,14 @@ export interface CriarEstudoInput extends Requisitante {
   analiseId: string;
   nome: string;
   conclusao?: string | null;
-  tipologias: TipologiaViabilidade[];
+  tipologias: Array<TipologiaViabilidade & { quantidade?: number }>;
   premissas?: Partial<Premissas>;
+  financeiro?: PremissasFinanceirasEntrada;
   agora?: Date;
 }
+
+export const MENSAGEM_QUANTIDADE_FINANCEIRO =
+  'Para incluir a viabilidade financeira, informe a quantidade de unidades de todas as tipologias.';
 
 export interface EstudoListaItem {
   id: string;
@@ -157,13 +162,23 @@ export class CriarEstudoUseCase {
 
     const agora = input.agora ?? new Date();
     const viabilidade = calcularViabilidade(input.tipologias, input.premissas, agora);
-    const montagem = montarEstudo({ analise: snapshot, analiseCriadaEm: analise.createdAt, viabilidade: viabilidade.resultados, agora });
+    let financeiro = null;
+    if (input.financeiro) {
+      if (input.tipologias.some((t) => typeof t.quantidade !== 'number')) throw new BadRequestException(MENSAGEM_QUANTIDADE_FINANCEIRO);
+      financeiro = calcularViabilidadeFinanceira(
+        input.tipologias.map((t) => ({ descricao: t.descricao, areaPrivativa: t.areaPrivativa, preco: t.preco, quantidade: t.quantidade as number })),
+        input.financeiro,
+        agora,
+      );
+    }
+    const montagem = montarEstudo({ analise: snapshot, analiseCriadaEm: analise.createdAt, viabilidade: viabilidade.resultados, financeiro, agora });
     const situacaoResumo = contarSituacoes(viabilidade.resultados);
 
     const resultado = {
       versao: VERSAO_ESTUDO,
       analise: { id: analise.id, ...analise.resultado, criadoEm: analise.createdAt.toISOString() },
       viabilidade,
+      financeiro, // Fatia 7 (null = estudo sem viabilidade financeira)
       ...montagem,
     };
 
@@ -182,7 +197,7 @@ export class CriarEstudoUseCase {
       resultado,
     });
     this.logger.log(
-      `BII estudo criado ${salvo.id} tenant=${input.tenantId} user=${input.requesterUserId} analise=${analise.id} tipologias=${input.tipologias.length}`,
+      `BII estudo criado ${salvo.id} tenant=${input.tenantId} user=${input.requesterUserId} analise=${analise.id} tipologias=${input.tipologias.length} financeiro=${financeiro ? 'sim' : 'nao'}`,
     );
     return montarRespostaEstudo(salvo);
   }

@@ -1,6 +1,8 @@
 // Aba "Viabilidade" do BII (Fatia 4): para cada tipologia, categoria municipal
 // (HIS-1, HIS-2, HMP), faixa do MCMV, renda necessaria estimada e avisos.
 // O calculo e todo no backend (POST /bii/viabilidade); a tela so coleta e mostra.
+// Fatia 7: "Resultado financeiro" (POST /bii/viabilidade-financeira) com as
+// quantidades de cada tipologia, terreno (compra/permuta), obra e comercial.
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,6 +11,10 @@ import { formatDateOnlyBr, formatMoeda, formatPct } from "../../constants";
 import { formatPrecoM2 } from "../../constants-endereco";
 import { listarConcorrentes } from "../../hooks/useBiiConcorrentesIntegration";
 import { calcularViabilidade, carregarParametros, mensagemErroViabilidade } from "../../hooks/useBiiViabilidadeIntegration";
+import { calcularFinanceiro, carregarParametrosFinanceiros } from "../../hooks/useBiiFinanceiroIntegration";
+import type { ReferenciaCub, ResultadoFinanceiro } from "../../types-financeiro";
+import { estadoFinanceiroInicial, lerEstadoFinanceiro, PremissasFinanceirasCampos } from "../financeiro/PremissasFinanceirasCampos";
+import { ResultadoFinanceiroCard } from "../financeiro/ResultadoFinanceiroCard";
 import type { Concorrente } from "../../types-concorrentes";
 import type { ParametrosVigentes, ResultadoTipologia, Situacao, ViabilidadeResposta } from "../../types-viabilidade";
 import { lerNumeroBr } from "../concorrentes/ConcorrenteForm";
@@ -39,10 +45,21 @@ interface Linha {
   descricao: string;
   area: string;
   preco: string;
+  qtd: string;
 }
 
 let seq = 1;
-const nova = (d = "", a = "", p = ""): Linha => ({ chave: seq++, descricao: d, area: a, preco: p });
+const nova = (d = "", a = "", p = "", q = ""): Linha => ({ chave: seq++, descricao: d, area: a, preco: p, qtd: q });
+
+// quantidade de unidades: inteiro de 1 a 5.000 (null = invalido)
+export function lerQuantidade(texto: string): number | null {
+  const bruto = texto.trim();
+  // ponto so como separador de milhar ("1.200"); "1.5" e invalido
+  if (!/^\d{1,3}(\.\d{3})*$|^\d+$/.test(bruto)) return null;
+  const t = bruto.replace(/\./g, "");
+  const n = Number(t);
+  return n >= 1 && n <= 5000 ? n : null;
+}
 const br = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
 export function Pill({ classe, children }: { classe: string; children: React.ReactNode }) {
@@ -62,9 +79,16 @@ export function ViabilidadePage() {
   const [parametros, setParametros] = useState<ParametrosVigentes | null>(null);
   const [concorrentes, setConcorrentes] = useState<Concorrente[] | null>(null);
   const [escolhendo, setEscolhendo] = useState(false);
+  const [incluirFinanceiro, setIncluirFinanceiro] = useState(true);
+  const [financeiro, setFinanceiro] = useState(estadoFinanceiroInicial);
+  const [cub, setCub] = useState<ReferenciaCub | null>(null);
+  const [resultadoFin, setResultadoFin] = useState<ResultadoFinanceiro | null>(null);
 
   useEffect(() => {
     carregarParametros().then(setParametros).catch(() => setParametros(null));
+    carregarParametrosFinanceiros()
+      .then((p) => setCub(p.cub))
+      .catch(() => setCub(null));
   }, []);
 
   async function abrirConcorrentes() {
@@ -82,9 +106,10 @@ export function ViabilidadePage() {
     setLinhas(c.tipologias.slice(0, MAX_TIPOLOGIAS).map((t) => nova(t.descricao, br(t.areaPrivativa), br(t.precoDe))));
     setEscolhendo(false);
     setResultado(null);
+    setResultadoFin(null);
   }
 
-  const setLinha = (chave: number, campo: "descricao" | "area" | "preco", v: string) =>
+  const setLinha = (chave: number, campo: "descricao" | "area" | "preco" | "qtd", v: string) =>
     setLinhas((ls) => ls.map((l) => (l.chave === chave ? { ...l, [campo]: v } : l)));
 
   async function calcular(e: React.FormEvent) {
@@ -98,6 +123,27 @@ export function ViabilidadePage() {
       if (typeof preco !== "number" || preco < 10_000 || preco > 100_000_000) return setErro(`Tipologia nº ${i + 1}: informe o preço em reais (ex.: 269.000).`);
       tipologias.push({ descricao: l.descricao.trim() || `Tipologia ${i + 1}`, areaPrivativa: area, preco });
     }
+    // o financeiro e independente: um erro nele nao impede o enquadramento
+    const quantidades: number[] = [];
+    let fin: ReturnType<typeof lerEstadoFinanceiro> | null = null;
+    let erroFin: string | null = null;
+    if (incluirFinanceiro) {
+      for (const [i, l] of linhas.entries()) {
+        const q = lerQuantidade(l.qtd);
+        if (q === null) {
+          erroFin = `Tipologia nº ${i + 1}: informe a quantidade de unidades (1 a 5.000) para o resultado financeiro.`;
+          break;
+        }
+        quantidades.push(q);
+      }
+      if (!erroFin) {
+        fin = lerEstadoFinanceiro(financeiro);
+        if ("erro" in fin) {
+          erroFin = fin.erro;
+          fin = null;
+        }
+      }
+    }
     const ent = lerNumeroBr(entrada);
     const pra = Number(prazo);
     const com = lerNumeroBr(comprometimento);
@@ -107,14 +153,31 @@ export function ViabilidadePage() {
     if (jurosFixo && (typeof jur !== "number" || jur > 30)) return setErro("Juros: informe a taxa ao ano, de 0 a 30%.");
     setCalculando(true);
     try {
-      setResultado(
-        await calcularViabilidade({
+      const [viab, resFin] = await Promise.allSettled([
+        calcularViabilidade({
           tipologias,
           premissas: { entradaPercentual: ent, prazoMeses: pra, comprometimentoPercentual: com, jurosAnual: jurosFixo ? (jur as number) : null },
         }),
-      );
-    } catch (err) {
-      setErro(mensagemErroViabilidade(err));
+        fin && "premissas" in fin
+          ? calcularFinanceiro({ tipologias: tipologias.map((t, i) => ({ ...t, quantidade: quantidades[i] })), premissas: fin.premissas })
+          : Promise.resolve(null),
+      ]);
+      const erros: string[] = [];
+      if (viab.status === "fulfilled") setResultado(viab.value);
+      else {
+        setResultado(null);
+        erros.push(mensagemErroViabilidade(viab.reason));
+      }
+      if (resFin.status === "fulfilled") setResultadoFin(resFin.value);
+      else {
+        setResultadoFin(null);
+        erros.push(`Resultado financeiro: ${mensagemErroViabilidade(resFin.reason)}`);
+      }
+      if (erroFin) {
+        setResultadoFin(null);
+        erros.push(`Resultado financeiro: ${erroFin}`);
+      }
+      if (erros.length) setErro(erros.join(" "));
     } finally {
       setCalculando(false);
     }
@@ -169,7 +232,7 @@ export function ViabilidadePage() {
 
         <ul className="mt-4 space-y-2">
           {linhas.map((l, i) => (
-            <li key={l.chave} className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_10rem_auto] sm:items-end">
+            <li key={l.chave} className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_9rem_6rem_auto] sm:items-end">
               <div className="col-span-2 sm:col-span-1">
                 <label className={LABEL} htmlFor={`v-desc-${l.chave}`}>
                   Tipologia
@@ -188,11 +251,17 @@ export function ViabilidadePage() {
                 </label>
                 <input id={`v-preco-${l.chave}`} className={`mt-1 ${INPUT}`} inputMode="decimal" value={l.preco} placeholder="269.000" onChange={(e) => setLinha(l.chave, "preco", e.target.value)} />
               </div>
+              <div>
+                <label className={LABEL} htmlFor={`v-qtd-${l.chave}`}>
+                  Unidades
+                </label>
+                <input id={`v-qtd-${l.chave}`} className={`mt-1 ${INPUT}`} inputMode="numeric" value={l.qtd} placeholder="80" onChange={(e) => setLinha(l.chave, "qtd", e.target.value)} />
+              </div>
               <button
                 type="button"
                 disabled={linhas.length === 1}
                 onClick={() => setLinhas((ls) => ls.filter((x) => x.chave !== l.chave))}
-                className="col-span-2 justify-self-end rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 sm:col-span-1"
+                className="justify-self-end self-end rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                 aria-label={`Remover tipologia ${i + 1}`}
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -251,6 +320,19 @@ export function ViabilidadePage() {
           </div>
         </fieldset>
 
+        <fieldset className="mt-5 rounded-xl border border-slate-200 p-3 sm:p-4">
+          <legend className="px-1 text-sm font-semibold text-slate-700">Resultado financeiro do empreendimento</legend>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" className="h-4 w-4 accent-blue-700" checked={incluirFinanceiro} onChange={(e) => setIncluirFinanceiro(e.target.checked)} />
+            Calcular VGV, custos, lucro e o valor máximo do terreno
+          </label>
+          {incluirFinanceiro && (
+            <div className="mt-3">
+              <PremissasFinanceirasCampos estado={financeiro} onChange={setFinanceiro} cub={cub} prefixo="vf" />
+            </div>
+          )}
+        </fieldset>
+
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="submit"
@@ -267,6 +349,8 @@ export function ViabilidadePage() {
           )}
         </div>
       </form>
+
+      {resultadoFin && <ResultadoFinanceiroCard r={resultadoFin} />}
 
       {resultado ? <Resultado r={resultado} /> : (
         <section className="rounded-2xl border border-slate-200 bg-white">

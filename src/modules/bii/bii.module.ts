@@ -7,6 +7,7 @@
 // Fatia 3: Concorrentes (cadastro manual, /bii/concorrentes, tenant) - entram
 // tambem na Analise por Endereco.
 // Fatia 4: Viabilidade HIS/HMP/MCMV (/bii/viabilidade, so calculo).
+// Fatia 7: Viabilidade financeira (/bii/viabilidade-financeira, so calculo).
 // Fatia 5: Estudo de terreno (/bii/estudos, tenant) - snapshot de analise +
 // viabilidade + posicionamento.
 // Nao importa nenhum outro modulo de negocio. EventEmitterModule ja e global.
@@ -28,6 +29,10 @@ import {
 import { PrismaEstudoRepository } from './infra/database/prisma-estudo.repository';
 import { ESTUDO_REPOSITORY } from './domain/repositories/estudo-repository.interface';
 import { CalcularViabilidadeUseCase, GetParametrosViabilidadeUseCase } from './application/use-cases/viabilidade.use-cases';
+import {
+  CalcularViabilidadeFinanceiraUseCase,
+  GetParametrosFinanceirosUseCase,
+} from './application/use-cases/viabilidade-financeira.use-cases';
 import {
   ConcorrenteGeocodificador,
   CreateConcorrenteUseCase,
@@ -124,6 +129,8 @@ import { BII_ANALISE_REPOSITORY } from './domain/repositories/bii-analise-reposi
     // Fatia 4
     GetParametrosViabilidadeUseCase,
     CalcularViabilidadeUseCase,
+    GetParametrosFinanceirosUseCase,
+    CalcularViabilidadeFinanceiraUseCase,
     // Fatia 5
     ListEstudosUseCase,
     GetEstudoUseCase,
