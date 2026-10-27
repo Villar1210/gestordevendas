@@ -1,5 +1,13 @@
 // src/modules/vendas_kanban/vendas-kanban.module.ts
 import { AcessoCardService } from './application/services/acesso-card.service';
+import { CardAbertoPorTelefoneService } from './application/services/card-aberto-por-telefone.service';
+import { RegistrarAtendimentoViviUseCase } from './application/use-cases/registrar-atendimento-vivi.use-case';
+import {
+  ListAtendimentoViviUseCase,
+  EncaminharAtendimentoViviParaRoletaUseCase,
+  MoverAtendimentoViviParadoParaRepiqueUseCase,
+} from './application/use-cases/atendimento-vivi-gestao.use-cases';
+import { AtendimentoViviParadoScheduler } from './infra/scheduler/atendimento-vivi-parado.scheduler';
 import { Module } from '@nestjs/common';
 import { PipelineController } from './infra/http/pipeline.controller';
 import { CardController } from './infra/http/card.controller';
@@ -65,6 +73,12 @@ import { CanaisModule } from '../../shared/canais.module';
   providers: [
     PrismaService,
     AcessoCardService,
+    CardAbertoPorTelefoneService,
+    RegistrarAtendimentoViviUseCase,
+    ListAtendimentoViviUseCase,
+    EncaminharAtendimentoViviParaRoletaUseCase,
+    MoverAtendimentoViviParadoParaRepiqueUseCase,
+    AtendimentoViviParadoScheduler,
     CreatePipelineUseCase,
     CreateDefaultPipelineUseCase,
     ListPipelinesUseCase,
@@ -115,6 +129,10 @@ import { CanaisModule } from '../../shared/canais.module';
   // de "assumir o lead") e os repositorios de Card/Stage.
   exports: [
     CreateQuickCardUseCase,
+    // Fase B: rota /vivi/lead-em-atendimento (modulo vivi-integration) e
+    // AgendarVisitaUseCase (vivi_sdr) tirando o card da coluna Atendimento VIVI.
+    RegistrarAtendimentoViviUseCase,
+    EncaminharAtendimentoViviParaRoletaUseCase,
     MoveCardUseCase,
     CreateNoteUseCase,
     ClaimCardUseCase,

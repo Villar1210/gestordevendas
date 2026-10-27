@@ -40,6 +40,11 @@ export class ClaimCardUseCase {
       throw new NotFoundException('Card nao encontrado.');
     }
 
+    // Fase B (27/10/2026): lead em atendimento pela VIVI nao e "assumido"
+    // pelo corretor - o corretor so visualiza a coluna Atendimento VIVI.
+    if (card.emAtendimentoVivi) {
+      throw new ConflictException('Este lead está em atendimento pela VIVI.');
+    }
     if (card.ownerId) {
       throw new ConflictException('Lead ja foi assumido por outro corretor.');
     }

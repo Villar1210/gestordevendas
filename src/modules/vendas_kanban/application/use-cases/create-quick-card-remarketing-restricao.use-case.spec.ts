@@ -22,6 +22,7 @@ function setup(pipelineName: string) {
     eventEmitter as unknown as EventEmitter2,
     { findAllByPipeline: jest.fn().mockResolvedValue([]) } as never,
     { create: jest.fn() } as never,
+    { encontrar: jest.fn().mockResolvedValue(null) } as never,
   );
 
   pipelineRepository.findByIdAndTenant.mockResolvedValue({

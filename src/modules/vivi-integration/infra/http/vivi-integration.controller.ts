@@ -1,4 +1,5 @@
 import {
+  Inject,
   Body,
   Controller,
   Get,
@@ -19,6 +20,11 @@ import { ConfigService } from '@nestjs/config';
 import { MoverCardViviDto } from './dto/mover-card.dto';
 import { MoverCardViviUseCase } from '../../application/use-cases/mover-card-vivi.use-case';
 import { SimularCreditoDto } from './dto/simular-credito.dto';
+import { EncaminharCorretorViviDto, LeadEmAtendimentoViviDto } from './dto/atendimento-vivi.dto';
+import { RegistrarAtendimentoViviUseCase } from '../../../vendas_kanban/application/use-cases/registrar-atendimento-vivi.use-case';
+import { CreateQuickCardUseCase } from '../../../vendas_kanban/application/use-cases/create-quick-card.use-case';
+import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
+import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 import { SimularCreditoUseCase } from '../../application/use-cases/simular-credito.use-case';
 import { montarAvisoAgendamento, normalizarTelefoneBR } from '../../services/aviso-agendamento';
 
@@ -38,7 +44,60 @@ export class ViviIntegrationController {
     private readonly config: ConfigService,
     private readonly moverCardViviUseCase: MoverCardViviUseCase,
     private readonly simularCreditoUseCase: SimularCreditoUseCase,
+    private readonly registrarAtendimentoViviUseCase: RegistrarAtendimentoViviUseCase,
+    private readonly createQuickCardUseCase: CreateQuickCardUseCase,
+    @Inject('IPipelineRepository') private readonly pipelineRepository: IPipelineRepository,
   ) {}
+
+  // POST /vivi/lead-em-atendimento - fase B (27/10/2026). A VIVI chama a cada
+  // mensagem do cliente: o lead aparece na coluna "Atendimento VIVI" do
+  // Kanban (sem ir para a Roleta). Idempotente. A resposta diz se o cliente
+  // ja esta com um corretor (situacao "com_corretor").
+  @Post('lead-em-atendimento')
+  @HttpCode(HttpStatus.OK)
+  async leadEmAtendimento(@Body() dto: LeadEmAtendimentoViviDto) {
+    const tenantId = this.config.get<string>('VIVI_TENANT_ID') ?? '';
+    const resultado = await this.registrarAtendimentoViviUseCase.execute({
+      tenantId,
+      phone: dto.phoneNumber,
+      nome: dto.nome,
+      mensagem: dto.mensagem,
+    });
+    const corretor = await this.nomeDoCorretor(tenantId, resultado.cardId);
+    return { ...resultado, corretor };
+  }
+
+  // POST /vivi/encaminhar-corretor - fase B. Cliente pediu para falar com um
+  // corretor (sem agendar visita): o card sai da coluna "Atendimento VIVI" e
+  // vai para a Roleta (ou, se o cliente ja tem corretor, ele e avisado).
+  @Post('encaminhar-corretor')
+  @HttpCode(HttpStatus.OK)
+  async encaminharCorretor(@Body() dto: EncaminharCorretorViviDto) {
+    const tenantId = this.config.get<string>('VIVI_TENANT_ID') ?? '';
+    const funil = funilDeVendasPadrao(await this.pipelineRepository.findAllByTenant(tenantId));
+    if (!funil) {
+      throw new UnprocessableEntityException('Empresa sem funil de vendas configurado.');
+    }
+    const card = await this.createQuickCardUseCase.execute({
+      tenantId,
+      pipelineId: funil.id,
+      isSystemCall: true,
+      title: dto.nome?.trim() || 'Lead da VIVI',
+      origem: 'vivi',
+      phone: dto.phoneNumber,
+      description: dto.resumo,
+    });
+    const corretor = await this.nomeDoCorretor(tenantId, card.id);
+    return { cardId: card.id, corretor };
+  }
+
+  private async nomeDoCorretor(tenantId: string, cardId: string): Promise<string | null> {
+    const card = await this.prisma.card.findFirst({
+      where: { id: cardId, tenantId },
+      select: { owner: { select: { name: true } } },
+    });
+    return card?.owner?.name ?? null;
+  }
 
   @Get('empreendimentos')
   async listarEmpreendimentos() {

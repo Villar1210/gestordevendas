@@ -30,6 +30,9 @@ const TEXTOS_POR_MOTIVO: Record<string, string> = {
     'Entendemos que restricoes no CPF podem complicar o financiamento - mas isso nao ' +
     'significa que a casa propria esta fora de alcance. Temos parceiros com alternativas de ' +
     'financiamento que podem ajudar. Vamos conversar de novo?',
+  SEM_RESPOSTA_VIVI:
+    'Oi! Passando para saber se ainda posso te ajudar a encontrar o seu apartamento. ' +
+    'Temos condicoes novas que podem combinar com o que voce procura. Vamos retomar?',
   SEM_RESPOSTA_90_DIAS:
     'Faz um tempo que nao conversamos! Continuamos com otimas opcoes de imoveis que podem ' +
     'combinar com o que voce procurava. Que tal retomar nossa conversa?',

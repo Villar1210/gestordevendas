@@ -15,6 +15,7 @@ export function isProtectedStageName(name: string): boolean {
 // (defesa em profundidade), isso aqui e so UX.
 export const MOTIVO_REPIQUE_OPTIONS: { value: string; label: string }[] = [
   { value: "SEM_RESPOSTA_90_DIAS", label: "Sem resposta há 90+ dias" },
+  { value: "SEM_RESPOSTA_VIVI", label: "Sem resposta no atendimento da VIVI (7 dias)" },
   { value: "RESTRICAO_CPF", label: "Restrição no CPF" },
   { value: "PRECO", label: "Preço (fora do orçamento do lead)" },
   { value: "SEM_PERFIL", label: "Sem perfil para financiamento" },

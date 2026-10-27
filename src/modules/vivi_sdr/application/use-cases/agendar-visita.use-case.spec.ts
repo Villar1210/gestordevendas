@@ -52,6 +52,7 @@ function setup() {
   // destes testes identico ao de antes desta fatia.
   const promoverLeadMinimoUseCase = { execute: jest.fn().mockResolvedValue(null) };
   const createActivityUseCase = { execute: jest.fn() };
+  const encaminharAtendimentoVivi = { encaminharPeloSistema: jest.fn() };
 
   const useCase = new AgendarVisitaUseCase(
     pipelineRepository as unknown as IPipelineRepository,
@@ -62,12 +63,14 @@ function setup() {
     createQuickCardUseCase as unknown as CreateQuickCardUseCase,
     promoverLeadMinimoUseCase as any,
     createActivityUseCase as unknown as CreateActivityUseCase,
+    encaminharAtendimentoVivi as any,
   );
 
   pipelineRepository.findAllByTenant.mockResolvedValue([{ id: 'pipeline-1', tenantId: 'tenant-1', name: 'Padrao', createdAt: new Date() }]);
 
   return {
     useCase,
+    encaminharAtendimentoVivi,
     pipelineRepository,
     activityRepository,
     cardRepository,

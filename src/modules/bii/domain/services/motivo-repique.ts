@@ -9,6 +9,7 @@ export const MOTIVO_NAO_INFORMADO = 'NAO_INFORMADO';
 
 export const ROTULOS_MOTIVO_REPIQUE: Record<string, string> = {
   SEM_RESPOSTA_90_DIAS: 'Sem resposta há 90+ dias',
+  SEM_RESPOSTA_VIVI: 'Sem resposta no atendimento da VIVI (7 dias)',
   RESTRICAO_CPF: 'Restrição no CPF',
   PRECO: 'Preço (fora do orçamento do lead)',
   SEM_PERFIL: 'Sem perfil para financiamento',

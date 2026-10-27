@@ -20,6 +20,7 @@ import { RenameStageUseCase } from '../../application/use-cases/rename-stage.use
 import { DeleteStageUseCase } from '../../application/use-cases/delete-stage.use-case';
 import { GetInboxUseCase } from '../../application/use-cases/get-inbox.use-case';
 import { GetMeuDashboardUseCase } from '../../application/use-cases/get-meu-dashboard.use-case';
+import { ListAtendimentoViviUseCase } from '../../application/use-cases/atendimento-vivi-gestao.use-cases';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,6 +37,7 @@ export class PipelineController {
     private readonly deleteStageUseCase: DeleteStageUseCase,
     private readonly getInboxUseCase: GetInboxUseCase,
     private readonly getMeuDashboardUseCase: GetMeuDashboardUseCase,
+    private readonly listAtendimentoViviUseCase: ListAtendimentoViviUseCase,
   ) {}
 
   // POST /pipelines - cria um pipeline vazio (sem stages)
@@ -97,6 +99,14 @@ export class PipelineController {
       requesterUserId: req.user!.id,
       requesterCargo: req.user!.cargo,
     });
+  }
+
+  // GET /pipelines/:id/atendimento-vivi - coluna "Atendimento VIVI" (fase B,
+  // 27/10/2026): leads que a VIVI esta atendendo. Todo o dashboard ve; so a
+  // gestao age (ver CardController.encaminharParaRoleta).
+  @Get('pipelines/:id/atendimento-vivi')
+  async getAtendimentoVivi(@Param('id') id: string, @Req() req: Request) {
+    return this.listAtendimentoViviUseCase.execute({ pipelineId: id, tenantId: req.user!.tenantId });
   }
 
   // GET /pipelines/meu-dashboard - resumo dos proprios leads/atividades do

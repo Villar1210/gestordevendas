@@ -46,6 +46,11 @@ export interface Card {
   // Data/hora da ultima atividade registrada no backend (Activity.createdAt
   // da atividade mais recente). Null se o card nao tem nenhuma atividade.
   ultimaAtividadeEm: string | null;
+  // Fase B (27/10/2026) - coluna "Atendimento VIVI" (so vem preenchido pela
+  // rota /pipelines/:id/atendimento-vivi).
+  description?: string | null;
+  emAtendimentoVivi?: boolean;
+  ultimaInteracaoViviEm?: string | null;
 }
 
 export interface Stage {
@@ -62,7 +67,7 @@ export interface Pipeline {
 
 export type TemperatureFilter = "all" | "quente" | "morno" | "frio";
 export type OrigemFilter = "all" | "manual" | "webhook" | "roleta_online" | "captura_auto_vivi" | "site";
-export type KanbanView = "kanban" | "inbox";
+export type KanbanView = "kanban" | "inbox" | "vivi";
 
 interface CardModalState {
   isOpen: boolean;

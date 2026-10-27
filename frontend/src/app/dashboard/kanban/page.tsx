@@ -11,6 +11,7 @@ import { useKanbanIntegration } from "@/features/kanban/hooks/useKanbanIntegrati
 import { KanbanBoard } from "@/features/kanban/components/KanbanBoard";
 import { KanbanFilters } from "@/features/kanban/components/KanbanFilters";
 import { InboxView } from "@/features/kanban/components/InboxView";
+import { AtendimentoViviView } from "@/features/kanban/components/AtendimentoViviView";
 import { QuickCardModal } from "@/features/kanban/components/QuickCardModal";
 import { CardDetailPanel } from "@/features/kanban/components/CardDetailPanel";
 import { PlantaoStatusBadge } from "@/features/plantao/components/PlantaoStatusBadge";
@@ -193,6 +194,16 @@ export default function KanbanDashboardPage() {
               Kanban
             </button>
             <button
+              onClick={() => setActiveView("vivi")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                activeView === "vivi"
+                  ? "bg-blue-700 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Atendimento VIVI
+            </button>
+            <button
               onClick={() => setActiveView("inbox")}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 activeView === "inbox"
@@ -224,6 +235,8 @@ export default function KanbanDashboardPage() {
         </div>
       ) : activeView === "kanban" ? (
         <KanbanBoard />
+      ) : activeView === "vivi" ? (
+        <AtendimentoViviView />
       ) : (
         <InboxView />
       )}

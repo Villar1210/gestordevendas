@@ -172,6 +172,7 @@ describe('card.stage.changed - CreateCardUseCase', () => {
         create: jest.fn().mockImplementation(async (d: object) => ({ id: 'card-novo', ...d })),
       }),
       comoEmitter(emitter),
+      qualquer({ encontrar: jest.fn().mockResolvedValue(null) }),
     );
     await useCase.execute({ tenantId: 't-1', ownerId: 'u-1', stageId: 's-1', title: 'Novo' });
     expect(eventosStage(emitter)).toEqual([
@@ -201,6 +202,7 @@ describe('card.stage.changed - CreateQuickCardUseCase', () => {
       comoEmitter(emitter),
       qualquer({ findAllByPipeline: jest.fn().mockResolvedValue([]) }),
       qualquer({ create: jest.fn() }),
+      qualquer({ encontrar: jest.fn().mockResolvedValue(null) }),
     );
     return { useCase, emitter };
   }

@@ -60,4 +60,29 @@ const temBanco = !!process.env.DATABASE_URL;
     expect(card!.stageId).toBeNull();
     expect(card!.ownerId).toBeNull();
   });
+
+  it('coluna Atendimento VIVI: fica fora da Caixa de Entrada e da fila da Roleta', async () => {
+    const pipelineId = (await prisma.card.findUnique({ where: { id: ids.caixa } }))!.pipelineId;
+    const vivi = await prisma.card.create({
+      data: { tenantId, pipelineId, stageId: null, title: 'vivi', phone: '11955554444', position: 0 },
+    });
+    await repo.marcarAtendimentoVivi(vivi.id, new Date('2026-10-01T12:00:00Z'));
+
+    const caixa = await repo.findAllByPipelineInbox(pipelineId);
+    expect(caixa.map((c) => c.id)).not.toContain(vivi.id);
+    expect((await repo.findAllInboxByTenant(tenantId)).map((c) => c.id)).not.toContain(vivi.id);
+    expect((await repo.findInboxUnnotifiedOlderThan(new Date('2100-01-01'))).map((c) => c.id)).not.toContain(vivi.id);
+
+    const coluna = await repo.findAtendimentoViviByPipeline(pipelineId);
+    expect(coluna.map((c) => c.id)).toEqual([vivi.id]);
+    expect(coluna[0].emAtendimentoVivi).toBe(true);
+
+    const parados = await repo.findAtendimentoViviSemInteracaoDesde(new Date('2026-10-05T00:00:00Z'));
+    expect(parados.map((c) => c.id)).toContain(vivi.id);
+    await repo.registrarInteracaoVivi(vivi.id, new Date('2026-10-10T00:00:00Z'));
+    expect((await repo.findAtendimentoViviSemInteracaoDesde(new Date('2026-10-05T00:00:00Z'))).map((c) => c.id)).not.toContain(vivi.id);
+
+    await repo.sairDoAtendimentoVivi(vivi.id);
+    expect((await repo.findAllByPipelineInbox(pipelineId)).map((c) => c.id)).toContain(vivi.id);
+  });
 });

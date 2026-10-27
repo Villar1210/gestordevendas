@@ -3,7 +3,7 @@
 import { ProcessRoletaTimeoutsUseCase, LEAD_ESCALADO_GESTAO_EVENT } from './process-roleta-timeouts.use-case';
 
 const vencido = new Date(Date.now() - 10 * 60_000);
-const card = { id: 'c-1', tenantId: 't-1', pipelineId: 'p-1', ownerId: 'corretor-a', atribuidoAutomaticamenteEm: vencido };
+const card = { id: 'c-1', tenantId: 't-1', pipelineId: 'p-1', stageId: 's-1', ownerId: 'corretor-a', atribuidoAutomaticamenteEm: vencido };
 
 function montar(config: { algoritmo: string }, opcoes: { online?: Array<{ id: string }>; escolha?: { userId: string } | null; gestor?: { id: string; name: string } | null }) {
   const cardRepository = {

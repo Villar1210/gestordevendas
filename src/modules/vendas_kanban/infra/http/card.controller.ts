@@ -26,6 +26,7 @@ import { ClaimCardUseCase } from '../../application/use-cases/claim-card.use-cas
 import { DispararRepiqueManualUseCase } from '../../application/use-cases/disparar-repique-manual.use-case';
 import { ListMinhaCarteiraRepiqueUseCase } from '../../application/use-cases/list-minha-carteira-repique.use-case';
 import { RequisitanteCard } from '../../application/services/acesso-card.service';
+import { EncaminharAtendimentoViviParaRoletaUseCase } from '../../application/use-cases/atendimento-vivi-gestao.use-cases';
 
 // Quem esta chamando - usado pelos use cases para conferir se o usuario pode
 // ver/alterar aquele card (dono, superiores ou Administrador; ver
@@ -57,7 +58,20 @@ export class CardController {
     private readonly claimCardUseCase: ClaimCardUseCase,
     private readonly dispararRepiqueManualUseCase: DispararRepiqueManualUseCase,
     private readonly listMinhaCarteiraRepiqueUseCase: ListMinhaCarteiraRepiqueUseCase,
+    private readonly encaminharAtendimentoViviUseCase: EncaminharAtendimentoViviParaRoletaUseCase,
   ) {}
+
+  // POST /cards/:id/encaminhar-roleta - gestao tira o lead da coluna
+  // "Atendimento VIVI" e manda para a Roleta (fase B, 27/10/2026).
+  @Post('cards/:id/encaminhar-roleta')
+  async encaminharParaRoleta(@Param('id') id: string, @Req() req: Request) {
+    return this.encaminharAtendimentoViviUseCase.execute({
+      tenantId: req.user!.tenantId,
+      cardId: id,
+      requesterRole: req.user!.role,
+      requesterCargo: req.user!.cargo ?? null,
+    });
+  }
 
   // GET /cards/repique/minha-carteira - cards na stage Repique visiveis
   // para o requisitante (escopo RBAC por cargo), com motivo/data de

@@ -8,6 +8,8 @@
 // MoverLeadsInativosParaRepiqueUseCase).
 export const MOTIVOS_REPIQUE = [
   'SEM_RESPOSTA_90_DIAS',
+  // Fase B (27/10/2026): 7 dias sem responder a VIVI na coluna Atendimento VIVI.
+  'SEM_RESPOSTA_VIVI',
   'RESTRICAO_CPF',
   'PRECO',
   'SEM_PERFIL',

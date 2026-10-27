@@ -42,6 +42,8 @@ type PrismaCardRow = {
   createdAt: Date;
   updatedAt: Date;
   escalonamentoNotificadoEm: Date | null;
+  emAtendimentoVivi?: boolean;
+  ultimaInteracaoViviEm?: Date | null;
 };
 
 @Injectable()
@@ -85,6 +87,8 @@ export class PrismaCardRepository implements ICardRepository {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       escalonamentoNotificadoEm: row.escalonamentoNotificadoEm,
+      emAtendimentoVivi: row.emAtendimentoVivi ?? false,
+      ultimaInteracaoViviEm: row.ultimaInteracaoViviEm ?? null,
       // Preenchida so pelo use case (GetBoardUseCase/GetInboxUseCase), apos
       // uma consulta em lote a IActivityRepository - ver CardRecord.
       proximaAtividade: null,
@@ -108,6 +112,8 @@ export class PrismaCardRepository implements ICardRepository {
     customFields?: Record<string, unknown>;
     motivoRepique?: string | null;
     movidoParaRepiqueEm?: Date | null;
+    emAtendimentoVivi?: boolean;
+    ultimaInteracaoViviEm?: Date | null;
   }): Promise<CardRecord> {
     try {
       const row = await this.prisma.card.create({
@@ -128,6 +134,8 @@ export class PrismaCardRepository implements ICardRepository {
           customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
           motivoRepique: input.motivoRepique ?? null,
           movidoParaRepiqueEm: input.movidoParaRepiqueEm ?? null,
+          emAtendimentoVivi: input.emAtendimentoVivi ?? false,
+          ultimaInteracaoViviEm: input.ultimaInteracaoViviEm ?? null,
         },
       });
       return this.toRecord(row);
@@ -169,7 +177,7 @@ export class PrismaCardRepository implements ICardRepository {
 
   async findAllByPipelineInbox(pipelineId: string): Promise<CardRecord[]> {
     const rows = await this.prisma.card.findMany({
-      where: { pipelineId, stageId: null },
+      where: { pipelineId, stageId: null, emAtendimentoVivi: false },
       orderBy: { createdAt: 'asc' },
       include: { suggestedOwner: { select: { name: true } } },
     });
@@ -181,7 +189,7 @@ export class PrismaCardRepository implements ICardRepository {
 
   async findAllInboxByTenant(tenantId: string): Promise<CardRecord[]> {
     const rows = await this.prisma.card.findMany({
-      where: { tenantId, stageId: null, ownerId: null },
+      where: { tenantId, stageId: null, ownerId: null, emAtendimentoVivi: false },
       orderBy: { createdAt: 'asc' },
     });
     return rows.map((row) => this.toRecord(row));
@@ -332,6 +340,7 @@ export class PrismaCardRepository implements ICardRepository {
     const rows = await this.prisma.card.findMany({
       where: {
         updatedAt: { lt: antesDe },
+        emAtendimentoVivi: false,
         OR: [{ stageId: null }, { stage: { name: { notIn: PROTECTED_STAGE_NAMES } } }],
       },
     });
@@ -350,6 +359,7 @@ export class PrismaCardRepository implements ICardRepository {
       where: {
         stageId: null,
         ownerId: null,
+        emAtendimentoVivi: false,
         createdAt: { lt: antesDe },
         escalonamentoNotificadoEm: null,
       },
@@ -524,5 +534,50 @@ export class PrismaCardRepository implements ICardRepository {
         escalonamentoNotificadoEm: null,
       },
     });
+  }
+
+  async findAtendimentoViviByPipeline(pipelineId: string): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: { pipelineId, emAtendimentoVivi: true },
+      orderBy: { ultimaInteracaoViviEm: { sort: 'desc', nulls: 'last' } },
+    });
+    return rows.map((row) => this.toRecord(row));
+  }
+
+  async marcarAtendimentoVivi(id: string, quando: Date): Promise<void> {
+    await this.prisma.card.update({
+      where: { id },
+      data: {
+        emAtendimentoVivi: true,
+        ultimaInteracaoViviEm: quando,
+        stageId: null,
+        ownerId: null,
+        suggestedOwnerId: null,
+        atribuidoAutomaticamenteEm: null,
+        aceitoEm: null,
+        escalonamentoNotificadoEm: null,
+      },
+    });
+  }
+
+  async registrarInteracaoVivi(id: string, quando: Date): Promise<void> {
+    await this.prisma.card.update({ where: { id }, data: { ultimaInteracaoViviEm: quando } });
+  }
+
+  async sairDoAtendimentoVivi(id: string): Promise<void> {
+    await this.prisma.card.update({ where: { id }, data: { emAtendimentoVivi: false } });
+  }
+
+  async findAtendimentoViviSemInteracaoDesde(antesDe: Date): Promise<CardRecord[]> {
+    const rows = await this.prisma.card.findMany({
+      where: {
+        emAtendimentoVivi: true,
+        OR: [
+          { ultimaInteracaoViviEm: { lt: antesDe } },
+          { ultimaInteracaoViviEm: null, createdAt: { lt: antesDe } },
+        ],
+      },
+    });
+    return rows.map((row) => this.toRecord(row));
   }
 }

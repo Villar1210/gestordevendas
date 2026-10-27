@@ -50,6 +50,7 @@ describe('Captura automatica de lead minimo + promocao para o funil de vendas (i
       eventEmitter,
       {} as never, // IStageRepository (funil de remarketing nao deduplica)
       {} as never, // INoteRepository
+      {} as never, // CardAbertoPorTelefoneService
     );
     capturarLeadMinimoUseCase = new CapturarLeadMinimoUseCase(
       cardRepository,

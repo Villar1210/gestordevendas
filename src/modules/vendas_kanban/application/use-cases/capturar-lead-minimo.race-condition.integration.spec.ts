@@ -42,6 +42,7 @@ describe('CapturarLeadMinimoUseCase - corrida entre mensagens concorrentes (inte
       eventEmitter,
       {} as never, // IStageRepository (funil de remarketing nao deduplica)
       {} as never, // INoteRepository
+      {} as never, // CardAbertoPorTelefoneService
     );
     capturarLeadMinimoUseCase = new CapturarLeadMinimoUseCase(
       cardRepository,

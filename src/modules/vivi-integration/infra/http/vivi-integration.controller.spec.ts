@@ -21,6 +21,9 @@ function montar(owner: { name: string; whatsapp: string | null; telefone: string
     config as any,
     {} as any, // MoverCardViviUseCase
     {} as any, // SimularCreditoUseCase
+    {} as any, // RegistrarAtendimentoViviUseCase
+    {} as any, // CreateQuickCardUseCase
+    {} as any, // IPipelineRepository
   );
   return { controller, prisma, chatwoot };
 }

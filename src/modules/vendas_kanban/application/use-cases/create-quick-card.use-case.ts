@@ -16,7 +16,7 @@ import {
 } from '../../domain/events/card-stage-changed.event';
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { INoteRepository } from '../../domain/repositories/note-repository.interface';
-import { chaveTelefone, trechoBuscaTelefone } from '../../domain/services/telefone';
+import { CardAbertoPorTelefoneService } from '../services/card-aberto-por-telefone.service';
 import { REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
 
 // Evento emitido quando um cliente que JA tem card aberto entra de novo
@@ -89,6 +89,7 @@ export class CreateQuickCardUseCase {
     private readonly eventEmitter: EventEmitter2,
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('INoteRepository') private readonly noteRepository: INoteRepository,
+    private readonly cardAbertoPorTelefone: CardAbertoPorTelefoneService,
   ) {}
 
   async execute(input: CreateQuickCardInput): Promise<QuickCardResult> {
@@ -116,7 +117,7 @@ export class CreateQuickCardUseCase {
       input.phone &&
       pipeline.name !== REMARKETING_PIPELINE_NOME
     ) {
-      const existente = await this.encontrarCardAberto(input.tenantId, input.phone);
+      const existente = await this.cardAbertoPorTelefone.encontrar(input.tenantId, input.phone);
       if (existente) {
         return this.registrarReentrada(existente, input);
       }
@@ -185,17 +186,6 @@ export class CreateQuickCardUseCase {
     return card;
   }
 
-  private async encontrarCardAberto(tenantId: string, phone: string): Promise<CardRecord | null> {
-    const chave = chaveTelefone(phone);
-    if (!chave) return null;
-    const candidatos = await this.cardRepository.findAbertosPorTrechoTelefone(
-      tenantId,
-      trechoBuscaTelefone(phone),
-    );
-    // Ja vem do mais recente para o mais antigo.
-    return candidatos.find((c) => chaveTelefone(c.phone) === chave) ?? null;
-  }
-
   // Cliente que ja tem card aberto entrou de novo: registra a entrada no card
   // existente e:
   // - card com corretor: avisa o dono (evento lead.reentrada); se estava no
@@ -213,8 +203,24 @@ export class CreateQuickCardUseCase {
     await this.noteRepository.create({
       tenantId: input.tenantId,
       cardId: existente.id,
-      body: `Cliente entrou em contato de novo (origem: ${origem}).${detalhe}`,
+      body: existente.emAtendimentoVivi
+        ? `Lead saiu do Atendimento VIVI e foi para a Roleta (origem: ${origem}).${detalhe}`
+        : `Cliente entrou em contato de novo (origem: ${origem}).${detalhe}`,
     });
+
+    // Lead que a VIVI estava atendendo (coluna Atendimento VIVI) e agora
+    // agendou visita, pediu corretor ou chegou por outro canal: sai da coluna
+    // e vai para a Roleta.
+    if (existente.emAtendimentoVivi) {
+      await this.cardRepository.sairDoAtendimentoVivi(existente.id);
+      await this.eventEmitter.emitAsync('card.sem_dono.criado', {
+        tenantId: input.tenantId,
+        cardId: existente.id,
+        pipelineId: existente.pipelineId,
+      });
+      const promovido = await this.cardRepository.findByIdAndTenant(existente.id, input.tenantId);
+      return { ...(promovido ?? existente), reaproveitado: true };
+    }
 
     const noRepique = existente.stageName === REPIQUE_STAGE_NAME;
 

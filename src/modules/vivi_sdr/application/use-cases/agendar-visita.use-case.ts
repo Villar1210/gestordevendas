@@ -4,6 +4,7 @@
 // por transferir_para_corretor - dispara a Roleta Online normalmente) e uma
 // Activity tipo "visita" com a data/horario confirmados pelo lead.
 import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
+import { EncaminharAtendimentoViviParaRoletaUseCase } from '../../../vendas_kanban/application/use-cases/atendimento-vivi-gestao.use-cases';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
@@ -74,6 +75,7 @@ export class AgendarVisitaUseCase {
     private readonly createQuickCardUseCase: CreateQuickCardUseCase,
     private readonly promoverLeadMinimoUseCase: PromoverLeadMinimoUseCase,
     private readonly createActivityUseCase: CreateActivityUseCase,
+    private readonly encaminharAtendimentoVivi: EncaminharAtendimentoViviParaRoletaUseCase,
   ) {}
 
   async execute(input: AgendarVisitaInput): Promise<AgendarVisitaOutput | null> {
@@ -140,6 +142,13 @@ export class AgendarVisitaUseCase {
             empreendimentoId: empreendimentoIdValido,
           }))
         ).id;
+
+    // Fase B (27/10/2026): se a VIVI citou um card que ainda esta na coluna
+    // "Atendimento VIVI", ele sai da coluna e vai para a Roleta (o caminho
+    // sem existingCardId ja faz isso dentro do CreateQuickCardUseCase).
+    if (input.existingCardId) {
+      await this.encaminharAtendimentoVivi.encaminharPeloSistema(input.tenantId, cardId);
+    }
 
     const visitaAgendadaEm = this.buildScheduledAt(input.dataVisita, input.horario);
     const subject = this.buildSubject(input);

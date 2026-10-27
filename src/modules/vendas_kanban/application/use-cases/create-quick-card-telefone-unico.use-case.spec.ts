@@ -4,6 +4,7 @@ import { ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateQuickCardUseCase, LEAD_REENTRADA_EVENT } from './create-quick-card.use-case';
 import { CreateCardUseCase } from './create-card.use-case';
+import { CardAbertoPorTelefoneService } from '../services/card-aberto-por-telefone.service';
 
 function montar(abertos: Array<Record<string, unknown>>) {
   const cardRepository = {
@@ -24,14 +25,16 @@ function montar(abertos: Array<Record<string, unknown>>) {
   };
   const noteRepository = { create: jest.fn() };
   const emitter = { emit: jest.fn(), emitAsync: jest.fn().mockResolvedValue([]) };
+  const busca = new CardAbertoPorTelefoneService(cardRepository as never);
   const useCase = new CreateQuickCardUseCase(
     pipelineRepository as never,
     cardRepository as never,
     emitter as unknown as EventEmitter2,
     stageRepository as never,
     noteRepository as never,
+    busca,
   );
-  const manual = new CreateCardUseCase(stageRepository as never, cardRepository as never, emitter as unknown as EventEmitter2);
+  const manual = new CreateCardUseCase(stageRepository as never, cardRepository as never, emitter as unknown as EventEmitter2, busca);
   return { useCase, manual, cardRepository, noteRepository, emitter };
 }
 

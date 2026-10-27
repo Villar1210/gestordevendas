@@ -49,6 +49,11 @@ export interface CardRecord {
   // Rede de seguranca "sem corretor online" (Camada 2 - escalonamento) -
   // ver EscalonarCardsSemDonoUseCase (modulo roleta_online).
   escalonamentoNotificadoEm: Date | null;
+  // Fase B (27/10/2026) - coluna "Atendimento VIVI" (ver schema.prisma).
+  // Opcionais so para nao quebrar fabricas de teste antigas; o repositorio
+  // Prisma sempre preenche.
+  emAtendimentoVivi?: boolean;
+  ultimaInteracaoViviEm?: Date | null;
   // Proxima atividade pendente (scheduledAt preenchido, done=false) mais
   // urgente deste card - a mais atrasada, se houver alguma vencida, senao a
   // mais proxima no futuro (ver IActivityRepository.findProximasByCardIds).
@@ -89,6 +94,9 @@ export interface ICardRepository {
     // MoverLeadsInativosParaRepiqueUseCase.
     motivoRepique?: string | null;
     movidoParaRepiqueEm?: Date | null;
+    // Fase B: card que nasce na coluna "Atendimento VIVI".
+    emAtendimentoVivi?: boolean;
+    ultimaInteracaoViviEm?: Date | null;
   }): Promise<CardRecord>;
   findById(id: string): Promise<CardRecord | null>;
   findByIdAndTenant(id: string, tenantId: string): Promise<CardRecord | null>;
@@ -260,4 +268,16 @@ export interface ICardRepository {
   // limpando sugestao/aceite/escalonamento da Roleta) - usado quando um lead
   // sem corretor volta (Repique sem dono) ou sai do Atendimento VIVI.
   moverParaCaixaDeEntrada(id: string): Promise<void>;
+  // Fase B - coluna "Atendimento VIVI" (cards sem etapa, sem dono e com
+  // emAtendimentoVivi=true; ficam FORA da Caixa de Entrada e da Roleta).
+  findAtendimentoViviByPipeline(pipelineId: string): Promise<CardRecord[]>;
+  // Coloca (ou devolve) o card na coluna: sem etapa, sem dono, flag ligada.
+  marcarAtendimentoVivi(id: string, quando: Date): Promise<void>;
+  // So registra a hora da ultima interacao com a VIVI (zera o prazo de 7 dias
+  // e controla a frequencia do aviso ao corretor).
+  registrarInteracaoVivi(id: string, quando: Date): Promise<void>;
+  // Tira da coluna (desliga a flag). Nao mexe em etapa/dono.
+  sairDoAtendimentoVivi(id: string): Promise<void>;
+  // Cards na coluna sem interacao desde `antesDe` (job dos 7 dias).
+  findAtendimentoViviSemInteracaoDesde(antesDe: Date): Promise<CardRecord[]>;
 }

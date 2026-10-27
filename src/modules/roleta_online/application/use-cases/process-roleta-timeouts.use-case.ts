@@ -165,6 +165,12 @@ export class ProcessRoletaTimeoutsUseCase {
   // repassa na mao. Sai da contagem de aceite (sem novo timeout), recebe o
   // aviso no sino (lead.atribuido) e no WhatsApp (lead.escalado_gestao).
   private async escalarParaGestao(card: CardRecord): Promise<void> {
+    // Pendencia de aceite sempre nasce junto com uma etapa (ClaimCardUseCase).
+    // Sem etapa nao ha o que repassar - so para de contar o prazo.
+    if (!card.stageId) {
+      await this.cardRepository.clearAtribuidoAutomaticamente(card.id);
+      return;
+    }
     const gestor = await this.gestorResponsavelRepository.encontrarParaCorretor(card.tenantId, card.ownerId);
     if (!gestor || gestor.id === card.ownerId) {
       await this.cardRepository.clearAtribuidoAutomaticamente(card.id);

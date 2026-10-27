@@ -329,6 +329,25 @@ export function useKanbanIntegration() {
     }
   }, []);
 
+  // Fase B (27/10/2026): coluna "Atendimento VIVI".
+  const handleGetAtendimentoVivi = useCallback(async (pipelineId: string) => {
+    try {
+      return await apiRequest<Card[]>(`/pipelines/${pipelineId}/atendimento-vivi`);
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Não foi possível carregar o Atendimento VIVI.");
+      return [];
+    }
+  }, []);
+
+  const handleEncaminharParaRoleta = useCallback(async (cardId: string) => {
+    try {
+      return await apiRequest<Card>(`/cards/${cardId}/encaminhar-roleta`, { method: "POST" });
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Não foi possível mandar o lead para a Roleta.");
+      return null;
+    }
+  }, []);
+
   const handleClaimCard = useCallback(
     async (cardId: string) => {
       try {
@@ -404,6 +423,8 @@ export function useKanbanIntegration() {
     handleListNotes,
     handleCreateQuickCard,
     handleGetInbox,
+    handleGetAtendimentoVivi,
+    handleEncaminharParaRoleta,
     handleClaimCard,
     handleConfirmSuggestion,
     handleAceitarLead,

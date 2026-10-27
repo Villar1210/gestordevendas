@@ -809,6 +809,13 @@ model Card {
   // Entrada (sem stage, sem dono) ha mais de 15min, para NUNCA notificar o
   // Administrador duas vezes pelo mesmo card. Nulo ate isso acontecer.
   escalonamentoNotificadoEm  DateTime? @map("escalonamento_notificado_em")
+  // Fase B (27/10/2026) - coluna "Atendimento VIVI": lead que a VIVI do
+  // fazer.ai esta atendendo, antes de ir para um corretor. Fica sem etapa e
+  // sem dono (como a Caixa de Entrada), mas FORA da Caixa de Entrada e da
+  // Roleta ate a VIVI qualificar (agendar visita / pedir corretor) ou a
+  // gestao encaminhar. 7 dias sem interacao -> Repique.
+  emAtendimentoVivi     Boolean   @default(false) @map("em_atendimento_vivi")
+  ultimaInteracaoViviEm DateTime? @map("ultima_interacao_vivi_em")
   // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
   // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
   // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas
@@ -833,6 +840,7 @@ model Card {
   biiCardStageEventos   BiiCardStageEvento[]
 
   empreendimento        Empreendimento?        @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  @@index([tenantId, emAtendimentoVivi])
   @@map("cards")
 }
 

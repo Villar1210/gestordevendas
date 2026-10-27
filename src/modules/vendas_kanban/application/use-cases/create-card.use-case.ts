@@ -7,7 +7,7 @@ import {
   CARD_STAGE_CHANGED_EVENT,
   CardStageChangedEvent,
 } from '../../domain/events/card-stage-changed.event';
-import { chaveTelefone, trechoBuscaTelefone } from '../../domain/services/telefone';
+import { CardAbertoPorTelefoneService } from '../services/card-aberto-por-telefone.service';
 
 const POSITION_STEP = 1000;
 
@@ -34,6 +34,7 @@ export class CreateCardUseCase {
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly cardAbertoPorTelefone: CardAbertoPorTelefoneService,
   ) {}
 
   async execute(input: CreateCardInput): Promise<CardRecord> {
@@ -96,13 +97,7 @@ export class CreateCardUseCase {
     ownerId: string,
     phone: string | undefined,
   ): Promise<void> {
-    const chave = chaveTelefone(phone);
-    if (!phone || !chave) return;
-    const candidatos = await this.cardRepository.findAbertosPorTrechoTelefone(
-      tenantId,
-      trechoBuscaTelefone(phone),
-    );
-    const aberto = candidatos.find((c) => chaveTelefone(c.phone) === chave);
+    const aberto = await this.cardAbertoPorTelefone.encontrar(tenantId, phone);
     if (!aberto) return;
     if (aberto.ownerId === ownerId) {
       throw new ConflictException('Este cliente já tem um negócio aberto na sua carteira.');
