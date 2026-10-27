@@ -35,6 +35,12 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const url = req.nextUrl.clone();
   url.pathname = `/site/${host}${pathname === "/" ? "" : pathname}`;
+  // O nginx manda X-Forwarded-Proto: https e o Next monta nextUrl com https;
+  // com o servidor escutando so em 127.0.0.1 (VPS nova), o Next deixa de
+  // reconhecer a reescrita como interna e tenta se chamar por https numa
+  // porta que so fala http ("Failed to proxy ... EPROTO", vitrine com 500).
+  // A reescrita e sempre para este mesmo processo: protocolo interno = http.
+  url.protocol = "http:";
   cabecalhos.set(CABECALHO_DOMINIO_PROPRIO, "1");
   return NextResponse.rewrite(url, { request: { headers: cabecalhos } });
 }
