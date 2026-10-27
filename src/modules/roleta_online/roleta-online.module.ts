@@ -27,6 +27,7 @@ import { ListSorteiosUseCase } from './application/use-cases/list-sorteios.use-c
 import { ProcessarHorariosSorteioUseCase } from './application/use-cases/processar-horarios-sorteio.use-case';
 import { RoletaSorteioScheduler } from './infra/scheduler/roleta-sorteio.scheduler';
 import { PrismaRoletaRepository } from './infra/database/prisma-roleta.repository';
+import { PrismaGestorResponsavelRepository } from './infra/database/prisma-gestor-responsavel.repository';
 
 @Module({
   // Dependencia de modulo (nao circular): roleta_online consome use cases e
@@ -61,6 +62,7 @@ import { PrismaRoletaRepository } from './infra/database/prisma-roleta.repositor
     ProcessarHorariosSorteioUseCase,
     RoletaSorteioScheduler,
     { provide: 'IRoletaRepository', useClass: PrismaRoletaRepository },
+    { provide: 'IGestorResponsavelRepository', useClass: PrismaGestorResponsavelRepository },
     // Inversao de dependencia: o Caso de Uso pede a INTERFACE,
     // aqui entregamos a implementacao concreta (Prisma).
     { provide: 'IRoletaConfigRepository', useClass: PrismaRoletaConfigRepository },

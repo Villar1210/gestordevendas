@@ -14,6 +14,18 @@ import { IStageRepository } from '../../../vendas_kanban/domain/repositories/sta
 import { pickByRoundRobin, pickByMenorFila } from '../../domain/services/pick-corretor';
 import { comTravaPorTenant } from '../../domain/services/trava-por-tenant';
 import { FilaRoletaService } from '../services/fila-roleta.service';
+import { IGestorResponsavelRepository } from '../../domain/repositories/gestor-responsavel-repository.interface';
+
+// Fase B (Q6, 27/10/2026): evento emitido quando o lead sobe para a gestao
+// (ninguem aceitou e nao ha outro corretor). Escutado pelo follow-up, que
+// avisa o gestor no WhatsApp.
+export const LEAD_ESCALADO_GESTAO_EVENT = 'lead.escalado_gestao';
+export interface LeadEscaladoGestaoEvent {
+  tenantId: string;
+  cardId: string;
+  corretorAnteriorId: string | null;
+  gestorId: string;
+}
 
 const CORRETOR_ROLE_NAME = 'Corretor';
 const STAGE_TERMINAL_NAME = 'Fechamento';
@@ -31,6 +43,8 @@ export class ProcessRoletaTimeoutsUseCase {
     @Inject('IStageRepository') private readonly stageRepository: IStageRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly filaRoletaService: FilaRoletaService,
+    @Inject('IGestorResponsavelRepository')
+    private readonly gestorResponsavelRepository: IGestorResponsavelRepository,
   ) {}
 
   async execute(): Promise<void> {
@@ -75,10 +89,7 @@ export class ProcessRoletaTimeoutsUseCase {
         card.ownerId ? [card.ownerId] : [],
       );
       if (!escolha) {
-        await this.cardRepository.clearAtribuidoAutomaticamente(card.id);
-        this.logger.warn(
-          `Timeout do card ${card.id} vencido, mas nao ha outro corretor presente na roleta - mantido com o dono atual.`,
-        );
+        await this.escalarParaGestao(card);
         return;
       }
       await this.cardRepository.reassignOwnerAfterTimeout(card.id, escolha.userId, new Date());
@@ -101,12 +112,7 @@ export class ProcessRoletaTimeoutsUseCase {
     const candidatos = onlineCorretores.filter((corretor) => corretor.id !== card.ownerId);
 
     if (candidatos.length === 0) {
-      // Ninguem mais online para reatribuir - fica com o dono atual, sem
-      // repetir a checagem indefinidamente (nem re-notificar a cada minuto).
-      await this.cardRepository.clearAtribuidoAutomaticamente(card.id);
-      this.logger.warn(
-        `Timeout do card ${card.id} vencido, mas nao ha outro corretor online - mantido com o dono atual.`,
-      );
+      await this.escalarParaGestao(card);
       return;
     }
 
@@ -152,5 +158,31 @@ export class ProcessRoletaTimeoutsUseCase {
     );
 
     return pickByMenorFila(withCounts);
+  }
+
+  // Ninguem aceitou no prazo e nao ha outro corretor para receber: o lead
+  // sobe para a gestao (superior do corretor ou Administrador), que atende ou
+  // repassa na mao. Sai da contagem de aceite (sem novo timeout), recebe o
+  // aviso no sino (lead.atribuido) e no WhatsApp (lead.escalado_gestao).
+  private async escalarParaGestao(card: CardRecord): Promise<void> {
+    const gestor = await this.gestorResponsavelRepository.encontrarParaCorretor(card.tenantId, card.ownerId);
+    if (!gestor || gestor.id === card.ownerId) {
+      await this.cardRepository.clearAtribuidoAutomaticamente(card.id);
+      this.logger.warn(`Timeout do card ${card.id} vencido sem outro corretor e sem gestor para escalar - mantido.`);
+      return;
+    }
+
+    await this.cardRepository.reassignOwnerAfterTimeout(card.id, gestor.id, new Date());
+    await this.cardRepository.clearAtribuidoAutomaticamente(card.id);
+    this.logger.warn(`Card ${card.id} sem aceite e sem outro corretor - escalado para a gestao (${gestor.id}).`);
+
+    this.eventEmitter.emit('lead.atribuido', { tenantId: card.tenantId, cardId: card.id, ownerId: gestor.id });
+    const evento: LeadEscaladoGestaoEvent = {
+      tenantId: card.tenantId,
+      cardId: card.id,
+      corretorAnteriorId: card.ownerId,
+      gestorId: gestor.id,
+    };
+    this.eventEmitter.emit(LEAD_ESCALADO_GESTAO_EVENT, evento);
   }
 }
