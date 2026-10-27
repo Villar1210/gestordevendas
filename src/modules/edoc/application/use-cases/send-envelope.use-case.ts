@@ -1,5 +1,6 @@
 // src/modules/edoc/application/use-cases/send-envelope.use-case.ts
 import { Injectable, Inject, NotFoundException, ConflictException } from '@nestjs/common';
+import { podeVerEnvelope } from '../../domain/services/acesso-envelope';
 import * as crypto from 'crypto';
 import { ISignatureEnvelopeRepository, SignatureEnvelopeRecord } from '../../domain/repositories/signature-envelope-repository.interface';
 import { ISignatureRecipientRepository } from '../../domain/repositories/signature-recipient-repository.interface';
@@ -13,6 +14,10 @@ const DEFAULT_EXPIRE_DAYS = 7;
 interface SendEnvelopeInput {
   envelopeId: string;
   tenantId: string;
+  // Quem pediu (rota HTTP). Ausente = chamada interna (ex.: RH gerando o
+  // contrato do corretor) - sem filtro. Ver domain/services/acesso-envelope.ts.
+  requesterRole?: string;
+  requesterUserId?: string;
 }
 
 @Injectable()
@@ -33,6 +38,15 @@ export class SendEnvelopeUseCase {
       input.tenantId,
     );
     if (!envelope) {
+      throw new NotFoundException('Envelope nao encontrado.');
+    }
+    // Nao-Administrador so enxerga os envelopes que criou (fase A, 27/10/2026).
+    // Responde 404 (nao 403) para nao revelar que o envelope existe.
+    if (
+      input.requesterRole &&
+      input.requesterUserId &&
+      !podeVerEnvelope(input.requesterRole, input.requesterUserId, envelope.createdByUserId)
+    ) {
       throw new NotFoundException('Envelope nao encontrado.');
     }
     if (envelope.status !== 'rascunho') {

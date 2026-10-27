@@ -4,6 +4,7 @@
 // campos de um envelope que ainda esta em "rascunho". So funciona nesse
 // status (mesma restricao do GetEnvelopeForEditUseCase).
 import { Injectable, Inject, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { podeVerEnvelope } from '../../domain/services/acesso-envelope';
 import { ISignatureEnvelopeRepository, SignatureEnvelopeRecord } from '../../domain/repositories/signature-envelope-repository.interface';
 import { ISignatureRecipientRepository, SignatureRecipientRecord } from '../../domain/repositories/signature-recipient-repository.interface';
 import { ISignatureFieldRepository, SignatureFieldRecord } from '../../domain/repositories/signature-field-repository.interface';
@@ -36,6 +37,10 @@ interface UpdateEnvelopeDraftInput {
   fields: UpdateEnvelopeDraftFieldInput[];
   emailSubject?: string | null;
   emailMessage?: string | null;
+  // Quem pediu (rota HTTP). Ausente = chamada interna (ex.: RH gerando o
+  // contrato do corretor) - sem filtro. Ver domain/services/acesso-envelope.ts.
+  requesterRole?: string;
+  requesterUserId?: string;
 }
 
 export interface UpdateEnvelopeDraftResult {
@@ -65,6 +70,15 @@ export class UpdateEnvelopeDraftUseCase {
       input.tenantId,
     );
     if (!envelope) {
+      throw new NotFoundException('Envelope nao encontrado.');
+    }
+    // Nao-Administrador so enxerga os envelopes que criou (fase A, 27/10/2026).
+    // Responde 404 (nao 403) para nao revelar que o envelope existe.
+    if (
+      input.requesterRole &&
+      input.requesterUserId &&
+      !podeVerEnvelope(input.requesterRole, input.requesterUserId, envelope.createdByUserId)
+    ) {
       throw new NotFoundException('Envelope nao encontrado.');
     }
     if (envelope.status !== 'rascunho') {

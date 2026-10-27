@@ -43,6 +43,7 @@ export class PrismaSignatureEnvelopeRepository implements ISignatureEnvelopeRepo
     const rows = await this.prisma.signatureEnvelope.findMany({
       where: {
         tenantId,
+        ...(filter?.createdByUserId ? { createdByUserId: filter.createdByUserId } : {}),
         ...(filter?.status ? { status: filter.status } : {}),
         ...(filter?.search
           ? { title: { contains: filter.search, mode: 'insensitive' } }
@@ -69,10 +70,10 @@ export class PrismaSignatureEnvelopeRepository implements ISignatureEnvelopeRepo
     }));
   }
 
-  async countByTenantGroupedByStatus(tenantId: string): Promise<EnvelopeStats> {
+  async countByTenantGroupedByStatus(tenantId: string, createdByUserId?: string): Promise<EnvelopeStats> {
     const rows = await this.prisma.signatureEnvelope.groupBy({
       by: ['status'],
-      where: { tenantId },
+      where: { tenantId, ...(createdByUserId ? { createdByUserId } : {}) },
       _count: { _all: true },
     });
     const counts = Object.fromEntries(ALL_STATUSES.map((status) => [status, 0])) as Record<

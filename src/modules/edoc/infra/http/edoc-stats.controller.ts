@@ -38,7 +38,11 @@ export class EdocStatsController {
   // GET /edoc/stats - contagens do dashboard (total, por status)
   @Get('stats')
   async getStats(@Req() req: Request) {
-    return this.getEnvelopeStatsUseCase.execute({ tenantId: req.user!.tenantId });
+    return this.getEnvelopeStatsUseCase.execute({
+      tenantId: req.user!.tenantId,
+      requesterRole: req.user!.role,
+      requesterUserId: req.user!.id,
+    });
   }
 
   // POST /edoc/convert-preview - converte Word/Excel para PDF so para

@@ -30,6 +30,12 @@ import { UpdateEnvelopeDraftUseCase } from '../../application/use-cases/update-e
 import { CancelEnvelopeUseCase } from '../../application/use-cases/cancel-envelope.use-case';
 import { GetSignedPdfUseCase } from '../../application/use-cases/get-signed-pdf.use-case';
 
+// Quem chama - nao-Administrador so ve/abre/edita os envelopes que criou
+// (ver domain/services/acesso-envelope.ts).
+export function requisitanteEnvelope(req: Request): { requesterRole: string; requesterUserId: string } {
+  return { requesterRole: req.user!.role, requesterUserId: req.user!.id };
+}
+
 const VALID_ROLES = ['destinatario', 'remetente', 'testemunha'];
 const VALID_FIELD_TIPOS = ['assinatura', 'rubrica'];
 // Multer so limita tamanho aqui - a validacao de extensao/mimetype (PDF ou
@@ -98,7 +104,7 @@ export class EnvelopeController {
   // envelope que ficasse em rascunho nao tinha como ser retomado).
   @Get(':id/edit')
   async getForEdit(@Param('id') id: string, @Req() req: Request) {
-    return this.getEnvelopeForEditUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId });
+    return this.getEnvelopeForEditUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId, ...requisitanteEnvelope(req) });
   }
 
   // PATCH /edoc/envelopes/:id - atualiza um rascunho existente (Fatia 4).
@@ -116,6 +122,7 @@ export class EnvelopeController {
     return this.updateEnvelopeDraftUseCase.execute({
       envelopeId: id,
       tenantId: req.user!.tenantId,
+      ...requisitanteEnvelope(req),
       title: dto.title,
       file,
       recipients,
@@ -128,7 +135,7 @@ export class EnvelopeController {
   // POST /edoc/envelopes/:id/send - envia para o primeiro destinatario da ordem
   @Post(':id/send')
   async send(@Param('id') id: string, @Req() req: Request) {
-    return this.sendEnvelopeUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId });
+    return this.sendEnvelopeUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId, ...requisitanteEnvelope(req) });
   }
 
   // GET /edoc/envelopes - lista os envelopes do tenant autenticado, com
@@ -139,19 +146,19 @@ export class EnvelopeController {
     @Query('status') status?: string,
     @Query('search') search?: string,
   ) {
-    return this.listEnvelopesUseCase.execute({ tenantId: req.user!.tenantId, status, search });
+    return this.listEnvelopesUseCase.execute({ tenantId: req.user!.tenantId, status, search, ...requisitanteEnvelope(req) });
   }
 
   // GET /edoc/envelopes/:id - detalhe + destinatarios
   @Get(':id')
   async getDetail(@Param('id') id: string, @Req() req: Request) {
-    return this.getEnvelopeDetailUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId });
+    return this.getEnvelopeDetailUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId, ...requisitanteEnvelope(req) });
   }
 
   // GET /edoc/envelopes/:id/signed-pdf - url do PDF final (so quando concluido)
   @Get(':id/signed-pdf')
   async getSignedPdf(@Param('id') id: string, @Req() req: Request) {
-    return this.getSignedPdfUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId });
+    return this.getSignedPdfUseCase.execute({ envelopeId: id, tenantId: req.user!.tenantId, ...requisitanteEnvelope(req) });
   }
 
   // POST /edoc/envelopes/:id/cancel - Administrador ou quem criou o envelope

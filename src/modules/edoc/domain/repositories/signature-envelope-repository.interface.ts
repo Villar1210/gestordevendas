@@ -28,6 +28,9 @@ export interface SignatureEnvelopeWithCount extends SignatureEnvelopeRecord {
 export interface ListEnvelopesFilter {
   status?: string;
   search?: string;
+  // So envelopes criados por este usuario (nao-Administrador, ver
+  // domain/services/acesso-envelope.ts). Ausente = todos do tenant.
+  createdByUserId?: string;
 }
 
 export interface EnvelopeStats {
@@ -54,7 +57,7 @@ export interface ISignatureEnvelopeRepository {
     tenantId: string,
     filter?: ListEnvelopesFilter,
   ): Promise<SignatureEnvelopeWithCount[]>;
-  countByTenantGroupedByStatus(tenantId: string): Promise<EnvelopeStats>;
+  countByTenantGroupedByStatus(tenantId: string, createdByUserId?: string): Promise<EnvelopeStats>;
   updateStatus(id: string, status: string): Promise<SignatureEnvelopeRecord>;
   // Usado por UpdateEnvelopeDraftUseCase (Fatia 4) - so chamado quando o
   // envelope ainda esta "rascunho" (a checagem de status vive no use case,
