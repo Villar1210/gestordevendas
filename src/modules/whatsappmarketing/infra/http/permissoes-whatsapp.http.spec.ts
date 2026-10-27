@@ -32,14 +32,16 @@ class FakeAuthGuard implements CanActivate {
   }
 }
 
-const ROTAS: { nome: string; metodo: 'GET' | 'POST' | 'DELETE'; url: string; body?: unknown }[] = [
+// statusAdmin: quando a rota passa pelo guard mas o use case recusa de
+// proposito (ex.: VIVI interna desligada em 27/10/2026 -> enable da 400).
+const ROTAS: { nome: string; metodo: 'GET' | 'POST' | 'DELETE'; url: string; body?: unknown; statusAdmin?: number }[] = [
   { nome: 'WhatsAppController.getMine', metodo: 'GET', url: '/whatsapp/sessions/me' },
   { nome: 'WhatsAppController.create', metodo: 'POST', url: '/whatsapp/sessions', body: {} },
   { nome: 'WhatsAppController.getQrCode', metodo: 'GET', url: '/whatsapp/sessions/s-1/qr' },
   { nome: 'WhatsAppController.getStatus', metodo: 'GET', url: '/whatsapp/sessions/s-1/status' },
   { nome: 'WhatsAppController.send', metodo: 'POST', url: '/whatsapp/sessions/s-1/send', body: { to: '5511999999999', body: 'oi' } },
   { nome: 'WhatsAppController.disconnect', metodo: 'DELETE', url: '/whatsapp/sessions/s-1' },
-  { nome: 'ViviSessionController.enable', metodo: 'POST', url: '/whatsapp/sessions/s-1/vivi/enable' },
+  { nome: 'ViviSessionController.enable', metodo: 'POST', url: '/whatsapp/sessions/s-1/vivi/enable', statusAdmin: 400 },
   { nome: 'ViviSessionController.disable', metodo: 'POST', url: '/whatsapp/sessions/s-1/vivi/disable' },
 ];
 
@@ -94,7 +96,9 @@ describe('Permissoes WhatsApp - tabela HTTP (RolesGuard real)', () => {
       headers: { 'x-perfil': perfil, 'content-type': 'application/json' },
       body: rota.metodo === 'GET' ? undefined : JSON.stringify(rota.body ?? {}),
     });
-    if (esperado === 'passa') {
+    if (esperado === 'passa' && rota.statusAdmin) {
+      expect(res.status).toBe(rota.statusAdmin);
+    } else if (esperado === 'passa') {
       expect(res.status).toBeLessThan(400);
     } else {
       expect(res.status).toBe(403);

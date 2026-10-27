@@ -12,7 +12,6 @@ import { CanaisModule } from '../../shared/canais.module';
 import { ViviSessionController } from './infra/http/vivi-session.controller';
 import { ViviConversationController } from './infra/http/vivi-conversation.controller';
 import { ViviConfigController } from './infra/http/vivi-config.controller';
-import { ChatwootWebhookController } from './infra/http/chatwoot-webhook.controller';
 import { EnableViviOnSessionUseCase } from './application/use-cases/enable-vivi-on-session.use-case';
 import { DisableViviOnSessionUseCase } from './application/use-cases/disable-vivi-on-session.use-case';
 import { ListViviConversationsUseCase } from './application/use-cases/list-vivi-conversations.use-case';
@@ -71,7 +70,11 @@ import { PrismaService } from '../../config/prisma.service';
     AuthModule,
     CanaisModule,
   ],
-  controllers: [ViviSessionController, ViviConversationController, ViviConfigController, ChatwootWebhookController],
+  // ChatwootWebhookController (POST /chatwoot/webhook) REMOVIDO em 27/10/2026:
+  // levava mensagens do Chatwoot a VIVI interna, que foi desligada (ver
+  // constants/vivi-interna.ts) e usava uma sessao virtual inexistente no
+  // banco. O arquivo continua em infra/http/, sem rota registrada.
+  controllers: [ViviSessionController, ViviConversationController, ViviConfigController],
   exports: [AgendarVisitaUseCase, ProcessIncomingMessageUseCase],
   providers: [
     PrismaService,

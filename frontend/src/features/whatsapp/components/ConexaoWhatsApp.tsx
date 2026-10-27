@@ -45,7 +45,6 @@ export function ConexaoWhatsApp() {
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [viviLoading, setViviLoading] = useState(false);
   const [atendendoCount, setAtendendoCount] = useState<number | null>(null);
   const [aguardandoCount, setAguardandoCount] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -191,24 +190,6 @@ export function ConexaoWhatsApp() {
     }
   }
 
-  async function handleToggleVivi() {
-    if (!session) return;
-    setError(null);
-    setViviLoading(true);
-    const nextEnabled = !session.isAiEnabled;
-    try {
-      await apiRequest(
-        `/whatsapp/sessions/${session.id}/vivi/${nextEnabled ? "enable" : "disable"}`,
-        { method: "POST" },
-      );
-      setSession({ ...session, isAiEnabled: nextEnabled });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Não foi possível atualizar a VIVI.");
-    } finally {
-      setViviLoading(false);
-    }
-  }
-
   const isConnected = session?.status === "CONNECTED";
   // "RECONNECTING" e um valor so-de-resposta do backend (nunca gravado no
   // banco): o banco ainda diz CONNECTED, mas o socket Baileys em memoria
@@ -275,26 +256,13 @@ export function ConexaoWhatsApp() {
                   Ver conversas <ArrowRight className="h-4 w-4" />
                 </Link>
 
-                <div className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-left">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">VIVI (Assistente de IA)</p>
-                    <p className="text-xs text-slate-400">Responde automaticamente novos leads</p>
-                  </div>
-                  <button
-                    onClick={handleToggleVivi}
-                    disabled={viviLoading}
-                    role="switch"
-                    aria-checked={session?.isAiEnabled}
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
-                      session?.isAiEnabled ? "bg-[#25D366]" : "bg-slate-200"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
-                        session?.isAiEnabled ? "translate-x-5" : "translate-x-0.5"
-                      }`}
-                    />
-                  </button>
+                {/* VIVI interna desligada em 27/10/2026: a VIVI oficial atende pelo
+                    fazer.ai. O liga/desliga desta sessao foi removido. */}
+                <div className="rounded-lg border border-slate-200 px-4 py-3 text-left">
+                  <p className="text-sm font-medium text-slate-700">VIVI (Assistente de IA)</p>
+                  <p className="text-xs text-slate-500">
+                    A VIVI atende pelo número oficial (fazer.ai). Mensagens deste número vão para a Central de Atendimento.
+                  </p>
                 </div>
 
                 <button

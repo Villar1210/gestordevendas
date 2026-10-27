@@ -15,6 +15,7 @@ import {
 } from '../../../../shared/domain/events/mensagem-recebida.event';
 import { Canal } from '../../../../shared/domain/enums/canal.enum';
 import { ProcessIncomingSocialMessageUseCase } from '../../application/use-cases/process-incoming-social-message.use-case';
+import { VIVI_INTERNA_ATIVA } from '../../constants/vivi-interna';
 
 @Injectable()
 export class SocialMessageReceivedListener {
@@ -25,6 +26,13 @@ export class SocialMessageReceivedListener {
   @OnEvent(MENSAGEM_RECEBIDA_EVENT)
   async handle(event: MensagemRecebidaEvent): Promise<void> {
     if (event.canal !== Canal.INSTAGRAM && event.canal !== Canal.FACEBOOK) {
+      return;
+    }
+
+    // VIVI interna desligada (27/10/2026, ver constants/vivi-interna.ts): a
+    // DM continua gravada (SocialMessage) pelo modulo social_media, mas a IA
+    // nao responde.
+    if (!VIVI_INTERNA_ATIVA) {
       return;
     }
 

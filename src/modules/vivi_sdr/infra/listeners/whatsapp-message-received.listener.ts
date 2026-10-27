@@ -15,6 +15,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { IWhatsAppSessionRepository } from '../../../whatsappmarketing/domain/repositories/whatsapp-session-repository.interface';
 import { ProcessIncomingMessageUseCase } from '../../application/use-cases/process-incoming-message.use-case';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
+import { VIVI_INTERNA_ATIVA } from '../../constants/vivi-interna';
 
 interface WhatsAppMessageReceivedEvent {
   tenantId: string;
@@ -47,7 +48,10 @@ export class WhatsAppMessageReceivedListener {
     }
 
     try {
-      if (session.isAiEnabled) {
+      // VIVI interna desligada (27/10/2026, ver constants/vivi-interna.ts):
+      // mesmo sessao com isAiEnabled=true antigo cai na Central de
+      // Atendimento, nunca no Claude.
+      if (VIVI_INTERNA_ATIVA && session.isAiEnabled) {
         await this.processIncomingMessageUseCase.execute(event);
       } else {
         await this.getOrCreateAtendimentoUseCase.execute({

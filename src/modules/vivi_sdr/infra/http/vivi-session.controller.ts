@@ -1,12 +1,13 @@
 // src/modules/vivi_sdr/infra/http/vivi-session.controller.ts
 // Permissoes (16/10/2026): ligar/desligar a VIVI no numero = so Administrador.
-import { Controller, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
 import { EnableViviOnSessionUseCase } from '../../application/use-cases/enable-vivi-on-session.use-case';
 import { DisableViviOnSessionUseCase } from '../../application/use-cases/disable-vivi-on-session.use-case';
+import { MENSAGEM_VIVI_INTERNA_DESLIGADA, VIVI_INTERNA_ATIVA } from '../../constants/vivi-interna';
 
 @Controller('whatsapp/sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -21,6 +22,11 @@ export class ViviSessionController {
   @Post(':id/vivi/enable')
   @HttpCode(HttpStatus.OK)
   async enable(@Param('id') id: string, @Req() req: Request) {
+    // VIVI interna desligada (27/10/2026): nao deixa religar pela API.
+    // "disable" continua liberado para limpar sessoes antigas.
+    if (!VIVI_INTERNA_ATIVA) {
+      throw new BadRequestException(MENSAGEM_VIVI_INTERNA_DESLIGADA);
+    }
     await this.enableViviOnSessionUseCase.execute({
       sessionId: id,
       tenantId: req.user!.tenantId,
