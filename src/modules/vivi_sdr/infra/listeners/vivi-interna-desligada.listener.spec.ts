@@ -8,6 +8,7 @@ import { ProcessIncomingMessageUseCase } from '../../application/use-cases/proce
 import { ProcessIncomingSocialMessageUseCase } from '../../application/use-cases/process-incoming-social-message.use-case';
 import { GetOrCreateAtendimentoUseCase } from '../../../atendimento/application/use-cases/get-or-create-atendimento.use-case';
 import { VIVI_INTERNA_ATIVA } from '../../constants/vivi-interna';
+import { EncaminharDmSemViviUseCase } from '../../application/use-cases/encaminhar-dm-sem-vivi.use-case';
 
 describe('VIVI interna desligada', () => {
   it('a chave esta desligada no codigo', () => {
@@ -29,12 +30,17 @@ describe('VIVI interna desligada', () => {
     expect(atendimento.execute).toHaveBeenCalled();
   });
 
-  it('DM de Instagram/Facebook nao chama a IA', async () => {
+  it('DM de Instagram/Facebook nao chama a IA: vai para o encaminhamento sem VIVI', async () => {
     const processar = { execute: jest.fn() };
-    const listener = new SocialMessageReceivedListener(processar as unknown as ProcessIncomingSocialMessageUseCase);
+    const encaminhar = { execute: jest.fn() };
+    const listener = new SocialMessageReceivedListener(
+      processar as unknown as ProcessIncomingSocialMessageUseCase,
+      encaminhar as unknown as EncaminharDmSemViviUseCase,
+    );
 
     await listener.handle({ tenantId: 't-1', canal: Canal.INSTAGRAM, contaId: 'c-1', identificadorExterno: 'x', conteudo: 'oi' } as never);
 
     expect(processar.execute).not.toHaveBeenCalled();
+    expect(encaminhar.execute).toHaveBeenCalledWith(expect.objectContaining({ identificadorExterno: 'x', mensagem: 'oi' }));
   });
 });

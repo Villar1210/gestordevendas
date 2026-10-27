@@ -17,6 +17,7 @@ import { DisableViviOnSessionUseCase } from './application/use-cases/disable-viv
 import { ListViviConversationsUseCase } from './application/use-cases/list-vivi-conversations.use-case';
 import { ProcessIncomingMessageUseCase } from './application/use-cases/process-incoming-message.use-case';
 import { ProcessIncomingSocialMessageUseCase } from './application/use-cases/process-incoming-social-message.use-case';
+import { EncaminharDmSemViviUseCase } from './application/use-cases/encaminhar-dm-sem-vivi.use-case';
 import { AgendarVisitaUseCase } from './application/use-cases/agendar-visita.use-case';
 import { GetOrCreateViviConfigUseCase } from './application/use-cases/get-or-create-vivi-config.use-case';
 import { UpdateViviConfigUseCase } from './application/use-cases/update-vivi-config.use-case';
@@ -83,6 +84,7 @@ import { PrismaService } from '../../config/prisma.service';
     ListViviConversationsUseCase,
     ProcessIncomingMessageUseCase,
     ProcessIncomingSocialMessageUseCase,
+    EncaminharDmSemViviUseCase,
     AgendarVisitaUseCase,
     GetOrCreateViviConfigUseCase,
     UpdateViviConfigUseCase,
