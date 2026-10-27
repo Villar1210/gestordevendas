@@ -2,9 +2,9 @@
 // Fase B (27/10/2026, Etapa 2 do mapa de processos): alertas de lead parado
 // vao para o WhatsApp da gestao (alem do sino), pelo mesmo canal ja usado
 // pelos avisos do follow-up (Chatwoot -> numero oficial da VIVI).
-// - 'card.sem_dono.escalonado' (lead na Caixa de Entrada ha 15 min sem
-//   corretor): coordenadores e gerentes do tenant com WhatsApp cadastrado;
-//   sem nenhum, os Administradores.
+// - 'cards.sem_dono.resumo' (leads na Caixa de Entrada ha 15 min sem
+//   corretor, UM resumo por empresa por rodada): coordenadores e gerentes do
+//   tenant com WhatsApp cadastrado; sem nenhum, os Administradores.
 // - 'lead.escalado_gestao' (ninguem aceitou e nao ha outro corretor - o lead
 //   foi para o gestor): o proprio gestor.
 // Contrato so por nome de evento + payload (modulo nao importa modulo).
@@ -18,13 +18,11 @@ const CARGOS_GESTAO_DE_PLANTAO = ['coordenador', 'gerente', 'gerente_regional', 
 const ADMINISTRADOR_ROLE_NAME = 'Administrador';
 const LINK_KANBAN = 'https://gestordevendas.ivillar.com.br/dashboard/kanban';
 
-interface CardSemDonoEscalonadoEvent {
+interface CardsSemDonoResumoEvent {
   tenantId: string;
-  cardId: string;
-  title: string;
-  phone: string | null;
-  minutosAguardando: number;
+  cards: Array<{ cardId: string; title: string; minutosAguardando: number }>;
 }
+const MAX_LINHAS_RESUMO = 10;
 
 interface LeadEscaladoGestaoEvent {
   tenantId: string;
@@ -47,9 +45,10 @@ export class AlertasGestaoWhatsappListener {
     private readonly chatwoot: ChatwootWhatsappService,
   ) {}
 
-  @OnEvent('card.sem_dono.escalonado')
-  async leadParadoSemDono(event: CardSemDonoEscalonadoEvent): Promise<void> {
+  @OnEvent('cards.sem_dono.resumo')
+  async leadsParadosSemDono(event: CardsSemDonoResumoEvent): Promise<void> {
     try {
+      if (!event.cards.length) return;
       let destinatarios: Destinatario[] = await this.prisma.user.findMany({
         where: {
           tenantId: event.tenantId,
@@ -61,17 +60,26 @@ export class AlertasGestaoWhatsappListener {
       });
       if (destinatarios.length === 0) {
         destinatarios = await this.prisma.user.findMany({
-          where: { tenantId: event.tenantId, role: { name: ADMINISTRADOR_ROLE_NAME }, whatsapp: { not: null } },
+          where: {
+            tenantId: event.tenantId,
+            statusCadastro: 'aprovado',
+            role: { name: ADMINISTRADOR_ROLE_NAME },
+            whatsapp: { not: null },
+          },
           select: { name: true, whatsapp: true },
         });
       }
+      const linhas = event.cards
+        .slice(0, MAX_LINHAS_RESUMO)
+        .map((c) => `• ${c.title} (há ${c.minutosAguardando} min)`);
+      const resto = event.cards.length > MAX_LINHAS_RESUMO ? `\n...e mais ${event.cards.length - MAX_LINHAS_RESUMO}` : '';
       const mensagem =
-        `⚠️ *Lead sem corretor há ${event.minutosAguardando} min*\n` +
-        `${event.title}\n` +
-        `Ninguém assumiu ainda. Distribua pela Caixa de Entrada:\n${LINK_KANBAN}?cardId=${event.cardId}`;
+        `⚠️ *${event.cards.length} lead(s) sem corretor*\n` +
+        `${linhas.join('\n')}${resto}\n` +
+        `Ninguém assumiu ainda. Distribua pela Caixa de Entrada:\n${LINK_KANBAN}`;
       await this.enviarParaTodos(destinatarios, mensagem);
     } catch (error) {
-      this.logger.error(`Falha no alerta de lead sem dono (card ${event.cardId}): ${(error as Error).message}`);
+      this.logger.error(`Falha no alerta de leads sem dono (tenant ${event.tenantId}): ${(error as Error).message}`);
     }
   }
 

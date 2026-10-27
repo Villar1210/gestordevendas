@@ -44,6 +44,7 @@ type PrismaCardRow = {
   escalonamentoNotificadoEm: Date | null;
   emAtendimentoVivi?: boolean;
   ultimaInteracaoViviEm?: Date | null;
+  caixaEntradaDesde?: Date | null;
 };
 
 @Injectable()
@@ -89,6 +90,7 @@ export class PrismaCardRepository implements ICardRepository {
       escalonamentoNotificadoEm: row.escalonamentoNotificadoEm,
       emAtendimentoVivi: row.emAtendimentoVivi ?? false,
       ultimaInteracaoViviEm: row.ultimaInteracaoViviEm ?? null,
+      caixaEntradaDesde: row.caixaEntradaDesde ?? null,
       // Preenchida so pelo use case (GetBoardUseCase/GetInboxUseCase), apos
       // uma consulta em lote a IActivityRepository - ver CardRecord.
       proximaAtividade: null,
@@ -136,6 +138,7 @@ export class PrismaCardRepository implements ICardRepository {
           movidoParaRepiqueEm: input.movidoParaRepiqueEm ?? null,
           emAtendimentoVivi: input.emAtendimentoVivi ?? false,
           ultimaInteracaoViviEm: input.ultimaInteracaoViviEm ?? null,
+          caixaEntradaDesde: !input.stageId && !input.emAtendimentoVivi ? new Date() : null,
         },
       });
       return this.toRecord(row);
@@ -360,7 +363,10 @@ export class PrismaCardRepository implements ICardRepository {
         stageId: null,
         ownerId: null,
         emAtendimentoVivi: false,
-        createdAt: { lt: antesDe },
+        OR: [
+          { caixaEntradaDesde: { lt: antesDe } },
+          { caixaEntradaDesde: null, createdAt: { lt: antesDe } },
+        ],
         escalonamentoNotificadoEm: null,
       },
     });
@@ -532,6 +538,7 @@ export class PrismaCardRepository implements ICardRepository {
         atribuidoAutomaticamenteEm: null,
         aceitoEm: null,
         escalonamentoNotificadoEm: null,
+        caixaEntradaDesde: new Date(),
       },
     });
   }
@@ -565,7 +572,10 @@ export class PrismaCardRepository implements ICardRepository {
   }
 
   async sairDoAtendimentoVivi(id: string): Promise<void> {
-    await this.prisma.card.update({ where: { id }, data: { emAtendimentoVivi: false } });
+    await this.prisma.card.update({
+      where: { id },
+      data: { emAtendimentoVivi: false, caixaEntradaDesde: new Date(), escalonamentoNotificadoEm: null },
+    });
   }
 
   async findAtendimentoViviSemInteracaoDesde(antesDe: Date): Promise<CardRecord[]> {
@@ -579,5 +589,42 @@ export class PrismaCardRepository implements ICardRepository {
       },
     });
     return rows.map((row) => this.toRecord(row));
+  }
+
+  async atualizarDadosDeEntrada(
+    id: string,
+    dados: { title?: string; description?: string; empreendimentoId?: string | null },
+  ): Promise<void> {
+    const data: Prisma.CardUpdateInput = {};
+    if (dados.title !== undefined) data.title = dados.title;
+    if (dados.description !== undefined) data.description = dados.description;
+    if (dados.empreendimentoId !== undefined) {
+      data.empreendimento = dados.empreendimentoId
+        ? { connect: { id: dados.empreendimentoId } }
+        : { disconnect: true };
+    }
+    if (Object.keys(data).length === 0) return;
+    await this.prisma.card.update({ where: { id }, data });
+  }
+
+  async reatribuirSeAindaPendente(id: string, novoDonoId: string, quando: Date): Promise<boolean> {
+    const r = await this.prisma.card.updateMany({
+      where: { id, aceitoEm: null },
+      data: { ownerId: novoDonoId, atribuidoAutomaticamenteEm: quando, aceitoEm: null },
+    });
+    return r.count > 0;
+  }
+
+  async moverDoAtendimentoViviParaRepique(id: string, repiqueStageId: string, quando: Date): Promise<void> {
+    await this.prisma.card.update({
+      where: { id },
+      data: {
+        emAtendimentoVivi: false,
+        stageId: repiqueStageId,
+        position: 0,
+        motivoRepique: 'SEM_RESPOSTA_VIVI',
+        movidoParaRepiqueEm: quando,
+      },
+    });
   }
 }

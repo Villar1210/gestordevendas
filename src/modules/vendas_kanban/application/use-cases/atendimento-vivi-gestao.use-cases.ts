@@ -61,9 +61,18 @@ export class EncaminharAtendimentoViviParaRoletaUseCase {
 
   // Chamada do sistema (ex.: VIVI agendou visita citando o card pelo id): se o
   // card ainda estiver na coluna, sai dela e vai para a Roleta. Senao, nada.
-  async encaminharPeloSistema(tenantId: string, cardId: string): Promise<void> {
+  async encaminharPeloSistema(
+    tenantId: string,
+    cardId: string,
+    dados?: { description?: string; empreendimentoId?: string | null },
+  ): Promise<void> {
     const card = await this.cardRepository.findByIdAndTenant(cardId, tenantId);
     if (card?.emAtendimentoVivi) {
+      // Resumo e produto antes da Roleta (o produto decide a roleta do sorteio).
+      await this.cardRepository.atualizarDadosDeEntrada(card.id, {
+        description: dados?.description?.trim() ? dados.description.trim() : undefined,
+        empreendimentoId: dados?.empreendimentoId ? dados.empreendimentoId : undefined,
+      });
       await this.promover(card);
     }
   }
@@ -100,11 +109,7 @@ export class MoverAtendimentoViviParadoParaRepiqueUseCase {
           this.logger.warn(`Funil ${card.pipelineId} sem etapa Repique - card ${card.id} continua na VIVI.`);
           continue;
         }
-        await this.cardRepository.sairDoAtendimentoVivi(card.id);
-        await this.cardRepository.updateStageAndPosition(card.id, repique.id, 0, {
-          motivoRepique: 'SEM_RESPOSTA_VIVI',
-          movidoParaRepiqueEm: agora,
-        });
+        await this.cardRepository.moverDoAtendimentoViviParaRepique(card.id, repique.id, agora);
         const evento: CardStageChangedEvent = {
           tenantId: card.tenantId,
           cardId: card.id,

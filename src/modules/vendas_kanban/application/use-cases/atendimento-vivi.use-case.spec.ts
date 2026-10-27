@@ -19,6 +19,8 @@ function repos(existente: Record<string, unknown> | null) {
     updateStageAndPosition: jest.fn(),
     findByIdAndTenant: jest.fn().mockResolvedValue(existente),
     findAtendimentoViviSemInteracaoDesde: jest.fn(),
+    atualizarDadosDeEntrada: jest.fn(),
+    moverDoAtendimentoViviParaRepique: jest.fn(),
   };
   const pipelineRepository = {
     findAllByTenant: jest.fn().mockResolvedValue([{ id: 'p-vendas', name: 'Vendas' }]),
@@ -30,7 +32,7 @@ function repos(existente: Record<string, unknown> | null) {
       { id: 's-repique', name: 'Repique', position: 5 },
     ]),
   };
-  const busca = { encontrar: jest.fn().mockResolvedValue(existente) };
+  const busca = { encontrar: jest.fn().mockResolvedValue(existente), chaveDaTrava: (t: string, p: string) => `${t}:${p}` };
   const emitter = { emit: jest.fn(), emitAsync: jest.fn().mockResolvedValue([]) };
   return { cardRepository, pipelineRepository, stageRepository, busca, emitter };
 }
@@ -112,8 +114,14 @@ describe('Atendimento VIVI - saida da coluna', () => {
       { create: jest.fn() } as never,
       r.busca as never,
     );
-    const res = await quick.execute({ tenantId: 't-1', pipelineId: 'p-vendas', title: 'Maria', phone: '11973879858', isSystemCall: true });
+    const res = await quick.execute({
+      tenantId: 't-1', pipelineId: 'p-vendas', title: 'Maria - visita via VIVI', phone: '11973879858', isSystemCall: true,
+      description: 'Renda 5k, quer 2 dorm', empreendimentoId: 'emp-1',
+    });
     expect(res.reaproveitado).toBe(true);
+    // Resumo e produto (decide a roleta do sorteio) chegam ao card ANTES da Roleta.
+    expect(r.cardRepository.atualizarDadosDeEntrada).toHaveBeenCalledWith('c-1', expect.objectContaining({ description: 'Renda 5k, quer 2 dorm', empreendimentoId: 'emp-1' }));
+    expect(r.cardRepository.atualizarDadosDeEntrada.mock.invocationCallOrder[0]).toBeLessThan(r.emitter.emitAsync.mock.invocationCallOrder[0]);
     expect(r.cardRepository.sairDoAtendimentoVivi).toHaveBeenCalledWith('c-1');
     expect(r.emitter.emitAsync).toHaveBeenCalledWith('card.sem_dono.criado', expect.objectContaining({ cardId: 'c-1' }));
     expect(r.cardRepository.create).not.toHaveBeenCalled();
@@ -136,7 +144,7 @@ describe('Atendimento VIVI - saida da coluna', () => {
     expect(await uc.execute(agora)).toBe(1);
     const limite = r.cardRepository.findAtendimentoViviSemInteracaoDesde.mock.calls[0][0] as Date;
     expect(agora.getTime() - limite.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
-    expect(r.cardRepository.updateStageAndPosition).toHaveBeenCalledWith('c-1', 's-repique', 0, expect.objectContaining({ motivoRepique: 'SEM_RESPOSTA_VIVI' }));
+    expect(r.cardRepository.moverDoAtendimentoViviParaRepique).toHaveBeenCalledWith('c-1', 's-repique', agora);
   });
 
   it('corretor nao "assume" lead que esta com a VIVI', async () => {

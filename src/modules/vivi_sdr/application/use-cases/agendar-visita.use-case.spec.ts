@@ -64,6 +64,7 @@ function setup() {
     promoverLeadMinimoUseCase as any,
     createActivityUseCase as unknown as CreateActivityUseCase,
     encaminharAtendimentoVivi as any,
+    { encontrar: jest.fn().mockResolvedValue(null) } as any,
   );
 
   pipelineRepository.findAllByTenant.mockResolvedValue([{ id: 'pipeline-1', tenantId: 'tenant-1', name: 'Padrao', createdAt: new Date() }]);

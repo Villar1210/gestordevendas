@@ -5,6 +5,7 @@
 // Activity tipo "visita" com a data/horario confirmados pelo lead.
 import { funilDeVendasPadrao } from '../../../vendas_kanban/domain/services/remarketing-pipeline';
 import { EncaminharAtendimentoViviParaRoletaUseCase } from '../../../vendas_kanban/application/use-cases/atendimento-vivi-gestao.use-cases';
+import { CardAbertoPorTelefoneService } from '../../../vendas_kanban/application/services/card-aberto-por-telefone.service';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { IPipelineRepository } from '../../../vendas_kanban/domain/repositories/pipeline-repository.interface';
 import { ICardRepository } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
@@ -76,6 +77,7 @@ export class AgendarVisitaUseCase {
     private readonly promoverLeadMinimoUseCase: PromoverLeadMinimoUseCase,
     private readonly createActivityUseCase: CreateActivityUseCase,
     private readonly encaminharAtendimentoVivi: EncaminharAtendimentoViviParaRoletaUseCase,
+    private readonly cardAbertoPorTelefone: CardAbertoPorTelefoneService,
   ) {}
 
   async execute(input: AgendarVisitaInput): Promise<AgendarVisitaOutput | null> {
@@ -114,10 +116,20 @@ export class AgendarVisitaUseCase {
     const nomeCliente = input.nomeCliente?.trim().slice(0, 120);
     const tituloCard = nomeCliente ? `${nomeCliente} - visita via VIVI` : 'Visita agendada via VIVI';
 
+    // Fase B (revisao): se o cliente ja tem card aberto no funil (coluna
+    // Atendimento VIVI, Caixa de Entrada ou com corretor), NAO promove um card
+    // antigo do funil de remarketing - vai direto ao CreateQuickCard, que
+    // reaproveita o card aberto (senao o cliente ficaria com 2 cards).
+    const temCardAberto =
+      !input.existingCardId &&
+      (await this.cardAbertoPorTelefone.encontrar(input.tenantId, input.phoneNumber, pipeline.id)) !== null;
+
     const cardId = input.existingCardId
       ? input.existingCardId
       : (
-          (await this.promoverLeadMinimoUseCase.execute({
+          (temCardAberto
+            ? null
+            : await this.promoverLeadMinimoUseCase.execute({
             tenantId: input.tenantId,
             phoneNumber: input.phoneNumber,
             targetPipelineId: pipeline.id,
@@ -147,7 +159,10 @@ export class AgendarVisitaUseCase {
     // "Atendimento VIVI", ele sai da coluna e vai para a Roleta (o caminho
     // sem existingCardId ja faz isso dentro do CreateQuickCardUseCase).
     if (input.existingCardId) {
-      await this.encaminharAtendimentoVivi.encaminharPeloSistema(input.tenantId, cardId);
+      await this.encaminharAtendimentoVivi.encaminharPeloSistema(input.tenantId, cardId, {
+        description: input.resumo,
+        empreendimentoId: empreendimentoIdValido,
+      });
     }
 
     const visitaAgendadaEm = this.buildScheduledAt(input.dataVisita, input.horario);

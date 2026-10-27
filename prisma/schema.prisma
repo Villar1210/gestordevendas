@@ -816,6 +816,10 @@ model Card {
   // gestao encaminhar. 7 dias sem interacao -> Repique.
   emAtendimentoVivi     Boolean   @default(false) @map("em_atendimento_vivi")
   ultimaInteracaoViviEm DateTime? @map("ultima_interacao_vivi_em")
+  // Fase B (revisao): desde quando o card esta na Caixa de Entrada (o alerta
+  // de "lead sem corretor ha 15 min" conta daqui, nao da criacao - um card
+  // antigo que volta para a fila nao dispara alerta na hora).
+  caixaEntradaDesde     DateTime? @map("caixa_entrada_desde")
   // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
   // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
   // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas

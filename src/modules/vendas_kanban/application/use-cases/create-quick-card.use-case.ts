@@ -2,7 +2,7 @@
 // Cria um card "cru", sem stage e sem dono (Caixa de Entrada). Representa a
 // chegada de um lead ainda nao qualificado - hoje disparado manualmente para
 // testes, no futuro sera o ponto de entrada dos webhooks de redes sociais.
-import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IPipelineRepository } from '../../domain/repositories/pipeline-repository.interface';
 import { ICardRepository, CardRecord } from '../../domain/repositories/card-repository.interface';
@@ -17,6 +17,18 @@ import {
 import { IStageRepository } from '../../domain/repositories/stage-repository.interface';
 import { INoteRepository } from '../../domain/repositories/note-repository.interface';
 import { CardAbertoPorTelefoneService } from '../services/card-aberto-por-telefone.service';
+import { comTravaPorChave } from '../../domain/services/trava-por-chave';
+import { conflitoNovoNegocio } from '../../domain/services/conflito-novo-negocio';
+
+// Titulos automaticos de quem entrou sem nome (VIVI, WhatsApp, redes): quando
+// chegam dados melhores (ex.: nome informado na visita), o titulo e trocado.
+const TITULOS_AUTOMATICOS = [
+  'Contato pela VIVI',
+  'Lead da VIVI',
+  'Contato pelo WhatsApp',
+  'Mensagem pelo Instagram',
+  'Mensagem pelo Facebook',
+];
 import { REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
 
 // Evento emitido quando um cliente que JA tem card aberto entra de novo
@@ -43,6 +55,9 @@ interface CreateQuickCardInput {
   // chamadas humanas (isSystemCall ausente/false) - ver isSystemCall abaixo.
   requesterRole?: string;
   requesterCargo?: string | null;
+  // Fase B (revisao): quem criou pela tela - usado para recusar (409) cliente
+  // que ja tem negocio aberto, em vez de devolver o card de outro corretor.
+  requesterUserId?: string;
   // true para chamadores internos de sistema (CapturarLeadMinimoUseCase, que
   // e o proprio mecanismo que deposita neste funil, e os fluxos da VIVI) -
   // pula a checagem podeAcessarPipelineRemarketing por completo, mesmo sem
@@ -110,19 +125,34 @@ export class CreateQuickCardUseCase {
     }
 
     // Fase B: mesmo cliente nao vira 2 cards. So para entrada na Caixa de
-    // Entrada (sem stage explicita) e fora do funil de remarketing.
+    // Entrada (sem stage explicita) e fora do funil de remarketing. Procura e
+    // criacao rodam sob trava por tenant+telefone (mensagens em rajada).
     if (
       input.deduplicarPorTelefone !== false &&
       !input.stageId &&
       input.phone &&
       pipeline.name !== REMARKETING_PIPELINE_NOME
     ) {
-      const existente = await this.cardAbertoPorTelefone.encontrar(input.tenantId, input.phone);
-      if (existente) {
-        return this.registrarReentrada(existente, input);
-      }
+      const phone = input.phone;
+      return comTravaPorChave(this.cardAbertoPorTelefone.chaveDaTrava(input.tenantId, phone), async () => {
+        const existente = await this.cardAbertoPorTelefone.encontrar(input.tenantId, phone, pipeline.id);
+        if (existente) {
+          if (!input.isSystemCall) {
+            const conflito = conflitoNovoNegocio(existente, input.requesterUserId, { permitirProprio: false });
+            if (conflito) throw new ConflictException(conflito);
+          } else {
+            return this.registrarReentrada(existente, input);
+          }
+        }
+        return this.criar(input, pipeline.id);
+      });
     }
 
+    return this.criar(input, pipeline.id);
+  }
+
+  private async criar(input: CreateQuickCardInput, pipelineId: string): Promise<QuickCardResult> {
+    const pipeline = { id: pipelineId };
     const card = await this.cardRepository.create({
       tenantId: input.tenantId,
       pipelineId: pipeline.id,
@@ -212,6 +242,14 @@ export class CreateQuickCardUseCase {
     // agendou visita, pediu corretor ou chegou por outro canal: sai da coluna
     // e vai para a Roleta.
     if (existente.emAtendimentoVivi) {
+      // Leva para o card os dados que chegaram agora (resumo da VIVI,
+      // produto de interesse - decide a Roleta do produto -, nome) ANTES de
+      // disparar a Roleta.
+      await this.cardRepository.atualizarDadosDeEntrada(existente.id, {
+        title: input.title && TITULOS_AUTOMATICOS.includes(existente.title) ? input.title : undefined,
+        description: input.description?.trim() ? input.description.trim() : undefined,
+        empreendimentoId: input.empreendimentoId ? input.empreendimentoId : undefined,
+      });
       await this.cardRepository.sairDoAtendimentoVivi(existente.id);
       await this.eventEmitter.emitAsync('card.sem_dono.criado', {
         tenantId: input.tenantId,

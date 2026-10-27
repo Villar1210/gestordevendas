@@ -83,6 +83,34 @@ describe('Telefone unico na entrada de leads', () => {
     expect(cardRepository.create).toHaveBeenCalled();
   });
 
+  it('lead rapido criado por uma pessoa com cliente de outro corretor: recusado (nao devolve o card do outro)', async () => {
+    const aberto = { id: 'c-1', pipelineId: 'p-1', stageId: 's-neg', stageName: 'Negociacao', ownerId: 'corretor-a', phone: '11973879858' };
+    const { useCase, cardRepository } = montar([aberto]);
+    await expect(
+      useCase.execute({ tenantId: 't-1', pipelineId: 'p-1', title: 'Maria', phone: '11 97387-9858', requesterUserId: 'corretor-b', requesterRole: 'Corretor' }),
+    ).rejects.toThrow('outro corretor');
+    expect(cardRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('"+ Novo Negocio": cliente no Repique de outro corretor pode ser atendido; cliente proprio tambem', async () => {
+    const repique = { id: 'c-1', pipelineId: 'p-1', stageId: 's-rep', stageName: 'Repique', ownerId: 'corretor-a', phone: '11973879858' };
+    const a = montar([repique]);
+    await a.manual.execute({ tenantId: 't-1', ownerId: 'corretor-b', pipelineId: 'p-1', title: 'Maria', phone: '11973879858' });
+    expect(a.cardRepository.create).toHaveBeenCalled();
+
+    const proprio = { id: 'c-2', pipelineId: 'p-1', stageId: 's-neg', stageName: 'Negociacao', ownerId: 'corretor-b', phone: '11973879858' };
+    const b = montar([proprio]);
+    await b.manual.execute({ tenantId: 't-1', ownerId: 'corretor-b', pipelineId: 'p-1', title: 'Maria - 2a unidade', phone: '11973879858' });
+    expect(b.cardRepository.create).toHaveBeenCalled();
+  });
+
+  it('cliente com card aberto em OUTRO funil (ex.: locacao) nao bloqueia nem absorve', async () => {
+    const outroFunil = { id: 'c-9', pipelineId: 'p-locacao', stageId: 's-x', stageName: 'Contrato', ownerId: 'corretor-a', phone: '11973879858' };
+    const { useCase, cardRepository } = montar([outroFunil]);
+    await useCase.execute(entrada);
+    expect(cardRepository.create).toHaveBeenCalled();
+  });
+
   it('"+ Novo Negocio" de cliente que ja esta com outro corretor: recusado', async () => {
     const aberto = { id: 'c-1', pipelineId: 'p-1', stageId: 's-neg', stageName: 'Negociacao', ownerId: 'corretor-a', phone: '11973879858' };
     const { manual, cardRepository } = montar([aberto]);

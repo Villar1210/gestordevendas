@@ -23,6 +23,7 @@ import { REPIQUE_STAGE_NAME } from '../../domain/services/protected-stages';
 import { CARD_STAGE_CHANGED_EVENT, CardStageChangedEvent } from '../../domain/events/card-stage-changed.event';
 import { CardAbertoPorTelefoneService } from '../services/card-aberto-por-telefone.service';
 import { LEAD_REENTRADA_EVENT, LeadReentradaEvent } from './create-quick-card.use-case';
+import { comTravaPorChave } from '../../domain/services/trava-por-chave';
 
 export const INTERVALO_AVISO_CORRETOR_MS = 12 * 60 * 60 * 1000;
 
@@ -53,12 +54,20 @@ export class RegistrarAtendimentoViviUseCase {
   ) {}
 
   async execute(input: RegistrarAtendimentoViviInput): Promise<RegistrarAtendimentoViviResult> {
+    const funil = funilDeVendasPadrao(await this.pipelineRepository.findAllByTenant(input.tenantId));
+    if (!funil) throw new NotFoundException('Empresa sem funil de vendas.');
+    // Mensagens em rajada do mesmo cliente: procura e criacao em fila.
+    return comTravaPorChave(this.cardAbertoPorTelefone.chaveDaTrava(input.tenantId, input.phone), () =>
+      this.registrar(input, funil.id),
+    );
+  }
+
+  private async registrar(input: RegistrarAtendimentoViviInput, funilId: string): Promise<RegistrarAtendimentoViviResult> {
     const agora = input.agora ?? new Date();
-    const existente = await this.cardAbertoPorTelefone.encontrar(input.tenantId, input.phone);
+    const existente = await this.cardAbertoPorTelefone.encontrar(input.tenantId, input.phone, funilId);
 
     if (!existente) {
-      const funil = funilDeVendasPadrao(await this.pipelineRepository.findAllByTenant(input.tenantId));
-      if (!funil) throw new NotFoundException('Empresa sem funil de vendas.');
+      const funil = { id: funilId };
       const trecho = (input.mensagem ?? '').trim().slice(0, 500);
       const card = await this.cardRepository.create({
         tenantId: input.tenantId,

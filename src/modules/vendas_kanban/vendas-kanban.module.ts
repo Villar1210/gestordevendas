@@ -133,6 +133,7 @@ import { CanaisModule } from '../../shared/canais.module';
     // AgendarVisitaUseCase (vivi_sdr) tirando o card da coluna Atendimento VIVI.
     RegistrarAtendimentoViviUseCase,
     EncaminharAtendimentoViviParaRoletaUseCase,
+    CardAbertoPorTelefoneService,
     MoveCardUseCase,
     CreateNoteUseCase,
     ClaimCardUseCase,

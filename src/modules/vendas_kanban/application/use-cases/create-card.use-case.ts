@@ -8,6 +8,7 @@ import {
   CardStageChangedEvent,
 } from '../../domain/events/card-stage-changed.event';
 import { CardAbertoPorTelefoneService } from '../services/card-aberto-por-telefone.service';
+import { conflitoNovoNegocio } from '../../domain/services/conflito-novo-negocio';
 
 const POSITION_STEP = 1000;
 
@@ -54,7 +55,7 @@ export class CreateCardUseCase {
 
     // Fase B (27/10/2026): "+ Novo Negocio" nao duplica cliente que ja tem
     // negocio aberto (de qualquer corretor ou na Caixa de Entrada).
-    await this.garantirTelefoneSemNegocioAberto(input.tenantId, input.ownerId, input.phone);
+    await this.garantirTelefoneSemNegocioAberto(input.tenantId, input.ownerId, input.phone, targetStage.pipelineId);
 
     const existingCards = await this.cardRepository.findAllByStage(targetStage.id);
     const lastPosition = existingCards.length
@@ -96,16 +97,11 @@ export class CreateCardUseCase {
     tenantId: string,
     ownerId: string,
     phone: string | undefined,
+    pipelineId: string,
   ): Promise<void> {
-    const aberto = await this.cardAbertoPorTelefone.encontrar(tenantId, phone);
+    const aberto = await this.cardAbertoPorTelefone.encontrar(tenantId, phone, pipelineId);
     if (!aberto) return;
-    if (aberto.ownerId === ownerId) {
-      throw new ConflictException('Este cliente já tem um negócio aberto na sua carteira.');
-    }
-    throw new ConflictException(
-      aberto.ownerId
-        ? 'Este cliente já está em atendimento com outro corretor.'
-        : 'Este cliente já está na Caixa de Entrada aguardando distribuição.',
-    );
+    const conflito = conflitoNovoNegocio(aberto, ownerId, { permitirProprio: true });
+    if (conflito) throw new ConflictException(conflito);
   }
 }

@@ -11,11 +11,24 @@ import { chaveTelefone, trechoBuscaTelefone } from '../../domain/services/telefo
 export class CardAbertoPorTelefoneService {
   constructor(@Inject('ICardRepository') private readonly cardRepository: ICardRepository) {}
 
-  async encontrar(tenantId: string, phone: string | null | undefined): Promise<CardRecord | null> {
+  // pipelineId: so considera cards desse funil (ex.: um cliente de locacao
+  // nao bloqueia nem absorve um lead de compra).
+  async encontrar(
+    tenantId: string,
+    phone: string | null | undefined,
+    pipelineId?: string,
+  ): Promise<CardRecord | null> {
     const chave = chaveTelefone(phone);
     if (!phone || !chave) return null;
     const candidatos = await this.cardRepository.findAbertosPorTrechoTelefone(tenantId, trechoBuscaTelefone(phone));
     // Ja vem do mais recente para o mais antigo.
-    return candidatos.find((c) => chaveTelefone(c.phone) === chave) ?? null;
+    return (
+      candidatos.find((c) => chaveTelefone(c.phone) === chave && (!pipelineId || c.pipelineId === pipelineId)) ?? null
+    );
+  }
+
+  // Chave da trava "procura -> cria" (ver domain/services/trava-por-chave.ts).
+  chaveDaTrava(tenantId: string, phone: string): string {
+    return `${tenantId}:${chaveTelefone(phone) ?? phone}`;
   }
 }

@@ -56,7 +56,7 @@ export class ViviIntegrationController {
   @Post('lead-em-atendimento')
   @HttpCode(HttpStatus.OK)
   async leadEmAtendimento(@Body() dto: LeadEmAtendimentoViviDto) {
-    const tenantId = this.config.get<string>('VIVI_TENANT_ID') ?? '';
+    const tenantId = this.tenantDaVivi();
     const resultado = await this.registrarAtendimentoViviUseCase.execute({
       tenantId,
       phone: dto.phoneNumber,
@@ -73,7 +73,7 @@ export class ViviIntegrationController {
   @Post('encaminhar-corretor')
   @HttpCode(HttpStatus.OK)
   async encaminharCorretor(@Body() dto: EncaminharCorretorViviDto) {
-    const tenantId = this.config.get<string>('VIVI_TENANT_ID') ?? '';
+    const tenantId = this.tenantDaVivi();
     const funil = funilDeVendasPadrao(await this.pipelineRepository.findAllByTenant(tenantId));
     if (!funil) {
       throw new UnprocessableEntityException('Empresa sem funil de vendas configurado.');
@@ -89,6 +89,14 @@ export class ViviIntegrationController {
     });
     const corretor = await this.nomeDoCorretor(tenantId, card.id);
     return { cardId: card.id, corretor };
+  }
+
+  private tenantDaVivi(): string {
+    const tenantId = this.config.get<string>('VIVI_TENANT_ID');
+    if (!tenantId) {
+      throw new UnprocessableEntityException('VIVI_TENANT_ID nao configurado no servidor.');
+    }
+    return tenantId;
   }
 
   private async nomeDoCorretor(tenantId: string, cardId: string): Promise<string | null> {

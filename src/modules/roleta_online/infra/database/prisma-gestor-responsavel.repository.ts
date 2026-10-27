@@ -25,7 +25,7 @@ export class PrismaGestorResponsavelRepository implements IGestorResponsavelRepo
     }
 
     const admin = await this.prisma.user.findFirst({
-      where: { tenantId, role: { name: ADMINISTRADOR_ROLE_NAME } },
+      where: { tenantId, statusCadastro: 'aprovado', role: { name: ADMINISTRADOR_ROLE_NAME } },
       orderBy: { createdAt: 'asc' },
       select: { id: true, name: true },
     });

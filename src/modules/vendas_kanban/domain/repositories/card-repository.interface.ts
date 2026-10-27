@@ -54,6 +54,7 @@ export interface CardRecord {
   // Prisma sempre preenche.
   emAtendimentoVivi?: boolean;
   ultimaInteracaoViviEm?: Date | null;
+  caixaEntradaDesde?: Date | null;
   // Proxima atividade pendente (scheduledAt preenchido, done=false) mais
   // urgente deste card - a mais atrasada, se houver alguma vencida, senao a
   // mais proxima no futuro (ver IActivityRepository.findProximasByCardIds).
@@ -280,4 +281,19 @@ export interface ICardRepository {
   sairDoAtendimentoVivi(id: string): Promise<void>;
   // Cards na coluna sem interacao desde `antesDe` (job dos 7 dias).
   findAtendimentoViviSemInteracaoDesde(antesDe: Date): Promise<CardRecord[]>;
+  // Fase B (revisao): quando um lead que estava com a VIVI (ou na Caixa de
+  // Entrada) recebe dados novos na entrada (resumo da VIVI, produto de
+  // interesse, nome do cliente) antes de ir para a Roleta. Campos ausentes
+  // nao sao alterados.
+  atualizarDadosDeEntrada(
+    id: string,
+    dados: { title?: string; description?: string; empreendimentoId?: string | null },
+  ): Promise<void>;
+  // Fase B (revisao, M6): reatribui so se o card AINDA estiver aguardando
+  // aceite (aceitoEm nulo) - evita passar adiante um lead que o corretor
+  // acabou de aceitar. true = reatribuiu.
+  reatribuirSeAindaPendente(id: string, novoDonoId: string, quando: Date): Promise<boolean>;
+  // Fase B (revisao): 7 dias sem resposta na coluna Atendimento VIVI ->
+  // etapa Repique, numa unica escrita (sai da coluna e entra na etapa juntos).
+  moverDoAtendimentoViviParaRepique(id: string, repiqueStageId: string, quando: Date): Promise<void>;
 }

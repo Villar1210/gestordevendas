@@ -152,6 +152,7 @@ export class CardController {
       pipelineId: dto.pipelineId,
       requesterRole: req.user!.role,
       requesterCargo: req.user!.cargo,
+      requesterUserId: req.user!.id,
       title: dto.title,
       value: dto.value,
       origem: dto.origem,

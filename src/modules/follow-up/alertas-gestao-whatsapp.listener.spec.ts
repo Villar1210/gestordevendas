@@ -13,15 +13,17 @@ function montar(gestao: Array<{ name: string; whatsapp: string | null }>, admins
 }
 
 describe('Alertas de gestao no WhatsApp', () => {
-  it('lead parado sem dono: avisa coordenadores e gerentes (telefone normalizado)', async () => {
+  it('leads parados sem dono: UMA mensagem por empresa para coordenadores e gerentes (telefone normalizado)', async () => {
     const { listener, chatwoot } = montar([{ name: 'Coord', whatsapp: '11 98888-7777' }], []);
-    await listener.leadParadoSemDono({ tenantId: 't-1', cardId: 'c-1', title: 'Maria', phone: null, minutosAguardando: 15 });
+    await listener.leadsParadosSemDono({ tenantId: 't-1', cards: [{ cardId: 'c-1', title: 'Maria', minutosAguardando: 15 }, { cardId: 'c-2', title: 'Joao', minutosAguardando: 20 }] });
+    expect(chatwoot.enviarMensagem).toHaveBeenCalledTimes(1);
     expect(chatwoot.enviarMensagem).toHaveBeenCalledWith(expect.objectContaining({ telefone: '5511988887777' }));
+    expect(chatwoot.enviarMensagem.mock.calls[0][0].mensagem).toContain('2 lead(s) sem corretor');
   });
 
   it('sem coordenador/gerente com WhatsApp: avisa os Administradores', async () => {
     const { listener, chatwoot } = montar([], [{ name: 'Admin', whatsapp: '11977776666' }]);
-    await listener.leadParadoSemDono({ tenantId: 't-1', cardId: 'c-1', title: 'Maria', phone: null, minutosAguardando: 15 });
+    await listener.leadsParadosSemDono({ tenantId: 't-1', cards: [{ cardId: 'c-1', title: 'Maria', minutosAguardando: 15 }, { cardId: 'c-2', title: 'Joao', minutosAguardando: 20 }] });
     expect(chatwoot.enviarMensagem).toHaveBeenCalledWith(expect.objectContaining({ telefone: '5511977776666' }));
   });
 

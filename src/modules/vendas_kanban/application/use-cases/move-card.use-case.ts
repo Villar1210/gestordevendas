@@ -111,6 +111,12 @@ export class MoveCardUseCase {
       await this.cardRepository.updateStageAndPosition(card.id, input.targetStageId, newPosition);
     }
 
+    // Fase B (revisao): card que estava na coluna "Atendimento VIVI" e foi
+    // posto numa etapa pela gestao deixa a coluna (nao fica nos dois lugares).
+    if (card.emAtendimentoVivi) {
+      await this.cardRepository.sairDoAtendimentoVivi(card.id);
+    }
+
     // Historico de etapas (BII): so quando a stage muda de verdade (reordenar
     // dentro da mesma coluna nao conta). emit (nao emitAsync): o Kanban nao
     // espera nem falha por causa de quem escuta.
