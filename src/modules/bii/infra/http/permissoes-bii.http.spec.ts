@@ -30,6 +30,7 @@ import {
   ListEstudosUseCase,
 } from '../../application/use-cases/estudos.use-cases';
 import { CalcularViabilidadeUseCase, GetParametrosViabilidadeUseCase } from '../../application/use-cases/viabilidade.use-cases';
+import { CalcularViabilidadeFinanceiraUseCase, GetParametrosFinanceirosUseCase } from '../../application/use-cases/viabilidade-financeira.use-cases';
 import {
   CreateConcorrenteUseCase,
   DeleteConcorrenteUseCase,
@@ -154,6 +155,10 @@ class FakeAuthGuard implements CanActivate {
 
 const ID = '11111111-1111-4111-8111-111111111111';
 const VIAB_OK = { tipologias: [{ descricao: '2 dorm.', areaPrivativa: 40, preco: 250000 }] };
+const FIN_OK = {
+  tipologias: [{ descricao: '2 dorm.', areaPrivativa: 40, preco: 250000, quantidade: 80 }],
+  premissas: { obra: { custoM2: 2800 } },
+};
 const ESTUDO_OK = { analiseId: '6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4b', nome: 'Terreno Vila Ema', ...VIAB_OK };
 const CONCORRENTE_OK = {
   nome: 'Residencial Vista',
@@ -184,6 +189,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     concExcluir: jest.fn(async () => undefined),
     viabParametros: jest.fn(() => ({ ok: true })),
     viabCalcular: jest.fn(() => ({ ok: true })),
+    finParametros: jest.fn(() => ({ ok: true })),
+    finCalcular: jest.fn(() => ({ ok: true })),
     estListar: ok([]),
     estAbrir: ok(),
     estCriar: ok(),
@@ -214,6 +221,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
         { provide: DeleteConcorrenteUseCase, useValue: { execute: mocks.concExcluir } },
         { provide: GetParametrosViabilidadeUseCase, useValue: { execute: mocks.viabParametros } },
         { provide: CalcularViabilidadeUseCase, useValue: { execute: mocks.viabCalcular } },
+        { provide: GetParametrosFinanceirosUseCase, useValue: { execute: mocks.finParametros } },
+        { provide: CalcularViabilidadeFinanceiraUseCase, useValue: { execute: mocks.finCalcular } },
         { provide: ListEstudosUseCase, useValue: { execute: mocks.estListar } },
         { provide: GetEstudoUseCase, useValue: { execute: mocks.estAbrir } },
         { provide: CriarEstudoUseCase, useValue: { execute: mocks.estCriar } },
@@ -255,6 +264,8 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
     ['DELETE', `/bii/concorrentes/${ID}`, (p) => ({ method: 'DELETE', headers: { 'x-perfil': p } })],
     ['GET', '/bii/viabilidade/parametros', {}],
     ['POST', '/bii/viabilidade', (p) => ({ ...json(p, VIAB_OK), method: 'PUT_OK' })],
+    ['GET', '/bii/viabilidade-financeira/parametros', {}],
+    ['POST', '/bii/viabilidade-financeira', (p) => ({ ...json(p, FIN_OK), method: 'PUT_OK' })],
     ['GET', '/bii/estudos', {}],
     ['GET', `/bii/estudos/${ID}`, {}],
     ['POST', '/bii/estudos', (p) => json(p, ESTUDO_OK)],
@@ -382,6 +393,36 @@ describe('Permissoes BII - HTTP (RolesGuard real)', () => {
   ])('POST /bii/viabilidade com corpo invalido %p -> 400', async (corpo) => {
     const res = await fetch(`${base}/bii/viabilidade`, json('admin', corpo));
     expect(res.status).toBe(400);
+  });
+
+  it.each([
+    [{ tipologias: FIN_OK.tipologias }],
+    [{ ...FIN_OK, premissas: {} }],
+    [{ ...FIN_OK, premissas: { obra: { custoM2: 100 } } }],
+    [{ ...FIN_OK, premissas: { obra: { custoM2: 2800, fatorAreaConstruida: 5 } } }],
+    [{ ...FIN_OK, premissas: { obra: { custoM2: 2800 }, terreno: { permutaPercentual: 70 } } }],
+    [{ ...FIN_OK, premissas: { obra: { custoM2: 2800 }, terreno: { valorCompra: -1 } } }],
+    [{ ...FIN_OK, premissas: { obra: { custoM2: 2800 }, comercial: { impostoRegime: 'simples' } } }],
+    [{ ...FIN_OK, premissas: { obra: { custoM2: 2800 }, comercial: [] } }],
+    [{ ...FIN_OK, premissas: { obra: { custoM2: 2800 }, margemAlvoPercentual: 80 } }],
+    [{ ...FIN_OK, tipologias: [{ ...FIN_OK.tipologias[0], quantidade: 0 }] }],
+    [{ ...FIN_OK, tipologias: [{ ...FIN_OK.tipologias[0], quantidade: 2.5 }] }],
+    [{ ...FIN_OK, tipologias: [VIAB_OK.tipologias[0]] }],
+    [{ ...FIN_OK, tenantId: 'x' }],
+  ])('POST /bii/viabilidade-financeira com corpo invalido %p -> 400', async (corpo) => {
+    const res = await fetch(`${base}/bii/viabilidade-financeira`, json('admin', corpo));
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /bii/viabilidade-financeira passa so os campos conhecidos ao use case', async () => {
+    mocks.finCalcular.mockClear();
+    const res = await fetch(`${base}/bii/viabilidade-financeira`, json('admin', FIN_OK));
+    expect(res.status).toBe(200);
+    expect(mocks.finCalcular).toHaveBeenCalledWith({
+      requesterRole: 'Administrador',
+      tipologias: FIN_OK.tipologias,
+      premissas: expect.objectContaining({ obra: expect.objectContaining({ custoM2: 2800, areaConstruida: null }) }),
+    });
   });
 
   it.each([

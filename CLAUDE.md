@@ -2340,3 +2340,59 @@ sem geocodificar endereco (Nominatim continua para o que sobrar).
   alguns segundos) + db:generate + build backend + frontend (rm -rf .next).
   Depois, na tela do Super Usuario: "Baixar base do GeoSampa" (20-60 min).
   Nenhuma dependencia nova, nenhuma variavel nova.
+
+## Modulo BII - Fatia 7 (Viabilidade financeira do empreendimento) - CONCLUIDA (sem deploy)
+Contrato (aprovado pelo Villar em 27/10/2026):
+docs/bii/fatia7/CONTRATO_VIABILIDADE_FINANCEIRA.md. Resultado final do
+empreendimento: VGV, deducoes, custos, lucro, margens e VALOR MAXIMO DO TERRENO
+para uma margem-alvo, com terreno em permuta opcional. So CALCULO: sem banco,
+sem migration, sem servico externo, sem dependencia/variavel nova.
+
+- Dominio puro: domain/services/viabilidade-financeira.ts. VGV = soma preco x
+  quantidade; permuta = % do VGV (sai do vendavel); imposto/comissao/marketing
+  SO sobre o vendavel (aviso fixo: a permuta tambem e tributada); terreno =
+  compra x (1 + ITBI% + escritura%); obra = area construida (digitada ou
+  privativa total x fator, padrao 1,6) x R$/m2; indiretos e contingencia sobre
+  a obra. Margem sobre o VGV VENDAVEL decide a situacao, SEM arredondar
+  (revisao: arredondada, 14,96% virava "viavel" com aviso de terreno acima do
+  maximo): viavel >= alvo, apertado 0..alvo, inviavel lucro < 0.
+  Valor maximo do terreno = (receita liquida - obra - indiretos - contingencia
+  - alvo x vendavel) / (1 + ITBI% + escritura%); < 0 -> null ("nao fecha").
+  Area construida digitada menor que a privativa total -> 400.
+- Padroes editaveis (PADROES_FINANCEIROS): ITBI 3, escritura 1, permuta 0,
+  fator 1,6, indiretos 10, contingencia 5, imposto RET 4% (ret1 = 1%, outro =
+  digitado), comissao 5, marketing 3, margem-alvo 15. Custo de obra sem padrao
+  (obrigatorio).
+- CUB-SP SO como referencia (nunca vira custo): domain/services/referencia-cub.ts,
+  VERSIONADO como os parametros da Fatia 4 (mudou o mes -> ACRESCENTAR versao).
+  Hoje R8-N ago/2026 R$ 2.235,58 (SindusCon-SP, sem desoneracao). Aviso quando o
+  custo digitado fica abaixo do CUB e quando RET 1% e escolhido com tipologia
+  fora do MCMV pelo preco.
+- Rotas no BiiViabilidadeController (classe Administrador):
+  GET /bii/viabilidade-financeira/parametros e POST /bii/viabilidade-financeira
+  (200, 30/min por IP). Impersonacao do Super Usuario liberada (so calculo).
+- Estudo de terreno: POST /bii/estudos aceita `financeiro` (premissas) e
+  `quantidade` por tipologia (ambos opcionais); com o bloco e alguma tipologia
+  sem quantidade -> 400. Snapshot ganha `financeiro` (null = sem), resumo
+  executivo ganha `financeiro` e 2 destaques (VGV/margem e terreno). Sem
+  migration (Json). Estudos antigos nao tem o campo: a tela mostra aviso.
+- Frontend: componentes em features/bii/components/financeiro/
+  (PremissasFinanceirasCampos - campos + lerEstadoFinanceiro com os mesmos
+  limites do DTO; ResultadoFinanceiroCard - DRE). Aba Viabilidade: coluna
+  "Unidades" e bloco "Resultado financeiro do empreendimento" (marcado por
+  padrao; as 2 rotas sao chamadas de forma independente - erro no financeiro
+  nao esconde o enquadramento). Assistente do estudo: "Incluir viabilidade
+  financeira" no passo 2 (desmarcado por padrao). Relatorio e impressao A4 com o
+  quadro.
+- Testes: viabilidade-financeira.spec (exemplo do contrato, valor maximo
+  conferido pela margem resultante, permuta, avisos, fronteiras),
+  viabilidade-financeira.use-cases.spec, estudos.use-cases.spec (com/sem
+  financeiro), meta-teste + 400s do DTO. E2E Playwright (20 verificacoes,
+  360 px, PDF A4).
+- Revisao independente: sem critico/alto. Corrigidos M1 (situacao pela margem
+  sem arredondar), M3 (calculos independentes), M4 ("VGV vendavel" quando ha
+  permuta), aviso do RET 1% (so unidades do RET-MCMV), rotulo da permuta, CUB
+  pelo rotulo da versao, quantidade "1.5" recusada, valor maximo 0 nao vira
+  null. Aceito (BAIXO): valores extremos que o DTO permite (ex.: terreno de
+  R$ 2 bi contra VGV de R$ 10 mil) geram percentuais enormes, sem quebrar.
+- Deploy: so build do backend e do frontend (rm -rf .next). Nenhuma migration.

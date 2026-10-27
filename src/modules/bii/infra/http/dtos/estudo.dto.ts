@@ -15,7 +15,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { PremissasDto, TipologiaViabilidadeDto } from './viabilidade.dto';
+import { PremissasDto, PremissasFinanceirasDto, TipologiaEstudoDto } from './viabilidade.dto';
 
 const SEM_CONTROLE = /^[^\u0000-\u001f\u007f]*$/;
 // conclusao aceita quebra de linha (\n, \r) e tab, nada mais de controle
@@ -42,14 +42,21 @@ export class CriarEstudoDto {
   @ArrayMinSize(1, { message: 'Informe ao menos uma tipologia.' })
   @ArrayMaxSize(20, { message: 'Informe no máximo 20 tipologias.' })
   @ValidateNested({ each: true })
-  @Type(() => TipologiaViabilidadeDto)
-  tipologias!: TipologiaViabilidadeDto[];
+  @Type(() => TipologiaEstudoDto)
+  tipologias!: TipologiaEstudoDto[];
 
   @IsOptional()
   @IsObject({ message: 'premissas deve ser um objeto.' })
   @ValidateNested()
   @Type(() => PremissasDto)
   premissas?: PremissasDto;
+
+  // Fatia 7: viabilidade financeira opcional (exige quantidade em todas as tipologias)
+  @IsOptional()
+  @IsObject({ message: 'financeiro deve ser um objeto.' })
+  @ValidateNested()
+  @Type(() => PremissasFinanceirasDto)
+  financeiro?: PremissasFinanceirasDto;
 }
 
 export class AtualizarEstudoDto {

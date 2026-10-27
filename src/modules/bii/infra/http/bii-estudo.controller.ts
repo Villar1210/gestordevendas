@@ -18,6 +18,7 @@ import {
   ListEstudosUseCase,
 } from '../../application/use-cases/estudos.use-cases';
 import { AtualizarEstudoDto, CriarEstudoDto } from './dtos/estudo.dto';
+import { premissasFinanceirasDoDto } from './dtos/viabilidade.dto';
 import { BiiEstudoThrottlerGuard } from './bii-estudo-throttler.guard';
 
 function requisitante(req: Request) {
@@ -61,7 +62,7 @@ export class BiiEstudoController {
       analiseId: dto.analiseId,
       nome: dto.nome,
       conclusao: dto.conclusao ?? null,
-      tipologias: dto.tipologias.map((t) => ({ descricao: t.descricao, areaPrivativa: t.areaPrivativa, preco: t.preco })),
+      tipologias: dto.tipologias.map((t) => ({ descricao: t.descricao, areaPrivativa: t.areaPrivativa, preco: t.preco, quantidade: t.quantidade })),
       premissas: dto.premissas
         ? {
             entradaPercentual: dto.premissas.entradaPercentual,
@@ -70,6 +71,7 @@ export class BiiEstudoController {
             jurosAnual: dto.premissas.jurosAnual ?? null,
           }
         : undefined,
+      financeiro: dto.financeiro ? premissasFinanceirasDoDto(dto.financeiro) : undefined,
     });
   }
 

@@ -4,6 +4,7 @@
 // sem recomendacao. Funcoes PURAS. Contrato: docs/bii/fatia5/CONTRATO_ESTUDO.md
 import { arredondar1, arredondar2 } from './estatistica';
 import type { ResultadoTipologia, Situacao } from './viabilidade';
+import type { ResultadoFinanceiro, SituacaoFinanceira } from './viabilidade-financeira';
 
 // faixa de "alinhado" ao R$/m2 mediano dos concorrentes (inclusiva)
 export const FAIXA_ALINHADO_PERCENTUAL = 5;
@@ -51,6 +52,17 @@ export interface ResumoExecutivo {
   concorrentes: { quantidade: number; precoM2Mediano: number | null } | null; // null = analise sem concorrentes no snapshot
   viabilidade: { tipologias: number; ok: number; atencao: number; fora: number; enquadramMcmv: number };
   tipologias: { precoM2Medio: number; posicaoMedia: Posicao | null };
+  // Fatia 7: null = estudo sem viabilidade financeira (estudos antigos nao tem o campo)
+  financeiro?: {
+    vgvTotal: number;
+    lucro: number;
+    margemVgvPercentual: number;
+    margemAlvoPercentual: number;
+    valorMaximoTerreno: number | null;
+    valorCompraTerreno: number;
+    permutaPercentual: number;
+    situacao: SituacaoFinanceira;
+  } | null;
 }
 
 export interface MontagemEstudo {
@@ -86,6 +98,7 @@ export function montarEstudo(input: {
   analise: AnaliseParaEstudo;
   analiseCriadaEm: Date;
   viabilidade: ResultadoTipologia[];
+  financeiro?: Pick<ResultadoFinanceiro, 'vgv' | 'resultado' | 'premissas'> | null;
   agora: Date;
 }): MontagemEstudo {
   const { analise, viabilidade } = input;
@@ -114,6 +127,18 @@ export function montarEstudo(input: {
     concorrentes: conc ? { quantidade: conc.quantidade, precoM2Mediano: conc.precoM2Mediano } : null,
     viabilidade: { tipologias: viabilidade.length, ...situacoes, enquadramMcmv },
     tipologias: { precoM2Medio, posicaoMedia },
+    financeiro: input.financeiro
+      ? {
+          vgvTotal: input.financeiro.vgv.total,
+          lucro: input.financeiro.resultado.lucro,
+          margemVgvPercentual: input.financeiro.resultado.margemVgvPercentual,
+          margemAlvoPercentual: input.financeiro.premissas.margemAlvoPercentual,
+          valorMaximoTerreno: input.financeiro.resultado.valorMaximoTerreno,
+          valorCompraTerreno: input.financeiro.premissas.terreno.valorCompra,
+          permutaPercentual: input.financeiro.premissas.terreno.permutaPercentual,
+          situacao: input.financeiro.resultado.situacao,
+        }
+      : null,
   };
 
   const alertas: Alerta[] = [];
@@ -161,6 +186,22 @@ export function montarEstudo(input: {
       posicaoMedia.classe === 'alinhado'
         ? `Preço: R$/m² médio das tipologias (${m2(precoM2Medio)}) alinhado à concorrência (${posicaoMedia.diferencaPercentual >= 0 ? '+' : '−'}${pct(posicaoMedia.diferencaPercentual)}).`
         : `Preço: R$/m² médio das tipologias (${m2(precoM2Medio)}) ${pct(posicaoMedia.diferencaPercentual)} ${posicaoMedia.classe === 'acima' ? 'acima' : 'abaixo'} da mediana da concorrência.`,
+    );
+  }
+
+  const fin = resumoExecutivo.financeiro;
+  if (fin) {
+    const reais = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const pctSinal = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    destaques.push(
+      `Financeiro: VGV de ${reais(fin.vgvTotal)}, ${fin.lucro >= 0 ? 'lucro' : 'prejuízo'} estimado de ${reais(Math.abs(fin.lucro))} (margem de ${pctSinal(fin.margemVgvPercentual)} do VGV vendável; desejada ${pctSinal(fin.margemAlvoPercentual)})${fin.permutaPercentual > 0 ? `, com ${pctSinal(fin.permutaPercentual)} do VGV em permuta` : ''}.`,
+    );
+    destaques.push(
+      fin.valorMaximoTerreno === null
+        ? `Terreno: mesmo de graça a margem não chega a ${pctSinal(fin.margemAlvoPercentual)} com essas premissas.`
+        : fin.valorCompraTerreno > fin.valorMaximoTerreno
+          ? `Terreno: o valor pedido (${reais(fin.valorCompraTerreno)}) está acima do máximo para ${pctSinal(fin.margemAlvoPercentual)} de margem (${reais(fin.valorMaximoTerreno)}).`
+          : `Terreno: dá para pagar até ${reais(fin.valorMaximoTerreno)} em dinheiro mantendo ${pctSinal(fin.margemAlvoPercentual)} de margem.`,
     );
   }
 
