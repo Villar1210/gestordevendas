@@ -19,6 +19,7 @@ import { ContratosTab } from "@/features/imoveis/components/ContratosTab";
 import { FinanceiroTab } from "@/features/imoveis/components/FinanceiroTab";
 import { InquilinosTab } from "@/features/imoveis/components/InquilinosTab";
 import { EmpreendimentosTab } from "@/features/imoveis/components/EmpreendimentosTab";
+import { ConstrutorasTab } from "@/features/imoveis/components/construtoras/ConstrutorasTab";
 import { CatalogoVitrine } from "@/features/imoveis/components/CatalogoVitrine";
 import { EmpreendimentoDestaque } from "@/features/imoveis/components/EmpreendimentoDestaque";
 import { IMOVEIS_SECOES } from "@/features/imoveis/constants";
@@ -343,6 +344,8 @@ export default function ImoveisDashboardPage() {
         </>
       ) : activeView === "empreendimentos" ? (
         <EmpreendimentosTab />
+      ) : activeView === "construtoras" ? (
+        <ConstrutorasTab />
       ) : activeView === "espelho" ? (
         <EspelhoDeVendas />
       ) : activeView === "proprietarios" ? (

@@ -4,6 +4,7 @@ import {
   EmpreendimentoRecord,
   IEmpreendimentoRepository,
 } from '../../domain/repositories/empreendimento-repository.interface';
+import { ResolverConstrutoraService } from '../services/resolver-construtora.service';
 
 interface CreateEmpreendimentoInput {
   tenantId: string;
@@ -16,6 +17,9 @@ interface CreateEmpreendimentoInput {
   uf: string;
   cep: string;
   tipo?: string;
+  // Construtoras (Fatia A): construtoraId do proprio tenant (senao 404) OU
+  // so o texto (compatibilidade e book) - acha pelo nome normalizado ou cria.
+  construtoraId?: string;
   construtora?: string;
   statusObra?: string;
   precoMinimo?: number;
@@ -28,9 +32,20 @@ export class CreateEmpreendimentoUseCase {
   constructor(
     @Inject('IEmpreendimentoRepository')
     private readonly empreendimentoRepository: IEmpreendimentoRepository,
+    private readonly resolverConstrutora: ResolverConstrutoraService,
   ) {}
 
   async execute(input: CreateEmpreendimentoInput): Promise<EmpreendimentoRecord> {
-    return this.empreendimentoRepository.create(input);
+    const { construtoraId, construtora, ...dados } = input;
+    const resolvida = await this.resolverConstrutora.resolver({
+      tenantId: input.tenantId,
+      construtoraId: construtoraId || undefined,
+      construtoraTexto: construtora,
+    });
+    return this.empreendimentoRepository.create({
+      ...dados,
+      construtoraId: resolvida?.construtoraId ?? null,
+      construtora: resolvida?.construtora ?? null,
+    });
   }
 }

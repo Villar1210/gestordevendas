@@ -12,6 +12,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ImovelController } from './imovel.controller';
 import { EmpreendimentoController } from './empreendimento.controller';
 import { ContratoController } from './contrato.controller';
+import { ConstrutoraController } from './construtora.controller';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { ROLES_KEY } from '../../../../shared/infra/http/decorators/roles.decorator';
 import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
@@ -29,6 +30,7 @@ jest.setTimeout(60_000);
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0]);
 const EMP = '22222222-2222-4222-8222-222222222222';
+const CONS = '33333333-3333-4333-8333-333333333333';
 // Imoveis do repositorio falso: do corretor (nao publicado), do corretor ja
 // publicado, e antigo/sem dono (= do Administrador).
 const IM_COR = 'im-do-corretor';
@@ -154,6 +156,15 @@ const ROTAS: Rota[] = [
   { nome: 'EmpreendimentoController.uploadPhoto', metodo: 'POST', url: `/empreendimentos/${EMP}/photos`, arquivo: true, passam: ADMIN },
   { nome: 'EmpreendimentoController.deletePhoto', metodo: 'DELETE', url: `/empreendimentos/${EMP}/photos/f-1`, passam: ADMIN },
   { nome: 'EmpreendimentoController.reorderPhotos', metodo: 'PATCH', url: `/empreendimentos/${EMP}/photos/reorder`, body: { photoIds: [] }, passam: ADMIN },
+  { nome: 'EmpreendimentoController.update', metodo: 'PATCH', url: `/empreendimentos/${EMP}`, body: { construtoraId: CONS }, passam: ADMIN },
+  // ConstrutoraController (Construtoras, Fatia A): corretor so le.
+  { nome: 'ConstrutoraController.list', metodo: 'GET', url: '/construtoras', passam: TODOS },
+  { nome: 'ConstrutoraController.getOne', metodo: 'GET', url: `/construtoras/${CONS}`, passam: TODOS },
+  { nome: 'ConstrutoraController.create', metodo: 'POST', url: '/construtoras', body: { nome: 'Novolar' }, passam: ADMIN },
+  { nome: 'ConstrutoraController.update', metodo: 'PATCH', url: `/construtoras/${CONS}`, body: { sobre: 'x' }, passam: ADMIN },
+  { nome: 'ConstrutoraController.remove', metodo: 'DELETE', url: `/construtoras/${CONS}`, passam: ADMIN },
+  { nome: 'ConstrutoraController.uploadLogo', metodo: 'POST', url: `/construtoras/${CONS}/logo`, arquivo: true, passam: ADMIN },
+  { nome: 'ConstrutoraController.deleteLogo', metodo: 'DELETE', url: `/construtoras/${CONS}/logo`, passam: ADMIN },
 ];
 
 // Rotas liberadas a DASHBOARD_ROLES no guard (o resto TEM de ser so admin).
@@ -161,8 +172,9 @@ const LIBERADAS_AO_DASHBOARD: Record<string, string[]> = {
   ImovelController: ['list', 'get', 'create', 'update', 'updateStatus', 'uploadPhoto', 'deletePhoto', 'reorderPhotos'],
   ContratoController: ['list', 'get', 'create', 'encerrar'],
   EmpreendimentoController: ['list', 'getOne', 'buscarBook', 'baixarZipBook'],
+  ConstrutoraController: ['list', 'getOne'],
 };
-const CONTROLLERS = { ImovelController, ContratoController, EmpreendimentoController };
+const CONTROLLERS = { ImovelController, ContratoController, EmpreendimentoController, ConstrutoraController };
 
 // Mesma resolucao do RolesGuard (getAllAndOverride: metodo antes da classe).
 function rotasDoController(controller: new (...args: never[]) => unknown) {
@@ -222,7 +234,7 @@ describe('Permissoes area Imoveis - tabela HTTP (RolesGuard real)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 100_000 }])],
-      controllers: [ImovelController, EmpreendimentoController, ContratoController],
+      controllers: [ImovelController, EmpreendimentoController, ContratoController, ConstrutoraController],
       providers: [
         CreateImovelUseCase,
         UpdateImovelUseCase,
@@ -329,6 +341,15 @@ describe('Permissoes area Imoveis - tabela HTTP (RolesGuard real)', () => {
     const { status } = await enviarFoto('admin', JPEG, 'x.html');
     expect(status).toBe(201);
     expect(storage.upload).toHaveBeenCalledWith(expect.objectContaining({ originalname: 'foto.jpg', mimetype: 'image/jpeg' }));
+  });
+
+  it('logo da construtora acima de 2 MB: 413 do multer (antes do use case)', async () => {
+    const grande = new Uint8Array(2 * 1024 * 1024 + 1);
+    grande.set(JPEG);
+    const fd = new FormData();
+    fd.append('file', new Blob([grande], { type: 'image/jpeg' }), 'logo.jpg');
+    const res = await fetch(`${base}/construtoras/${CONS}/logo`, { method: 'POST', headers: { 'x-perfil': 'admin' }, body: fd });
+    expect(res.status).toBe(413);
   });
 
   it('POST /imoveis de gerente com empreendimento: servidor forca avulso', async () => {

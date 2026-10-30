@@ -55,6 +55,10 @@ export interface DadosNovoEmpreendimento {
   uf: string;
   cep: string;
   construtora?: string;
+  // Construtoras (Fatia A): sem construtoraId, o texto acima liga a uma
+  // construtora existente pelo nome normalizado ou cria uma nova
+  // (CreateEmpreendimentoUseCase).
+  construtoraId?: string;
   tipo?: string;
   statusObra?: string;
 }

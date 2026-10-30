@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { BookAtalho } from "./book/BookAtalho";
 import { useImoveisStore } from "../store/useImoveisStore";
 import { useImoveisIntegration } from "../hooks/useImoveisIntegration";
+import { ConstrutoraSelect } from "./construtoras/ConstrutoraSelect";
 
 export function EmpreendimentoFormModal() {
   const isOpen = useImoveisStore((state) => state.empreendimentoFormModalOpen);
@@ -21,6 +22,8 @@ export function EmpreendimentoFormModal() {
   const [cidade, setCidade] = useState("");
   const [uf, setUf] = useState("");
   const [cep, setCep] = useState("");
+  // Construtoras (Fatia A): seletor do cadastro (antes era texto livre).
+  const [construtoraId, setConstrutoraId] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -32,6 +35,7 @@ export function EmpreendimentoFormModal() {
     setCidade("");
     setUf("");
     setCep("");
+    setConstrutoraId("");
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -48,6 +52,7 @@ export function EmpreendimentoFormModal() {
         cidade,
         uf: uf.toUpperCase(),
         cep,
+        construtoraId: construtoraId || undefined,
       });
     } finally {
       setSaving(false);
@@ -90,6 +95,13 @@ export function EmpreendimentoFormModal() {
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
             />
+          </div>
+
+          <div>
+            <label htmlFor="empreendimento-construtora" className="mb-1 block text-sm text-slate-500">
+              Construtora
+            </label>
+            <ConstrutoraSelect id="empreendimento-construtora" value={construtoraId} onChange={setConstrutoraId} />
           </div>
 
           <div>

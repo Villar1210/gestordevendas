@@ -17,6 +17,8 @@ import { AlertTriangle, ArrowLeft, FileText, FileUp, Info, Loader2, Plus, Sparkl
 import { apiRequest, ApiError } from "@/core/api/client";
 import type { FonteBook, PaginaRevisao } from "@/features/imoveis/components/book/BookPaginasGrid";
 import { BookImagensSelecionadas } from "@/features/imoveis/components/book/BookImagensSelecionadas";
+import { ConstrutoraSelect } from "@/features/imoveis/components/construtoras/ConstrutoraSelect";
+import { normalizarNomeConstrutora, useConstrutoras } from "@/features/imoveis/hooks/useConstrutoras";
 import {
   BOOK_ACCEPT,
   BOOK_MAX_IMAGENS,
@@ -131,6 +133,19 @@ function ImportarBook() {
   // Ficha tecnica
   const [ficha, setFicha] = useState({ descricao: "", areaTerreno: "", totalUnidades: "", numeroTorres: "", unidadesPorAndar: "", gabarito: "", vagas: "", lazer: "" });
   const [tipologias, setTipologias] = useState<{ nome: string; area: string; dorms: string }[]>([]);
+  // Construtoras (Fatia A): dados.construtora guarda so o nome LIDO do book
+  // (sugestao). O vinculo e o seletor: casa sozinho com uma construtora ja
+  // cadastrada pelo nome normalizado; sem casamento e sem escolha manual, o
+  // nome lido vai como texto e o backend acha/cria a construtora.
+  const { construtoras } = useConstrutoras();
+  const [construtoraId, setConstrutoraId] = useState("");
+  const [construtoraEscolhida, setConstrutoraEscolhida] = useState(false);
+  useEffect(() => {
+    if (construtoraEscolhida || construtoraId || !dados.construtora.trim()) return;
+    const chave = normalizarNomeConstrutora(dados.construtora);
+    const existente = construtoras.find((c) => c.nomeNormalizado === chave);
+    if (existente) setConstrutoraId(existente.id);
+  }, [construtoras, dados.construtora, construtoraEscolhida, construtoraId]);
 
   useEffect(() => {
     if (!empreendimentoId) return;
@@ -335,7 +350,11 @@ function ImportarBook() {
               cidade: dados.cidade.trim(),
               uf: dados.uf,
               cep: dados.cep.trim(),
-              construtora: dados.construtora.trim() || undefined,
+              ...(construtoraId
+                ? { construtoraId }
+                : !construtoraEscolhida && dados.construtora.trim()
+                  ? { construtora: dados.construtora.trim() }
+                  : {}),
               statusObra: dados.statusObra || undefined,
             },
           }),
@@ -582,9 +601,27 @@ function ImportarBook() {
                       <option value="pronto">Pronto</option>
                     </select>
                   </Campo>
-                  <Campo label="Construtora" className="sm:col-span-6">
-                    <input className={campo} value={dados.construtora} onChange={(e) => setDados({ ...dados, construtora: e.target.value })} maxLength={150} />
-                  </Campo>
+                  {/* Fora do <Campo> (que e um <label>): o seletor tem o proprio
+                      mini-formulario com label e botoes. */}
+                  <div className="sm:col-span-6">
+                    <label htmlFor="book-construtora" className="mb-1 block text-xs font-medium text-slate-600">
+                      Construtora
+                    </label>
+                    <ConstrutoraSelect
+                      id="book-construtora"
+                      value={construtoraId}
+                      onChange={(id) => {
+                        setConstrutoraEscolhida(true);
+                        setConstrutoraId(id);
+                      }}
+                      nomeSugerido={dados.construtora.trim() || undefined}
+                      placeholder={
+                        !construtoraEscolhida && dados.construtora.trim()
+                          ? `Cadastrar "${dados.construtora.trim()}" (lida do book)`
+                          : "Sem construtora"
+                      }
+                    />
+                  </div>
                   <Campo label="Rua *" className="sm:col-span-4">
                     <input className={campo} value={dados.rua} onChange={(e) => setDados({ ...dados, rua: e.target.value })} maxLength={200} />
                   </Campo>

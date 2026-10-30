@@ -120,6 +120,10 @@ export class ViviIntegrationController {
         bairro: true,
         cidade: true,
         uf: true,
+        // Construtoras (Fatia B): nome da construtora vinculada (o texto
+        // legado fica de reserva para empreendimento ainda sem vinculo).
+        construtora: true,
+        construtoraVinculada: { select: { nome: true } },
         imoveis: {
           select: { id: true, tipo: true, area: true, price: true, status: true },
           where: { status: 'DISPONIVEL' },
@@ -129,7 +133,10 @@ export class ViviIntegrationController {
       orderBy: { name: 'asc' },
     });
 
-    return empreendimentos;
+    return empreendimentos.map(({ construtora, construtoraVinculada, ...empreendimento }) => ({
+      ...empreendimento,
+      construtora: construtoraVinculada?.nome ?? construtora ?? null,
+    }));
   }
 
   @Post('agendar-visita')

@@ -75,6 +75,8 @@ export interface CreateEmpreendimentoInput {
   uf: string;
   cep: string;
   description?: string;
+  // Construtoras (Fatia A): construtora escolhida no seletor.
+  construtoraId?: string;
 }
 
 export interface CreateProprietarioInput {

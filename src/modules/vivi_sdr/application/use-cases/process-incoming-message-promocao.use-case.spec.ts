@@ -78,6 +78,7 @@ function setup() {
     transferToBrokerService,
     {} as any, // ViviAtendimentoEscalationService - nao usado neste caminho (nao escala para fila)
     viviMessageGuardsService,
+    { buscarPorEmpreendimento: async () => null }, // IConstrutoraDoEmpreendimentoRepository (Construtoras, Fatia B)
   );
 
   viviConversationRepository.findLatestBySessionAndPhone.mockResolvedValue(null);

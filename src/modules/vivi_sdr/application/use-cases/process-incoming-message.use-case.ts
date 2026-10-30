@@ -21,6 +21,8 @@ import { mergeCollectedData, applyPostVisitaData } from '../../domain/services/v
 import { deveIgnorarPorConversaTransferida } from '../../domain/services/vivi-conversation-guard';
 import { buildResumoAtendimento } from '../../domain/services/build-resumo-atendimento';
 import { buildViviSystemPrompt } from '../../constants/vivi-prompt';
+import { IConstrutoraDoEmpreendimentoRepository } from '../../domain/repositories/construtora-do-empreendimento-repository.interface';
+import { escolherTextoConstrutora } from '../../domain/services/texto-construtora';
 import {
   EnderecoBuscaToolResolverService,
   EnderecoBuscaResultado,
@@ -65,6 +67,10 @@ export class ProcessIncomingMessageUseCase {
     private readonly transferToBrokerService: TransferToBrokerService,
     private readonly viviAtendimentoEscalationService: ViviAtendimentoEscalationService,
     private readonly viviMessageGuardsService: ViviMessageGuardsService,
+    // Construtoras (Fatia B): texto institucional da construtora do
+    // empreendimento da conversa (repositorio proprio do vivi_sdr).
+    @Inject('IConstrutoraDoEmpreendimentoRepository')
+    private readonly construtoraDoEmpreendimentoRepository: IConstrutoraDoEmpreendimentoRepository,
   ) {}
 
   async execute(input: ProcessIncomingMessageInput): Promise<void> {
@@ -152,7 +158,12 @@ export class ProcessIncomingMessageUseCase {
     // lead ainda nao confirmou o proprio nome nesta conversa (evita a VIVI
     // "confirmar" um nome que ja foi confirmado ha turnos atras).
     const nomeSugerido = conversation.nomeColetado ? null : input.pushName?.trim() || null;
-    const systemPrompt = `Hoje é ${today}.\n\n${buildViviSystemPrompt(viviConfig, undefined, nomeSugerido)}`;
+    const textoConstrutora = await this.textoDaConstrutora(input.tenantId, conversation, viviConfig);
+    const systemPrompt = `Hoje é ${today}.\n\n${buildViviSystemPrompt(
+      { ...viviConfig, ...textoConstrutora },
+      undefined,
+      nomeSugerido,
+    )}`;
 
     // Coletado pelo resolveTool abaixo (buscar_empreendimento_por_endereco)
     // - so gravado no EnderecoBuscaLog depois de sabermos se esta mesma
@@ -486,6 +497,36 @@ export class ProcessIncomingMessageUseCase {
         error,
       });
     }
+  }
+
+  // Construtoras (Fatia B): conversa com empreendimento cuja construtora tem
+  // texto -> bloco "Sobre a construtora" com o texto DELA; senao, o texto
+  // padrao da Configuracao da VIVI. Falha na leitura nunca derruba a
+  // resposta (cai no texto padrao).
+  private async textoDaConstrutora(
+    tenantId: string,
+    conversation: ViviConversationRecord,
+    viviConfig: { sobreConstrutora?: string | null; diferenciaisConstrutora?: string | null },
+  ) {
+    let doEmpreendimento = null;
+    if (conversation.empreendimentoId) {
+      try {
+        doEmpreendimento = await this.construtoraDoEmpreendimentoRepository.buscarPorEmpreendimento(
+          tenantId,
+          conversation.empreendimentoId,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `[VIVI] Nao foi possivel ler a construtora do empreendimento ${conversation.empreendimentoId}: ${(error as Error).message}`,
+        );
+      }
+    }
+    const texto = escolherTextoConstrutora(doEmpreendimento, viviConfig);
+    return {
+      nomeConstrutora: texto.nomeConstrutora,
+      sobreConstrutora: texto.sobreConstrutora,
+      diferenciaisConstrutora: texto.diferenciaisConstrutora,
+    };
   }
 
   private async findOrCreateConversation(

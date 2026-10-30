@@ -29,7 +29,7 @@ import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guar
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
 import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
-import { CreateEmpreendimentoDto } from './dtos/create-empreendimento.dto';
+import { CreateEmpreendimentoDto, UpdateEmpreendimentoDto } from './dtos/create-empreendimento.dto';
 import { GerarLoteImoveisDto } from './dtos/gerar-lote-imoveis.dto';
 import { CriarImoveisLoteDto } from './dtos/criar-imoveis-lote.dto';
 import { ImportarPlanilhaImoveisDto } from './dtos/importar-planilha-imoveis.dto';
@@ -38,6 +38,7 @@ import { ListEmpreendimentosQueryDto } from './dtos/list-empreendimentos-query.d
 import { UploadEmpreendimentoPhotoDto } from './dtos/upload-empreendimento-photo.dto';
 import { ReorderEmpreendimentoPhotosDto } from './dtos/reorder-empreendimento-photos.dto';
 import { CreateEmpreendimentoUseCase } from '../../application/use-cases/create-empreendimento.use-case';
+import { UpdateEmpreendimentoUseCase } from '../../application/use-cases/update-empreendimento.use-case';
 import { ListEmpreendimentosUseCase } from '../../application/use-cases/list-empreendimentos.use-case';
 import { GerarLoteImoveisUseCase } from '../../application/use-cases/gerar-lote-imoveis.use-case';
 import { CriarImoveisLoteUseCase } from '../../application/use-cases/criar-imoveis-lote.use-case';
@@ -108,6 +109,7 @@ export class EmpreendimentoController {
     private readonly uploadEmpreendimentoPhotoUseCase: UploadEmpreendimentoPhotoUseCase,
     private readonly deleteEmpreendimentoPhotoUseCase: DeleteEmpreendimentoPhotoUseCase,
     private readonly reorderEmpreendimentoPhotosUseCase: ReorderEmpreendimentoPhotosUseCase,
+    private readonly updateEmpreendimentoUseCase: UpdateEmpreendimentoUseCase,
   ) {}
 
   @Post()
@@ -123,6 +125,7 @@ export class EmpreendimentoController {
       cep: dto.cep,
       complemento: dto.complemento,
       tipo: dto.tipo,
+      construtoraId: dto.construtoraId,
       construtora: dto.construtora,
       statusObra: dto.statusObra,
       precoMinimo: dto.precoMinimo,
@@ -194,6 +197,23 @@ export class EmpreendimentoController {
     return this.getEmpreendimentoDetailUseCase.execute({
       tenantId: req.user!.tenantId,
       empreendimentoId: id,
+    });
+  }
+
+  // PATCH /empreendimentos/:id - Construtoras (Fatia A): troca a construtora
+  // do empreendimento (construtoraId do proprio tenant, null = desvincular,
+  // ou so o texto). So Administrador (herda da classe).
+  @Patch(':id')
+  async update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateEmpreendimentoDto,
+    @Req() req: Request,
+  ) {
+    return this.updateEmpreendimentoUseCase.execute({
+      tenantId: req.user!.tenantId,
+      empreendimentoId: id,
+      construtoraId: dto.construtoraId,
+      construtora: dto.construtora,
     });
   }
 

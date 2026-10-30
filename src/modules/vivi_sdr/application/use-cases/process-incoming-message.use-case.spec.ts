@@ -86,6 +86,7 @@ function setup() {
     {} as any, // TransferToBrokerService - nao usado no caminho de falha da IA
     viviAtendimentoEscalationService,
     viviMessageGuardsService,
+    { buscarPorEmpreendimento: async () => null }, // IConstrutoraDoEmpreendimentoRepository (Construtoras, Fatia B)
   );
 
   // Estado "feliz" ate a chamada a IA: nenhuma das 2 guardas de reabertura

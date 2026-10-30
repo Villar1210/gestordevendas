@@ -75,7 +75,20 @@ export default async function EmpreendimentoPage({ params }: Props) {
                 <MapPin className="mt-0.5 h-4 w-4 flex-none" aria-hidden /> {endereco}
               </p>
             )}
-            {emp.construtora && <p className="mt-1 text-sm text-slate-500">Construtora: {emp.construtora}</p>}
+            {emp.construtora && (
+              <p className="mt-2 flex items-center gap-2 text-sm text-slate-500">
+                {emp.construtoraLogoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={urlFoto(emp.construtoraLogoUrl) ?? ""}
+                    alt={`Logo ${emp.construtora}`}
+                    className="h-8 w-auto max-w-[120px] object-contain"
+                    loading="lazy"
+                  />
+                )}
+                <span>Construtora: {emp.construtora}</span>
+              </p>
+            )}
             {preco && <p className="mt-4 text-2xl font-bold text-slate-900">{preco}</p>}
           </div>
 

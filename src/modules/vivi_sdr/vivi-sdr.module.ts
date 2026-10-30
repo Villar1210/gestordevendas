@@ -35,6 +35,7 @@ import { PrismaSocialConversationRepository } from './infra/database/prisma-soci
 import { PrismaViviConfigRepository } from './infra/database/prisma-vivi-config.repository';
 import { PrismaViviUsoDiarioRepository } from './infra/database/prisma-vivi-uso-diario.repository';
 import { PrismaEnderecoBuscaLogRepository } from './infra/database/prisma-endereco-busca-log.repository';
+import { PrismaConstrutoraDoEmpreendimentoRepository } from './infra/database/prisma-construtora-do-empreendimento.repository';
 import { AnthropicConversationService } from '../../shared/infra/services/anthropic-conversation.service';
 import { PrismaService } from '../../config/prisma.service';
 
@@ -104,6 +105,9 @@ import { PrismaService } from '../../config/prisma.service';
     { provide: 'IViviConfigRepository', useClass: PrismaViviConfigRepository },
     { provide: 'IViviUsoDiarioRepository', useClass: PrismaViviUsoDiarioRepository },
     { provide: 'IEnderecoBuscaLogRepository', useClass: PrismaEnderecoBuscaLogRepository },
+    // Construtoras (Fatia B): repositorio PROPRIO (nao importa nada do
+    // gestao_imobiliaria para ler a construtora do empreendimento da conversa).
+    { provide: 'IConstrutoraDoEmpreendimentoRepository', useClass: PrismaConstrutoraDoEmpreendimentoRepository },
     { provide: 'IAiConversationService', useClass: AnthropicConversationService },
   ],
 })

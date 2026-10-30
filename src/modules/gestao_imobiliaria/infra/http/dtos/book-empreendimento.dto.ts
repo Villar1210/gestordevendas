@@ -77,6 +77,13 @@ export class NovoEmpreendimentoBookDto {
   @MaxLength(150)
   construtora?: string;
 
+  // Construtoras (Fatia A): construtora escolhida no seletor. Sem ela, o
+  // texto "construtora" (lido do book) liga a uma existente pelo nome
+  // normalizado ou cria uma nova.
+  @IsOptional()
+  @IsUUID('4', { message: 'Construtora inválida.' })
+  construtoraId?: string;
+
   @IsOptional()
   @IsIn(EMPREENDIMENTO_TIPOS)
   tipo?: string;

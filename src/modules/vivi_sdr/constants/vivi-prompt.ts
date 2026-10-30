@@ -43,6 +43,11 @@ export interface ViviPromptConfig {
   // nao ha "default" que faca sentido para texto livre nao preenchido.
   sobreConstrutora?: string | null;
   diferenciaisConstrutora?: string | null;
+  // Construtoras (Fatia B): nome da construtora do empreendimento da
+  // conversa, quando o texto acima veio do cadastro DELA (ver
+  // escolherTextoConstrutora em domain/services/texto-construtora.ts).
+  // null/ausente = texto padrao da Configuracao da VIVI (sem nome).
+  nomeConstrutora?: string | null;
 }
 
 function formatBRL(value: number): string {
@@ -78,14 +83,19 @@ function formatSubsidio(valor: number | null): string | null {
 // do usuario). Omite a secao inteira (string vazia, sem placeholder tipo
 // "nao configurado") quando os dois campos vierem vazios/nulos - evita
 // gastar contexto do modelo com uma secao sem conteudo.
-function formatSobreConstrutora(sobreConstrutora?: string | null, diferenciaisConstrutora?: string | null): string {
+function formatSobreConstrutora(
+  sobreConstrutora?: string | null,
+  diferenciaisConstrutora?: string | null,
+  nomeConstrutora?: string | null,
+): string {
   const sobre = sobreConstrutora?.trim() || null;
   const diferenciais = diferenciaisConstrutora?.trim() || null;
   if (!sobre && !diferenciais) return '';
+  const nome = nomeConstrutora?.trim() || null;
 
   return `
-## Sobre a construtora/incorporadora
-Use o texto abaixo como pano de fundo institucional quando fizer sentido
+## Sobre a construtora/incorporadora${nome ? ` (${nome})` : ''}
+${nome ? `O empreendimento de interesse deste lead e da construtora/incorporadora ${nome}.\n` : ''}Use o texto abaixo como pano de fundo institucional quando fizer sentido
 na conversa (ex: o lead perguntar "quem sao voces?", pedir mais confianca,
 ou questionar a credibilidade) - NUNCA recite como propaganda nem despeje
 tudo de uma vez, adapte ao fluxo natural da conversa, como os outros
@@ -122,7 +132,11 @@ export function buildViviSystemPrompt(
   const faixa3Juros = formatJurosRange(config.faixa3JurosMin, config.faixa3JurosMax);
   const faixa4Juros = formatJurosRange(config.faixa4JurosMin, config.faixa4JurosMax);
 
-  const blocoSobreConstrutora = formatSobreConstrutora(config.sobreConstrutora, config.diferenciaisConstrutora);
+  const blocoSobreConstrutora = formatSobreConstrutora(
+    config.sobreConstrutora,
+    config.diferenciaisConstrutora,
+    config.nomeConstrutora,
+  );
 
   const nomeSugeridoTrim = nomeSugerido?.trim() || null;
   // Auditoria de seguranca (achado C1): o nome de exibicao do WhatsApp e

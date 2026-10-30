@@ -1,6 +1,19 @@
 // src/modules/gestao_imobiliaria/gestao-imobiliaria.module.ts
 import { Module } from '@nestjs/common';
 import { EmpreendimentoController } from './infra/http/empreendimento.controller';
+import { ConstrutoraController } from './infra/http/construtora.controller';
+import {
+  AtualizarConstrutoraUseCase,
+  BuscarConstrutoraUseCase,
+  CriarConstrutoraUseCase,
+  EnviarLogoConstrutoraUseCase,
+  ExcluirConstrutoraUseCase,
+  ListarConstrutorasUseCase,
+  RemoverLogoConstrutoraUseCase,
+} from './application/use-cases/construtoras.use-cases';
+import { UpdateEmpreendimentoUseCase } from './application/use-cases/update-empreendimento.use-case';
+import { ResolverConstrutoraService } from './application/services/resolver-construtora.service';
+import { PrismaConstrutoraRepository } from './infra/database/prisma-construtora.repository';
 import { ImovelController } from './infra/http/imovel.controller';
 import { ProprietarioController } from './infra/http/proprietario.controller';
 import { InquilinoCompradorController } from './infra/http/inquilino-comprador.controller';
@@ -75,6 +88,7 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
 @Module({
   controllers: [
     EmpreendimentoController,
+    ConstrutoraController,
     ImovelController,
     ProprietarioController,
     InquilinoCompradorController,
@@ -84,6 +98,17 @@ import { AnthropicConversationService } from '../../shared/infra/services/anthro
   providers: [
     PrismaService,
     CreateEmpreendimentoUseCase,
+    UpdateEmpreendimentoUseCase,
+    // Construtoras (Fatia A - docs/construtoras/CONTRATO_CONSTRUTORAS.md).
+    ResolverConstrutoraService,
+    ListarConstrutorasUseCase,
+    BuscarConstrutoraUseCase,
+    CriarConstrutoraUseCase,
+    AtualizarConstrutoraUseCase,
+    ExcluirConstrutoraUseCase,
+    EnviarLogoConstrutoraUseCase,
+    RemoverLogoConstrutoraUseCase,
+    { provide: 'IConstrutoraRepository', useClass: PrismaConstrutoraRepository },
     ListEmpreendimentosUseCase,
     CreateImovelUseCase,
     UpdateImovelUseCase,

@@ -322,15 +322,17 @@ export function ConfiguracoesViviTab() {
 
       <div className="mt-6 rounded-xl border border-slate-200 p-4">
         <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Sobre a construtora/incorporadora (opcional)
+          Texto institucional padrão (opcional)
         </p>
         <p className="mb-3 text-xs text-slate-500">
-          Texto institucional usado pela VIVI como pano de fundo quando fizer sentido na conversa
-          (ex: o lead perguntar &quot;quem são vocês?&quot;). Deixe em branco para não incluir essa
-          seção no prompt da VIVI.
+          Usado pela VIVI como pano de fundo quando fizer sentido na conversa (ex: o lead perguntar
+          &quot;quem são vocês?&quot;) <strong>somente quando o empreendimento da conversa não tem
+          construtora com texto próprio</strong>. O texto de cada construtora fica em Imóveis →
+          Construtoras e tem prioridade sobre este. Deixe em branco para não incluir essa seção no
+          prompt da VIVI nesses casos.
         </p>
         <div className="space-y-4">
-          <Field label="Sobre a construtora (texto livre)">
+          <Field label="Sobre (texto padrão)">
             <textarea
               value={sobreConstrutora}
               onChange={(e) => setSobreConstrutora(e.target.value)}
@@ -341,7 +343,7 @@ export function ConfiguracoesViviTab() {
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-600"
             />
           </Field>
-          <Field label="Diferenciais (texto livre)">
+          <Field label="Diferenciais (texto padrão)">
             <textarea
               value={diferenciaisConstrutora}
               onChange={(e) => setDiferenciaisConstrutora(e.target.value)}

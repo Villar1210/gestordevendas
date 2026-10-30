@@ -66,6 +66,7 @@ describe('ProcessIncomingMessageUseCase - corrida entre mensagens concorrentes n
       {} as any, // TransferToBrokerService - nao usado no caminho de resposta simples sem tool
       {} as any, // ViviAtendimentoEscalationService - nao usado no caminho de resposta simples sem tool
       viviMessageGuardsService,
+      { buscarPorEmpreendimento: async () => null }, // IConstrutoraDoEmpreendimentoRepository (Construtoras, Fatia B)
     );
 
     const tenant = await prisma.tenant.create({ data: { name: 'Tenant Teste Corrida ViviConversation' } });

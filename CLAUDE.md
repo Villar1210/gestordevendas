@@ -2396,3 +2396,84 @@ sem migration, sem servico externo, sem dependencia/variavel nova.
   null. Aceito (BAIXO): valores extremos que o DTO permite (ex.: terreno de
   R$ 2 bi contra VGV de R$ 10 mil) geram percentuais enormes, sem quebrar.
 - Deploy: so build do backend e do frontend (rm -rf .next). Nenhuma migration.
+
+## Construtoras (Fatias A e B) - CONCLUIDA (sem deploy)
+Contrato (aprovado pelo Villar em 30/10/2026):
+docs/construtoras/CONTRATO_CONSTRUTORAS.md. Construtora/incorporadora e a
+parceira do EMPREENDIMENTO (Direcional, Novolar...), nao a empresa assinante
+(tenant, que continua em Configuracoes > Dados da Empresa).
+
+### Fatia A - cadastro + vinculo no empreendimento
+- Migration 20261030120000_construtoras: CREATE TABLE construtoras (por
+  tenant, FK Tenant Cascade, `@@unique([tenantId, nomeNormalizado])`) + ALTER
+  TABLE empreendimentos ADD COLUMN construtora_id (FK SET NULL) + indices +
+  BACKFILL: uma Construtora por (tenant, nome normalizado) do texto livre ja
+  gravado (nome = grafia mais usada; empate = a que apareceu primeiro) e
+  construtora_id preenchido. A coluna texto `empreendimentos.construtora` NAO
+  foi apagada nem alterada (site publico, BII e book ainda leem); com vinculo
+  ela passa a ser sempre o nome da construtora (ao criar/editar e ao renomear
+  a construtora - mesma transacao).
+- Normalizacao (`normalizarNomeConstrutora`, gestao_imobiliaria/domain/
+  services/construtora.ts): NFD sem marcas U+0300-036F, minusculas, espacos
+  ASCII + U+00A0 colapsados, trim. A migration faz o mesmo com translate()
+  dos acentos comuns + regexp_replace (o banco NAO tem a extensao unaccent -
+  nao criar). Teste de integracao confere SQL x dominio. Diferenca aceita: letra
+  acentuada fora da lista do translate (ex.: "ő") ja gravada pre-composta.
+- Rotas (`ConstrutoraController`, classe @Roles('Administrador')): GET
+  /construtoras e GET /construtoras/:id liberados a DASHBOARD_ROLES (Corretor
+  le); POST, PATCH, DELETE /construtoras/:id, POST/DELETE /construtoras/:id/logo
+  so Administrador. Nome repetido (normalizado) -> 409 "Já existe uma
+  construtora com esse nome."; DELETE com empreendimento vinculado -> 409
+  "Esta construtora tem N empreendimentos. Troque a construtora deles antes de
+  excluir." (decisao do Villar: BLOQUEAR, conferido dentro da transacao). Tudo
+  por { id, tenantId } (outro tenant = 404). Site so https.
+- Logo (decisao: ja na Fatia A): JPG/PNG/WebP pelos bytes (detectarTipoFoto),
+  ate 2 MB (multer 413 + checagem no use case), gravado como
+  "<uuid>-logo.<ext real>". Arquivo antigo NAO e apagado do disco (mesmo
+  comportamento das fotos; LocalFileStorageService.delete so apaga book).
+- Empreendimento: POST /empreendimentos e book/confirmar (`novo`) aceitam
+  `construtoraId` (do proprio tenant, senao 404); so o texto `construtora`
+  continua aceito: acha pelo nome normalizado ou CRIA
+  (`ResolverConstrutoraService`, com tratamento de corrida no unique). NOVA
+  rota PATCH /empreendimentos/:id (so Administrador) - por enquanto so troca a
+  construtora (`construtoraId`, null = desvincular, ou texto).
+- Meta-teste permissoes-imoveis.http.spec.ts cobre o ConstrutoraController e
+  o PATCH novo do EmpreendimentoController.
+- Frontend: aba "Construtoras" em Imoveis (IMOVEIS_SECOES, aparece tambem no
+  submenu do Sidebar) com lista + painel lateral (nome, site, logo, sobre,
+  diferenciais; Corretor so le). Seletor `ConstrutoraSelect` com "+ Nova
+  construtora" (mini-formulario so com nome) no "Novo Empreendimento", na
+  tela do book (casa sozinho com o nome lido pela IA; sem casamento, o nome
+  lido vai como texto e o backend acha/cria) e no card "Construtora" do
+  detalhe do empreendimento. Site publico mostra nome + logo da construtora
+  vinculada (`construtoraLogoUrl`).
+
+### Fatia B - VIVI fala da construtora certa
+- `ProcessIncomingMessageUseCase`: se a conversa tem empreendimentoId e a
+  construtora dele tem `sobre` OU `diferenciais`, o bloco "Sobre a
+  construtora/incorporadora (Nome)" usa o texto DELA (nunca mistura com o
+  padrao - `escolherTextoConstrutora`, vivi_sdr/domain/services). Senao, o
+  texto da Configuracao da VIVI (agora rotulado "Texto institucional padrao").
+  Falha ao ler a construtora so loga e cai no padrao. DM Instagram/Facebook
+  (social) nao tem empreendimento na conversa: sempre o padrao.
+- Leitura por repositorio PROPRIO do vivi_sdr
+  (`IConstrutoraDoEmpreendimentoRepository` /
+  PrismaConstrutoraDoEmpreendimentoRepository), sem importar gestao_imobiliaria.
+- GET /vivi/empreendimentos (vivi-integration) devolve `construtora` = nome
+  da construtora vinculada (ou o texto legado).
+
+### Testes
+`npx jest src/modules/gestao_imobiliaria src/modules/vivi_sdr
+src/modules/site_publico src/modules/vivi-integration`. Integracao
+(prisma-construtora.repository.integration.spec.ts) pula sem DATABASE_URL.
+Falhas PRE-EXISTENTES continuam as mesmas: os 3 specs de
+process-incoming-message (factory vivi-config-record sem diasParaRotting) -
+os specs novos da Fatia B nao usam essa factory.
+
+### Deploy
+`npx prisma migrate deploy` (cria a tabela, a coluna e faz o backfill) +
+`npm run db:generate` + `npm run build` + `pm2 restart gestordevendas
+--update-env`; frontend `rm -rf .next` + `npm run build` + `pm2 restart
+gestordevendas-frontend --update-env`. NUNCA `pm2 restart all`. Nenhuma
+dependencia nova, nenhuma variavel nova. Depois do deploy: conferir na aba
+Construtoras as que o backfill criou e preencher sobre/diferenciais/logo.

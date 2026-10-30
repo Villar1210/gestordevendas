@@ -58,6 +58,9 @@ export interface EmpreendimentoPublicoResumo {
 export interface EmpreendimentoPublicoDetalhe extends EmpreendimentoPublicoResumo {
   descricao: string | null;
   construtora: string | null;
+  // Construtoras (Fatia A): logo da construtora vinculada (null sem logo ou
+  // sem vinculo).
+  construtoraLogoUrl: string | null;
   endereco: string;
   itensLazer: string[];
   diferenciais: string[];

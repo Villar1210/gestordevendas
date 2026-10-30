@@ -1,5 +1,5 @@
 // src/modules/gestao_imobiliaria/infra/http/dtos/create-empreendimento.dto.ts
-import { IsIn, IsNumber, IsOptional, IsPositive, IsString, Length, MinLength } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsPositive, IsString, IsUUID, Length, MaxLength, MinLength } from 'class-validator';
 
 export const EMPREENDIMENTO_TIPOS = ['vertical', 'horizontal', 'comercial', 'misto'] as const;
 export const EMPREENDIMENTO_STATUS = ['breve_lancamento', 'lancamento', 'em_obras', 'pronto'] as const;
@@ -44,8 +44,17 @@ export class CreateEmpreendimentoDto {
   @IsIn(EMPREENDIMENTO_TIPOS, { message: 'Tipo inválido. Use: vertical, horizontal, comercial ou misto.' })
   tipo?: string;
 
+  // Construtoras (Fatia A): construtoraId (do proprio tenant, senao 404) e
+  // o caminho novo. "construtora" (texto) continua aceito por
+  // compatibilidade: sem construtoraId, acha a construtora pelo nome
+  // normalizado ou cria uma nova.
+  @IsOptional()
+  @IsUUID('4', { message: 'Construtora inválida.' })
+  construtoraId?: string;
+
   @IsOptional()
   @IsString()
+  @MaxLength(150, { message: 'O nome da construtora deve ter no máximo 150 caracteres.' })
   construtora?: string;
 
   @IsOptional()
@@ -67,4 +76,18 @@ export class CreateEmpreendimentoDto {
   @IsOptional()
   @IsString()
   description?: string;
+}
+
+// PATCH /empreendimentos/:id - por enquanto so troca a construtora do
+// empreendimento (null = desvincular). Outros campos entram aqui quando a
+// tela de edicao do empreendimento existir.
+export class UpdateEmpreendimentoDto {
+  @IsOptional()
+  @IsUUID('4', { message: 'Construtora inválida.' })
+  construtoraId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150, { message: 'O nome da construtora deve ter no máximo 150 caracteres.' })
+  construtora?: string;
 }

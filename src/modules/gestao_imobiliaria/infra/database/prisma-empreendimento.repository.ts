@@ -26,6 +26,7 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
     complemento?: string | null;
     tipo?: string | null;
     construtora?: string | null;
+    construtoraId?: string | null;
     statusObra?: string | null;
     precoMinimo?: number | null;
     precoMaximo?: number | null;
@@ -44,11 +45,25 @@ export class PrismaEmpreendimentoRepository implements IEmpreendimentoRepository
         complemento: input.complemento ?? null,
         tipo: input.tipo ?? null,
         construtora: input.construtora ?? null,
+        construtoraId: input.construtoraId ?? null,
         statusObra: input.statusObra ?? null,
         precoMinimo: input.precoMinimo ?? null,
         precoMaximo: input.precoMaximo ?? null,
       },
     });
+  }
+
+  async atualizarConstrutora(
+    id: string,
+    tenantId: string,
+    dados: { construtoraId: string | null; construtora: string | null },
+  ): Promise<EmpreendimentoRecord | null> {
+    const { count } = await this.prisma.empreendimento.updateMany({
+      where: { id, tenantId },
+      data: { construtoraId: dados.construtoraId, construtora: dados.construtora },
+    });
+    if (count === 0) return null;
+    return this.findByIdAndTenant(id, tenantId);
   }
 
   async findByIdAndTenant(id: string, tenantId: string): Promise<EmpreendimentoRecord | null> {

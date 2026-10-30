@@ -87,6 +87,10 @@ export interface Empreendimento {
   // So na listagem (GET /empreendimentos): capa e unidades cadastradas.
   fotoCapaUrl?: string | null;
   quantidadeUnidades?: number;
+  // Construtoras (Fatia A): vinculo com o cadastro + texto legado (sempre o
+  // nome da construtora quando ha vinculo).
+  construtoraId?: string | null;
+  construtora?: string | null;
 }
 
 export interface Tipologia {
@@ -188,7 +192,8 @@ export type ImoveisView =
   | "proprietarios"
   | "contratos"
   | "financeiro"
-  | "inquilinos";
+  | "inquilinos"
+  | "construtoras";
 
 interface ImovelDetailPanelState {
   isOpen: boolean;

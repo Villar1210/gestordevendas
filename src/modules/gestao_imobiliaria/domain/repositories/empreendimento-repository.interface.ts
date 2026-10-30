@@ -13,6 +13,11 @@ export interface EmpreendimentoRecord {
   cep: string;
   description: string | null;
   createdAt: Date;
+  // Construtoras (Fatia A): vinculo com o cadastro + texto legado (sempre o
+  // nome da construtora vinculada quando ha vinculo). Opcionais no tipo
+  // porque leituras antigas/mocks nao os preenchem.
+  construtora?: string | null;
+  construtoraId?: string | null;
   // Fatia 1 (schema) + Fatia 3a (importacao de planilha, primeiro consumidor
   // real): publicado controla se o empreendimento aparece no site publico
   // (fora do escopo ainda); origemImportacao registra como os dados
@@ -92,10 +97,18 @@ export interface IEmpreendimentoRepository {
     complemento?: string | null;
     tipo?: string | null;
     construtora?: string | null;
+    construtoraId?: string | null;
     statusObra?: string | null;
     precoMinimo?: number | null;
     precoMaximo?: number | null;
   }): Promise<EmpreendimentoRecord>;
+  // Construtoras (Fatia A): troca o vinculo (e o texto legado junto).
+  // updateMany condicional { id, tenantId }; null = nao existe neste tenant.
+  atualizarConstrutora(
+    id: string,
+    tenantId: string,
+    dados: { construtoraId: string | null; construtora: string | null },
+  ): Promise<EmpreendimentoRecord | null>;
   findByIdAndTenant(id: string, tenantId: string): Promise<EmpreendimentoRecord | null>;
   // filters.publicado opcional (Fatia 4): ausente = todos (Catalogo/Cadastro
   // em Lote, que precisam ver tambem os pendentes); true = so publicados

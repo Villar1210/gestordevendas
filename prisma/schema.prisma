@@ -51,6 +51,7 @@ model Tenant {
   notes      Note[]
 
   empreendimentos      Empreendimento[]
+  construtoras         Construtora[]
   imoveis              Imovel[]
   imovelPhotos         ImovelPhoto[]
   tipologias           Tipologia[]
@@ -933,7 +934,14 @@ model Empreendimento {
   cep              String   @db.VarChar(10)
   complemento      String?  @db.VarChar(100)
   tipo             String?  @db.VarChar(50)
+  // Texto livre (legado). Continua existindo nesta fase (site publico, BII e
+  // book ainda leem): com construtoraId preenchido, guarda sempre o nome da
+  // construtora vinculada. Remover a coluna fica para uma fatia propria.
   construtora      String?  @db.VarChar(150)
+  // Construtoras (Fatia A): cadastro da parceira do empreendimento.
+  // SetNull: excluir a construtora nunca apaga o empreendimento (e a
+  // exclusao com vinculo e bloqueada na aplicacao - 409).
+  construtoraId    String?  @map("construtora_id") @db.Uuid
   precoMinimo      Float?   @map("preco_minimo")
   precoMaximo      Float?   @map("preco_maximo")
   description      String?  @db.Text
@@ -987,7 +995,37 @@ model Empreendimento {
 
   roletas           RoletaEmpreendimento[]
   cards             Card[]
+  construtoraVinculada Construtora? @relation(fields: [construtoraId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, construtoraId])
   @@map("empreendimentos")
+}
+
+// Construtora/incorporadora parceira cujos produtos o tenant vende
+// (Direcional, Novolar...). Pertence ao EMPREENDIMENTO, nao ao tenant
+// (a empresa assinante continua em Configuracoes > Dados da Empresa).
+// nomeNormalizado = minusculas, sem acento, espacos colapsados (mesma regra
+// de normalizarNomeConstrutora no dominio do gestao_imobiliaria) - impede
+// "Novolar"/"NOVOLAR"/"Novolar " duplicados no mesmo tenant.
+// sobre/diferenciais: texto institucional usado pela VIVI e pelo site.
+model Construtora {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  nome            String   @db.VarChar(150)
+  nomeNormalizado String   @map("nome_normalizado") @db.VarChar(150)
+  site            String?  @db.VarChar(255)
+  sobre           String?  @db.VarChar(2000)
+  diferenciais    String?  @db.VarChar(1500)
+  logoUrl         String?  @map("logo_url") @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  empreendimentos Empreendimento[]
+
+  @@unique([tenantId, nomeNormalizado])
+  @@index([tenantId, nome])
+  @@map("construtoras")
 }
 
 // Foto do EMPREENDIMENTO como um todo (planta do empreendimento, fachada,

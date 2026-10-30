@@ -268,6 +268,9 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
         statusObra: true,
         description: true,
         construtora: true,
+        // Construtoras (Fatia A): nome e logo da construtora vinculada (o
+        // texto legado acima fica como reserva para quem ainda nao vinculou).
+        construtoraVinculada: { select: { nome: true, logoUrl: true } },
         itensLazer: true,
         diferenciais: true,
         proximoMetro: true,
@@ -297,7 +300,8 @@ export class PrismaSitePublicoRepository implements ISitePublicoRepository {
       statusObra: r.statusObra,
       fotoCapa: capaDoEmpreendimento(r.photos),
       descricao: r.description,
-      construtora: r.construtora,
+      construtora: r.construtoraVinculada?.nome ?? r.construtora,
+      construtoraLogoUrl: r.construtoraVinculada?.logoUrl ?? null,
       endereco: [r.rua, r.numero].filter(Boolean).join(', '),
       itensLazer: r.itensLazer,
       diferenciais: r.diferenciais,

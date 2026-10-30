@@ -57,6 +57,9 @@ export interface EmpreendimentoResumo {
 export interface EmpreendimentoDetalhe extends EmpreendimentoResumo {
   descricao: string | null;
   construtora: string | null;
+  // Construtoras (Fatia A): logo da construtora vinculada (pode faltar em
+  // respostas de um backend antigo).
+  construtoraLogoUrl?: string | null;
   endereco: string;
   itensLazer: string[];
   diferenciais: string[];

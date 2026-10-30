@@ -23,6 +23,7 @@ import {
 import { ApiError, API_BASE_URL } from "@/core/api/client";
 import { useMe } from "@/core/hooks/useMe";
 import { FotoLightbox, FotoLightboxItem } from "@/features/imoveis/components/FotoLightbox";
+import { ConstrutoraDoEmpreendimentoCard } from "@/features/imoveis/components/construtoras/ConstrutoraDoEmpreendimentoCard";
 import {
   useImoveisIntegration,
   ConfirmarFichaTecnicaInput,
@@ -394,6 +395,13 @@ export default function EmpreendimentoDetailPage({
       )}
 
       <div className="space-y-6 p-6">
+        {/* Construtoras (Fatia A): todos veem; so Administrador troca. */}
+        <ConstrutoraDoEmpreendimentoCard
+          empreendimento={empreendimento}
+          podeEditar={isAdmin}
+          onAtualizado={setEmpreendimento}
+        />
+
         {/* Revisao e Publicacao - sempre visivel, com destaque quando pendente. */}
         <div
           className={`rounded-2xl border p-5 ${
