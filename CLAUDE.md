@@ -2396,3 +2396,38 @@ sem migration, sem servico externo, sem dependencia/variavel nova.
   null. Aceito (BAIXO): valores extremos que o DTO permite (ex.: terreno de
   R$ 2 bi contra VGV de R$ 10 mil) geram percentuais enormes, sem quebrar.
 - Deploy: so build do backend e do frontend (rm -rf .next). Nenhuma migration.
+
+## Modulo Campanhas SMS (repique em massa) - CONCLUIDO (sem deploy)
+Contrato: docs/campanhas/CONTRATO_CAMPANHA_SMS.md. Runbook do primeiro disparo
+(Novolar Freguesia): docs/campanhas/RUNBOOK_DISPARO_FREGUESIA.md.
+- Backend src/modules/campanhas_sms/ (Clean Architecture, NAO importa outro
+  modulo de negocio; NAO mexe no MessageDispatcherService - o Canal.SMS de la
+  continua "nao implementado"). Migration 20261113120000_campanhas_sms (so
+  CREATE): campanhas_sms, campanhas_sms_contatos (codigo do link UNICO global),
+  sms_optouts (@@unique tenant+telefone). Tudo POR TENANT (FK Cascade).
+- Provedor por SMS_PROVIDER: "zenvia" (ZenviaSmsProvider, API v2, host fixo,
+  redirect manual, 15 s) ou simulador (padrao, NAO envia). Variaveis em
+  .env.example (ZENVIA_API_TOKEN, ZENVIA_SMS_FROM, ZENVIA_WEBHOOK_TOKEN,
+  SHORTLINK_BASE_URL). Nenhuma dependencia nova (exceljs/csv-parse ja existiam).
+- Regras puras em domain/services (telefone so celular BR 55DDD9..., GSM-7 x
+  UCS-2 com pior caso = maior primeiro nome + link, primeiro nome SEM acento,
+  opt-out por palavra no comeco da resposta, janela seg-sab, ritmo por rodada).
+- Job EnvioCampanhaScheduler: @Interval 15 s, uma rodada por vez, reserva
+  condicional pendente->enviando; temporario (timeout/429/5xx) volta para
+  pendente ate 3 tentativas; no boot "enviando" vira "falhou" (NUNCA reenvia
+  sozinho - evita SMS em dobro). Uma instancia so no PM2.
+- Rotas: /campanhas-sms/* (classe Administrador; impersonacao so le -> 403
+  CAMPANHA_SOMENTE_LEITURA), GET /r/:codigo publico (302 so para o destino da
+  propria campanha; HEAD nao conta clique; codigo invalido = pagina 404) e
+  POST /webhooks/zenvia/sms/:token (token em tempo constante; sem variavel
+  503, errado 404, certo sempre 200). nginx: "location /r/" -> 3333 para o link
+  sem /api (ver runbook).
+- Frontend: features/campanhas + app/dashboard/campanhas (lista, nova, detalhe
+  com contador ao vivo, importacao, SMS de teste, disparo/pausa/cancelamento,
+  tabela de contatos, exportacao CSV). Item "Campanhas SMS" no Sidebar (so
+  Administrador).
+- Testes: npx jest src/modules/campanhas_sms (dominio, casos de uso com repo em
+  memoria test/campanhas/campanha-repo.fake.ts, infra) + integracao Postgres
+  real (DATABASE_URL=... npx jest src/modules/campanhas_sms --runInBand).
+  Validado E2E local: API + Next + Playwright (criar, importar xlsx, teste,
+  disparo simulado, cliques, webhook SAIR/entrega, CSV, 390 px sem rolagem).
