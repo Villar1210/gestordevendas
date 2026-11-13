@@ -21,6 +21,7 @@ import { ConfiguracoesModule } from './modules/configuracoes/configuracoes.modul
 import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 import { PlantaoModule } from './modules/plantao/plantao.module';
 import { BiiModule } from './modules/bii/bii.module';
+import { CampanhasSmsModule } from './modules/campanhas_sms/campanhas-sms.module';
 import { SuperUsuarioModule } from './modules/super_usuario/super-usuario.module';
 import { SocialMediaModule } from './modules/social_media/social-media.module';
 import { ViviIntegrationModule } from './modules/vivi-integration/vivi-integration.module';
@@ -79,6 +80,7 @@ import { validateEnv } from './config/env.validation';
     // BII (Business Intelligence Imobiliario) - historico de etapas + Painel
     // de Vendas (so Administrador). Ver modules/bii e CLAUDE.md.
     BiiModule,
+    CampanhasSmsModule,
     // Abstracao ADITIVA de canais (dispatcher + evento agnostico) - ver
     // shared/canais.module.ts. Nao consumida por nenhum modulo de negocio
     // ainda; existe pronta para features futuras (ex: Repique).

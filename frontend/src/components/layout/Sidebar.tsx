@@ -18,6 +18,7 @@ import {
   Calculator,
   ChartNoAxesCombined,
   Settings,
+  Send,
   X,
   ChevronDown,
   type LucideIcon,
@@ -59,6 +60,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: Calculator,
     label: "Simulador",
     href: "/dashboard/simulador-credito",
+    requiredRole: "Administrador",
+  },
+  {
+    icon: Send,
+    label: "Campanhas SMS",
+    href: "/dashboard/campanhas",
     requiredRole: "Administrador",
   },
   {

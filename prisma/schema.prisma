@@ -127,6 +127,10 @@ model Tenant {
   biiAnalises BiiAnalise[]
   biiConcorrentes BiiConcorrente[]
   biiEstudos BiiEstudo[]
+  // Modulo Campanhas SMS (docs/campanhas/CONTRATO_CAMPANHA_SMS.md).
+  campanhasSms        CampanhaSms[]
+  campanhaSmsContatos CampanhaSmsContato[]
+  smsOptOuts          SmsOptOut[]
   @@map("tenants")
 }
 
@@ -2280,4 +2284,88 @@ model BiiEstudo {
 
   @@index([tenantId, createdAt])
   @@map("bii_estudos")
+}
+
+// Modulo Campanhas SMS - repique em massa por SMS com link curto por contato.
+// Contrato: docs/campanhas/CONTRATO_CAMPANHA_SMS.md. POR TENANT (FK Cascade).
+// criadoPorUserId SEM FK de proposito (excluir usuario nao apaga campanha).
+model CampanhaSms {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  nome            String    @db.VarChar(120)
+  mensagem        String    @db.VarChar(600)
+  linkDestino     String    @map("link_destino") @db.VarChar(500)
+  // rascunho | enviando | pausada | concluida | cancelada
+  status          String    @default("rascunho") @db.VarChar(20)
+  maxSegmentos    Int       @default(1) @map("max_segmentos")
+  taxaPorMinuto   Int       @default(30) @map("taxa_por_minuto")
+  janelaInicio    Int       @default(9) @map("janela_inicio")
+  janelaFim       Int       @default(20) @map("janela_fim")
+  // Codigo do link do SMS de teste: redireciona sem contar clique.
+  codigoTeste     String    @unique @map("codigo_teste") @db.VarChar(12)
+  criadoPorUserId String    @map("criado_por_user_id") @db.Uuid
+  iniciadaEm      DateTime? @map("iniciada_em")
+  concluidaEm     DateTime? @map("concluida_em")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contatos CampanhaSmsContato[]
+
+  @@index([tenantId, createdAt])
+  @@index([status])
+  @@map("campanhas_sms")
+}
+
+model CampanhaSmsContato {
+  id                 String    @id @default(uuid()) @db.Uuid
+  campanhaId         String    @map("campanha_id") @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  nome               String    @db.VarChar(150)
+  primeiroNome       String    @map("primeiro_nome") @db.VarChar(40)
+  // Sempre 55 + DDD + 9 digitos (celular).
+  telefone           String    @db.VarChar(15)
+  corretor           String?   @db.VarChar(120)
+  referencia         String?   @db.VarChar(60)
+  // pendente | enviando | enviado | entregue | falhou | bloqueado | optout | cancelado
+  status             String    @default("pendente") @db.VarChar(20)
+  // Codigo do link curto (6 caracteres base62), unico entre TODAS as campanhas.
+  codigo             String    @unique @db.VarChar(12)
+  tentativas         Int       @default(0)
+  provedorMensagemId String?   @map("provedor_mensagem_id") @db.VarChar(100)
+  erro               String?   @db.VarChar(300)
+  enviadoEm          DateTime? @map("enviado_em")
+  entregueEm         DateTime? @map("entregue_em")
+  cliques            Int       @default(0)
+  primeiroCliqueEm   DateTime? @map("primeiro_clique_em")
+  ultimoCliqueEm     DateTime? @map("ultimo_clique_em")
+  respostaTexto      String?   @map("resposta_texto") @db.VarChar(500)
+  respondidoEm       DateTime? @map("respondido_em")
+  optoutEm           DateTime? @map("optout_em")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  campanha CampanhaSms @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([campanhaId, telefone])
+  @@index([campanhaId, status])
+  @@index([provedorMensagemId])
+  @@index([telefone, enviadoEm])
+  @@map("campanhas_sms_contatos")
+}
+
+// Lista de quem nao quer mais receber SMS do tenant (vale para todas as campanhas).
+model SmsOptOut {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  telefone  String   @db.VarChar(15)
+  // resposta | manual | importacao
+  origem    String   @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, telefone])
+  @@map("sms_optouts")
 }
