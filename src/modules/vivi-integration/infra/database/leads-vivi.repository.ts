@@ -4,8 +4,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../config/prisma.service';
 
-// Origens gravadas pelos fluxos da VIVI (agendar-visita / captura automatica).
-export const ORIGENS_VIVI = ['roleta_online', 'captura_auto_vivi'];
+// Origens gravadas pelos fluxos da VIVI. 'vivi' (fase B, 27/10/2026) e a da
+// VIVI do fazer.ai (registrar_atendimento / encaminhar_corretor); faltava
+// aqui e os leads dela nunca apareciam na tela (corrigido 14/11/2026).
+// 'roleta_online' / 'captura_auto_vivi' sao dos fluxos anteriores.
+export const ORIGENS_VIVI = ['vivi', 'roleta_online', 'captura_auto_vivi'];
 export const TIPO_ATIVIDADE_WHATSAPP = 'whatsapp';
 
 export interface LeadViviRecord {

@@ -43,6 +43,46 @@ export function converterMensagens(lista: MensagemChatwoot[]): MensagemHistorico
     .map(({ autor, texto, quando }) => ({ autor, texto, quando }));
 }
 
+// Etapa 1 (WhatsApp integrado, 14/11/2026): a caixa oficial do Chatwoot
+// cria uma conversa NOVA toda vez que o cliente volta depois de a anterior
+// ser encerrada ("Criar novas conversas"). O historico do cliente fica
+// espalhado em varias conversas - aqui se escolhe quais ler.
+export interface ConversaChatwoot {
+  id: number;
+  inbox_id?: number;
+  status?: string;
+  created_at?: number;
+  last_activity_at?: number;
+  timestamp?: number;
+}
+
+export const MAX_CONVERSAS_HISTORICO = 10;
+
+// So as conversas da caixa informada (quando houver), sem repetir, das mais
+// antigas para as mais recentes, limitadas as `max` mais recentes.
+export function selecionarConversas(
+  conversas: ConversaChatwoot[],
+  inboxId: number | null,
+  max = MAX_CONVERSAS_HISTORICO,
+): ConversaChatwoot[] {
+  const vistas = new Set<number>();
+  const quando = (c: ConversaChatwoot) => c.created_at ?? c.timestamp ?? c.last_activity_at ?? 0;
+  return conversas
+    .filter((c) => Number.isInteger(c?.id))
+    .filter((c) => inboxId === null || c.inbox_id === inboxId)
+    .filter((c) => (vistas.has(c.id) ? false : (vistas.add(c.id), true)))
+    .sort((a, b) => quando(a) - quando(b) || a.id - b.id)
+    .slice(-max);
+}
+
+// Conversa em andamento (aberta ou com o bot) mais recente da caixa.
+export function conversaAtiva(conversas: ConversaChatwoot[], inboxId: number): ConversaChatwoot | null {
+  const ativas = selecionarConversas(conversas, inboxId, Number.MAX_SAFE_INTEGER).filter(
+    (c) => c.status === 'open' || c.status === 'pending',
+  );
+  return ativas.length ? ativas[ativas.length - 1] : null;
+}
+
 // Telefone do card ("5511999998888") -> mesmo numero com +, como o Chatwoot grava.
 export function mesmoTelefone(a: string | null | undefined, b: string | null | undefined): boolean {
   const da = String(a ?? '').replace(/\D/g, '');

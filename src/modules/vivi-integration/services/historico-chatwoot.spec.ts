@@ -1,4 +1,4 @@
-import { converterMensagens, mesmoTelefone } from './historico-chatwoot';
+import { conversaAtiva, converterMensagens, mesmoTelefone, selecionarConversas } from './historico-chatwoot';
 
 describe('historico-chatwoot', () => {
   it('identifica cliente, VIVI e atendente humano e ignora notas privadas/eventos', () => {
@@ -24,5 +24,24 @@ describe('historico-chatwoot', () => {
     expect(mesmoTelefone('+55 11 99999-8888', '5511999998888')).toBe(true);
     expect(mesmoTelefone('5511999998888', '5511999998887')).toBe(false);
     expect(mesmoTelefone('', '')).toBe(false);
+  });
+});
+
+describe('selecionarConversas / conversaAtiva (Etapa 1)', () => {
+  const c = (id: number, inbox_id: number, created_at: number, status = 'resolved') => ({ id, inbox_id, created_at, status });
+
+  it('so a caixa oficial, sem repetir, da mais antiga para a mais recente', () => {
+    const r = selecionarConversas([c(3, 2, 300), c(1, 2, 100), c(9, 1, 50), c(3, 2, 300), c(2, 2, 200)], 2);
+    expect(r.map((x) => x.id)).toEqual([1, 2, 3]);
+  });
+
+  it('sem caixa configurada le todas; limita as mais recentes', () => {
+    const r = selecionarConversas([c(1, 1, 100), c(2, 2, 200), c(3, 2, 300)], null, 2);
+    expect(r.map((x) => x.id)).toEqual([2, 3]);
+  });
+
+  it('conversa ativa = aberta ou com o bot, a mais recente; encerradas nao contam', () => {
+    expect(conversaAtiva([c(1, 2, 100, 'open'), c(2, 2, 200, 'pending'), c(3, 2, 300, 'resolved')], 2)?.id).toBe(2);
+    expect(conversaAtiva([c(1, 2, 100, 'resolved'), c(5, 1, 400, 'open')], 2)).toBeNull();
   });
 });

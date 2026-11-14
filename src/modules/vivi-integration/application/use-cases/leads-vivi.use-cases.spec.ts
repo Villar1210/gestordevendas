@@ -49,6 +49,11 @@ describe('LeadsViviUseCases', () => {
     await expect(naoVivi.uc.conversa(corretor, 'c2')).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('conversa: lead da VIVI do fazer.ai (origem vivi, fase B) tambem e lead da VIVI', async () => {
+    const { uc } = montar({ id: 'c3', ownerId: 'u1', phone: '5511999998888', origem: 'vivi' });
+    await expect(uc.conversa(corretor, 'c3')).resolves.toMatchObject({ encontrado: true });
+  });
+
   it('conversa: falha no Chatwoot vira mensagem amigavel (nao 500)', async () => {
     const { uc, chatwoot } = montar();
     chatwoot.historicoPorTelefone.mockRejectedValue(new Error('timeout'));

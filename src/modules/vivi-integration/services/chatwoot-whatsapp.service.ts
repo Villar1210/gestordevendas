@@ -1,7 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { converterMensagens, mesmoTelefone, MensagemHistorico } from './historico-chatwoot';
+import {
+  ConversaChatwoot,
+  conversaAtiva,
+  converterMensagens,
+  mesmoTelefone,
+  MensagemHistorico,
+  selecionarConversas,
+} from './historico-chatwoot';
 
 export interface EnviarMensagemParams {
   telefone: string;
@@ -17,6 +24,13 @@ export interface EnviarMensagemParams {
 }
 
 const ESPERA_VERIFICACAO_MS = 5000;
+const TIMEOUT_MS = 8000;
+// Teto do Chatwoot para after+before numa chamada so (MessageFinder: 1000).
+const ID_MAXIMO_MENSAGEM = 2_147_483_647;
+
+export type ResultadoPassagem =
+  | { ok: true; conversaId: number }
+  | { ok: false; motivo: 'nao_configurado' | 'sem_conversa_ativa' | 'erro'; detalhe?: string };
 
 @Injectable()
 export class ChatwootWhatsappService {
@@ -25,12 +39,24 @@ export class ChatwootWhatsappService {
   private readonly token: string;
   private readonly accountId: string;
   private readonly inboxId: string;
+  // Etapa 1 (14/11/2026): caixa do numero OFICIAL (onde a VIVI conversa com
+  // os clientes). CHATWOOT_INBOX_ID continua sendo a caixa dos avisos internos
+  // (corretores/gestao). Sem esta variavel, o historico le todas as caixas e a
+  // passagem para humano fica desligada.
+  private readonly inboxOficialId: number | null;
+  private idContaServico: Promise<number> | null = null;
 
   constructor(private readonly config: ConfigService) {
     this.baseUrl = this.config.get<string>('CHATWOOT_URL', 'https://chatwoot.ivillar.com.br');
     this.token = this.config.get<string>('CHATWOOT_API_TOKEN', '');
     this.accountId = this.config.get<string>('CHATWOOT_ACCOUNT_ID', '1');
     this.inboxId = this.config.get<string>('CHATWOOT_INBOX_ID', '1');
+    const oficial = Number(this.config.get<string>('CHATWOOT_INBOX_OFICIAL_ID', ''));
+    this.inboxOficialId = Number.isInteger(oficial) && oficial > 0 ? oficial : null;
+  }
+
+  private get base(): string {
+    return `${this.baseUrl}/api/v1/accounts/${this.accountId}`;
   }
 
   private get headers() {
@@ -108,11 +134,10 @@ export class ChatwootWhatsappService {
     }
   }
 
-  // Fatia 3 (WhatsApp do corretor): historico da conversa da VIVI com o
-  // cliente, SO LEITURA (apenas GET na API do Chatwoot - nada e enviado,
-  // atribuido ou alterado). Procura o contato pelo telefone em toda a conta
-  // (a VIVI atende em outra caixa, diferente da usada nos avisos ao
-  // corretor) e devolve as mensagens da conversa mais recente.
+  // Historico da conversa da VIVI (e de atendentes) com o cliente, SO LEITURA
+  // (apenas GET na API do Chatwoot). Etapa 1 (14/11/2026): junta TODAS as
+  // conversas do telefone na caixa oficial (a caixa cria uma conversa nova a
+  // cada retorno do cliente), ate MAX_CONVERSAS_HISTORICO, em ordem de tempo.
   async historicoPorTelefone(telefone: string): Promise<{
     encontrado: boolean;
     conversaUrl: string | null;
@@ -121,29 +146,86 @@ export class ChatwootWhatsappService {
   }> {
     const vazio = { encontrado: false, conversaUrl: null, status: null, mensagens: [] };
     if (!this.token) return vazio;
-    const base = `${this.baseUrl}/api/v1/accounts/${this.accountId}`;
-    const busca = await axios.get(`${base}/contacts/search`, {
-      headers: this.headers,
-      params: { q: `+${telefone.replace(/\D/g, '')}`, page: 1 },
-      timeout: 8000,
-    });
-    const contatos = (busca.data?.payload ?? []).filter((c: any) => mesmoTelefone(c.phone_number, telefone));
-    let maisRecente: any = null;
-    for (const contato of contatos.slice(0, 3)) {
-      const resp = await axios.get(`${base}/contacts/${contato.id}/conversations`, { headers: this.headers, timeout: 8000 });
-      for (const conversa of resp.data?.payload ?? []) {
-        const ultima = conversa.last_activity_at ?? conversa.timestamp ?? 0;
-        if (!maisRecente || ultima > (maisRecente.last_activity_at ?? maisRecente.timestamp ?? 0)) maisRecente = conversa;
-      }
+    const conversas = selecionarConversas(await this.conversasDoTelefone(telefone), this.inboxOficialId);
+    if (conversas.length === 0) return vazio;
+    const brutas: unknown[] = [];
+    for (const conversa of conversas) {
+      const msgs = await axios.get(`${this.base}/conversations/${conversa.id}/messages`, {
+        headers: this.headers,
+        params: { after: 0, before: ID_MAXIMO_MENSAGEM },
+        timeout: TIMEOUT_MS,
+      });
+      brutas.push(...(msgs.data?.payload ?? []));
     }
-    if (!maisRecente) return vazio;
-    const msgs = await axios.get(`${base}/conversations/${maisRecente.id}/messages`, { headers: this.headers, timeout: 8000 });
+    const maisRecente = conversas[conversas.length - 1];
     return {
       encontrado: true,
       conversaUrl: `${this.baseUrl}/app/accounts/${this.accountId}/conversations/${maisRecente.id}`,
       status: maisRecente.status ?? null,
-      mensagens: converterMensagens(msgs.data?.payload ?? []),
+      mensagens: converterMensagens(brutas as Parameters<typeof converterMensagens>[0]),
     };
+  }
+
+  // Etapa 1 (14/11/2026): passa a conversa em andamento do cliente, na caixa
+  // oficial, para a conta de servico "Gestor de Vendas" e marca como aberta.
+  // Validado em producao (conversa #59): a VIVI para de responder e os
+  // lembretes automaticos dela sao cancelados. Nunca lanca erro: devolve o
+  // motivo para quem chamou decidir (ex.: avisar a gestao).
+  async passarParaHumano(telefone: string): Promise<ResultadoPassagem> {
+    if (!this.token || this.inboxOficialId === null) return { ok: false, motivo: 'nao_configurado' };
+    try {
+      const ativa = conversaAtiva(await this.conversasDoTelefone(telefone), this.inboxOficialId);
+      if (!ativa) return { ok: false, motivo: 'sem_conversa_ativa' };
+      const assigneeId = await this.idDaContaDeServico();
+      const conversa = `${this.base}/conversations/${ativa.id}`;
+      await axios.post(`${conversa}/assignments`, { assignee_id: assigneeId }, { headers: this.headers, timeout: TIMEOUT_MS });
+      await axios.post(`${conversa}/toggle_status`, { status: 'open' }, { headers: this.headers, timeout: TIMEOUT_MS });
+      this.logger.log(`Conversa #${ativa.id} passada para atendimento humano (Gestor de Vendas).`);
+      return { ok: true, conversaId: ativa.id };
+    } catch (err: any) {
+      const detalhe = err?.response?.status ? `HTTP ${err.response.status}` : err?.message ?? 'erro';
+      this.logger.error(`Falha ao passar conversa para humano: ${detalhe}`);
+      return { ok: false, motivo: 'erro', detalhe };
+    }
+  }
+
+  // Conversas (todas as caixas) dos contatos com este telefone.
+  private async conversasDoTelefone(telefone: string): Promise<ConversaChatwoot[]> {
+    const digitos = telefone.replace(/\D/g, '');
+    const busca = await axios.get(`${this.base}/contacts/search`, {
+      headers: this.headers,
+      params: { q: `+${digitos}`, page: 1 },
+      timeout: TIMEOUT_MS,
+    });
+    const contatos = (busca.data?.payload ?? []).filter((c: any) => mesmoTelefone(c.phone_number, digitos));
+    const conversas: ConversaChatwoot[] = [];
+    for (const contato of contatos.slice(0, 3)) {
+      const resp = await axios.get(`${this.base}/contacts/${contato.id}/conversations`, {
+        headers: this.headers,
+        timeout: TIMEOUT_MS,
+      });
+      conversas.push(...(resp.data?.payload ?? []));
+    }
+    return conversas;
+  }
+
+  // Id do usuario dono do token (a conta de servico). Guardado em memoria;
+  // se a consulta falhar, tenta de novo na proxima vez.
+  private idDaContaDeServico(): Promise<number> {
+    if (!this.idContaServico) {
+      this.idContaServico = axios
+        .get(`${this.baseUrl}/api/v1/profile`, { headers: this.headers, timeout: TIMEOUT_MS })
+        .then((r) => {
+          const id = Number(r.data?.id);
+          if (!Number.isInteger(id) || id <= 0) throw new Error('perfil sem id');
+          return id;
+        })
+        .catch((err) => {
+          this.idContaServico = null;
+          throw err;
+        });
+    }
+    return this.idContaServico;
   }
 
   private async adicionarEtiquetas(conversaId: number, etiquetas: string[]): Promise<void> {

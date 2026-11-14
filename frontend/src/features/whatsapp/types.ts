@@ -30,10 +30,16 @@ export interface ConversaVivi {
   erro: string | null;
 }
 
-// Titulo gravado pela VIVI: "Maria Souza - visita via VIVI" (ou sem nome).
+// Titulos gravados pela VIVI: "Maria Souza - visita via VIVI" (agendar
+// visita), "Maria Souza" (VIVI do fazer.ai, fase B) ou um titulo generico
+// quando ela ainda nao sabe o nome.
+const TITULOS_GENERICOS = /^(contato pela vivi|lead da vivi|contato pelo whatsapp)$/i;
+
 export function nomeDoCliente(titulo: string): string | null {
-  const m = /^(.*?)\s+-\s+visita via VIVI$/i.exec(titulo.trim());
-  return m ? m[1].trim() || null : null;
+  const t = titulo.trim();
+  const m = /^(.*?)\s+-\s+visita via VIVI$/i.exec(t);
+  if (m) return m[1].trim() || null;
+  return t && !TITULOS_GENERICOS.test(t) ? t : null;
 }
 
 export function telefoneFormatado(t: string | null): string {
