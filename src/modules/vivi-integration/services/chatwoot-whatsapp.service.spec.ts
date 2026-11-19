@@ -139,3 +139,79 @@ describe('ChatwootWhatsappService.passarParaHumano', () => {
     expect(await s.passarParaHumano('5511999998888')).toEqual({ ok: true, conversaId: 20 });
   });
 });
+
+describe('ChatwootWhatsappService.enviarParaCliente (parte 3)', () => {
+  const conversas = {
+    payload: [
+      { id: 10, inbox_id: 2, created_at: 100, status: 'resolved' },
+      { id: 20, inbox_id: 2, created_at: 200, status: 'open' },
+      { id: 99, inbox_id: 1, created_at: 300, status: 'open' },
+    ],
+  };
+
+  it('na janela e ja com o Gestor: so envia na conversa mais recente da caixa oficial', async () => {
+    getPorUrl({
+      [`${BASE}/contacts/search`]: contato,
+      [`${BASE}/contacts/7/conversations`]: conversas,
+      [`${BASE}/conversations/20`]: { can_reply: true, status: 'open', meta: { assignee_type: 'User', assignee: { id: 8 } } },
+      'https://cw.test/api/v1/profile': { id: 8 },
+    });
+    mocked.post.mockResolvedValue({ data: { id: 1400, created_at: 1_795_100_000 } });
+
+    const r = await servico().enviarParaCliente('5511999998888', '*Ana*\nOi');
+
+    expect(r).toEqual({ ok: true, conversaId: 20, inboxId: 2, chatwootMessageId: 1400, enviadaEm: new Date(1_795_100_000_000) });
+    expect(mocked.post).toHaveBeenCalledTimes(1);
+    expect(mocked.post).toHaveBeenCalledWith(
+      `${BASE}/conversations/20/messages`,
+      { content: '*Ana*\nOi', message_type: 'outgoing', private: false },
+      expect.anything(),
+    );
+  });
+
+  it('conversa com a VIVI (bot): passa para o Gestor antes de enviar', async () => {
+    getPorUrl({
+      [`${BASE}/contacts/search`]: contato,
+      [`${BASE}/contacts/7/conversations`]: conversas,
+      [`${BASE}/conversations/20`]: { can_reply: true, status: 'pending', meta: { assignee_type: 'AgentBot', assignee: { id: 8 } } },
+      'https://cw.test/api/v1/profile': { id: 8 },
+    });
+    mocked.post.mockResolvedValue({ data: { id: 1401 } });
+
+    const r = await servico().enviarParaCliente('5511999998888', 'Oi');
+
+    expect(r).toMatchObject({ ok: true, chatwootMessageId: 1401 });
+    expect(mocked.post.mock.calls.map((c) => c[0])).toEqual([
+      `${BASE}/conversations/20/assignments`,
+      `${BASE}/conversations/20/toggle_status`,
+      `${BASE}/conversations/20/messages`,
+    ]);
+  });
+
+  it('fora da janela de 24 h: nao envia nem mexe na conversa', async () => {
+    getPorUrl({
+      [`${BASE}/contacts/search`]: contato,
+      [`${BASE}/contacts/7/conversations`]: conversas,
+      [`${BASE}/conversations/20`]: { can_reply: false, status: 'resolved' },
+    });
+    expect(await servico().enviarParaCliente('5511999998888', 'Oi')).toEqual({ ok: false, motivo: 'fora_da_janela' });
+    expect(mocked.post).not.toHaveBeenCalled();
+  });
+
+  it('cliente sem conversa na caixa oficial', async () => {
+    getPorUrl({
+      [`${BASE}/contacts/search`]: contato,
+      [`${BASE}/contacts/7/conversations`]: { payload: [{ id: 99, inbox_id: 1, created_at: 300, status: 'open' }] },
+    });
+    expect(await servico().enviarParaCliente('5511999998888', 'Oi')).toEqual({ ok: false, motivo: 'sem_conversa' });
+  });
+
+  it('sem caixa oficial configurada ou falha do Chatwoot: nao lanca erro', async () => {
+    expect(await servico({ CHATWOOT_INBOX_OFICIAL_ID: '' }).enviarParaCliente('5511999998888', 'Oi')).toEqual({
+      ok: false,
+      motivo: 'nao_configurado',
+    });
+    getPorUrl({ [`${BASE}/contacts/search`]: new Error('timeout') });
+    expect(await servico().enviarParaCliente('5511999998888', 'Oi')).toMatchObject({ ok: false, motivo: 'erro' });
+  });
+});

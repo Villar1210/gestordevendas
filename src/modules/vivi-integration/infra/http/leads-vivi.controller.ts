@@ -1,13 +1,14 @@
 // src/modules/vivi-integration/infra/http/leads-vivi.controller.ts
 // Fatia 3 (WhatsApp do corretor) - rotas logadas (JWT), diferente do
 // ViviIntegrationController (chamado pela VIVI com API key).
-import { Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
 import { Roles } from '../../../../shared/infra/http/decorators/roles.decorator';
 import { DASHBOARD_ROLES } from '../../../../shared/domain/constants/dashboard-roles';
 import { LeadsViviUseCases, Solicitante } from '../../application/use-cases/leads-vivi.use-cases';
+import { EnviarMensagemClienteDto } from './dto/enviar-mensagem-cliente.dto';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -31,6 +32,17 @@ export class LeadsViviController {
   @Get(':cardId/conversa')
   async conversa(@Param('cardId', ParseUUIDPipe) cardId: string, @Req() req: Request) {
     return this.useCases.conversa(this.solicitante(req), cardId);
+  }
+
+  // POST /leads-vivi/:cardId/mensagens - o corretor dono escreve ao cliente pelo
+  // numero oficial (Etapa 1, parte 3)
+  @Post(':cardId/mensagens')
+  async enviarMensagem(
+    @Param('cardId', ParseUUIDPipe) cardId: string,
+    @Body() dto: EnviarMensagemClienteDto,
+    @Req() req: Request,
+  ) {
+    return this.useCases.enviarMensagem(this.solicitante(req), cardId, dto.texto);
   }
 
   // POST /leads-vivi/:cardId/contato - registra que o corretor abriu o WhatsApp com o cliente

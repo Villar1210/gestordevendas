@@ -84,4 +84,35 @@ describe('RegistrarMensagemChatwootUseCase (integracao - banco real)', () => {
     const linha = await prisma.chatwootMensagem.findUnique({ where: { chatwootMessageId: base + 2 } });
     expect(linha?.cardId).toBeNull();
   });
+
+  it('parte 3: envio do corretor e aviso do webhook - em qualquer ordem, uma linha so, com o corretor como autor', async () => {
+    const repo = new ChatwootMensagemRepository(prisma);
+    const roleId = (await prisma.role.create({ data: { tenantId, name: 'Corretor' } })).id;
+    const corretor = await prisma.user.create({
+      data: { tenantId, roleId, name: 'Ana Corretora', email: `ana-${base}@teste.local`, password: 'x' },
+    });
+    const envio = (id: number) => ({
+      ...mensagem({ chatwootMessageId: id, direcao: 'saida', autorTipo: 'atendente', autorNome: 'Ana Corretora', conteudo: '*Ana*\nOi' }),
+      tenantId,
+      cardId: null,
+      telefoneChave: '1173879858',
+      autorUserId: corretor.id,
+    });
+
+    // webhook primeiro (sem autor), depois o registro do envio
+    await useCase.execute(tenantId, mensagem({ chatwootMessageId: base + 10, direcao: 'saida', autorTipo: 'atendente', autorNome: 'Gestor de Vendas' }));
+    await repo.registrarEnvio(envio(base + 10));
+    // registro do envio primeiro, depois o webhook (ignorado por ser repetido)
+    await repo.registrarEnvio(envio(base + 11));
+    await useCase.execute(tenantId, mensagem({ chatwootMessageId: base + 11, direcao: 'saida', autorTipo: 'atendente', autorNome: 'Gestor de Vendas' }));
+
+    for (const id of [base + 10, base + 11]) {
+      const linhas = await prisma.chatwootMensagem.findMany({ where: { chatwootMessageId: id } });
+      expect(linhas).toHaveLength(1);
+      expect(linhas[0]).toMatchObject({ autorUserId: corretor.id, autorNome: 'Ana Corretora', autorTipo: 'atendente', direcao: 'saida' });
+    }
+    await prisma.chatwootMensagem.deleteMany({ where: { autorUserId: corretor.id } });
+    await prisma.user.delete({ where: { id: corretor.id } });
+    await prisma.role.delete({ where: { id: roleId } });
+  });
 });

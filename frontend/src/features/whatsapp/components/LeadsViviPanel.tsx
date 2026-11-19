@@ -18,6 +18,7 @@ import {
   Phone,
   RefreshCw,
   Search,
+  Send,
   User,
 } from "lucide-react";
 import { apiRequest, ApiError } from "@/core/api/client";
@@ -245,6 +246,28 @@ function LeadDetalhe({
     if (caixa && conversa?.mensagens.length) caixa.scrollTop = caixa.scrollHeight;
   }, [conversa]);
 
+  // Etapa 1, parte 3 (19/11/2026): o corretor dono escreve ao cliente pelo
+  // numero OFICIAL. Caixa PROVISORIA - a tela de chat definitiva e a Etapa 3.
+  const [textoEnvio, setTextoEnvio] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+
+  async function enviarPeloNumeroOficial() {
+    const t = textoEnvio.trim();
+    if (!t || enviando) return;
+    setEnviando(true);
+    setErroEnvio(null);
+    try {
+      await apiRequest(`/leads-vivi/${lead.id}/mensagens`, { method: "POST", body: JSON.stringify({ texto: t }) });
+      setTextoEnvio("");
+      await carregarConversa();
+    } catch (err) {
+      setErroEnvio(err instanceof ApiError ? err.message : "Não foi possível enviar a mensagem.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   async function aceitar() {
     setAceitando(true);
     try {
@@ -349,7 +372,7 @@ function LeadDetalhe({
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <Bot className="h-4 w-4 text-[#25D366]" /> Conversa com a VIVI
-            <span className="font-normal text-slate-400">(somente leitura)</span>
+            {!souDono && <span className="font-normal text-slate-400">(somente leitura)</span>}
           </p>
           <div className="flex items-center gap-3">
             {veTodos && conversa?.conversaUrl && (
@@ -398,6 +421,42 @@ function LeadDetalhe({
             ))
           )}
         </div>
+        {souDono && (
+          <div className="border-t border-slate-100 bg-white p-3">
+            {erroEnvio && (
+              <p className="mb-2 flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {erroEnvio}
+              </p>
+            )}
+            <div className="flex items-end gap-2">
+              <textarea
+                value={textoEnvio}
+                onChange={(e) => setTextoEnvio(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    enviarPeloNumeroOficial();
+                  }
+                }}
+                rows={2}
+                maxLength={4000}
+                placeholder="Escreva ao cliente pelo número oficial (Enter envia, Shift+Enter quebra linha)"
+                aria-label="Mensagem para o cliente"
+                className="min-h-[2.75rem] flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#25D366] focus:outline-none"
+              />
+              <button
+                onClick={enviarPeloNumeroOficial}
+                disabled={enviando || !textoEnvio.trim()}
+                className="flex h-11 items-center gap-1.5 rounded-lg bg-[#25D366] px-4 text-sm font-semibold text-white hover:bg-[#1fb857] disabled:opacity-50"
+              >
+                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Enviar
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Sai pelo WhatsApp oficial com o seu primeiro nome no início. A VIVI para de responder nesta conversa.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

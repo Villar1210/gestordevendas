@@ -9,6 +9,7 @@ export interface NovaMensagemChatwoot extends MensagemChatwoot {
   tenantId: string;
   cardId: string | null;
   telefoneChave: string;
+  autorUserId?: string | null;
 }
 
 @Injectable()
@@ -40,5 +41,31 @@ export class ChatwootMensagemRepository {
       skipDuplicates: true,
     });
     return r.count === 1;
+  }
+
+  // Parte 3: mensagem que o corretor enviou pelo Gestor. O aviso do webhook
+  // da mesma mensagem pode chegar ANTES ou DEPOIS desta gravacao: se ja
+  // existe, so completa quem enviou (corretor) e o card; senao, cria.
+  async registrarEnvio(m: NovaMensagemChatwoot & { autorUserId: string }): Promise<void> {
+    await this.prisma.chatwootMensagem.upsert({
+      where: { chatwootMessageId: m.chatwootMessageId },
+      update: { autorUserId: m.autorUserId, autorNome: m.autorNome, autorTipo: 'atendente', cardId: m.cardId },
+      create: {
+        tenantId: m.tenantId,
+        cardId: m.cardId,
+        telefone: m.telefone,
+        telefoneChave: m.telefoneChave,
+        chatwootMessageId: m.chatwootMessageId,
+        chatwootConversationId: m.chatwootConversationId,
+        chatwootInboxId: m.chatwootInboxId,
+        direcao: 'saida',
+        autorTipo: 'atendente',
+        autorNome: m.autorNome,
+        autorUserId: m.autorUserId,
+        conteudo: m.conteudo,
+        anexos: Prisma.DbNull,
+        enviadaEm: m.enviadaEm,
+      },
+    });
   }
 }

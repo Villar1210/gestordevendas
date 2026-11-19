@@ -32,6 +32,10 @@ export type ResultadoPassagem =
   | { ok: true; conversaId: number }
   | { ok: false; motivo: 'nao_configurado' | 'sem_conversa_ativa' | 'erro'; detalhe?: string };
 
+export type ResultadoEnvioCliente =
+  | { ok: true; conversaId: number; inboxId: number; chatwootMessageId: number; enviadaEm: Date }
+  | { ok: false; motivo: 'nao_configurado' | 'sem_conversa' | 'fora_da_janela' | 'erro'; detalhe?: string };
+
 @Injectable()
 export class ChatwootWhatsappService {
   private readonly logger = new Logger(ChatwootWhatsappService.name);
@@ -176,17 +180,64 @@ export class ChatwootWhatsappService {
     try {
       const ativa = conversaAtiva(await this.conversasDoTelefone(telefone), this.inboxOficialId);
       if (!ativa) return { ok: false, motivo: 'sem_conversa_ativa' };
-      const assigneeId = await this.idDaContaDeServico();
-      const conversa = `${this.base}/conversations/${ativa.id}`;
-      await axios.post(`${conversa}/assignments`, { assignee_id: assigneeId }, { headers: this.headers, timeout: TIMEOUT_MS });
-      await axios.post(`${conversa}/toggle_status`, { status: 'open' }, { headers: this.headers, timeout: TIMEOUT_MS });
-      this.logger.log(`Conversa #${ativa.id} passada para atendimento humano (Gestor de Vendas).`);
+      await this.atribuirAoGestor(ativa.id);
       return { ok: true, conversaId: ativa.id };
     } catch (err: any) {
       const detalhe = err?.response?.status ? `HTTP ${err.response.status}` : err?.message ?? 'erro';
       this.logger.error(`Falha ao passar conversa para humano: ${detalhe}`);
       return { ok: false, motivo: 'erro', detalhe };
     }
+  }
+
+  // Etapa 1, parte 3 (19/11/2026): o corretor escreve no Gestor e a mensagem
+  // sai pelo numero OFICIAL, na conversa mais recente do cliente na caixa
+  // oficial. Antes de enviar:
+  // - confere a janela de 24 h da Meta (can_reply do Chatwoot): fora dela,
+  //   texto livre seria recusado pela Meta SEM aviso (foi o que aconteceu com
+  //   o lembrete da VIVI) - entao nem tenta e devolve 'fora_da_janela';
+  // - passa a conversa para a conta de servico (humano), para a VIVI nao
+  //   responder junto com o corretor.
+  // Nunca lanca erro: devolve o motivo.
+  async enviarParaCliente(telefone: string, texto: string): Promise<ResultadoEnvioCliente> {
+    if (!this.token || this.inboxOficialId === null) return { ok: false, motivo: 'nao_configurado' };
+    try {
+      const conversas = selecionarConversas(await this.conversasDoTelefone(telefone), this.inboxOficialId);
+      const alvo = conversas[conversas.length - 1];
+      if (!alvo) return { ok: false, motivo: 'sem_conversa' };
+      const url = `${this.base}/conversations/${alvo.id}`;
+      const detalhe = (await axios.get(url, { headers: this.headers, timeout: TIMEOUT_MS })).data ?? {};
+      if (detalhe.can_reply === false) return { ok: false, motivo: 'fora_da_janela' };
+
+      const contaServico = await this.idDaContaDeServico();
+      const comGestor = detalhe.meta?.assignee_type === 'User' && detalhe.meta?.assignee?.id === contaServico;
+      if (detalhe.status !== 'open' || !comGestor) {
+        await this.atribuirAoGestor(alvo.id);
+      }
+      const resp = await axios.post(
+        `${url}/messages`,
+        { content: texto, message_type: 'outgoing', private: false },
+        { headers: this.headers, timeout: TIMEOUT_MS },
+      );
+      const id = Number(resp.data?.id);
+      if (!Number.isInteger(id) || id <= 0) return { ok: false, motivo: 'erro', detalhe: 'resposta sem id' };
+      const criada = typeof resp.data?.created_at === 'number' ? new Date(resp.data.created_at * 1000) : new Date();
+      return { ok: true, conversaId: alvo.id, inboxId: this.inboxOficialId, chatwootMessageId: id, enviadaEm: criada };
+    } catch (err: any) {
+      const detalhe = err?.response?.status ? `HTTP ${err.response.status}` : err?.message ?? 'erro';
+      this.logger.error(`Falha ao enviar mensagem do corretor ao cliente: ${detalhe}`);
+      return { ok: false, motivo: 'erro', detalhe };
+    }
+  }
+
+  // Atribui a conversa a conta de servico "Gestor de Vendas" e marca como
+  // aberta: a VIVI para e os lembretes dela sao cancelados (validado na
+  // conversa #59, 14/11/2026).
+  private async atribuirAoGestor(conversaId: number): Promise<void> {
+    const assigneeId = await this.idDaContaDeServico();
+    const conversa = `${this.base}/conversations/${conversaId}`;
+    await axios.post(`${conversa}/assignments`, { assignee_id: assigneeId }, { headers: this.headers, timeout: TIMEOUT_MS });
+    await axios.post(`${conversa}/toggle_status`, { status: 'open' }, { headers: this.headers, timeout: TIMEOUT_MS });
+    this.logger.log(`Conversa #${conversaId} passada para atendimento humano (Gestor de Vendas).`);
   }
 
   // Conversas (todas as caixas) dos contatos com este telefone.
