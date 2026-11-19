@@ -262,6 +262,7 @@ model User {
   imoveisCriados Imovel[] @relation("ImovelCriadoPor")
   // Mensagens que este usuario (corretor) enviou pelo Gestor (ver ChatwootMensagem).
   chatwootMensagensEnviadas ChatwootMensagem[]
+  chatLeituras ChatLeitura[]
   @@map("users")
 }
 
@@ -848,6 +849,7 @@ model Card {
   socialConversations   SocialConversation[]
   biiCardStageEventos   BiiCardStageEvento[]
   chatwootMensagens     ChatwootMensagem[]
+  chatLeituras          ChatLeitura[]
 
   empreendimento        Empreendimento?        @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
   @@index([tenantId, emAtendimentoVivi])
@@ -893,6 +895,21 @@ model ChatwootMensagem {
   @@index([cardId, enviadaEm])
   @@index([tenantId, telefoneChave])
   @@map("chatwoot_mensagens")
+}
+
+// WhatsApp integrado - Etapa 3 (19/11/2026): ate onde cada usuario ja leu a
+// conversa de cada card (contador de nao lidas na tela de chat).
+model ChatLeitura {
+  userId  String   @map("user_id") @db.Uuid
+  cardId  String   @map("card_id") @db.Uuid
+  lidoAte DateTime @map("lido_ate")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cardId])
+  @@index([cardId])
+  @@map("chat_leituras")
 }
 
 // Motor de campanha de remarketing escalonada do Repique - 1 registro por

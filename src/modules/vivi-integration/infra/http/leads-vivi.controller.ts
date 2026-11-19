@@ -34,6 +34,21 @@ export class LeadsViviController {
     return this.useCases.conversa(this.solicitante(req), cardId);
   }
 
+  // GET /leads-vivi/:cardId/chat?desde=ISO - tela de chat (Etapa 3): mensagens
+  // gravadas no Gestor, eventos e o que a caixa de envio permite. Com `desde`,
+  // so as novas (atualizacao automatica).
+  @Get(':cardId/chat')
+  async chat(@Param('cardId', ParseUUIDPipe) cardId: string, @Req() req: Request, @Query('desde') desde?: string) {
+    const d = desde ? new Date(desde) : undefined;
+    return this.useCases.conversaChat(this.solicitante(req), cardId, d && !Number.isNaN(d.getTime()) ? d : undefined);
+  }
+
+  // POST /leads-vivi/:cardId/lido - zera as nao lidas deste usuario no card
+  @Post(':cardId/lido')
+  async lido(@Param('cardId', ParseUUIDPipe) cardId: string, @Req() req: Request) {
+    return this.useCases.marcarLido(this.solicitante(req), cardId);
+  }
+
   // POST /leads-vivi/:cardId/mensagens - o corretor dono escreve ao cliente pelo
   // numero oficial (Etapa 1, parte 3)
   @Post(':cardId/mensagens')

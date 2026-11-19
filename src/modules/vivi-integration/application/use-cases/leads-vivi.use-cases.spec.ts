@@ -1,5 +1,5 @@
-import { ForbiddenException, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
-import { comNomeDoCorretor, LeadsViviUseCases } from './leads-vivi.use-cases';
+import { ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import { comNomeDoCorretor, ehMensagemInterna, estadoDoEnvio, LeadsViviUseCases } from './leads-vivi.use-cases';
 
 function montar(card: Record<string, unknown> | null = { id: 'c1', ownerId: 'u1', phone: '5511999998888', origem: 'roleta_online' }) {
   const repo = {
@@ -7,14 +7,32 @@ function montar(card: Record<string, unknown> | null = { id: 'c1', ownerId: 'u1'
     findCard: jest.fn().mockResolvedValue(card),
     nomeUsuario: jest.fn().mockResolvedValue('Ana'),
     registrarContatoWhatsapp: jest.fn().mockResolvedValue(new Date('2026-10-03T12:00:00Z')),
+    aguardandoAceite: jest.fn().mockResolvedValue(false),
+    detalheParaChat: jest.fn().mockResolvedValue({
+      id: 'c1',
+      atribuidoAutomaticamenteEm: new Date('2026-11-19T12:00:00Z'),
+      aceitoEm: new Date('2026-11-19T12:01:00Z'),
+      activities: [{ subject: 'Conversa do WhatsApp oficial passada da VIVI para Ana', createdAt: new Date('2026-11-19T12:01:01Z') }],
+      timeoutAceiteMinutos: 5,
+    }),
   };
   const chatwoot = {
     historicoPorTelefone: jest.fn().mockResolvedValue({ encontrado: true, conversaUrl: 'x', status: 'open', mensagens: [] }),
+    historicoParaGravar: jest.fn().mockResolvedValue([]),
     enviarParaCliente: jest
       .fn()
       .mockResolvedValue({ ok: true, conversaId: 66, inboxId: 2, chatwootMessageId: 1400, enviadaEm: new Date('2026-11-19T13:00:00Z') }),
   };
-  const mensagens = { registrarEnvio: jest.fn().mockResolvedValue(undefined) };
+  const mensagens = {
+    registrarEnvio: jest.fn().mockResolvedValue(undefined),
+    resumoPorCard: jest.fn().mockResolvedValue(new Map()),
+    daConversa: jest.fn().mockResolvedValue([]),
+    ultimaDoCliente: jest.fn().mockResolvedValue(new Date()),
+    corretorJaEscreveu: jest.fn().mockResolvedValue(false),
+    inserirVarias: jest.fn().mockResolvedValue(0),
+    ligarSemCardAoCard: jest.fn().mockResolvedValue(0),
+    marcarLido: jest.fn().mockResolvedValue(undefined),
+  };
   return { uc: new LeadsViviUseCases(repo as any, chatwoot as any, mensagens as any), repo, chatwoot, mensagens };
 }
 
@@ -136,5 +154,110 @@ describe('LeadsViviUseCases', () => {
     expect(comNomeDoCorretor('  *Ana* Souza', 'Oi')).toBe('*Ana*\nOi');
     expect(comNomeDoCorretor(null, 'Oi')).toBe('Oi');
     expect(comNomeDoCorretor('   ', 'Oi')).toBe('Oi');
+  });
+
+  describe('Etapa 3 - tela de chat', () => {
+    it('estadoDoEnvio: dono na janela pode; gestao so le; antes do aceite e fora das 24 h bloqueia', () => {
+      const agora = new Date('2026-11-19T15:00:00Z');
+      const recente = new Date('2026-11-19T14:00:00Z');
+      expect(estadoDoEnvio({ souDono: true, aguardandoAceite: false, ultimaDoCliente: recente, agora })).toEqual({
+        podeEnviar: true,
+        motivo: 'ok',
+        janelaFechaEm: new Date('2026-11-20T14:00:00Z'),
+      });
+      expect(estadoDoEnvio({ souDono: false, aguardandoAceite: false, ultimaDoCliente: recente, agora }).motivo).toBe('somente_leitura');
+      expect(estadoDoEnvio({ souDono: true, aguardandoAceite: true, ultimaDoCliente: recente, agora }).motivo).toBe('aguardando_aceite');
+      expect(estadoDoEnvio({ souDono: true, aguardandoAceite: false, ultimaDoCliente: new Date('2026-11-18T14:59:59Z'), agora }).motivo).toBe(
+        'fora_da_janela',
+      );
+      expect(estadoDoEnvio({ souDono: true, aguardandoAceite: false, ultimaDoCliente: null, agora }).motivo).toBe('sem_mensagem_do_cliente');
+    });
+
+    it('ehMensagemInterna: esconde os comandos de teste do fazer.ai', () => {
+      expect(ehMensagemInterna('Modo teste ativado')).toBe(true);
+      expect(ehMensagemInterna(' modo teste desativado.')).toBe(true);
+      expect(ehMensagemInterna('Quero testar o modo de pagamento')).toBe(false);
+      expect(ehMensagemInterna(null)).toBe(false);
+    });
+
+    it('listar traz ultima mensagem e nao lidas (escondendo mensagem interna)', async () => {
+      const { uc, repo, mensagens } = montar();
+      repo.listar.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }]);
+      mensagens.resumoPorCard.mockResolvedValue(
+        new Map([
+          ['c1', { ultima: { texto: 'Oi', autorTipo: 'cliente', em: new Date(), temAnexo: false }, naoLidas: 2 }],
+          ['c2', { ultima: { texto: 'Modo teste ativado', autorTipo: 'vivi', em: new Date(), temAnexo: false }, naoLidas: 0 }],
+        ]),
+      );
+      const r = await uc.listar(corretor);
+      expect(mensagens.resumoPorCard).toHaveBeenCalledWith(['c1', 'c2'], 'u1');
+      expect(r.leads[0]).toMatchObject({ id: 'c1', naoLidas: 2, ultimaMensagem: { texto: 'Oi' } });
+      expect(r.leads[1]).toMatchObject({ id: 'c2', naoLidas: 0, ultimaMensagem: null });
+    });
+
+    it('abrir a conversa completa o historico pelo Chatwoot (no maximo a cada 2 min) e devolve mensagens, eventos e envio', async () => {
+      const { uc, chatwoot, mensagens } = montar();
+      chatwoot.historicoParaGravar.mockResolvedValue([
+        { chatwootMessageId: 10, chatwootConversationId: 66, chatwootInboxId: 2, telefone: '+5511999998888', direcao: 'entrada', autorTipo: 'cliente', autorNome: 'Maria', conteudo: 'Oi', anexos: [], enviadaEm: new Date() },
+      ]);
+      mensagens.daConversa.mockResolvedValue([
+        { chatwootMessageId: 10, direcao: 'entrada', autorTipo: 'cliente', autorNome: 'Maria', conteudo: 'Oi', anexos: null, enviadaEm: new Date('2026-11-19T12:00:00Z'), createdAt: new Date() },
+        { chatwootMessageId: 11, direcao: 'saida', autorTipo: 'vivi', autorNome: 'Vivi Assistente Virtual', conteudo: 'Modo teste ativado', anexos: null, enviadaEm: new Date('2026-11-19T12:00:01Z'), createdAt: new Date() },
+        { chatwootMessageId: 12, direcao: 'saida', autorTipo: 'atendente', autorNome: 'Ana Lima', conteudo: '*Ana*\nOla', anexos: null, enviadaEm: new Date('2026-11-19T12:02:00Z'), createdAt: new Date() },
+      ]);
+
+      const r = await uc.conversaChat(corretor, 'c1');
+      await uc.conversaChat(corretor, 'c1');
+
+      expect(chatwoot.historicoParaGravar).toHaveBeenCalledTimes(1);
+      expect(mensagens.inserirVarias).toHaveBeenCalledWith([expect.objectContaining({ chatwootMessageId: 10, tenantId: 't1', cardId: 'c1', telefoneChave: '1199998888' })]);
+      expect(r.mensagens.map((m) => [m.id, m.autor, m.autorNome])).toEqual([
+        [10, 'cliente', 'Maria'],
+        [12, 'atendente', 'Ana Lima'],
+      ]);
+      expect(r.eventos.map((e) => e.tipo)).toEqual(['passagem']);
+      expect(r.envio).toMatchObject({ podeEnviar: true, motivo: 'ok', prazoAceiteAte: null, corretorJaEscreveu: false });
+      expect(r.erro).toBeNull();
+    });
+
+    it('atualizacao automatica (desde) so le o banco; Chatwoot fora do ar nao derruba a tela', async () => {
+      const a = montar();
+      const desde = new Date('2026-11-19T12:00:00Z');
+      await a.uc.conversaChat(corretor, 'c1', desde);
+      expect(a.chatwoot.historicoParaGravar).not.toHaveBeenCalled();
+      expect(a.mensagens.daConversa).toHaveBeenCalledWith('c1', desde);
+
+      const b = montar();
+      b.chatwoot.historicoParaGravar.mockRejectedValue(new Error('timeout'));
+      const r = await b.uc.conversaChat(corretor, 'c1');
+      expect(r.erro).toMatch(/historico antigo/);
+    });
+
+    it('lead aguardando aceite: caixa bloqueada com prazo; envio recusado (409)', async () => {
+      const { uc, repo } = montar();
+      repo.detalheParaChat.mockResolvedValue({
+        id: 'c1',
+        atribuidoAutomaticamenteEm: new Date('2026-11-19T12:00:00Z'),
+        aceitoEm: null,
+        activities: [],
+        timeoutAceiteMinutos: 5,
+      });
+      const r = await uc.conversaChat(corretor, 'c1');
+      expect(r.envio).toMatchObject({ podeEnviar: false, motivo: 'aguardando_aceite', prazoAceiteAte: new Date('2026-11-19T12:05:00Z') });
+      repo.aguardandoAceite.mockResolvedValue(true);
+      await expect(uc.enviarMensagem(corretor, 'c1', 'oi')).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('gestao abre a conversa de qualquer corretor em somente leitura; outro corretor nao abre', async () => {
+      const { uc } = montar();
+      expect((await uc.conversaChat(admin, 'c1')).envio.motivo).toBe('somente_leitura');
+      await expect(uc.conversaChat(outro, 'c1')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('marcarLido grava a leitura do usuario', async () => {
+      const { uc, mensagens } = montar();
+      await uc.marcarLido(corretor, 'c1');
+      expect(mensagens.marcarLido).toHaveBeenCalledWith('u1', 'c1', expect.any(Date));
+    });
   });
 });

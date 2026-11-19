@@ -106,6 +106,38 @@ export class LeadsViviRepository {
     return a.createdAt;
   }
 
+  async aguardandoAceite(cardId: string, tenantId: string): Promise<boolean> {
+    const c = await this.prisma.card.findFirst({
+      where: { id: cardId, tenantId },
+      select: { atribuidoAutomaticamenteEm: true, aceitoEm: true },
+    });
+    return !!c?.atribuidoAutomaticamenteEm && !c.aceitoEm;
+  }
+
+  // Etapa 3 (19/11/2026): o que a tela de chat precisa do card.
+  async detalheParaChat(cardId: string, tenantId: string) {
+    const c = await this.prisma.card.findFirst({
+      where: { id: cardId, tenantId },
+      select: {
+        id: true,
+        ownerId: true,
+        phone: true,
+        origem: true,
+        atribuidoAutomaticamenteEm: true,
+        aceitoEm: true,
+        activities: {
+          where: { type: TIPO_ATIVIDADE_WHATSAPP, subject: { startsWith: 'Conversa do WhatsApp oficial passada' } },
+          select: { subject: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+          take: 20,
+        },
+      },
+    });
+    if (!c) return null;
+    const cfg = await this.prisma.roletaConfig.findFirst({ where: { tenantId }, select: { timeoutAceiteMinutos: true } });
+    return { ...c, timeoutAceiteMinutos: cfg?.timeoutAceiteMinutos ?? 5 };
+  }
+
   // Etapa 2 (19/11/2026): registro no historico do card da passagem da
   // conversa da VIVI para o corretor. pendente=true vira tarefa em aberto
   // (o corretor ve que precisa agir).

@@ -10,6 +10,7 @@
 // regional) veem os leads de todos; os demais, so os proprios.
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -28,6 +29,32 @@ import { chaveTelefone } from '../../../vendas_kanban/domain/services/telefone';
 export function comNomeDoCorretor(nomeCompleto: string | null, texto: string): string {
   const primeiro = (nomeCompleto ?? '').trim().split(/\s+/)[0]?.replace(/[*_~`]/g, '');
   return primeiro ? `*${primeiro}*\n${texto}` : texto;
+}
+
+// Etapa 3 (19/11/2026): regras da caixa de envio da tela de chat.
+export const JANELA_WHATSAPP_MS = 24 * 60 * 60 * 1000;
+export const INTERVALO_SINCRONIA_MS = 2 * 60 * 1000;
+
+export type MotivoEnvio = 'ok' | 'somente_leitura' | 'aguardando_aceite' | 'fora_da_janela' | 'sem_mensagem_do_cliente';
+
+export function estadoDoEnvio(p: {
+  souDono: boolean;
+  aguardandoAceite: boolean;
+  ultimaDoCliente: Date | null;
+  agora: Date;
+}): { podeEnviar: boolean; motivo: MotivoEnvio; janelaFechaEm: Date | null } {
+  const janelaFechaEm = p.ultimaDoCliente ? new Date(p.ultimaDoCliente.getTime() + JANELA_WHATSAPP_MS) : null;
+  let motivo: MotivoEnvio = 'ok';
+  if (!p.souDono) motivo = 'somente_leitura';
+  else if (p.aguardandoAceite) motivo = 'aguardando_aceite';
+  else if (!janelaFechaEm) motivo = 'sem_mensagem_do_cliente';
+  else if (janelaFechaEm.getTime() <= p.agora.getTime()) motivo = 'fora_da_janela';
+  return { podeEnviar: motivo === 'ok', motivo, janelaFechaEm };
+}
+
+// Mensagens internas do fazer.ai que vazam como texto (ex.: comando de teste).
+export function ehMensagemInterna(conteudo: string | null): boolean {
+  return /^\s*modo teste (ativado|desativado)/i.test(conteudo ?? '');
 }
 
 export interface Solicitante {
@@ -49,11 +76,100 @@ export class LeadsViviUseCases {
     private readonly mensagens: ChatwootMensagemRepository,
   ) {}
 
+  // Ultima sincronia com o Chatwoot por card (memoria do processo).
+  private readonly sincronizadoEm = new Map<string, number>();
+
   async listar(s: Solicitante, corretorId?: string) {
     const todos = veTodos(s);
     const ownerId = todos ? corretorId || null : s.userId;
-    const leads = await this.repo.listar({ tenantId: s.tenantId, ownerId, limite: 200 });
+    const base = await this.repo.listar({ tenantId: s.tenantId, ownerId, limite: 200 });
+    const resumo = await this.mensagens.resumoPorCard(
+      base.map((l) => l.id),
+      s.userId,
+    );
+    const leads = base.map((l) => {
+      const r = resumo.get(l.id);
+      const ultima = r?.ultima && !ehMensagemInterna(r.ultima.texto) ? r.ultima : null;
+      return { ...l, ultimaMensagem: ultima, naoLidas: r?.naoLidas ?? 0 };
+    });
     return { leads, veTodos: todos };
+  }
+
+  // Etapa 3: conversa para a tela de chat, lida do banco do Gestor (o webhook
+  // grava cada mensagem na hora). Ao abrir (sem `desde`), completa o banco
+  // com o historico do Chatwoot - no maximo a cada 2 min por card - para
+  // trazer o que chegou antes do webhook. A atualizacao automatica da tela
+  // manda `desde` e so le o banco (barato, sem chamar o Chatwoot).
+  async conversaChat(s: Solicitante, cardId: string, desde?: Date) {
+    const card = await this.cardPermitido(s, cardId);
+    const detalhe = await this.repo.detalheParaChat(cardId, s.tenantId);
+    if (!detalhe) throw new NotFoundException('Lead nao encontrado.');
+    const agora = new Date();
+    let erroSincronia: string | null = null;
+    if (!desde && card.phone) erroSincronia = await this.sincronizar(s.tenantId, card.id, card.phone, agora);
+
+    const linhas = (await this.mensagens.daConversa(card.id, desde)).filter((m) => !ehMensagemInterna(m.conteudo));
+    const mensagens = linhas.map((m) => ({
+      id: m.chatwootMessageId,
+      direcao: m.direcao,
+      autor: m.autorTipo,
+      autorNome: m.autorTipo === 'atendente' ? m.autorNome : m.autorTipo === 'vivi' ? 'VIVI' : m.autorNome,
+      texto: m.conteudo,
+      anexos: Array.isArray(m.anexos) ? m.anexos : [],
+      quando: m.enviadaEm,
+      gravadaEm: m.createdAt,
+    }));
+
+    const aguardandoAceite = !!detalhe.atribuidoAutomaticamenteEm && !detalhe.aceitoEm;
+    const ultimaDoCliente = await this.mensagens.ultimaDoCliente(card.id);
+    const envio = estadoDoEnvio({ souDono: card.ownerId === s.userId, aguardandoAceite, ultimaDoCliente, agora });
+    // A passagem da VIVI (Etapa 2) ja diz quem assumiu; sem ela, mostra o aceite.
+    const passagens = detalhe.activities.map((a) => ({ tipo: 'passagem', texto: a.subject ?? '', quando: a.createdAt }));
+    const eventos = passagens.length
+      ? passagens
+      : detalhe.aceitoEm
+        ? [{ tipo: 'aceite', texto: 'Lead aceito', quando: detalhe.aceitoEm }]
+        : [];
+    return {
+      mensagens,
+      eventos,
+      envio: {
+        ...envio,
+        prazoAceiteAte:
+          aguardandoAceite && detalhe.atribuidoAutomaticamenteEm
+            ? new Date(detalhe.atribuidoAutomaticamenteEm.getTime() + detalhe.timeoutAceiteMinutos * 60_000)
+            : null,
+        corretorJaEscreveu: await this.mensagens.corretorJaEscreveu(card.id),
+      },
+      agora,
+      erro: erroSincronia,
+    };
+  }
+
+  private async sincronizar(tenantId: string, cardId: string, telefone: string, agora: Date): Promise<string | null> {
+    const ultima = this.sincronizadoEm.get(cardId) ?? 0;
+    if (agora.getTime() - ultima < INTERVALO_SINCRONIA_MS) return null;
+    try {
+      const chave = chaveTelefone(telefone) ?? telefone;
+      const historico = await this.chatwoot.historicoParaGravar(telefone);
+      const novas = await this.mensagens.inserirVarias(
+        historico.map((m) => ({ ...m, tenantId, cardId, telefoneChave: chave })),
+      );
+      await this.mensagens.ligarSemCardAoCard(tenantId, chave, cardId);
+      if (novas > 0) this.logger.log(`Card ${cardId}: ${novas} mensagem(ns) do Chatwoot completada(s) no Gestor.`);
+      this.sincronizadoEm.set(cardId, agora.getTime());
+      return null;
+    } catch (err) {
+      this.logger.warn(`Falha ao completar o historico do card ${cardId}: ${(err as Error).message}`);
+      return 'Parte do historico antigo pode nao aparecer agora (Chatwoot fora do ar). As mensagens novas continuam chegando.';
+    }
+  }
+
+  async marcarLido(s: Solicitante, cardId: string) {
+    await this.cardPermitido(s, cardId);
+    const agora = new Date();
+    await this.mensagens.marcarLido(s.userId, cardId, agora);
+    return { lidoAte: agora };
   }
 
   private async cardPermitido(s: Solicitante, cardId: string) {
@@ -86,6 +202,10 @@ export class LeadsViviUseCases {
     if (!card || !ORIGENS_VIVI.includes(card.origem)) throw new NotFoundException('Lead nao encontrado.');
     if (card.ownerId !== s.userId) throw new ForbiddenException('So o corretor responsavel pelo lead pode enviar mensagens.');
     if (!card.phone) throw new UnprocessableEntityException('Este lead nao tem telefone.');
+    // Etapa 3: antes do aceite a VIVI ainda atende (decisao do Villar, 19/11).
+    if (await this.repo.aguardandoAceite(card.id, s.tenantId)) {
+      throw new ConflictException('Aceite o lead para responder. Ate o aceite, a VIVI continua atendendo o cliente.');
+    }
     const texto = textoBruto.trim();
     if (!texto) throw new BadRequestException('Escreva a mensagem.');
 
@@ -95,7 +215,7 @@ export class LeadsViviUseCases {
     if (!r.ok) {
       if (r.motivo === 'fora_da_janela') {
         throw new UnprocessableEntityException(
-          'O cliente esta ha mais de 24 h sem responder. Pelo WhatsApp oficial, so e possivel enviar um modelo aprovado pela Meta (proxima etapa). Por enquanto, use o seu WhatsApp.',
+          'O cliente esta ha mais de 24 h sem responder. Pelo WhatsApp oficial, so e possivel retomar com um modelo aprovado pela Meta (proxima etapa). Se for urgente, ligue para o cliente.',
         );
       }
       if (r.motivo === 'sem_conversa') {

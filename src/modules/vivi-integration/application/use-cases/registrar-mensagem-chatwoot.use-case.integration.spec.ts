@@ -137,4 +137,38 @@ describe('RegistrarMensagemChatwootUseCase (integracao - banco real)', () => {
     await prisma.user.delete({ where: { id: corretor.id } });
     await prisma.role.delete({ where: { id: roleId } });
   });
+
+  it('Etapa 3: historico em lote sem duplicar, conversa em ordem, resumo da lista e leitura', async () => {
+    const repo = new ChatwootMensagemRepository(prisma);
+    const roleId = (await prisma.role.create({ data: { tenantId, name: 'Corretor E3' } })).id;
+    const u = await prisma.user.create({ data: { tenantId, roleId, name: 'Bia', email: `bia-${base}@teste.local`, password: 'x' } });
+    const card = await prisma.card.create({ data: { tenantId, pipelineId, title: 'Chat', position: 0, phone: '11944445555', origem: 'vivi' } });
+    const lote = [
+      { ...mensagem({ chatwootMessageId: base + 30, enviadaEm: new Date('2026-11-19T10:00:00Z'), conteudo: 'Oi' }), tenantId, cardId: card.id, telefoneChave: '1144445555' },
+      { ...mensagem({ chatwootMessageId: base + 31, enviadaEm: new Date('2026-11-19T10:01:00Z'), direcao: 'saida', autorTipo: 'vivi', conteudo: 'Ola' }), tenantId, cardId: card.id, telefoneChave: '1144445555' },
+      { ...mensagem({ chatwootMessageId: base + 32, enviadaEm: new Date('2026-11-19T10:02:00Z'), conteudo: 'Tem 2 quartos?' }), tenantId, cardId: card.id, telefoneChave: '1144445555' },
+    ];
+    expect(await repo.inserirVarias(lote)).toBe(3);
+    expect(await repo.inserirVarias(lote)).toBe(0);
+
+    const conversa = await repo.daConversa(card.id);
+    expect(conversa.map((m) => m.conteudo)).toEqual(['Oi', 'Ola', 'Tem 2 quartos?']);
+    expect(await repo.ultimaDoCliente(card.id)).toEqual(new Date('2026-11-19T10:02:00Z'));
+    expect(await repo.corretorJaEscreveu(card.id)).toBe(false);
+
+    let resumo = (await repo.resumoPorCard([card.id], u.id)).get(card.id)!;
+    expect(resumo.naoLidas).toBe(2);
+    expect(resumo.ultima).toMatchObject({ texto: 'Tem 2 quartos?', autorTipo: 'cliente' });
+
+    await repo.marcarLido(u.id, card.id, new Date('2026-11-19T10:01:30Z'));
+    resumo = (await repo.resumoPorCard([card.id], u.id)).get(card.id)!;
+    expect(resumo.naoLidas).toBe(1);
+    await repo.marcarLido(u.id, card.id, new Date('2026-11-19T11:00:00Z'));
+    expect((await repo.resumoPorCard([card.id], u.id)).get(card.id)!.naoLidas).toBe(0);
+
+    await prisma.chatwootMensagem.deleteMany({ where: { cardId: card.id } });
+    await prisma.card.delete({ where: { id: card.id } });
+    await prisma.user.delete({ where: { id: u.id } });
+    await prisma.role.delete({ where: { id: roleId } });
+  });
 });

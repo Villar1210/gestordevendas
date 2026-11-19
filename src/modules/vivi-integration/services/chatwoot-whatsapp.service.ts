@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { interpretarMensagemChatwoot, MensagemChatwoot } from './evento-chatwoot';
 import {
   ConversaChatwoot,
   conversaAtiva,
@@ -168,6 +169,40 @@ export class ChatwootWhatsappService {
       status: maisRecente.status ?? null,
       mensagens: converterMensagens(brutas as Parameters<typeof converterMensagens>[0]),
     };
+  }
+
+  urlDaConversa(conversaId: number): string {
+    return `${this.baseUrl}/app/accounts/${this.accountId}/conversations/${conversaId}`;
+  }
+
+  // Etapa 3 (19/11/2026): historico do cliente na caixa oficial no MESMO
+  // formato que o webhook grava (chatwoot_mensagens). Usado para completar o
+  // banco com o que chegou antes do webhook existir ou se algum aviso se
+  // perdeu. Mesmas regras do webhook: sem notas internas nem avisos de sistema.
+  async historicoParaGravar(telefone: string): Promise<MensagemChatwoot[]> {
+    if (!this.token || this.inboxOficialId === null) return [];
+    const conversas = selecionarConversas(await this.conversasDoTelefone(telefone), this.inboxOficialId);
+    const resultado: MensagemChatwoot[] = [];
+    for (const conversa of conversas) {
+      const msgs = await axios.get(`${this.base}/conversations/${conversa.id}/messages`, {
+        headers: this.headers,
+        params: { after: 0, before: ID_MAXIMO_MENSAGEM },
+        timeout: TIMEOUT_MS,
+      });
+      for (const m of (msgs.data?.payload ?? []) as Record<string, any>[]) {
+        const convertida = interpretarMensagemChatwoot(
+          {
+            ...m,
+            event: 'message_created',
+            inbox: { id: m.inbox_id ?? conversa.inbox_id },
+            conversation: { id: conversa.id, meta: { sender: { phone_number: telefone } } },
+          },
+          this.inboxOficialId,
+        );
+        if (convertida) resultado.push(convertida);
+      }
+    }
+    return resultado;
   }
 
   // Etapa 1 (14/11/2026): passa a conversa em andamento do cliente, na caixa

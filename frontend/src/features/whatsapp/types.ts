@@ -14,6 +14,91 @@ export interface LeadVivi {
   atribuidoEm: string | null;
   proximaVisita: string | null;
   ultimoContatoEm: string | null;
+  // Etapa 3 (tela de chat)
+  ultimaMensagem: { texto: string | null; autorTipo: "cliente" | "vivi" | "atendente"; em: string; temAnexo: boolean } | null;
+  naoLidas: number;
+}
+
+// Etapa 3 (19/11/2026) - espelha GET /leads-vivi/:id/chat
+export type AutorChat = "cliente" | "vivi" | "atendente";
+
+export interface MensagemChat {
+  id: number;
+  direcao: "entrada" | "saida";
+  autor: AutorChat;
+  autorNome: string | null;
+  texto: string | null;
+  anexos: Array<{ tipo: string; url: string }>;
+  quando: string;
+  gravadaEm: string;
+}
+
+export interface EventoChat {
+  tipo: "aceite" | "passagem";
+  texto: string;
+  quando: string;
+}
+
+export type MotivoEnvio = "ok" | "somente_leitura" | "aguardando_aceite" | "fora_da_janela" | "sem_mensagem_do_cliente";
+
+export interface EnvioChat {
+  podeEnviar: boolean;
+  motivo: MotivoEnvio;
+  janelaFechaEm: string | null;
+  prazoAceiteAte: string | null;
+  corretorJaEscreveu: boolean;
+}
+
+export interface ChatResposta {
+  mensagens: MensagemChat[];
+  eventos: EventoChat[];
+  envio: EnvioChat;
+  agora: string;
+  erro: string | null;
+}
+
+// Texto do botao "Inserir apresentacao" (decisao do Villar, 19/11/2026): o
+// nome do corretor ja vai em negrito na 1a linha, entao nao se repete aqui.
+export function mensagemApresentacao(lead: LeadVivi): string {
+  const cliente = nomeDoCliente(lead.titulo)?.split(" ")[0];
+  return `Oi${cliente ? `, ${cliente}` : ""}! Vou te acompanhar a partir de agora. Recebi seu contato pela nossa assistente VIVI${
+    lead.empreendimento ? ` sobre o ${lead.empreendimento}` : ""
+  }. Ficou alguma dúvida que eu possa responder antes?`;
+}
+
+// "21h", "1h 05min", "12min" - tempo que falta ate `fim`.
+export function tempoRestante(fim: string | null, agoraMs: number): string | null {
+  if (!fim) return null;
+  const ms = new Date(fim).getTime() - agoraMs;
+  if (ms <= 0) return null;
+  const min = Math.floor(ms / 60_000);
+  const h = Math.floor(min / 60);
+  if (h >= 2) return `${h}h`;
+  if (h >= 1) return `${h}h ${String(min % 60).padStart(2, "0")}min`;
+  if (min >= 1) return `${min}min`;
+  return "menos de 1min";
+}
+
+// "4:12" - contagem regressiva do aceite.
+export function contagem(fim: string | null, agoraMs: number): string | null {
+  if (!fim) return null;
+  const s = Math.max(0, Math.floor((new Date(fim).getTime() - agoraMs) / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+export function horaCurta(iso: string, agoraMs = Date.now()): string {
+  const d = new Date(iso);
+  const hoje = new Date(agoraMs);
+  if (d.toDateString() === hoje.toDateString()) return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const ontem = new Date(agoraMs - 86_400_000);
+  if (d.toDateString() === ontem.toDateString()) return "Ontem";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+export function iniciais(nome: string | null): string {
+  const partes = (nome ?? "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  return ((partes[0][0] ?? "") + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
 }
 
 export interface MensagemVivi {

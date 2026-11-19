@@ -1,7 +1,7 @@
 // src/app/dashboard/whatsapp/page.tsx
 // Fatia 3 (WhatsApp do corretor): a tela passa a ter duas abas.
-// - "Leads da VIVI" (todos): o corretor vê os leads que a VIVI passou para
-//   ele, lê a conversa da VIVI e continua pelo próprio WhatsApp.
+// - "Leads da VIVI" (todos): tela de chat do numero oficial (Etapa 3 do
+//   WhatsApp integrado, 19/11/2026) - ver LeadsViviPanel.
 // - "Conexão do número" (só Administrador): a antiga tela de QR/status do
 //   número da imobiliária (ver features/whatsapp/components/ConexaoWhatsApp).
 // Identidade visual verde continua sendo exceção isolada a esta tela.
@@ -26,7 +26,7 @@ export default function WhatsAppPage() {
   const ehAdmin = me?.role === "Administrador";
 
   return (
-    <div className="flex h-full min-h-screen flex-col bg-gradient-to-b from-emerald-50/60 to-slate-50">
+    <div className="flex h-full min-h-0 flex-col bg-slate-50">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-100 bg-white px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#25D366]/10">
@@ -34,7 +34,7 @@ export default function WhatsAppPage() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-slate-800">WhatsApp</h1>
-            <p className="text-xs text-slate-500">Continue no seu WhatsApp os atendimentos que a VIVI começou.</p>
+            <p className="text-xs text-slate-600">Atenda pelo WhatsApp oficial os clientes que a VIVI passou para você.</p>
           </div>
         </div>
         {ehAdmin && (

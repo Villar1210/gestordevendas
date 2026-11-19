@@ -215,3 +215,42 @@ describe('ChatwootWhatsappService.enviarParaCliente (parte 3)', () => {
     expect(await servico().enviarParaCliente('5511999998888', 'Oi')).toMatchObject({ ok: false, motivo: 'erro' });
   });
 });
+
+describe('ChatwootWhatsappService.historicoParaGravar (Etapa 3)', () => {
+  it('converte as mensagens da caixa oficial no formato do webhook, sem notas nem avisos', async () => {
+    getPorUrl({
+      [`${BASE}/contacts/search`]: contato,
+      [`${BASE}/contacts/7/conversations`]: {
+        payload: [
+          { id: 65, inbox_id: 2, created_at: 100 },
+          { id: 99, inbox_id: 1, created_at: 200 },
+        ],
+      },
+      [`${BASE}/conversations/65/messages`]: {
+        payload: [
+          { id: 1, content: 'Oi', message_type: 0, private: false, created_at: 1795097694, sender: { type: 'contact', name: 'VILLAR' } },
+          { id: 2, content: 'Ola!', message_type: 1, private: false, created_at: 1795097719, sender: { type: 'agent_bot', name: 'Vivi' } },
+          { id: 3, content: 'nota', message_type: 1, private: true, created_at: 1795097720, sender: { type: 'agent_bot' } },
+          { id: 4, content: 'Conversa reaberta', message_type: 2, private: false, created_at: 1795097721 },
+          { id: 5, content: '*Ana*\nOi', message_type: 1, private: false, created_at: 1795097800, sender: { type: 'user', name: 'Gestor de Vendas' } },
+          { id: 6, content: null, message_type: 0, private: false, created_at: 1795097900, sender: { type: 'contact' }, attachments: [{ file_type: 'image', data_url: 'https://cw.test/f.jpg' }] },
+        ],
+      },
+    });
+
+    const r = await servico().historicoParaGravar('5511999998888');
+
+    expect(r.map((m) => [m.chatwootMessageId, m.direcao, m.autorTipo])).toEqual([
+      [1, 'entrada', 'cliente'],
+      [2, 'saida', 'vivi'],
+      [5, 'saida', 'atendente'],
+      [6, 'entrada', 'cliente'],
+    ]);
+    expect(r[0]).toMatchObject({ chatwootConversationId: 65, chatwootInboxId: 2, telefone: '5511999998888', enviadaEm: new Date(1795097694000) });
+    expect(r[3].anexos).toEqual([{ tipo: 'image', url: 'https://cw.test/f.jpg' }]);
+  });
+
+  it('sem caixa oficial configurada: nada', async () => {
+    expect(await servico({ CHATWOOT_INBOX_OFICIAL_ID: '' }).historicoParaGravar('5511999998888')).toEqual([]);
+  });
+});
