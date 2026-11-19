@@ -85,6 +85,28 @@ describe('RegistrarMensagemChatwootUseCase (integracao - banco real)', () => {
     expect(linha?.cardId).toBeNull();
   });
 
+  it('Etapa 2: mensagens que chegaram antes do card passam a apontar para ele (so as sem card do mesmo telefone)', async () => {
+    const repo = new ChatwootMensagemRepository(prisma);
+    await useCase.execute(tenantId, mensagem({ chatwootMessageId: base + 20, telefone: '+5511922223333' }));
+    await useCase.execute(tenantId, mensagem({ chatwootMessageId: base + 21, telefone: '+5511922223333', conteudo: 'Tem 2 quartos?' }));
+    await useCase.execute(tenantId, mensagem({ chatwootMessageId: base + 22, telefone: '+5511933334444' }));
+
+    const card = await prisma.card.create({
+      data: { tenantId, pipelineId, title: 'Cliente novo', position: 0, phone: '11922223333', origem: 'vivi' },
+    });
+    // proxima mensagem do cliente (webhook) ja liga as anteriores
+    expect(await useCase.execute(tenantId, mensagem({ chatwootMessageId: base + 23, telefone: '+5511922223333', conteudo: 'Oi de novo' }))).toEqual({
+      gravada: true,
+      cardId: card.id,
+    });
+    const doCliente = await prisma.chatwootMensagem.findMany({ where: { chatwootMessageId: { in: [base + 20, base + 21, base + 23] } } });
+    expect(doCliente.map((m) => m.cardId)).toEqual([card.id, card.id, card.id]);
+    const outro = await prisma.chatwootMensagem.findUnique({ where: { chatwootMessageId: base + 22 } });
+    expect(outro?.cardId).toBeNull();
+    // chamada direta (usada no aceite): nada mais a ligar
+    expect(await repo.ligarSemCardAoCard(tenantId, '1122223333', card.id)).toBe(0);
+  });
+
   it('parte 3: envio do corretor e aviso do webhook - em qualquer ordem, uma linha so, com o corretor como autor', async () => {
     const repo = new ChatwootMensagemRepository(prisma);
     const roleId = (await prisma.role.create({ data: { tenantId, name: 'Corretor' } })).id;

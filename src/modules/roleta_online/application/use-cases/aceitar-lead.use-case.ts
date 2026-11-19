@@ -5,7 +5,9 @@
 // fila. Mesmo padrao de permissao do ConfirmSuggestedOwnerUseCase (proprio
 // dono ou Administrador).
 import { Injectable, Inject, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ICardRepository, CardRecord } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
+import { LEAD_ASSUMIDO_EVENT, LeadAssumidoEvent } from '../../../vendas_kanban/domain/events/lead-assumido.event';
 
 interface AceitarLeadInput {
   cardId: string;
@@ -16,7 +18,10 @@ interface AceitarLeadInput {
 
 @Injectable()
 export class AceitarLeadUseCase {
-  constructor(@Inject('ICardRepository') private readonly cardRepository: ICardRepository) {}
+  constructor(
+    @Inject('ICardRepository') private readonly cardRepository: ICardRepository,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async execute(input: AceitarLeadInput): Promise<CardRecord> {
     const card = await this.cardRepository.findByIdAndTenant(input.cardId, input.tenantId);
@@ -37,6 +42,13 @@ export class AceitarLeadUseCase {
       throw new ForbiddenException('Somente o corretor atribuido ou um Administrador pode aceitar este lead.');
     }
 
-    return this.cardRepository.aceitarLead(input.cardId, new Date());
+    const aceito = await this.cardRepository.aceitarLead(input.cardId, new Date());
+    // Etapa 2 do WhatsApp integrado: so agora o lead e do corretor de verdade
+    // (a VIVI segue atendendo ate aqui - decisao do Villar, 19/11/2026).
+    if (aceito.ownerId) {
+      const evento: LeadAssumidoEvent = { tenantId: input.tenantId, cardId: aceito.id, ownerId: aceito.ownerId, via: 'aceite' };
+      this.eventEmitter.emit(LEAD_ASSUMIDO_EVENT, evento);
+    }
+    return aceito;
   }
 }

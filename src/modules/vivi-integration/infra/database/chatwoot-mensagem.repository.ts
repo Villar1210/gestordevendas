@@ -16,6 +16,17 @@ export interface NovaMensagemChatwoot extends MensagemChatwoot {
 export class ChatwootMensagemRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Etapa 2 (19/11/2026): mensagens que chegaram antes de o card existir
+  // (gravadas so com o telefone) passam a apontar para o card. So mexe nas
+  // que estao SEM card - nunca troca o card de uma mensagem ja ligada.
+  async ligarSemCardAoCard(tenantId: string, telefoneChave: string, cardId: string): Promise<number> {
+    const r = await this.prisma.chatwootMensagem.updateMany({
+      where: { tenantId, telefoneChave, cardId: null },
+      data: { cardId },
+    });
+    return r.count;
+  }
+
   // true = gravada agora; false = ja existia (mesmo chatwootMessageId - o
   // Chatwoot reenviou o aviso). skipDuplicates usa o indice unico, entao
   // dois avisos simultaneos da mesma mensagem tambem nao duplicam.

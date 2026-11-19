@@ -13,6 +13,10 @@
 //   cada 12 h (o fazer.ai chama a cada mensagem);
 // - Repique (ou outra etapa) sem corretor -> volta para a coluna;
 // - Caixa de Entrada aguardando a Roleta -> so registra a interacao.
+// - WhatsApp integrado, Etapa 2 (19/11/2026): atribuido pela Roleta mas
+//   AINDA SEM ACEITE -> 'aguardando_corretor' (a VIVI segue atendendo ate o
+//   corretor aceitar; antes ela dizia "o corretor X continua" e se calava, e
+//   o cliente ficava sem resposta se ninguem aceitasse).
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ICardRepository } from '../../domain/repositories/card-repository.interface';
@@ -88,6 +92,11 @@ export class RegistrarAtendimentoViviUseCase {
     if (existente.emAtendimentoVivi) {
       await this.cardRepository.registrarInteracaoVivi(existente.id, agora);
       return { cardId: existente.id, situacao: 'em_atendimento_vivi', criado: false };
+    }
+
+    if (existente.ownerId && existente.atribuidoAutomaticamenteEm && !existente.aceitoEm) {
+      await this.cardRepository.registrarInteracaoVivi(existente.id, agora);
+      return { cardId: existente.id, situacao: 'aguardando_corretor', criado: false };
     }
 
     if (existente.ownerId) {

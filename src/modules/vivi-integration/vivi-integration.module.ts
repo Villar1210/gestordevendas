@@ -15,6 +15,7 @@ import { LeadsViviRepository } from './infra/database/leads-vivi.repository';
 import { ChatwootWebhookController } from './infra/http/chatwoot-webhook.controller';
 import { RegistrarMensagemChatwootUseCase } from './application/use-cases/registrar-mensagem-chatwoot.use-case';
 import { ChatwootMensagemRepository } from './infra/database/chatwoot-mensagem.repository';
+import { LeadAssumidoViviListener } from './infra/listeners/lead-assumido-vivi.listener';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ChatwootMensagemRepository } from './infra/database/chatwoot-mensagem.r
     LeadsViviRepository,
     RegistrarMensagemChatwootUseCase,
     ChatwootMensagemRepository,
+    LeadAssumidoViviListener,
     { provide: 'IChatwootOutboundSender', useExisting: ChatwootWhatsappService },
   ],
   exports: [ChatwootWhatsappService],

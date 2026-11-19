@@ -106,6 +106,15 @@ export class LeadsViviRepository {
     return a.createdAt;
   }
 
+  // Etapa 2 (19/11/2026): registro no historico do card da passagem da
+  // conversa da VIVI para o corretor. pendente=true vira tarefa em aberto
+  // (o corretor ve que precisa agir).
+  async registrarAvisoConversaVivi(tenantId: string, cardId: string, texto: string, pendente: boolean): Promise<void> {
+    await this.prisma.activity.create({
+      data: { tenantId, cardId, type: TIPO_ATIVIDADE_WHATSAPP, subject: texto.slice(0, 200), done: !pendente },
+    });
+  }
+
   async nomeUsuario(userId: string): Promise<string> {
     return (await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))?.name ?? 'Corretor';
   }

@@ -6,6 +6,7 @@ import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenExce
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ICardRepository, CardRecord } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { ClaimCardUseCase } from '../../../vendas_kanban/application/use-cases/claim-card.use-case';
+import { LEAD_ASSUMIDO_EVENT, LeadAssumidoEvent } from '../../../vendas_kanban/domain/events/lead-assumido.event';
 
 interface ConfirmSuggestedOwnerInput {
   cardId: string;
@@ -56,6 +57,13 @@ export class ConfirmSuggestedOwnerUseCase {
       cardId: input.cardId,
       ownerId: card.suggestedOwnerId,
     });
+    const assumido: LeadAssumidoEvent = {
+      tenantId: input.tenantId,
+      cardId: input.cardId,
+      ownerId: card.suggestedOwnerId,
+      via: 'sugestao',
+    };
+    this.eventEmitter.emit(LEAD_ASSUMIDO_EVENT, assumido);
 
     // Limpa a sugestao agora que virou dono de verdade.
     return this.cardRepository.updateSuggestedOwner(input.cardId, null);

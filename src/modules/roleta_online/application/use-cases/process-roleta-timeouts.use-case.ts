@@ -11,6 +11,7 @@ import { ICorretorRepository, CorretorRecord } from '../../../rh/domain/reposito
 import { IRoleRepository } from '../../../rh/domain/repositories/role-repository.interface';
 import { ICardRepository, CardRecord } from '../../../vendas_kanban/domain/repositories/card-repository.interface';
 import { IStageRepository } from '../../../vendas_kanban/domain/repositories/stage-repository.interface';
+import { LEAD_ASSUMIDO_EVENT, LeadAssumidoEvent } from '../../../vendas_kanban/domain/events/lead-assumido.event';
 import { pickByRoundRobin, pickByMenorFila } from '../../domain/services/pick-corretor';
 import { comTravaPorTenant } from '../../domain/services/trava-por-tenant';
 import { FilaRoletaService } from '../services/fila-roleta.service';
@@ -202,5 +203,8 @@ export class ProcessRoletaTimeoutsUseCase {
       gestorId: gestor.id,
     };
     this.eventEmitter.emit(LEAD_ESCALADO_GESTAO_EVENT, evento);
+    // Sem janela de aceite para a gestao: o lead ja e dela (VIVI para).
+    const assumido: LeadAssumidoEvent = { tenantId: card.tenantId, cardId: card.id, ownerId: gestor.id, via: 'escalado_gestao' };
+    this.eventEmitter.emit(LEAD_ASSUMIDO_EVENT, assumido);
   }
 }

@@ -23,6 +23,8 @@ import { CreateNoteUseCase } from '../../application/use-cases/create-note.use-c
 import { ListNotesByCardUseCase } from '../../application/use-cases/list-notes-by-card.use-case';
 import { CreateQuickCardUseCase } from '../../application/use-cases/create-quick-card.use-case';
 import { ClaimCardUseCase } from '../../application/use-cases/claim-card.use-case';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LEAD_ASSUMIDO_EVENT, LeadAssumidoEvent } from '../../domain/events/lead-assumido.event';
 import { DispararRepiqueManualUseCase } from '../../application/use-cases/disparar-repique-manual.use-case';
 import { ListMinhaCarteiraRepiqueUseCase } from '../../application/use-cases/list-minha-carteira-repique.use-case';
 import { RequisitanteCard } from '../../application/services/acesso-card.service';
@@ -59,6 +61,7 @@ export class CardController {
     private readonly dispararRepiqueManualUseCase: DispararRepiqueManualUseCase,
     private readonly listMinhaCarteiraRepiqueUseCase: ListMinhaCarteiraRepiqueUseCase,
     private readonly encaminharAtendimentoViviUseCase: EncaminharAtendimentoViviParaRoletaUseCase,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // POST /cards/:id/encaminhar-roleta - gestao tira o lead da coluna
@@ -166,13 +169,18 @@ export class CardController {
   // POST /cards/:id/claim - o usuario logado assume o lead (dono + primeira stage)
   @Post('cards/:id/claim')
   async claim(@Param('id') id: string, @Req() req: Request) {
-    return this.claimCardUseCase.execute({
+    const card = await this.claimCardUseCase.execute({
       cardId: id,
       tenantId: req.user!.tenantId,
       userId: req.user!.id,
       requesterRole: req.user!.role,
       requesterCargo: req.user!.cargo,
     });
+    // O evento fica aqui (e nao no ClaimCardUseCase) porque a Roleta
+    // automatica tambem usa o ClaimCard e la o dono ainda precisa ACEITAR.
+    const evento: LeadAssumidoEvent = { tenantId: card.tenantId, cardId: card.id, ownerId: req.user!.id, via: 'iniciar_atendimento' };
+    this.eventEmitter.emit(LEAD_ASSUMIDO_EVENT, evento);
+    return card;
   }
 
   // PATCH /cards/:id/move - move o card para outra posicao/coluna (posicao flutuante)

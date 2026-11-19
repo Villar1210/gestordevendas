@@ -33,7 +33,8 @@ describe('Timeout da Roleta sem outro corretor', () => {
     expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'gerente', expect.any(Date), 'corretor-a');
     expect(cardRepository.clearAtribuidoAutomaticamente).toHaveBeenCalledWith('c-1');
     expect(emitter.emit).toHaveBeenCalledWith('lead.atribuido', expect.objectContaining({ ownerId: 'gerente' }));
-    expect(emitter.emit).toHaveBeenCalledWith(LEAD_ESCALADO_GESTAO_EVENT, expect.objectContaining({ gestorId: 'gerente', corretorAnteriorId: 'corretor-a' }));
+    expect(emitter.emit).toHaveBeenCalledWith(LEAD_ESCALADO_GESTAO_EVENT, expect.objectContaining({ gestorId: 'gerente', corretorAnteriorId: 'corretor-a' }));    // Etapa 2 WhatsApp: a gestao vira dona de vez - a conversa sai da VIVI.
+    expect(emitter.emit).toHaveBeenCalledWith('lead.assumido', { tenantId: 't-1', cardId: 'c-1', ownerId: 'gerente', via: 'escalado_gestao' });
   });
 
   it('sorteio sem outro corretor presente: tambem vai para o gestor', async () => {
@@ -47,6 +48,7 @@ describe('Timeout da Roleta sem outro corretor', () => {
     await useCase.execute(AGORA);
     expect(cardRepository.reatribuirSeAindaPendente).toHaveBeenCalledWith('c-1', 'corretor-b', expect.any(Date), 'corretor-a');
     expect(emitter.emit).not.toHaveBeenCalledWith(LEAD_ESCALADO_GESTAO_EVENT, expect.anything());
+    expect(emitter.emit).not.toHaveBeenCalledWith('lead.assumido', expect.anything());
   });
 
   it('sem gestor no tenant: mantem com o corretor e para de contar o prazo', async () => {

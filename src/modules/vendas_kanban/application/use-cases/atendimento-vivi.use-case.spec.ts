@@ -70,6 +70,16 @@ describe('Atendimento VIVI - registro a cada mensagem', () => {
     expect(cardRepository.create).not.toHaveBeenCalled();
   });
 
+  it('Etapa 2 WhatsApp: atribuido pela Roleta e ainda SEM aceite -> VIVI segue atendendo (aguardando_corretor), sem aviso', async () => {
+    const pendente = registrar({ id: 'c-1', ownerId: 'corretor-a', stageId: 's-atend', stageName: 'Em Atendimento', atribuidoAutomaticamenteEm: agora, aceitoEm: null });
+    expect(await pendente.useCase.execute(entrada)).toEqual({ cardId: 'c-1', situacao: 'aguardando_corretor', criado: false });
+    expect(pendente.cardRepository.registrarInteracaoVivi).toHaveBeenCalledWith('c-1', agora);
+    expect(pendente.emitter.emit).not.toHaveBeenCalled();
+
+    const aceito = registrar({ id: 'c-1', ownerId: 'corretor-a', stageId: 's-atend', stageName: 'Em Atendimento', atribuidoAutomaticamenteEm: agora, aceitoEm: agora });
+    expect((await aceito.useCase.execute(entrada)).situacao).toBe('com_corretor');
+  });
+
   it('cliente com corretor: avisa o corretor no maximo a cada 12 h', async () => {
     const recente = new Date(agora.getTime() - 60 * 60 * 1000);
     const a = registrar({ id: 'c-1', ownerId: 'corretor-a', stageId: 's-neg', stageName: 'Negociacao', ultimaInteracaoViviEm: recente });
