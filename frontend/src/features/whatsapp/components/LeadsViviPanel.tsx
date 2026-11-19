@@ -5,7 +5,7 @@
 // apresentação pronta e editável. Nada aqui envia mensagem pelo número da VIVI.
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -236,6 +236,15 @@ function LeadDetalhe({
     carregarConversa();
   }, [carregarConversa]);
 
+  // O historico junta todas as conversas do cliente (Etapa 1): abre sempre
+  // na mensagem mais recente, como no WhatsApp.
+  // Rola so a caixa da conversa (scrollIntoView rolaria a pagina inteira).
+  const caixaConversaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const caixa = caixaConversaRef.current;
+    if (caixa && conversa?.mensagens.length) caixa.scrollTop = caixa.scrollHeight;
+  }, [conversa]);
+
   async function aceitar() {
     setAceitando(true);
     try {
@@ -358,7 +367,7 @@ function LeadDetalhe({
             </button>
           </div>
         </div>
-        <div className="flex-1 space-y-2 overflow-y-auto bg-[#efeae2]/60 p-4">
+        <div ref={caixaConversaRef} className="flex-1 space-y-2 overflow-y-auto bg-[#efeae2]/60 p-4">
           {carregandoConversa && !conversa ? (
             <p className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando conversa...

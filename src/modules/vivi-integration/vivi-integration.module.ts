@@ -12,6 +12,9 @@ import { SimularCreditoUseCase } from './application/use-cases/simular-credito.u
 import { LeadsViviController } from './infra/http/leads-vivi.controller';
 import { LeadsViviUseCases } from './application/use-cases/leads-vivi.use-cases';
 import { LeadsViviRepository } from './infra/database/leads-vivi.repository';
+import { ChatwootWebhookController } from './infra/http/chatwoot-webhook.controller';
+import { RegistrarMensagemChatwootUseCase } from './application/use-cases/registrar-mensagem-chatwoot.use-case';
+import { ChatwootMensagemRepository } from './infra/database/chatwoot-mensagem.repository';
 
 @Module({
   imports: [
@@ -21,7 +24,8 @@ import { LeadsViviRepository } from './infra/database/leads-vivi.repository';
     VendasKanbanModule,
   ],
   // LeadsViviController: Fatia 3 (WhatsApp do corretor - leads da VIVI)
-  controllers: [ViviIntegrationController, SimuladorCreditoController, LeadsViviController],
+  // ChatwootWebhookController: WhatsApp integrado, Etapa 1 parte 2 (webhook assinado)
+  controllers: [ViviIntegrationController, SimuladorCreditoController, LeadsViviController, ChatwootWebhookController],
   providers: [
     PrismaService,
     ChatwootWhatsappService,
@@ -29,6 +33,8 @@ import { LeadsViviRepository } from './infra/database/leads-vivi.repository';
     SimularCreditoUseCase,
     LeadsViviUseCases,
     LeadsViviRepository,
+    RegistrarMensagemChatwootUseCase,
+    ChatwootMensagemRepository,
     { provide: 'IChatwootOutboundSender', useExisting: ChatwootWhatsappService },
   ],
   exports: [ChatwootWhatsappService],

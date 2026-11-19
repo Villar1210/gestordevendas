@@ -127,6 +127,9 @@ model Tenant {
   biiAnalises BiiAnalise[]
   biiConcorrentes BiiConcorrente[]
   biiEstudos BiiEstudo[]
+  // WhatsApp integrado (Etapa 1, 14/11/2026) - copia das mensagens do numero
+  // oficial vindas do Chatwoot (ver ChatwootMensagem).
+  chatwootMensagens ChatwootMensagem[]
   @@map("tenants")
 }
 
@@ -257,6 +260,8 @@ model User {
 
   // Imoveis cadastrados por este usuario (ver Imovel.criadoPorUserId).
   imoveisCriados Imovel[] @relation("ImovelCriadoPor")
+  // Mensagens que este usuario (corretor) enviou pelo Gestor (ver ChatwootMensagem).
+  chatwootMensagensEnviadas ChatwootMensagem[]
   @@map("users")
 }
 
@@ -842,10 +847,52 @@ model Card {
   repiqueCampanhaEnvios RepiqueCampanhaEnvio[]
   socialConversations   SocialConversation[]
   biiCardStageEventos   BiiCardStageEvento[]
+  chatwootMensagens     ChatwootMensagem[]
 
   empreendimento        Empreendimento?        @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
   @@index([tenantId, emAtendimentoVivi])
   @@map("cards")
+}
+
+// WhatsApp integrado - Etapa 1, parte 2 (19/11/2026). Copia, no Gestor, das
+// mensagens da conversa do cliente no numero OFICIAL (caixa do Chatwoot onde
+// a VIVI atende). Chegam pelo webhook assinado POST /chatwoot/eventos.
+// Separada de WhatsAppMessage (historico das sessoes Baileys do Gestor).
+// - chatwootMessageId unico: o mesmo aviso repetido nao grava em dobro;
+// - cardId opcional: a mensagem pode chegar antes de existir card - fica com o
+//   telefone (telefoneChave = chave normalizada, ver telefone.ts) para ligar
+//   depois; card apagado nao apaga a mensagem;
+// - autorUserId: corretor que enviou pelo Gestor (parte 3); nulo para
+//   cliente, VIVI e atendentes do proprio Chatwoot;
+// - notas internas e avisos de sistema do Chatwoot nao sao gravados.
+model ChatwootMensagem {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  cardId                 String?  @map("card_id") @db.Uuid
+  telefone               String   @db.VarChar(30)
+  telefoneChave          String   @map("telefone_chave") @db.VarChar(30)
+  chatwootMessageId      Int      @unique @map("chatwoot_message_id")
+  chatwootConversationId Int      @map("chatwoot_conversation_id")
+  chatwootInboxId        Int      @map("chatwoot_inbox_id")
+  // 'entrada' (cliente -> empresa) | 'saida' (empresa -> cliente)
+  direcao                String   @db.VarChar(10)
+  // 'cliente' | 'vivi' | 'atendente'
+  autorTipo              String   @map("autor_tipo") @db.VarChar(12)
+  autorNome              String?  @map("autor_nome") @db.VarChar(150)
+  autorUserId            String?  @map("autor_user_id") @db.Uuid
+  conteudo               String?
+  // [{ tipo, url, nome }] - so os links do Chatwoot, o arquivo fica la
+  anexos                 Json?
+  enviadaEm              DateTime @map("enviada_em")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  card   Card?  @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  autor  User?  @relation(fields: [autorUserId], references: [id], onDelete: SetNull)
+
+  @@index([cardId, enviadaEm])
+  @@index([tenantId, telefoneChave])
+  @@map("chatwoot_mensagens")
 }
 
 // Motor de campanha de remarketing escalonada do Repique - 1 registro por
