@@ -44,7 +44,9 @@ export class CadastroEquipeDto {
   @Transform(apara) @IsString() @IsNotEmpty() @MaxLength(150) indicadoPor!: string;
   @IsIn(CARGOS_EQUIPE as unknown as string[]) cargo!: string;
   @IsBoolean() jaTrabalhouNoGrupo!: boolean;
-  @IsUUID() superiorId!: string;
+  // Opcional so quando ainda nao ha ninguem com o cargo de superior (o RH
+  // define na aprovacao). Havendo nomes na lista, o use case exige.
+  @IsOptional() @IsUUID() superiorId?: string;
 
   // Pessoais
   @Transform(apara) @IsString() @MinLength(5) @MaxLength(150) nome!: string;

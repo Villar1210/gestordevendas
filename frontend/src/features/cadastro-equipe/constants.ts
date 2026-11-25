@@ -145,7 +145,9 @@ const dig = (s: string) => s.replace(/\D/g, "");
 export const casado = (f: FichaEquipe) => f.estadoCivil === "Casado(a)" || f.estadoCivil === "União estável";
 
 // Campos obrigatorios que faltam (ou estao invalidos) em cada etapa.
-export function errosDaEtapa(etapa: number, f: FichaEquipe): Record<string, string> {
+// semSuperiores: ninguem cadastrado com o cargo de superior ainda (o
+// superior fica para o RH definir na aprovacao).
+export function errosDaEtapa(etapa: number, f: FichaEquipe, semSuperiores = false): Record<string, string> {
   const e: Record<string, string> = {};
   const req = (k: keyof FichaEquipe, msg = "Obrigatório") => {
     if (!String(f[k] ?? "").trim()) e[k] = msg;
@@ -153,7 +155,7 @@ export function errosDaEtapa(etapa: number, f: FichaEquipe): Record<string, stri
   if (etapa === 0) {
     req("indicadoPor");
     req("cargo", "Escolha o cargo");
-    req("superiorId", "Escolha na lista");
+    if (!semSuperiores) req("superiorId", "Escolha na lista");
     req("jaTrabalhouNoGrupo", "Responda sim ou não");
   }
   if (etapa === 1) {
@@ -219,7 +221,7 @@ export function paraEnvio(f: FichaEquipe) {
     indicadoPor: f.indicadoPor,
     cargo: f.cargo,
     jaTrabalhouNoGrupo: sim(f.jaTrabalhouNoGrupo),
-    superiorId: f.superiorId,
+    ...(f.superiorId ? { superiorId: f.superiorId } : {}),
     nome: f.nome,
     rg: f.rg,
     rgUf: f.rgUf,

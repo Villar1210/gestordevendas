@@ -59,7 +59,13 @@ export class CadastroEquipeUseCases {
     const tenantId = this.tenantPublico();
     if (!ehCargoEquipe(d.cargo)) throw new BadRequestException('Cargo inválido.');
     const regra = REGRAS_CARGO[d.cargo];
-    if (!(await this.fichas.superiorValido(tenantId, d.superiorId, regra.superioresPermitidos))) {
+    // 25/11/2026 (decisao do Villar): o superior so e obrigatorio quando ha
+    // alguem com o cargo para escolher; sem ninguem, o RH define na aprovacao.
+    if (d.superiorId) {
+      if (!(await this.fichas.superiorValido(tenantId, d.superiorId, regra.superioresPermitidos))) {
+        throw new BadRequestException('Escolha o seu superior na lista.');
+      }
+    } else if ((await this.fichas.superioresComCargo(tenantId, regra.superioresPermitidos)).length > 0) {
       throw new BadRequestException('Escolha o seu superior na lista.');
     }
     const email = d.email.toLowerCase();
@@ -84,7 +90,7 @@ export class CadastroEquipeUseCases {
         indicadoPor: d.indicadoPor,
         cargoPretendido: d.cargo,
         jaTrabalhouNoGrupo: d.jaTrabalhouNoGrupo,
-        superiorIndicadoId: d.superiorId,
+        superiorIndicadoId: d.superiorId ?? null,
         rg: d.rg,
         rgUf: d.rgUf,
         nomeMae: d.nomeMae,

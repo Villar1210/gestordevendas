@@ -15,7 +15,7 @@ export interface NovaFicha {
     indicadoPor: string;
     cargoPretendido: string;
     jaTrabalhouNoGrupo: boolean;
-    superiorIndicadoId: string;
+    superiorIndicadoId: string | null;
     rg: string;
     rgUf: string;
     nomeMae: string;

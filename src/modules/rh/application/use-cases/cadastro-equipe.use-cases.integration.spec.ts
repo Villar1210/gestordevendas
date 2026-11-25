@@ -133,6 +133,19 @@ describe('Cadastro da equipe (integracao)', () => {
     );
   });
 
+  it('sem superior: recusa se ha nomes para escolher; aceita se ainda nao ha ninguem com o cargo', async () => {
+    await expect(
+      uc.enviarFicha(ficha({ email: `semsup.${sufixo}@t.local`, cpf: '98765432101', superiorId: undefined })),
+    ).rejects.toThrow(/superior/);
+    // Gerente Regional responde a superintendente/diretor: ninguem assim no tenant de teste.
+    await uc.enviarFicha(
+      ficha({ cargo: 'Gerente Regional', email: `reg.${sufixo}@t.local`, cpf: '98765432102', superiorId: undefined }),
+    );
+    const u = await prisma.user.findFirstOrThrow({ where: { email: `reg.${sufixo}@t.local` }, include: { fichaCadastral: true } });
+    expect(u.fichaCadastral!.superiorIndicadoId).toBeNull();
+    expect((await uc.ficha(tenantId, u.id)).superior).toBeNull();
+  });
+
   it('motivo da recusa fica na ficha', async () => {
     const u = await prisma.user.findFirstOrThrow({ where: { tenantId, fichaCadastral: { isNot: null } } });
     await uc.registrarMotivoRecusa(u.id, '  CRECI não confere  ');

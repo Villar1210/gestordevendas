@@ -158,8 +158,10 @@ export function CadastroEquipeForm() {
     };
   }, [f.cargo]);
 
+  const semSuperiores = !!f.cargo && !carregandoSup && superiores.length === 0;
+
   function avancar() {
-    const e = errosDaEtapa(etapa, f);
+    const e = errosDaEtapa(etapa, f, semSuperiores);
     setErros(e);
     if (Object.keys(e).length) return;
     setEtapa((n) => Math.min(n + 1, ETAPAS.length - 1));
@@ -167,7 +169,7 @@ export function CadastroEquipeForm() {
   }
 
   async function enviar() {
-    const e = errosDaEtapa(5, f);
+    const e = errosDaEtapa(5, f, semSuperiores);
     setErros(e);
     if (Object.keys(e).length) return;
     setEnviando(true);
@@ -184,7 +186,7 @@ export function CadastroEquipeForm() {
 
   if (enviado) return <CadastroRecebidoScreen perfil="corretor" />;
 
-  const superiorNome = superiores.find((s) => s.id === f.superiorId)?.nome ?? "—";
+  const superiorNome = superiores.find((s) => s.id === f.superiorId)?.nome ?? "Definido pelo RH na aprovação";
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -227,11 +229,16 @@ export function CadastroEquipeForm() {
               onChange={(v) => set("cargo", v)}
               erro={erros.cargo}
             />
-            {f.cargo && (
+            {f.cargo && semSuperiores && (
+              <p className="rounded-xl border border-slate-200 bg-white p-3 text-[13px] leading-relaxed text-slate-700">
+                <strong className="block text-slate-900">{perguntaSuperior}</strong>
+                Ainda não há ninguém com esse cargo cadastrado no sistema. Pode seguir: o RH define o seu superior na aprovação.
+              </p>
+            )}
+            {f.cargo && !semSuperiores && (
               <Campo
                 rotulo={perguntaSuperior}
                 erro={erros.superiorId}
-                ajuda={superiores.length === 0 && !carregandoSup ? "Ninguém cadastrado com esse cargo ainda. Fale com quem indicou você." : undefined}
               >
                 <select {...bind("superiorId")} disabled={carregandoSup}>
                   <option value="">{carregandoSup ? "Carregando..." : "Selecione"}</option>
