@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     icon: Briefcase,
     label: "RH",
-    href: "/dashboard/rh/aprovacoes",
+    href: "/dashboard/rh",
     requiredRole: "Administrador",
   },
   {

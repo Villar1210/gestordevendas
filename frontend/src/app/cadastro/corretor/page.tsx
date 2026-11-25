@@ -1,15 +1,10 @@
 // src/app/cadastro/corretor/page.tsx
+// 25/11/2026: o cadastro de corretor da equipe passou a ser a ficha completa
+// (RH). Mantida esta rota para links antigos.
 "use client";
 
-import { CorretorSignupForm } from "@/features/cadastro-publico/components/CorretorSignupForm";
+import { CadastroEquipeForm } from "@/features/cadastro-equipe/components/CadastroEquipeForm";
 
 export default function CadastroCorretorPage() {
-  return (
-    <CorretorSignupForm
-      tipoPerfil="corretor_house"
-      titulo="Cadastro de Corretor"
-      subtitulo="Quero fazer parte da equipe de corretores."
-      backHref="/cadastro"
-    />
-  );
+  return <CadastroEquipeForm />;
 }

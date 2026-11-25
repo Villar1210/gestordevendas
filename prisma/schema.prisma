@@ -50,12 +50,12 @@ model Tenant {
   activities Activity[]
   notes      Note[]
 
-  empreendimentos      Empreendimento[]
-  imoveis              Imovel[]
-  imovelPhotos         ImovelPhoto[]
-  tipologias           Tipologia[]
-  empreendimentoPhotos EmpreendimentoPhoto[]
-  empreendimentoBooks  EmpreendimentoBook[]
+  empreendimentos           Empreendimento[]
+  imoveis                   Imovel[]
+  imovelPhotos              ImovelPhoto[]
+  tipologias                Tipologia[]
+  empreendimentoPhotos      EmpreendimentoPhoto[]
+  empreendimentoBooks       EmpreendimentoBook[]
   empreendimentoBookPaginas EmpreendimentoBookPagina[]
 
   proprietarios          Proprietario[]
@@ -74,12 +74,12 @@ model Tenant {
 
   signatureEnvelopes SignatureEnvelope[]
 
-  contratoTemplates ContratoTemplate[]
+  contratoTemplates      ContratoTemplate[]
   contratoParceriaConfig ContratoParceriaConfig?
-  emailTemplates    EmailTemplate[]
-  notifications     Notification[]
-  stands            Stand[]
-  escalasPlantao    EscalaPlantao[]
+  emailTemplates         EmailTemplate[]
+  notifications          Notification[]
+  stands                 Stand[]
+  escalasPlantao         EscalaPlantao[]
 
   // Modulo Super Usuario: trilha de auditoria de quem (de fora deste
   // tenant) acessou os dados dele via impersonacao - ver
@@ -124,12 +124,14 @@ model Tenant {
   // Modulo BII (Fatia 1) - historico de etapas dos cards (ver BiiCardStageEvento).
   biiCardStageEventos BiiCardStageEvento[]
   // Modulo BII (Fatia 2) - analises por endereco salvas (ver BiiAnalise).
-  biiAnalises BiiAnalise[]
-  biiConcorrentes BiiConcorrente[]
-  biiEstudos BiiEstudo[]
+  biiAnalises         BiiAnalise[]
+  biiConcorrentes     BiiConcorrente[]
+  biiEstudos          BiiEstudo[]
   // WhatsApp integrado (Etapa 1, 14/11/2026) - copia das mensagens do numero
   // oficial vindas do Chatwoot (ver ChatwootMensagem).
-  chatwootMensagens ChatwootMensagem[]
+  chatwootMensagens   ChatwootMensagem[]
+  fichasCadastrais    FichaCadastral[]
+
   @@map("tenants")
 }
 
@@ -155,11 +157,11 @@ model User {
   roleId    String   @map("role_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  twoFactorEnabled      Boolean @default(false) @map("two_factor_enabled")
+  twoFactorEnabled      Boolean   @default(false) @map("two_factor_enabled")
   // Presenca do usuario para o modulo RH/Equipe: "online", "ausente" ou
   // "offline". Atualizado pelo proprio usuario (seletor na Topbar) ou
   // automaticamente para "online" no login.
-  statusDisponibilidade String  @default("offline") @map("status_disponibilidade") @db.VarChar(10)
+  statusDisponibilidade String    @default("offline") @map("status_disponibilidade") @db.VarChar(10)
   // Presenca automatica (Fatia 1 - Atendimento/Roleta): ultimo sinal de vida
   // do usuario (heartbeat da Topbar a cada 60s, login, troca de status). O job
   // MarcarInativosOfflineUseCase derruba para "offline" quem esta "online" e
@@ -211,7 +213,7 @@ model User {
   // true quando a empresa liga "bloquear acesso ate assinar"
   // (ContratoParceriaConfig) e o contrato foi gerado com sucesso. Volta a
   // false quando o envelope conclui (ContratoParceriaAssinadoListener).
-  aguardandoAssinaturaContrato Boolean @default(false) @map("aguardando_assinatura_contrato")
+  aguardandoAssinaturaContrato       Boolean @default(false) @map("aguardando_assinatura_contrato")
 
   // Modulo Plantao/Stand - stand FIXO que este usuario coordena, so
   // relevante quando cargoHierarquico = "coordenador" (diferente de
@@ -259,10 +261,16 @@ model User {
   roletaSorteios      RoletaSorteio[]
 
   // Imoveis cadastrados por este usuario (ver Imovel.criadoPorUserId).
-  imoveisCriados Imovel[] @relation("ImovelCriadoPor")
+  imoveisCriados            Imovel[]              @relation("ImovelCriadoPor")
   // Mensagens que este usuario (corretor) enviou pelo Gestor (ver ChatwootMensagem).
   chatwootMensagensEnviadas ChatwootMensagem[]
-  chatLeituras ChatLeitura[]
+  chatLeituras              ChatLeitura[]
+  // RH - cadastro completo da equipe (25/11/2026)
+  fichaCadastral            FichaCadastral?       @relation("FichaDoUsuario")
+  fichasComoSuperior        FichaCadastral[]      @relation("FichaSuperiorIndicado")
+  acessosFichaComoTitular   FichaAcessoSensivel[] @relation("AcessoFichaTitular")
+  acessosFichaComoLeitor    FichaAcessoSensivel[] @relation("AcessoFichaLeitor")
+
   @@map("users")
 }
 
@@ -410,7 +418,8 @@ model Stand {
   escalas       EscalaPlantao[]
   coordenadores User[]
 
-  roletas       Roleta[]
+  roletas Roleta[]
+
   @@map("stands")
 }
 
@@ -610,7 +619,7 @@ model Fila {
   tenantId  String   @map("tenant_id") @db.Uuid
   nome      String   @db.VarChar(100)
   descricao String?  @db.VarChar(300)
-  createdAt         DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   usuarios     FilaUsuario[]
@@ -820,18 +829,18 @@ model Card {
   // sem dono (como a Caixa de Entrada), mas FORA da Caixa de Entrada e da
   // Roleta ate a VIVI qualificar (agendar visita / pedir corretor) ou a
   // gestao encaminhar. 7 dias sem interacao -> Repique.
-  emAtendimentoVivi     Boolean   @default(false) @map("em_atendimento_vivi")
-  ultimaInteracaoViviEm DateTime? @map("ultima_interacao_vivi_em")
+  emAtendimentoVivi          Boolean   @default(false) @map("em_atendimento_vivi")
+  ultimaInteracaoViviEm      DateTime? @map("ultima_interacao_vivi_em")
   // Fase B (revisao): desde quando o card esta na Caixa de Entrada (o alerta
   // de "lead sem corretor ha 15 min" conta daqui, nao da criacao - um card
   // antigo que volta para a fila nao dispara alerta na hora).
-  caixaEntradaDesde     DateTime? @map("caixa_entrada_desde")
+  caixaEntradaDesde          DateTime? @map("caixa_entrada_desde")
   // Resumo automatico legivel pelo corretor sem abrir outra tela - hoje so
   // preenchido pela VIVI (transferir_para_corretor/agendar_visita, ver
   // domain/services/build-resumo-atendimento.ts no modulo vivi_sdr), mas
   // disponivel para qualquer outro fluxo futuro que queira usa-lo.
   description                String?   @db.Text
-  followUpsEnviados  String[]           @default([]) @map("follow_ups_enviados")
+  followUpsEnviados          String[]  @default([]) @map("follow_ups_enviados")
   customFields               Json      @default("{}") @map("custom_fields")
   createdAt                  DateTime  @default(now()) @map("created_at")
   updatedAt                  DateTime  @updatedAt @map("updated_at")
@@ -851,7 +860,8 @@ model Card {
   chatwootMensagens     ChatwootMensagem[]
   chatLeituras          ChatLeitura[]
 
-  empreendimento        Empreendimento?        @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+  empreendimento Empreendimento? @relation(fields: [empreendimentoId], references: [id], onDelete: SetNull)
+
   @@index([tenantId, emAtendimentoVivi])
   @@map("cards")
 }
@@ -1049,8 +1059,9 @@ model Empreendimento {
   book              EmpreendimentoBook?
   viviConversations ViviConversation[]
 
-  roletas           RoletaEmpreendimento[]
-  cards             Card[]
+  roletas RoletaEmpreendimento[]
+  cards   Card[]
+
   @@map("empreendimentos")
 }
 
@@ -1425,21 +1436,21 @@ model Note {
 // e um ponteiro simples (sem FK) usado pelo algoritmo round_robin para saber
 // quem foi o ultimo a receber um lead.
 model RoletaConfig {
-  id                   String   @id @default(uuid()) @db.Uuid
-  tenantId             String   @unique @map("tenant_id") @db.Uuid
-  algoritmo            String   @default("round_robin") @db.VarChar(20) // "round_robin" ou "menor_fila"
-  modo                 String   @default("semi_automatico") @db.VarChar(20) // "automatico" ou "semi_automatico"
-  ativa                Boolean  @default(false)
-  ultimoCorretorId     String?  @map("ultimo_corretor_id") @db.Uuid
+  id                        String   @id @default(uuid()) @db.Uuid
+  tenantId                  String   @unique @map("tenant_id") @db.Uuid
+  algoritmo                 String   @default("round_robin") @db.VarChar(20) // "round_robin" ou "menor_fila"
+  modo                      String   @default("semi_automatico") @db.VarChar(20) // "automatico" ou "semi_automatico"
+  ativa                     Boolean  @default(false)
+  ultimoCorretorId          String?  @map("ultimo_corretor_id") @db.Uuid
   // So se aplica ao modo "automatico" - quantos minutos o corretor tem
   // para clicar em "Aceitar Lead" antes do card ser reatribuido ao
   // proximo da fila (ver ProcessRoletaTimeoutsUseCase).
-  timeoutAceiteMinutos Int      @default(5) @map("timeout_aceite_minutos")
+  timeoutAceiteMinutos      Int      @default(5) @map("timeout_aceite_minutos")
   // Presenca automatica: minutos sem sinal de vida (heartbeat) para um
   // usuario "online" virar "offline". 0 = desligado. Tenant sem RoletaConfig
   // usa o mesmo default (15) - ver MarcarInativosOfflineUseCase.
-  minutosInatividadeOffline Int @default(15) @map("minutos_inatividade_offline")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  minutosInatividadeOffline Int      @default(15) @map("minutos_inatividade_offline")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -2037,8 +2048,8 @@ model RoletaSorteio {
   ordem          Json
   createdAt      DateTime @default(now()) @map("created_at")
 
-  roleta      Roleta @relation(fields: [roletaId], references: [id], onDelete: Cascade)
-  disparadoPor User? @relation(fields: [disparadoPorId], references: [id], onDelete: SetNull)
+  roleta       Roleta @relation(fields: [roletaId], references: [id], onDelete: Cascade)
+  disparadoPor User?  @relation(fields: [disparadoPorId], references: [id], onDelete: SetNull)
 
   @@index([roletaId, createdAt])
   @@map("roleta_sorteios")
@@ -2105,48 +2116,48 @@ model BiiCardStageEvento {
 // So as colunas do mapa domain/services/itbi-colunas.ts sao importadas (LGPD:
 // coluna desconhecida/pessoal nunca entra).
 model ItbiTransacao {
-  id                   String    @id @default(uuid()) @db.Uuid
+  id                      String   @id @default(uuid()) @db.Uuid
   // sha256 dos campos normalizados - deduplicacao (createMany skipDuplicates)
-  hashLinha            String    @unique @map("hash_linha") @db.Char(64)
+  hashLinha               String   @unique @map("hash_linha") @db.Char(64)
   // SQL do IPTU: vem como numero no arquivo (zeros a esquerda perdidos) -> padStart 11
-  sqlCadastro          String?   @map("sql_cadastro") @db.VarChar(30)
-  logradouro           String    @db.VarChar(200)
-  numero               String?   @db.VarChar(20)
-  complemento          String?   @db.VarChar(100)
+  sqlCadastro             String?  @map("sql_cadastro") @db.VarChar(30)
+  logradouro              String   @db.VarChar(200)
+  numero                  String?  @db.VarChar(20)
+  complemento             String?  @db.VarChar(100)
   // nome do condominio/edificio (coluna "Referencia")
-  referencia           String?   @db.VarChar(150)
-  bairro               String?   @db.VarChar(100)
-  bairroNormalizado    String?   @map("bairro_normalizado") @db.VarChar(100)
-  cep                  String?   @db.VarChar(8)
-  cepPrefixo           String?   @map("cep_prefixo") @db.Char(5)
+  referencia              String?  @db.VarChar(150)
+  bairro                  String?  @db.VarChar(100)
+  bairroNormalizado       String?  @map("bairro_normalizado") @db.VarChar(100)
+  cep                     String?  @db.VarChar(8)
+  cepPrefixo              String?  @map("cep_prefixo") @db.Char(5)
   // logradouro normalizado|numero|cep - liga ao GeocodeCache ("itbi:" + chave)
-  enderecoChave        String    @map("endereco_chave") @db.VarChar(260)
+  enderecoChave           String   @map("endereco_chave") @db.VarChar(260)
   // "1.Compra e venda" -> codigo 1 + descricao "Compra e venda"
-  naturezaCodigo       Int?      @map("natureza_codigo")
-  naturezaTransacao    String?   @map("natureza_transacao") @db.VarChar(120)
-  valorTransacao       Decimal   @map("valor_transacao") @db.Decimal(14, 2)
-  dataTransacao        DateTime  @map("data_transacao") @db.Date
-  valorVenalReferencia Decimal?  @map("valor_venal_referencia") @db.Decimal(14, 2)
-  proporcaoTransmitida Decimal?  @map("proporcao_transmitida") @db.Decimal(7, 4)
+  naturezaCodigo          Int?     @map("natureza_codigo")
+  naturezaTransacao       String?  @map("natureza_transacao") @db.VarChar(120)
+  valorTransacao          Decimal  @map("valor_transacao") @db.Decimal(14, 2)
+  dataTransacao           DateTime @map("data_transacao") @db.Date
+  valorVenalReferencia    Decimal? @map("valor_venal_referencia") @db.Decimal(14, 2)
+  proporcaoTransmitida    Decimal? @map("proporcao_transmitida") @db.Decimal(7, 4)
   // "2.Minha Casa Minha Vida" -> codigo 2 + descricao
-  tipoFinanciamentoCodigo Int?   @map("tipo_financiamento_codigo")
-  tipoFinanciamento    String?   @map("tipo_financiamento") @db.VarChar(120)
-  valorFinanciado      Decimal?  @map("valor_financiado") @db.Decimal(14, 2)
-  situacaoSql          String?   @map("situacao_sql") @db.VarChar(40)
-  areaTerreno          Decimal?  @map("area_terreno") @db.Decimal(12, 2)
-  fracaoIdeal          Decimal?  @map("fracao_ideal") @db.Decimal(11, 10)
-  areaConstruida       Decimal?  @map("area_construida") @db.Decimal(12, 2)
-  usoIptu              Int?      @map("uso_iptu")
-  usoDescricao         String?   @map("uso_descricao") @db.VarChar(150)
-  padraoIptu           Int?      @map("padrao_iptu")
-  padraoDescricao      String?   @map("padrao_descricao") @db.VarChar(150)
-  accIptu              Int?      @map("acc_iptu")
-  latitude             Float?
-  longitude            Float?
-  geoPrecisao          String?   @map("geo_precisao") @db.VarChar(10)
-  importacaoId         String?   @map("importacao_id") @db.Uuid
-  arquivoAba           String?   @map("arquivo_aba") @db.VarChar(100)
-  importadoEm          DateTime  @default(now()) @map("importado_em")
+  tipoFinanciamentoCodigo Int?     @map("tipo_financiamento_codigo")
+  tipoFinanciamento       String?  @map("tipo_financiamento") @db.VarChar(120)
+  valorFinanciado         Decimal? @map("valor_financiado") @db.Decimal(14, 2)
+  situacaoSql             String?  @map("situacao_sql") @db.VarChar(40)
+  areaTerreno             Decimal? @map("area_terreno") @db.Decimal(12, 2)
+  fracaoIdeal             Decimal? @map("fracao_ideal") @db.Decimal(11, 10)
+  areaConstruida          Decimal? @map("area_construida") @db.Decimal(12, 2)
+  usoIptu                 Int?     @map("uso_iptu")
+  usoDescricao            String?  @map("uso_descricao") @db.VarChar(150)
+  padraoIptu              Int?     @map("padrao_iptu")
+  padraoDescricao         String?  @map("padrao_descricao") @db.VarChar(150)
+  accIptu                 Int?     @map("acc_iptu")
+  latitude                Float?
+  longitude               Float?
+  geoPrecisao             String?  @map("geo_precisao") @db.VarChar(10)
+  importacaoId            String?  @map("importacao_id") @db.Uuid
+  arquivoAba              String?  @map("arquivo_aba") @db.VarChar(100)
+  importadoEm             DateTime @default(now()) @map("importado_em")
 
   importacao ItbiImportacao? @relation(fields: [importacaoId], references: [id], onDelete: SetNull)
 
@@ -2344,4 +2355,87 @@ model BiiEstudo {
 
   @@index([tenantId, createdAt])
   @@map("bii_estudos")
+}
+
+// RH - cadastro completo da equipe interna (25/11/2026). Ficha enviada pela
+// tela inicial ("Criar cadastro"), 1 por usuario. Separada da tabela users
+// porque guarda dados pessoais e bancarios: so o Administrador le, e os
+// bancarios saem mascarados (ver FichaAcessoSensivel).
+model FichaCadastral {
+  userId   String @id @map("user_id") @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  // Indicacao e cargo
+  indicadoPor        String  @map("indicado_por") @db.VarChar(150)
+  cargoPretendido    String  @map("cargo_pretendido") @db.VarChar(40)
+  jaTrabalhouNoGrupo Boolean @map("ja_trabalhou_no_grupo")
+  superiorIndicadoId String? @map("superior_indicado_id") @db.Uuid
+
+  // Pessoais
+  rg               String   @db.VarChar(30)
+  rgUf             String   @map("rg_uf") @db.VarChar(2)
+  nomeMae          String   @map("nome_mae") @db.VarChar(150)
+  nomePai          String   @map("nome_pai") @db.VarChar(150)
+  dataNascimento   DateTime @map("data_nascimento") @db.Date
+  paisNascimento   String   @map("pais_nascimento") @db.VarChar(60)
+  estadoNascimento String   @map("estado_nascimento") @db.VarChar(40)
+  cidadeNascimento String   @map("cidade_nascimento") @db.VarChar(80)
+  estadoCivil      String   @map("estado_civil") @db.VarChar(20)
+  nomeConjuge      String?  @map("nome_conjuge") @db.VarChar(150)
+  quantidadeFilhos String   @map("quantidade_filhos") @db.VarChar(12)
+
+  // Endereco
+  rua    String @db.VarChar(150)
+  numero String @db.VarChar(20)
+  bairro String @db.VarChar(80)
+  cidade String @db.VarChar(80)
+  cep    String @db.VarChar(9)
+
+  // Escolaridade e CRECI
+  escolaridade    String    @db.VarChar(40)
+  possuiCreci     Boolean   @map("possui_creci")
+  creciTipo       String?   @map("creci_tipo") @db.VarChar(12)
+  creciNumero     String?   @map("creci_numero") @db.VarChar(30)
+  creciValidade   DateTime? @map("creci_validade") @db.Date
+  creciSupervisor String?   @map("creci_supervisor") @db.VarChar(150)
+
+  // Pagamento (sensivel: mascarado na leitura)
+  banco     String  @db.VarChar(60)
+  agencia   String  @db.VarChar(10)
+  conta     String  @db.VarChar(20)
+  tipoConta String  @map("tipo_conta") @db.VarChar(10)
+  tipoPix   String  @map("tipo_pix") @db.VarChar(10)
+  chavePix  String  @map("chave_pix") @db.VarChar(80)
+  optaPj    Boolean @map("opta_pj")
+  cnpj      String? @db.VarChar(18)
+  pjBanco   String? @map("pj_banco") @db.VarChar(60)
+  pjAgencia String? @map("pj_agencia") @db.VarChar(10)
+  pjConta   String? @map("pj_conta") @db.VarChar(20)
+
+  tamanhoCamisa String   @map("tamanho_camisa") @db.VarChar(3)
+  aceiteLgpdEm  DateTime @map("aceite_lgpd_em")
+  motivoRecusa  String?  @map("motivo_recusa") @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user             User   @relation("FichaDoUsuario", fields: [userId], references: [id], onDelete: Cascade)
+  tenant           Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  superiorIndicado User?  @relation("FichaSuperiorIndicado", fields: [superiorIndicadoId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("fichas_cadastrais")
+}
+
+// Quem viu os dados bancarios de uma ficha e quando (LGPD).
+model FichaAcessoSensivel {
+  id        String   @id @default(uuid()) @db.Uuid
+  titularId String   @map("titular_id") @db.Uuid
+  leitorId  String   @map("leitor_id") @db.Uuid
+  em        DateTime @default(now())
+
+  titular User @relation("AcessoFichaTitular", fields: [titularId], references: [id], onDelete: Cascade)
+  leitor  User @relation("AcessoFichaLeitor", fields: [leitorId], references: [id], onDelete: Cascade)
+
+  @@index([titularId, em])
+  @@map("ficha_acessos_sensiveis")
 }

@@ -32,6 +32,8 @@ import { GetContratoParceriaConfigUseCase } from './application/use-cases/get-co
 import { UpdateContratoParceriaConfigUseCase } from './application/use-cases/update-contrato-parceria-config.use-case';
 import { ContratoParceriaAssinadoListener } from './infra/listeners/contrato-parceria-assinado.listener';
 import { PrismaService } from '../../config/prisma.service';
+import { FichaCadastralRepository } from './infra/database/ficha-cadastral.repository';
+import { CadastroEquipeUseCases } from './application/use-cases/cadastro-equipe.use-cases';
 import { ResendEmailSender } from '../../shared/infra/services/resend-email-sender';
 import { EdocModule } from '../edoc/edoc.module';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
@@ -44,6 +46,8 @@ import { PlantaoModule } from '../plantao/plantao.module';
   controllers: [RhController],
   providers: [
     PrismaService,
+    FichaCadastralRepository,
+    CadastroEquipeUseCases,
     CreateCorretorUseCase,
     ListCorretoresUseCase,
     UpdateStatusDisponibilidadeUseCase,

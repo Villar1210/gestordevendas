@@ -1,6 +1,6 @@
 // src/modules/rh/infra/http/rh.controller.ts
 import { Throttle } from '@nestjs/throttler';
-import { Body, Controller, Get, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../../shared/infra/http/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/infra/http/guards/roles.guard';
@@ -14,6 +14,8 @@ import { UpdateContratoTemplateDto } from './dtos/update-contrato-template.dto';
 import { UpdateContratoParceriaConfigDto } from './dtos/update-contrato-parceria-config.dto';
 import { UpdateUserCargoDto } from './dtos/update-user-cargo.dto';
 import { UpdateEmailTemplateDto } from './dtos/update-email-template.dto';
+import { CadastroEquipeDto, RejeitarCadastroDto } from './dtos/cadastro-equipe.dto';
+import { CadastroEquipeUseCases, SituacaoCadastro } from '../../application/use-cases/cadastro-equipe.use-cases';
 import { CreateCorretorUseCase } from '../../application/use-cases/create-corretor.use-case';
 import { ListCorretoresUseCase } from '../../application/use-cases/list-corretores.use-case';
 import { UpdateStatusDisponibilidadeUseCase } from '../../application/use-cases/update-status-disponibilidade.use-case';
@@ -57,7 +59,50 @@ export class RhController {
     private readonly listEmailTemplatesUseCase: ListEmailTemplatesUseCase,
     private readonly updateEmailTemplateUseCase: UpdateEmailTemplateUseCase,
     private readonly registrarAtividadeUseCase: RegistrarAtividadeUseCase,
+    private readonly cadastroEquipe: CadastroEquipeUseCases,
   ) {}
+
+  // ---- Cadastro completo da equipe interna (25/11/2026) ----
+
+  // GET /rh/cadastro-equipe/superiores?cargo= - publica (tela inicial): so id e nome.
+  @Throttle({ default: { limit: 60, ttl: 600_000 } })
+  @Get('cadastro-equipe/superiores')
+  async superioresParaCargo(@Query('cargo') cargo: string) {
+    return this.cadastroEquipe.superioresParaCargo(cargo ?? '');
+  }
+
+  // POST /rh/cadastro-equipe - publica: ficha completa vira cadastro pendente.
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
+  @Post('cadastro-equipe')
+  async enviarFichaEquipe(@Body() dto: CadastroEquipeDto) {
+    return this.cadastroEquipe.enviarFicha(dto);
+  }
+
+  // GET /rh/cadastros-equipe?situacao=pendente|aprovado|rejeitado (so Administrador)
+  @Get('cadastros-equipe')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async listarCadastrosEquipe(@Req() req: Request, @Query('situacao') situacao?: string) {
+    const s: SituacaoCadastro = situacao === 'aprovado' || situacao === 'rejeitado' ? situacao : 'pendente';
+    return this.cadastroEquipe.listar(req.user!.tenantId, s);
+  }
+
+  // GET /rh/cadastros-equipe/:id - ficha completa, pagamento mascarado (so Administrador)
+  @Get('cadastros-equipe/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async fichaEquipe(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.cadastroEquipe.ficha(req.user!.tenantId, id);
+  }
+
+  // POST /rh/cadastros-equipe/:id/pagamento - mostra os dados bancarios e
+  // registra quem viu (LGPD). POST para nao ficar em cache/historico.
+  @Post('cadastros-equipe/:id/pagamento')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Administrador')
+  async revelarPagamento(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.cadastroEquipe.revelarPagamento(req.user!.tenantId, id, req.user!.id);
+  }
 
   // POST /rh/corretores - cadastra um novo corretor (so Administrador)
   @Post('corretores')
@@ -169,12 +214,15 @@ export class RhController {
   @Post('cadastros/:id/rejeitar')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('Administrador')
-  async rejeitarCadastro(@Param('id') id: string, @Req() req: Request) {
-    return this.rejeitarCadastroUseCase.execute({
+  async rejeitarCadastro(@Param('id') id: string, @Req() req: Request, @Body() dto: RejeitarCadastroDto = {}) {
+    const r = await this.rejeitarCadastroUseCase.execute({
       cadastroId: id,
       tenantId: req.user!.tenantId,
       requesterRole: req.user!.role,
     });
+    // Cadastro da equipe: guarda o motivo na ficha (aba Recusados do RH).
+    await this.cadastroEquipe.registrarMotivoRecusa(id, dto?.motivo);
+    return r;
   }
 
   // GET /rh/possiveis-superiores - lista candidatos a "superior" na hierarquia (so Administrador)

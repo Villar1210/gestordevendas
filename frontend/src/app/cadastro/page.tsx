@@ -12,10 +12,10 @@ const PERFIS = [
     description: "Busco imóveis para comprar, alugar ou quero anunciar o meu.",
   },
   {
-    href: "/cadastro/corretor",
+    href: "/cadastro/equipe",
     icon: Briefcase,
-    title: "Corretor de Imóveis",
-    description: "Sou profissional autônomo e quero ser corretor da equipe.",
+    title: "Equipe de vendas",
+    description: "Corretor, coordenador ou gerente que vai fazer parte da equipe.",
   },
   {
     href: "/cadastro/parceiro",
